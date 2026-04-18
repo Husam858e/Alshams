@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ميزان الشمس</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!--
+  ════════════════════════════════════════════════════
+  لتفعيل Firebase: أزل التعليق عن السطور الثلاثة أدناه
+  وعدّل firebase-config.js بإضافة بياناتك
+  ════════════════════════════════════════════════════
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+-->
+<style>
+/* ─── ROOT ─── */
+:root{
+  --bg:#07101f;--sf:#0f1c2e;--s2:#162236;--s3:#1d2d45;
+  --bd:rgba(255,255,255,.07);--b2:rgba(255,255,255,.12);
+  --go:#f59e0b;--go2:#fbbf24;
+  --gn:#10b981;--rd:#ef4444;--bl:#3b82f6;
+  --pu:#8b5cf6;--or:#f97316;--cy:#06b6d4;
+  --tx:#e2e8f0;--mu:#64748b;--mu2:#94a3b8;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;direction:rtl;font-size:13px;}
+input,select,button{font-family:'Cairo',sans-serif;}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px;}
+@keyframes fup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes p2{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1e293b;border:1px solid rgba(255,255,255,.1);border-radius:50px;padding:8px 18px;color:var(--tx);font-size:12px;font-weight:700;z-index:9999;transition:transform .3s;box-shadow:0 8px 28px rgba(0,0,0,.5);white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ─── LOGIN ─── */
+#LS{min-height:100vh;background:radial-gradient(ellipse at 20% 20%,rgba(245,158,11,.14) 0%,transparent 50%),radial-gradient(ellipse at 85% 85%,rgba(139,92,246,.11) 0%,transparent 50%),var(--bg);display:flex;align-items:center;justify-content:center;padding:18px;}
+.lc{background:rgba(255,255,255,.025);backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:30px 26px;width:100%;max-width:450px;box-shadow:0 36px 70px rgba(0,0,0,.7);animation:fup .5s ease;}
+.lia{text-align:center;margin-bottom:20px;}
+.liico{font-size:48px;display:block;margin-bottom:7px;animation:p2 3s ease-in-out infinite;}
+.litl{font-size:19px;font-weight:900;color:var(--go);}
+.lisb{font-size:10px;color:var(--mu);margin-top:2px;line-height:1.6;}
+.slbl{color:var(--mu);font-size:9px;font-weight:800;letter-spacing:1px;margin-bottom:7px;text-transform:uppercase;}
+.ugrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px;}
+.ubtn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px;border-radius:10px;border:1.5px solid var(--b2);background:rgba(255,255,255,.02);color:var(--mu);cursor:pointer;transition:all .2s;font-size:10px;font-weight:700;}
+.ubtn:hover{border-color:rgba(245,158,11,.4);color:var(--tx);background:rgba(245,158,11,.06);}
+.ubtn.active{border-color:var(--go);background:rgba(245,158,11,.1);color:var(--go2);}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;}
+.pdots{display:flex;justify-content:center;gap:12px;margin:10px 0;}
+.pdot{width:14px;height:14px;border-radius:50%;border:2px solid var(--go);background:transparent;transition:all .2s;}
+.pdot.filled{background:var(--go);box-shadow:0 0 8px rgba(245,158,11,.5);}
+.npad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:185px;margin:0 auto 12px;}
+.nk{padding:11px;font-size:17px;font-weight:800;border-radius:8px;border:1px solid var(--b2);background:rgba(255,255,255,.04);color:var(--tx);cursor:pointer;transition:all .15s;}
+.nk:hover{background:rgba(245,158,11,.13);border-color:var(--go);transform:scale(1.05);}
+.nk:active{transform:scale(.93);}
+.nk.e{opacity:0;pointer-events:none;}
+.perr{color:var(--rd);font-size:11px;margin-bottom:6px;text-align:center;animation:sh .3s ease;}
+.lbtn{width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:14px;font-weight:900;cursor:pointer;transition:all .2s;box-shadow:0 7px 22px rgba(245,158,11,.3);}
+.lbtn:hover:not(:disabled){transform:translateY(-1px);}
+.lbtn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ─── APP ─── */
+#AS{display:none;min-height:100vh;flex-direction:column;}
+#AS.active{display:flex;}
+.tb{position:sticky;top:0;z-index:200;background:rgba(7,16,31,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd);padding:8px 13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;}
+.tbr{display:flex;align-items:center;gap:8px;}
+.tbico{font-size:20px;}
+.tbn{font-size:13px;font-weight:900;color:var(--go);}
+.tbu{color:var(--mu2);font-size:11px;}
+.lgbtn{padding:4px 10px;border-radius:6px;border:1px solid var(--b2);background:transparent;color:var(--mu);cursor:pointer;font-size:10px;transition:all .2s;}
+.lgbtn:hover{border-color:var(--rd);color:var(--rd);}
+.tabs{display:flex;gap:2px;padding:6px 10px;border-bottom:1px solid var(--bd);background:rgba(0,0,0,.22);overflow-x:auto;flex-shrink:0;}
+.tbb{padding:6px 12px;border-radius:7px;border:none;background:transparent;color:var(--mu);cursor:pointer;font-size:11px;font-weight:800;transition:all .2s;white-space:nowrap;}
+.tbb:hover{color:var(--tx);}
+.tbb.active{background:rgba(245,158,11,.13);color:var(--go2);}
+.tc{display:none;padding:11px;max-width:1040px;margin:0 auto;width:100%;}
+.tc.active{display:block;animation:fup .3s ease;}
+
+/* CARD */
+.cd{background:var(--sf);border-radius:16px;border:1px solid var(--bd);padding:15px;margin-bottom:10px;}
+.cdt{font-size:14px;font-weight:900;color:var(--tx);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* FORM */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px;margin-bottom:10px;}
+.fi-g{display:flex;flex-direction:column;gap:3px;}
+.fl{color:var(--mu2);font-size:9px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;}
+.fi{padding:8px 10px;border-radius:7px;border:1.5px solid var(--b2);background:rgba(255,255,255,.04);color:var(--tx);font-size:12px;outline:none;transition:border .2s;width:100%;}
+.fi:focus{border-color:var(--go);}
+.fi.err{border-color:var(--rd);}
+.fs{padding:8px 10px;border-radius:7px;border:1.5px solid var(--b2);background:rgba(255,255,255,.04);color:var(--tx);font-size:12px;outline:none;width:100%;}
+.fs:focus{border-color:var(--go);}
+.em{color:var(--rd);font-size:9px;font-weight:700;}
+
+/* TOGGLE */
+.trow{display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.tog{position:relative;width:38px;height:19px;background:var(--s2);border-radius:9px;cursor:pointer;transition:background .2s;border:1px solid var(--b2);}
+.tog.on{background:var(--pu);border-color:var(--pu);}
+.togk{position:absolute;top:2px;right:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.tog.on .togk{transform:translateX(-19px);}
+.tlbl{color:var(--tx);font-size:11px;font-weight:700;}
+
+/* MATERIAL */
+.mr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px;}
+.mb{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px;border-radius:10px;border:2px solid var(--b2);background:rgba(255,255,255,.02);color:var(--mu);cursor:pointer;transition:all .25s;font-size:12px;font-weight:800;}
+.mb .mi{font-size:24px;}
+.mb.active{border-color:var(--go);background:rgba(245,158,11,.08);color:var(--go2);}
+
+/* KABS BOX */
+.kb{background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.2);border-radius:10px;padding:11px;margin-bottom:12px;}
+.kbh{font-size:11px;font-weight:900;color:var(--pu);margin-bottom:8px;}
+.ktr{display:flex;gap:6px;margin-bottom:8px;}
+.ktb{flex:1;padding:6px;border-radius:7px;border:1.5px solid var(--b2);background:rgba(255,255,255,.02);color:var(--mu);cursor:pointer;font-size:11px;font-weight:800;transition:all .2s;text-align:center;}
+.ktb.active{border-color:var(--pu);background:rgba(139,92,246,.11);color:#c4b5fd;}
+
+/* STAGE BAR */
+.sbar{display:flex;margin-bottom:13px;background:var(--s2);border-radius:50px;padding:3px;border:1px solid var(--bd);}
+.ss{flex:1;display:flex;align-items:center;justify-content:center;gap:3px;padding:6px 3px;border-radius:46px;font-size:10px;font-weight:800;color:var(--mu);transition:all .3s;text-align:center;}
+.ss.active{background:linear-gradient(135deg,var(--go),var(--or));color:#fff;box-shadow:0 3px 10px rgba(245,158,11,.3);}
+.ss.done{background:rgba(16,185,129,.13);color:var(--gn);}
+
+/* BUTTONS */
+.btn{padding:7px 12px;border-radius:7px;border:none;cursor:pointer;font-size:11px;font-weight:800;transition:all .2s;display:inline-flex;align-items:center;gap:4px;}
+.bg{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;}
+.bg:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,158,11,.28);}
+.bgn{background:linear-gradient(135deg,#059669,#10b981);color:#fff;}
+.bgn:hover{transform:translateY(-1px);}
+.bor{background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;}
+.bor:hover{transform:translateY(-1px);}
+.bbl{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;}
+.bgh{background:transparent;border:1px solid var(--b2);color:var(--mu);}
+.bgh:hover{border-color:var(--bl);color:var(--bl);}
+.bfw{width:100%;justify-content:center;padding:11px;}
+.bsm{padding:4px 10px;font-size:10px;}
+
+/* BADGES */
+.badge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;display:inline-block;}
+.bj{background:rgba(132,204,22,.13);color:#84cc16;}
+.bgr{background:rgba(120,113,108,.17);color:#a8a29e;}
+.bw{background:rgba(249,115,22,.15);color:var(--or);animation:bl 1.8s ease-in-out infinite;}
+.bc{background:rgba(234,179,8,.15);color:#eab308;}
+.bd{background:rgba(16,185,129,.13);color:var(--gn);}
+.bp{background:rgba(139,92,246,.14);color:#c4b5fd;}
+.bcy{background:rgba(6,182,212,.11);color:var(--cy);}
+
+/* FILTER */
+.fbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;background:var(--sf);border-radius:10px;border:1px solid var(--bd);padding:9px 12px;margin-bottom:10px;}
+.fg2{display:flex;align-items:center;gap:5px;}
+.fl2{color:var(--mu);font-size:9px;font-weight:800;}
+.fs2{padding:4px 8px;border-radius:6px;border:1px solid var(--b2);background:rgba(255,255,255,.05);color:var(--tx);font-size:10px;outline:none;}
+.fac{margin-right:auto;display:flex;gap:5px;flex-wrap:wrap;}
+.fsum{width:100%;display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;padding-top:6px;border-top:1px solid var(--bd);}
+.fsum span{color:var(--mu2);font-size:10px;}
+.fsum strong{color:var(--go2);}
+
+/* RECORD CARD */
+.rc{background:var(--sf);border-radius:14px;border:1px solid var(--bd);padding:11px;transition:all .2s;animation:fup .3s ease;}
+.rc:hover{border-color:rgba(245,158,11,.14);}
+.rc.done{opacity:.67;border-color:rgba(16,185,129,.17);}
+.rc.waiting{border-color:rgba(249,115,22,.36);}
+.rt{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:4px;}
+.rtl{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.rpl{color:var(--tx);font-weight:900;font-size:14px;}
+.rdr{color:var(--mu2);font-size:11px;}
+.rmt{display:flex;flex-wrap:wrap;gap:6px;color:#475569;font-size:9px;margin-bottom:7px;}
+.stl{display:flex;margin-bottom:7px;border-radius:5px;overflow:hidden;border:1px solid var(--bd);}
+.sts{flex:1;text-align:center;padding:4px 2px;font-size:9px;font-weight:800;color:#2d3a4e;background:var(--s2);}
+.sts.done{background:rgba(16,185,129,.11);color:var(--gn);}
+.sts.cur{background:rgba(249,115,22,.14);color:var(--or);}
+.rw{display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:rgba(255,255,255,.02);border-radius:6px;padding:6px 8px;margin-bottom:6px;}
+.rwi{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.rwk{color:#475569;font-size:8px;font-weight:800;}
+.rwv{font-size:11px;font-weight:800;color:var(--tx);}
+.rws{color:#1e293b;font-size:11px;}
+.fa{background:rgba(245,158,11,.11);border-radius:5px;padding:3px 6px;border:1px solid rgba(245,158,11,.19);}
+.rac{display:flex;gap:5px;flex-wrap:wrap;}
+
+/* STATS */
+.sgr{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;}
+.sc{background:var(--sf);border-radius:14px;border:1px solid var(--bd);border-top:3px solid;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;}
+.si{font-size:24px;}.sv{font-size:17px;font-weight:900;color:var(--tx);}.sl{font-size:9px;color:var(--mu);font-weight:700;}
+
+/* WAREHOUSES */
+.whg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:9px;}
+.whc{background:var(--sf);border-radius:14px;border:1px solid var(--bd);padding:14px;}
+.whn{font-size:14px;font-weight:900;color:var(--tx);margin-bottom:2px;}
+.whst{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;}
+.whs{display:flex;flex-direction:column;gap:1px;}
+.whsk{font-size:8px;color:var(--mu);font-weight:800;}
+.whsv{font-size:12px;font-weight:900;color:var(--tx);}
+
+/* REPORT TABLE */
+.rtwrap{overflow-x:auto;}
+.rtbl{width:100%;border-collapse:collapse;font-size:10px;}
+.rtbl th{background:var(--s2);padding:6px 8px;text-align:right;color:var(--mu2);font-weight:800;border-bottom:1px solid var(--bd);white-space:nowrap;}
+.rtbl td{padding:6px 8px;border-bottom:1px solid var(--bd);color:var(--tx);white-space:nowrap;}
+.rtbl tr:hover td{background:rgba(255,255,255,.02);}
+.rtbl .tot td{background:rgba(245,158,11,.07);font-weight:900;color:var(--go2);border-top:2px solid rgba(245,158,11,.25);}
+.ptbs{display:flex;background:var(--s2);border-radius:8px;padding:2px;gap:2px;}
+.ptb{padding:5px 11px;border-radius:6px;border:none;background:transparent;color:var(--mu);cursor:pointer;font-size:11px;font-weight:800;transition:all .2s;}
+.ptb.active{background:rgba(245,158,11,.14);color:var(--go2);}
+
+/* MODALS */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);align-items:center;justify-content:center;z-index:500;padding:12px;}
+.mo.active{display:flex;}
+.mob{background:var(--s2);border-radius:18px;border:1px solid rgba(255,255,255,.1);padding:22px 18px;max-width:460px;width:100%;animation:fup .3s ease;box-shadow:0 28px 70px rgba(0,0,0,.7);max-height:90vh;overflow-y:auto;}
+.mico{font-size:38px;margin-bottom:8px;text-align:center;}
+.mtit{font-size:14px;font-weight:900;color:var(--tx);margin-bottom:7px;text-align:center;}
+.mtxt{color:var(--mu2);font-size:11px;line-height:1.65;margin-bottom:3px;text-align:center;}
+.mtxt strong{color:var(--go2);}
+.mca{color:var(--go2);font-weight:800;font-size:11px;margin-top:6px;text-align:right;min-height:14px;}
+.mbtns{display:flex;gap:7px;margin-top:12px;}
+
+/* ═══════════════════════════════════════════════
+   PRINT STYLES — COMPACT A4
+═══════════════════════════════════════════════ */
+#PS{display:none;min-height:100vh;background:#e8ecf0;font-family:'Cairo',sans-serif;direction:rtl;padding:20px;align-items:flex-start;justify-content:center;}
+#PS.active{display:flex;}
+
+/* Single receipt */
+.pc{background:#fff;width:100%;max-width:540px;box-shadow:0 6px 28px rgba(0,0,0,.13);page-break-after:always;}
+
+/* Company top */
+.pct{background:#fff;padding:8px 16px 4px;text-align:center;border-bottom:2px solid #0a1628;}
+.pcn{font-size:22px;font-weight:900;color:#0a1628;letter-spacing:.3px;line-height:1.1;}
+.pctag{font-size:10px;color:#475569;margin-top:2px;font-weight:600;}
+.pcbadge{display:inline-block;background:#f59e0b;color:#fff;font-size:8px;font-weight:800;padding:1px 8px;border-radius:20px;margin-top:3px;}
+.pgbar{height:3px;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);}
+
+/* Receipt header */
+.prh{background:#0a1628;color:#fff;padding:7px 16px;display:flex;justify-content:space-between;align-items:center;}
+.prhtl{font-size:13px;font-weight:900;}
+.prhmt{font-size:8px;opacity:.6;text-align:left;line-height:1.5;}
+
+/* Body */
+.prb{padding:6px 14px;}
+.psec{background:#f1f5f9;padding:3px 10px;font-size:8px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;margin:2px 0;}
+.prr{display:flex;justify-content:space-between;align-items:center;padding:3px 10px;border-bottom:1px solid #f8fafc;}
+.prk{color:#475569;font-size:10px;font-weight:600;}
+.prv{color:#0f172a;font-size:10px;font-weight:900;}
+.prtot{display:flex;justify-content:space-between;padding:9px 14px;background:#0a1628;}
+.prtot .pk{font-size:12px;font-weight:700;color:#fff;}
+.prtot .pv{font-size:14px;font-weight:900;color:#f59e0b;}
+.prwb{background:#fff7ed;border:1.5px dashed #f97316;border-radius:5px;padding:5px;margin:5px 14px;text-align:center;color:#ea580c;font-weight:900;font-size:9px;}
+
+/* Footer contact */
+.prf{background:#f8fafc;border-top:2px solid #e2e8f0;padding:7px 14px;text-align:center;}
+.prft{font-size:11px;font-weight:900;color:#0a1628;margin-bottom:2px;}
+.prfi{font-size:9px;color:#475569;line-height:1.9;}
+.prfn{font-size:8px;color:#94a3b8;margin-top:3px;font-style:italic;}
+
+/* Print buttons */
+.pbtns{padding:9px;display:flex;gap:7px;background:#fff;border-top:1px solid #e2e8f0;}
+.pdop{flex:2;padding:9px;border-radius:7px;border:none;background:#0a1628;color:#fff;font-weight:900;cursor:pointer;font-size:12px;}
+.pbk{flex:1;padding:9px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:800;cursor:pointer;font-size:11px;}
+
+/* COLLECTION table */
+.coltbl{width:100%;border-collapse:collapse;font-size:9px;}
+.coltbl th{background:#1e293b;color:#94a3b8;padding:5px 7px;text-align:right;font-weight:800;border-bottom:2px solid #334155;white-space:nowrap;}
+.coltbl td{padding:4px 7px;border-bottom:1px solid #f1f5f9;color:#0f172a;white-space:nowrap;}
+.coltbl tr:nth-child(even) td{background:#f8fafc;}
+.coltbl .ctot td{background:#0a1628!important;color:#f59e0b!important;font-weight:900;}
+.col-wh-title{background:linear-gradient(135deg,#0a1628,#1e3a5f);color:#fff;padding:6px 14px;font-size:11px;font-weight:900;border-top:2px solid #f59e0b;}
+.col-wh-summary{display:flex;border-top:1px solid #e2e8f0;}
+.col-wh-summary div{flex:1;padding:7px 8px;text-align:center;border-left:1px solid #e2e8f0;}
+.col-wh-summary .ck{font-size:8px;color:#64748b;font-weight:800;}
+.col-wh-summary .cv{font-size:11px;font-weight:900;}
+
+@media print{
+  .pbtns,.colbtns{display:none!important;}
+  body>*:not(#PS){display:none!important;}
+  #PS{display:flex!important;background:#fff;padding:0;}
+  .pc{box-shadow:none;}
+  @page{size:A4;margin:6mm;}
+}
+</style>
+</head>
+<body>
+<div id="toast">✅</div>
+
+<!-- LOGIN -->
+<div id="LS">
+<div class="lc">
+  <div class="lia">
+    <span class="liico">☀️</span>
+    <div class="litl">ميزان الشمس</div>
+    <div class="lisb">لوزن كافة الشاحنات الخفيفة والثقيلة<br>بدقة عالية — بدقة ١ كغم</div>
+  </div>
+  <p class="slbl">اختر المستخدم</p>
+  <div class="ugrid" id="UG"></div>
+  <div id="pinSec" style="display:none">
+    <p class="slbl" id="pinLbl" style="text-align:center"></p>
+    <div style="text-align:center">
+      <div class="pdots"><div class="pdot" id="d0"></div><div class="pdot" id="d1"></div><div class="pdot" id="d2"></div><div class="pdot" id="d3"></div></div>
+      <div class="npad">
+        <button class="nk" onclick="np(1)">١</button><button class="nk" onclick="np(2)">٢</button><button class="nk" onclick="np(3)">٣</button>
+        <button class="nk" onclick="np(4)">٤</button><button class="nk" onclick="np(5)">٥</button><button class="nk" onclick="np(6)">٦</button>
+        <button class="nk" onclick="np(7)">٧</button><button class="nk" onclick="np(8)">٨</button><button class="nk" onclick="np(9)">٩</button>
+        <button class="nk e"></button><button class="nk" onclick="np(0)">٠</button><button class="nk" onclick="nd()">⌫</button>
+      </div>
+      <p class="perr" id="pErr" style="display:none">❌ رمز دخول خاطئ</p>
+      <button class="lbtn" id="lBtn" onclick="doLogin()" disabled>دخول ←</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- APP -->
+<div id="AS">
+  <div class="tb">
+    <div class="tbr"><span class="tbico">☀️</span><span class="tbn">ميزان الشمس</span></div>
+    <div class="tbr"><span class="tbu" id="TU"></span><button class="lgbtn" onclick="doLogout()">خروج</button></div>
+  </div>
+  <div class="tabs">
+    <button class="tbb active" onclick="sT('new',this)">➕ وصل جديد</button>
+    <button class="tbb" onclick="sT('recs',this)">📋 السجلات</button>
+    <button class="tbb" onclick="sT('wh',this)">🏭 المخازن</button>
+    <button class="tbb" onclick="sT('rpt',this)">📊 التقارير</button>
+    <button class="tbb" onclick="sT('coll',this)">💼 المحصلة</button>
+    <button class="tbb" onclick="sT('st',this)">📈 إحصائيات</button>
+  </div>
+
+  <!-- NEW -->
+  <div class="tc active" id="tc-new">
+    <div class="cd">
+      <div class="cdt">➕ وصل جديد — المرحلة ١</div>
+      <div class="sbar"><div class="ss active">① وزن محمل</div><div class="ss">② تأكيد مخزن + سعر</div><div class="ss">③ وزن فارغ + إغلاق</div></div>
+      <div class="mr">
+        <button class="mb active" id="mj" onclick="sM('jet')"><span class="mi">🌾</span><span>الجت المكبوس</span></button>
+        <button class="mb" id="mg" onclick="sM('gravel')"><span class="mi">🪨</span><span>الجرش</span></button>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <div class="fi-g">
+          <label class="fl">المخزن الذي ستنزل به الحمولة</label>
+          <select class="fs" id="fWH">
+            <option value="ابو ابراهيم">🏭 أبو إبراهيم</option>
+            <option value="سعد">🏭 سعد</option>
+            <option value="سعدي">🏭 سعدي</option>
+          </select>
+        </div>
+      </div>
+      <div class="kb">
+        <div class="kbh">🔧 الكبس — يُطرح من المجموع</div>
+        <div class="trow"><div class="tog" id="kTog" onclick="tKabs()"><div class="togk"></div></div><span class="tlbl" id="kLbl">بدون كبس</span></div>
+        <div id="kF" style="display:none">
+          <div class="ktr"><button class="ktb active" id="ks" onclick="sKT('سيم')">🔗 سيم</button><button class="ktb" id="kk" onclick="sKT('خيط')">🧵 خيط</button></div>
+          <div class="fg"><div class="fi-g"><label class="fl">عدد الكبسات</label><input class="fi" id="kC" type="number" min="1" oninput="upPrev()"/></div><div class="fi-g"><label class="fl">سعر الكبسة (د.ع)</label><input class="fi" id="kP" type="number" min="0" oninput="upPrev()"/></div></div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="fi-g"><label class="fl">اسم السائق</label><input class="fi" id="fDrv" type="text" placeholder="اسم السائق"/><span class="em" id="eDrv"></span></div>
+        <div class="fi-g"><label class="fl">رقم العجلة</label><input class="fi" id="fPlt" type="text" placeholder="رقم اللوحة"/><span class="em" id="ePlt"></span></div>
+        <div class="fi-g"><label class="fl">⚖️ الوزن الكلي — محمل (كغم)</label><input class="fi" id="fGrs" type="number" min="0" step="1" placeholder="كغم" oninput="upPrev()"/><span class="em" id="eGrs"></span></div>
+      </div>
+      <div id="WP" style="display:none;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid var(--bd);padding:9px;margin-bottom:10px;display:none;flex-wrap:wrap;gap:5px;align-items:center">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px"><span style="color:var(--mu);font-size:8px;font-weight:800">الكلي</span><span id="pG" style="font-size:11px;font-weight:900">—</span></div>
+        <span style="color:#1e293b;font-size:12px">−</span>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px"><span style="color:var(--mu);font-size:8px;font-weight:800">الفارغ</span><span style="font-size:10px;color:var(--mu)">لاحقاً</span></div>
+        <span style="color:#1e293b;font-size:12px">=</span>
+        <div id="pKW" style="display:none;align-items:center;gap:5px">
+          <div style="background:rgba(139,92,246,.09);border-radius:6px;padding:4px 7px;display:flex;flex-direction:column;align-items:center"><span style="color:var(--mu);font-size:8px;font-weight:800">كبس محجوز</span><span id="pKV" style="font-size:11px;font-weight:900;color:#a78bfa">—</span></div>
+        </div>
+      </div>
+      <button class="btn bg bfw" onclick="submitRec()">💾 حفظ الوصل — انتظار تأكيد المخزن</button>
+    </div>
+  </div>
+
+  <!-- RECORDS -->
+  <div class="tc" id="tc-recs">
+    <div class="fbar">
+      <div class="fg2"><span class="fl2">المادة:</span><select class="fs2" id="fM" onchange="renderRecs()"><option value="all">الكل</option><option value="jet">الجت</option><option value="gravel">الجرش</option></select></div>
+      <div class="fg2"><span class="fl2">الحالة:</span><select class="fs2" id="fS" onchange="renderRecs()"><option value="all">الكل</option><option value="waiting">انتظار تأكيد</option><option value="confirmed">انتظار وزن فارغ</option><option value="weighed">مكتمل ✓</option></select></div>
+      <div class="fg2"><span class="fl2">المخزن:</span><select class="fs2" id="fW" onchange="renderRecs()"><option value="all">الكل</option><option value="ابو ابراهيم">أبو إبراهيم</option><option value="سعد">سعد</option><option value="سعدي">سعدي</option></select></div>
+      <div class="fac"><input class="fs2" id="fDt" type="date" onchange="renderRecs()" style="min-width:120px"/><button class="btn bgh bsm" onclick="clrF()">× فلتر</button></div>
+      <div class="fsum" id="FSm"></div>
+    </div>
+    <div id="RL" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- WAREHOUSES -->
+  <div class="tc" id="tc-wh">
+    <div class="cd"><div class="cdt">🏭 المخازن</div><div class="whg" id="WHG"></div></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="tc" id="tc-rpt">
+    <div class="cd">
+      <div class="cdt">📊 التقارير</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:10px">
+        <div class="ptbs"><button class="ptb active" onclick="sRpt('daily',this)">يومي</button><button class="ptb" onclick="sRpt('weekly',this)">أسبوعي</button><button class="ptb" onclick="sRpt('monthly',this)">شهري</button></div>
+        <input class="fs2" id="rDt" type="date" style="min-width:125px" onchange="renderRpt()"/>
+        <button class="btn bgn bsm" onclick="expXL()">📥 Excel</button>
+      </div>
+      <div class="rtwrap" id="RW"></div>
+    </div>
+  </div>
+
+  <!-- COLLECTION -->
+  <div class="tc" id="tc-coll">
+    <!-- ALL WAREHOUSES COMBINED -->
+    <div class="cd">
+      <div class="cdt">💼 محصلة شاملة — جميع المخازن</div>
+      <p style="color:var(--mu2);font-size:11px;margin-bottom:10px">تشمل جميع المخازن مقسّمة بأقسام — تشمل الوصلات المكتملة فقط</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px">
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 اليوم — جميع المخازن</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bg bsm" onclick="openColl('daily')">🖨️ عرض</button>
+            <button class="btn bbl bsm" onclick="shareColl('daily','all')">📤 مشاركة</button>
+          </div>
+        </div>
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 الأسبوع — جميع المخازن</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bor bsm" onclick="openColl('weekly')">🖨️ عرض</button>
+            <button class="btn bbl bsm" onclick="shareColl('weekly','all')">📤 مشاركة</button>
+          </div>
+        </div>
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 الشهر — جميع المخازن</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bgn bsm" onclick="openColl('monthly')">🖨️ عرض</button>
+            <button class="btn bbl bsm" onclick="shareColl('monthly','all')">📤 مشاركة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PER-WAREHOUSE -->
+    <div class="cd">
+      <div class="cdt">🏭 محصلة كل مخزن على حده</div>
+      <p style="color:var(--mu2);font-size:11px;margin-bottom:10px">تقرير PDF منفصل لكل مخزن — يمكن مشاركته مباشرة عبر واتساب أو تطبيقات أخرى</p>
+      <div style="display:flex;flex-direction:column;gap:10px" id="whCollGrid"></div>
+    </div>
+
+    <!-- SHARE EXCEL -->
+    <div class="cd">
+      <div class="cdt">📊 مشاركة Excel</div>
+      <p style="color:var(--mu2);font-size:11px;margin-bottom:10px">تنزيل ومشاركة ملف Excel لأي فترة زمنية</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px">
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 اليوم</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bgn bsm" onclick="expXLPeriod('daily')">📥 تنزيل</button>
+            <button class="btn bbl bsm" onclick="shareXL('daily')">📤 مشاركة</button>
+          </div>
+        </div>
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 الأسبوع</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bgn bsm" onclick="expXLPeriod('weekly')">📥 تنزيل</button>
+            <button class="btn bbl bsm" onclick="shareXL('weekly')">📤 مشاركة</button>
+          </div>
+        </div>
+        <div style="background:var(--s2);border-radius:9px;padding:9px;text-align:center">
+          <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:5px">📅 الشهر</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+            <button class="btn bgn bsm" onclick="expXLPeriod('monthly')">📥 تنزيل</button>
+            <button class="btn bbl bsm" onclick="shareXL('monthly')">📤 مشاركة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="tc" id="tc-st">
+    <div class="sgr" id="SG"></div>
+  </div>
+</div>
+
+<!-- PRINT -->
+<div id="PS"><div class="pc" id="PC"></div></div>
+
+<!-- SHARE MODAL -->
+<div class="mo" id="mShare">
+  <div class="mob" style="max-width:360px">
+    <div class="mico">📤</div>
+    <div class="mtit">مشاركة الملف</div>
+    <p class="mtxt">اختر تطبيق المشاركة</p>
+    <div id="shareOpts" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+    <div class="mbtns" style="margin-top:10px">
+      <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: تأكيد مخزن + سعر -->
+<div class="mo" id="mConf">
+  <div class="mob">
+    <div class="mico">🏭</div>
+    <div class="mtit">المرحلة ٢ — تأكيد المخزن وإدخال السعر</div>
+    <p class="mtxt" id="cT1"></p><p class="mtxt" id="cT2"></p>
+    <div class="fi-g" style="margin-top:10px"><label class="fl">سعر الكيلوغرام (د.ع / كغم)</label><input class="fi" id="cPrc" type="number" min="0" step="0.001" placeholder="أدخل سعر الكغم" oninput="prevConf()"/></div>
+    <div class="mca" id="cCalc"></div>
+    <div class="mbtns">
+      <button class="btn bor" style="flex:1;justify-content:center" onclick="confWH()">✅ تأكيد المخزن والسعر</button>
+      <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: وزن فارغ -->
+<div class="mo" id="mWeigh">
+  <div class="mob">
+    <div class="mico">⚖️</div>
+    <div class="mtit">المرحلة ٣ — إدخال الوزن الفارغ وإغلاق الوصل</div>
+    <p class="mtxt" id="wT"></p>
+    <div class="fi-g" style="margin-top:10px"><label class="fl">الوزن الفارغ (كغم)</label><input class="fi" id="eWI" type="number" min="0" step="1" placeholder="كغم" oninput="prevW()"/></div>
+    <div class="mca" id="wCalc"></div>
+    <div class="mbtns">
+      <button class="btn bgn" style="flex:1;justify-content:center" onclick="confWeigh()">✅ تأكيد وإغلاق الوصل</button>
+      <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: تعديل -->
+<div class="mo" id="mEdit">
+  <div class="mob" style="max-width:500px">
+    <div class="mtit">✏️ تعديل الوصل</div>
+    <input type="hidden" id="eId"/>
+    <div class="fg" style="margin-bottom:9px">
+      <div class="fi-g"><label class="fl">اسم السائق</label><input class="fi" id="eDv" type="text"/></div>
+      <div class="fi-g"><label class="fl">رقم العجلة</label><input class="fi" id="ePl" type="text"/></div>
+      <div class="fi-g"><label class="fl">المخزن</label><select class="fs" id="eWh"><option value="ابو ابراهيم">أبو إبراهيم</option><option value="سعد">سعد</option><option value="سعدي">سعدي</option></select></div>
+      <div class="fi-g"><label class="fl">المادة</label><select class="fs" id="eMt"><option value="jet">الجت</option><option value="gravel">الجرش</option></select></div>
+      <div class="fi-g"><label class="fl">سعر الكغم</label><input class="fi" id="ePrc" type="number" step="0.001"/></div>
+      <div class="fi-g"><label class="fl">الوزن الكلي (كغم)</label><input class="fi" id="eGr" type="number" step="1"/></div>
+      <div class="fi-g"><label class="fl">الوزن الفارغ (كغم)</label><input class="fi" id="eEm" type="number" step="1"/></div>
+      <div class="fi-g"><label class="fl">عدد الكبسات</label><input class="fi" id="eKC" type="number"/></div>
+      <div class="fi-g"><label class="fl">سعر الكبسة</label><input class="fi" id="eKP" type="number"/></div>
+      <div class="fi-g"><label class="fl">نوع الكبس</label><select class="fs" id="eKT"><option value="">بدون</option><option value="سيم">سيم</option><option value="خيط">خيط</option></select></div>
+    </div>
+    <div class="mbtns">
+      <button class="btn bg" style="flex:1;justify-content:center" onclick="saveEdit()">💾 حفظ</button>
+      <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   CONFIG — Firebase toggle
+══════════════════════════════════════ */
+const USE_FIREBASE = false; // ← غيّر إلى true بعد إضافة firebase-config.js
+
+/* ══════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════ */
+const USERS=[
+  {id:1,name:"حسام عايد",pin:"1111"},
+  {id:2,name:"بركات",pin:"2222"},
+  {id:3,name:"ابو ابراهيم",pin:"3333"},
+  {id:4,name:"سعد",pin:"4444"},
+  {id:5,name:"سعدي",pin:"5555"},
+];
+const MAT={jet:{label:"الجت المكبوس",icon:"🌾"},gravel:{label:"الجرش",icon:"🪨"}};
+const WHS=["ابو ابراهيم","سعد","سعدي"];
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let S={cu:null,su:null,pin:"",recs:[],mat:"jet",kOn:false,kType:"سيم",rptP:"daily",cId:null,wId:null};
+try{const v=localStorage.getItem("wShams3");if(v)S.recs=JSON.parse(v);}catch(e){}
+const save=()=>{
+  try{localStorage.setItem("wShams3",JSON.stringify(S.recs));}catch(e){}
+  if(USE_FIREBASE) fbSave();
+};
+
+/* ══════════════════════════════════════
+   FIREBASE BRIDGE (ينشّط عند USE_FIREBASE=true)
+══════════════════════════════════════ */
+let db=null;
+function initFB(){
+  if(!USE_FIREBASE||typeof firebase==="undefined")return;
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    fbLoad();
+    showToast("☁️ Firebase متصل");
+  }catch(e){console.warn("Firebase init failed:",e);}
+}
+async function fbSave(){
+  if(!db)return;
+  try{
+    const batch=db.batch();
+    S.recs.forEach(r=>{
+      const ref=db.collection("records").doc(r.id);
+      batch.set(ref,r);
+    });
+    await batch.commit();
+  }catch(e){console.warn("fbSave:",e);}
+}
+async function fbLoad(){
+  if(!db)return;
+  try{
+    const snap=await db.collection("records").orderBy("seq","desc").get();
+    if(!snap.empty){
+      S.recs=snap.docs.map(d=>d.data());
+      save_local();
+      renderRecs();renderStats();renderWH();renderRpt();
+    }
+  }catch(e){console.warn("fbLoad:",e);}
+}
+const save_local=()=>{try{localStorage.setItem("wShams3",JSON.stringify(S.recs));}catch(e){}};
+
+/* ══════════════════════════════════════
+   HELPERS
+══════════════════════════════════════ */
+const AR=n=>String(n).replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]);
+const fKG=n=>n==null?"—":AR(Math.round(n).toLocaleString("en"))+" كغم";
+const fIQD=n=>{if(n==null||isNaN(n))return"—";return AR(Math.round(n).toLocaleString("en"))+" د.ع";};
+const fN=(n,d=0)=>n==null?"—":AR(Number(n).toFixed(d));
+const genId=()=>{const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let r="";for(let i=0;i<8;i++)r+=c[Math.floor(Math.random()*c.length)];return r;};
+const now=()=>{const d=new Date(),p=x=>String(x).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;};
+const tAr=s=>s?s.replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]):s;
+const toDay=()=>{const d=new Date(),p=x=>String(x).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;};
+
+function calcFees(gross,empty,ppkg,kOn,kC,kUP){
+  const net=gross-empty;
+  const wFee=net*ppkg;
+  const kFee=kOn?(kC*kUP):0;
+  return{net,wFee,kFee,final:wFee-kFee};
+}
+
+function showToast(m,d=2000){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),d);}
+
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+(function init(){
+  document.getElementById("UG").innerHTML=USERS.map(u=>`
+    <button class="ubtn" id="u${u.id}" onclick="sU(${u.id})">
+      <div class="av">${u.name[0]}</div><span>${u.name}</span>
+    </button>`).join("");
+  document.getElementById("rDt").value=toDay();
+  initFB();
+})();
+
+function sU(id){
+  S.su=USERS.find(u=>u.id===id);S.pin="";
+  document.querySelectorAll(".ubtn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("u"+id).classList.add("active");
+  document.getElementById("pinSec").style.display="block";
+  document.getElementById("pinLbl").textContent="رمز الدخول لـ "+S.su.name;
+  document.getElementById("pErr").style.display="none";
+  document.getElementById("lBtn").disabled=true;updDots();
+}
+function np(n){if(S.pin.length>=4)return;S.pin+=n;updDots();if(S.pin.length===4)document.getElementById("lBtn").disabled=false;}
+function nd(){S.pin=S.pin.slice(0,-1);document.getElementById("lBtn").disabled=true;updDots();}
+function updDots(){for(let i=0;i<4;i++)document.getElementById("d"+i).classList.toggle("filled",i<S.pin.length);}
+function doLogin(){
+  if(!S.su)return;
+  if(String(S.su.pin)===String(S.pin)){
+    S.cu=S.su;
+    document.getElementById("LS").style.display="none";
+    document.getElementById("AS").classList.add("active");
+    document.getElementById("TU").textContent="👤 "+S.cu.name;
+    renderRecs();renderStats();renderWH();renderRpt();renderWhCollGrid();
+  }else{
+    document.getElementById("pErr").style.display="block";
+    S.pin="";document.getElementById("lBtn").disabled=true;updDots();
+  }
+}
+function doLogout(){
+  S.cu=null;S.su=null;S.pin="";
+  document.querySelectorAll(".ubtn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("pinSec").style.display="none";
+  document.getElementById("pErr").style.display="none";
+  document.getElementById("lBtn").disabled=true;
+  document.getElementById("AS").classList.remove("active");
+  document.getElementById("LS").style.display="flex";
+  updDots();clrForm();
+}
+
+/* ══════════════════════════════════════
+   TABS
+══════════════════════════════════════ */
+function sT(id,btn){
+  document.querySelectorAll(".tbb").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tc").forEach(c=>c.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tc-"+id).classList.add("active");
+  if(id==="recs")renderRecs();
+  if(id==="st")renderStats();
+  if(id==="wh")renderWH();
+  if(id==="rpt")renderRpt();
+  if(id==="coll")renderWhCollGrid();
+}
+
+/* ══════════════════════════════════════
+   FORM
+══════════════════════════════════════ */
+function sM(m){S.mat=m;document.getElementById("mj").classList.toggle("active",m==="jet");document.getElementById("mg").classList.toggle("active",m==="gravel");}
+function tKabs(){
+  S.kOn=!S.kOn;
+  document.getElementById("kTog").classList.toggle("on",S.kOn);
+  document.getElementById("kLbl").textContent=S.kOn?"كبس مفعّل ✓ (يُطرح)":"بدون كبس";
+  document.getElementById("kF").style.display=S.kOn?"block":"none";
+  if(!S.kOn){document.getElementById("kC").value="";document.getElementById("kP").value="";}
+  upPrev();
+}
+function sKT(t){S.kType=t;document.getElementById("ks").classList.toggle("active",t==="سيم");document.getElementById("kk").classList.toggle("active",t==="خيط");}
+function upPrev(){
+  const g=parseFloat(document.getElementById("fGrs").value);
+  const wp=document.getElementById("WP");
+  if(g>0){
+    wp.style.display="flex";
+    document.getElementById("pG").textContent=fKG(g);
+    const kC=parseFloat(document.getElementById("kC").value)||0;
+    const kP=parseFloat(document.getElementById("kP").value)||0;
+    const kw=document.getElementById("pKW");
+    if(S.kOn&&kC>0&&kP>0){kw.style.display="flex";document.getElementById("pKV").textContent=fIQD(kC*kP);}
+    else kw.style.display="none";
+  } else wp.style.display="none";
+}
+function sErr(id,m){document.getElementById("e"+id).textContent=m;document.getElementById("f"+id)?.classList.add("err");}
+function clrE(){["Drv","Plt","Grs"].forEach(id=>{document.getElementById("e"+id).textContent="";document.getElementById("f"+id)?.classList.remove("err");});}
+
+function submitRec(){
+  clrE();let ok=true;
+  const drv=document.getElementById("fDrv").value.trim();
+  const plt=document.getElementById("fPlt").value.trim();
+  const grs=parseFloat(document.getElementById("fGrs").value);
+  const wh=document.getElementById("fWH").value;
+  if(!drv){sErr("Drv","⚠ مطلوب");ok=false;}
+  if(!plt){sErr("Plt","⚠ مطلوب");ok=false;}
+  if(!grs||grs<=0){sErr("Grs","⚠ أدخل وزناً");ok=false;}
+  if(!ok)return;
+  const kC=S.kOn?(parseFloat(document.getElementById("kC").value)||0):0;
+  const kP=S.kOn?(parseFloat(document.getElementById("kP").value)||0):0;
+  const r={
+    id:genId(),seq:S.recs.length+1,
+    driver:drv,plate:plt,mat:S.mat,wh,
+    ppkg:null,gross:grs,empty:null,net:null,
+    wFee:null,kFee:null,final:null,
+    kOn:S.kOn&&kC>0,kC,kUP:kP,kType:S.kOn?S.kType:"",
+    status:"waiting",
+    loadAt:now(),loadBy:S.cu.name,
+    confAt:null,confBy:null,
+    weighAt:null,weighBy:null,
+    dk:toDay(),
+  };
+  S.recs.unshift(r);save();clrForm();
+  document.querySelectorAll(".tbb").forEach((b,i)=>b.classList.toggle("active",i===1));
+  document.querySelectorAll(".tc").forEach((c,i)=>c.classList.toggle("active",i===1));
+  renderRecs();showToast("✅ تم حفظ الوصل #"+AR(r.seq));
+}
+function clrForm(){
+  ["fDrv","fPlt","fGrs","kC","kP"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  S.mat="jet";S.kOn=false;S.kType="سيم";
+  document.getElementById("mj").classList.add("active");
+  document.getElementById("mg").classList.remove("active");
+  document.getElementById("kTog").classList.remove("on");
+  document.getElementById("kLbl").textContent="بدون كبس";
+  document.getElementById("kF").style.display="none";
+  document.getElementById("WP").style.display="none";
+  document.getElementById("ks").classList.add("active");
+  document.getElementById("kk").classList.remove("active");
+  clrE();
+}
+
+/* ══════════════════════════════════════
+   RECORDS
+══════════════════════════════════════ */
+const SL={waiting:"🟠 انتظار تأكيد",confirmed:"🟡 انتظار وزن فارغ",weighed:"✅ مكتمل"};
+const SB={waiting:"bw",confirmed:"bc",weighed:"bd"};
+const ST=["① وزن محمل","② تأكيد مخزن","③ وزن فارغ"];
+const SI={waiting:0,confirmed:1,weighed:2};
+
+function getFilt(){
+  const mf=document.getElementById("fM").value;
+  const sf=document.getElementById("fS").value;
+  const wf=document.getElementById("fW").value;
+  const df=document.getElementById("fDt").value;
+  return S.recs.filter(r=>{
+    if(mf!=="all"&&r.mat!==mf)return false;
+    if(sf!=="all"&&r.status!==sf)return false;
+    if(wf!=="all"&&r.wh!==wf)return false;
+    if(df&&r.dk!==df)return false;
+    return true;
+  });
+}
+function renderRecs(){
+  const f=getFilt();
+  const dn=f.filter(r=>r.final!=null);
+  const tN=dn.reduce((s,r)=>s+r.net,0);
+  const tF=dn.reduce((s,r)=>s+r.final,0);
+  const cW=f.filter(r=>r.status==="waiting").length;
+  const cC=f.filter(r=>r.status==="confirmed").length;
+  document.getElementById("FSm").innerHTML=
+    `<span>الوصلات: <strong>${AR(f.length)}</strong></span>
+     <span>الصافي: <strong>${fKG(tN)}</strong></span>
+     <span>المجموع: <strong>${fIQD(tF)}</strong></span>
+     ${cW>0?`<span style="color:var(--or)">انتظار تأكيد: <strong>${AR(cW)}</strong></span>`:""}
+     ${cC>0?`<span style="color:#eab308">انتظار وزن فارغ: <strong>${AR(cC)}</strong></span>`:""}`;
+  const list=document.getElementById("RL");
+  if(!f.length){list.innerHTML=`<div style="text-align:center;color:#2d3a4e;padding:40px;font-size:14px">📭 لا توجد سجلات</div>`;return;}
+  list.innerHTML=f.map(r=>{
+    const si=SI[r.status]??0;
+    const stH=`<div class="stl">${ST.map((s,i)=>`<div class="sts ${i<si?"done":i===si?"cur":""}">${s}</div>`).join("")}</div>`;
+    let wR="";
+    if(r.net!=null){
+      wR=`<div class="rw">
+        <div class="rwi"><span class="rwk">الكلي</span><span class="rwv">${fKG(r.gross)}</span></div><span class="rws">−</span>
+        <div class="rwi"><span class="rwk">الفارغ</span><span class="rwv">${fKG(r.empty)}</span></div><span class="rws">=</span>
+        <div class="rwi"><span class="rwk">الصافي</span><span class="rwv" style="color:var(--go)">${fKG(r.net)}</span></div><span class="rws">×</span>
+        <div class="rwi"><span class="rwk">سعر كغم</span><span class="rwv">${fIQD(r.ppkg)}</span></div><span class="rws">=</span>
+        <div class="rwi"><span class="rwk">أجور وزن</span><span class="rwv" style="color:var(--gn)">${fIQD(r.wFee)}</span></div>
+        ${r.kOn?`<span class="rws" style="color:var(--rd)">−</span><div class="rwi"><span class="rwk">كبس(${r.kType})</span><span class="rwv" style="color:#a78bfa">${fIQD(r.kFee)}</span></div>`:""}
+        <span class="rws">=</span>
+        <div class="rwi fa"><span class="rwk">المبلغ النهائي</span><span class="rwv" style="color:var(--go2);font-size:12px">${fIQD(r.final)}</span></div>
+      </div>`;
+    }else{
+      wR=`<div class="rw">
+        <div class="rwi"><span class="rwk">الوزن الكلي</span><span class="rwv">${fKG(r.gross)}</span></div>
+        <span class="rws" style="color:var(--or)">⟶</span>
+        <div class="rwi"><span class="rwk" style="color:var(--or)">${r.status==="waiting"?"انتظار تأكيد":"انتظار وزن فارغ"}</span><span class="rwv" style="color:var(--or);animation:bl 2s ease infinite;font-size:9px">⏳</span></div>
+        ${r.kOn?`<span class="rws">|</span><div class="rwi"><span class="rwk">كبس(${r.kType})</span><span class="rwv" style="color:#a78bfa">${AR(r.kC)}×${fIQD(r.kUP)}</span></div>`:""}
+      </div>`;
+    }
+    const ac=[];
+    if(r.status==="waiting")ac.push(`<button class="btn bor bsm" onclick="openConf('${r.id}')">🏭 تأكيد + سعر</button>`);
+    if(r.status==="confirmed")ac.push(`<button class="btn bgn bsm" onclick="openWeigh('${r.id}')">⚖️ وزن فارغ</button>`);
+    ac.push(`<button class="btn bgh bsm" onclick="openEdit('${r.id}')">✏️</button>`);
+    ac.push(`<button class="btn bgh bsm" onclick="openPrint('${r.id}')">🖨️</button>`);
+    ac.push(`<button class="btn bgh bsm" onclick="doPDF('${r.id}')">📄 PDF</button>`);
+    ac.push(`<button class="btn bbl bsm" onclick="shareRec('${r.id}')">📤 مشاركة</button>`);
+    return `<div class="rc ${r.status==="weighed"?"done":""} ${r.status==="waiting"?"waiting":""}">
+      <div class="rt">
+        <div class="rtl">
+          <span style="color:var(--mu);font-size:10px">#${AR(r.seq)}</span>
+          <span class="rpl">🚛 ${r.plate}</span><span class="rdr">${r.driver}</span>
+          <span class="badge ${r.mat==="jet"?"bj":"bgr"}">${MAT[r.mat].icon} ${MAT[r.mat].label}</span>
+          <span class="badge bp">🏭 ${r.wh}</span>
+          ${r.kOn?`<span class="badge bp">🔧 ${AR(r.kC)} ${r.kType}</span>`:""}
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="badge ${SB[r.status]||""}">${SL[r.status]||r.status}</span>
+          <span style="color:#2d3a4e;font-size:8px;font-family:monospace">${r.id}</span>
+        </div>
+      </div>
+      ${stH}${wR}
+      <div class="rmt">
+        <span>📅 ${tAr(r.loadAt)}</span><span>👤 ${r.loadBy}</span>
+        ${r.confAt?`<span>🏭 ${tAr(r.confAt)} — ${r.confBy}</span>`:""}
+        ${r.weighAt?`<span>⚖️ ${tAr(r.weighAt)} — ${r.weighBy}</span>`:""}
+      </div>
+      <div class="rac">${ac.join("")}</div>
+    </div>`;
+  }).join("");
+}
+function clrF(){["fM","fS","fW"].forEach(id=>document.getElementById(id).value="all");document.getElementById("fDt").value="";renderRecs();}
+
+/* ══════════════════════════════════════
+   MODALS
+══════════════════════════════════════ */
+function openConf(id){
+  S.cId=id;const r=S.recs.find(x=>x.id===id);
+  document.getElementById("cT1").innerHTML=`<strong>${r.plate}</strong> (${r.driver})`;
+  document.getElementById("cT2").innerHTML=`المخزن: <strong>${r.wh}</strong> | الكلي: <strong>${fKG(r.gross)}</strong>`;
+  document.getElementById("cPrc").value="";document.getElementById("cCalc").textContent="";
+  document.getElementById("mConf").classList.add("active");
+}
+function prevConf(){
+  const p=parseFloat(document.getElementById("cPrc").value);
+  const el=document.getElementById("cCalc");
+  if(!p||p<=0){el.textContent="";return;}
+  el.textContent="مثال: ١٠,٠٠٠ كغم صافي = "+fIQD(10000*p);
+}
+function confWH(){
+  const id=S.cId;const p=parseFloat(document.getElementById("cPrc").value);
+  if(!p||p<=0){document.getElementById("cCalc").textContent="⚠ أدخل سعراً";document.getElementById("cCalc").style.color="var(--rd)";return;}
+  const idx=S.recs.findIndex(r=>r.id===id);
+  if(idx>=0){S.recs[idx].status="confirmed";S.recs[idx].ppkg=p;S.recs[idx].confAt=now();S.recs[idx].confBy=S.cu.name;save();}
+  closeM();renderRecs();showToast("🏭 تم تأكيد المخزن — سعر: "+fIQD(p)+"/كغم");
+}
+function openWeigh(id){
+  S.wId=id;const r=S.recs.find(x=>x.id===id);
+  document.getElementById("wT").innerHTML=`<strong>${r.plate}</strong> (${r.driver})<br>الكلي: <strong>${fKG(r.gross)}</strong> | سعر: <strong>${fIQD(r.ppkg)}</strong>/كغم`;
+  document.getElementById("eWI").value="";document.getElementById("wCalc").textContent="";
+  document.getElementById("mWeigh").classList.add("active");
+}
+function prevW(){
+  const r=S.recs.find(x=>x.id===S.wId);if(!r)return;
+  const ev=parseFloat(document.getElementById("eWI").value);
+  const el=document.getElementById("wCalc");
+  if(!ev||ev<=0){el.textContent="";return;}
+  if(ev>=r.gross){el.textContent="⚠ الوزن الفارغ أكبر من الكلي!";el.style.color="var(--rd)";return;}
+  const c=calcFees(r.gross,ev,r.ppkg,r.kOn,r.kC,r.kUP);
+  el.textContent=`الصافي: ${fKG(c.net)} | أجور: ${fIQD(c.wFee)}${r.kOn?" − كبس: "+fIQD(c.kFee):""} = ${fIQD(c.final)}`;
+  el.style.color="var(--go2)";
+}
+function confWeigh(){
+  const id=S.wId;const ev=parseFloat(document.getElementById("eWI").value);
+  const idx=S.recs.findIndex(r=>r.id===id);if(idx<0)return;
+  const r=S.recs[idx];
+  if(!ev||ev<=0||ev>=r.gross){document.getElementById("wCalc").textContent="⚠ أدخل وزناً صحيحاً!";document.getElementById("wCalc").style.color="var(--rd)";return;}
+  const c=calcFees(r.gross,ev,r.ppkg,r.kOn,r.kC,r.kUP);
+  S.recs[idx]={...r,empty:ev,net:c.net,wFee:c.wFee,kFee:c.kFee,final:c.final,status:"weighed",weighAt:now(),weighBy:S.cu.name};
+  save();closeM();renderRecs();renderStats();renderWH();renderRpt();
+  showToast("✅ مكتمل — "+fIQD(c.final));
+}
+function openEdit(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  document.getElementById("eId").value=id;
+  document.getElementById("eDv").value=r.driver;
+  document.getElementById("ePl").value=r.plate;
+  document.getElementById("eWh").value=r.wh;
+  document.getElementById("eMt").value=r.mat;
+  document.getElementById("ePrc").value=r.ppkg||"";
+  document.getElementById("eGr").value=r.gross;
+  document.getElementById("eEm").value=r.empty||"";
+  document.getElementById("eKC").value=r.kC||"";
+  document.getElementById("eKP").value=r.kUP||"";
+  document.getElementById("eKT").value=r.kType||"";
+  document.getElementById("mEdit").classList.add("active");
+}
+function saveEdit(){
+  const id=document.getElementById("eId").value;
+  const idx=S.recs.findIndex(r=>r.id===id);if(idx<0)return;
+  const r=S.recs[idx];
+  const p=parseFloat(document.getElementById("ePrc").value)||r.ppkg;
+  const g=parseFloat(document.getElementById("eGr").value)||r.gross;
+  const e=parseFloat(document.getElementById("eEm").value)||null;
+  const kC=parseFloat(document.getElementById("eKC").value)||0;
+  const kP=parseFloat(document.getElementById("eKP").value)||0;
+  const kT=document.getElementById("eKT").value;
+  const kOn=kC>0&&kP>0&&kT!=="";
+  let u={...r,driver:document.getElementById("eDv").value.trim()||r.driver,plate:document.getElementById("ePl").value.trim()||r.plate,wh:document.getElementById("eWh").value,mat:document.getElementById("eMt").value,ppkg:p,gross:g,kOn,kC,kUP:kP,kType:kT};
+  if(p&&e&&e>0&&e<g){const c=calcFees(g,e,p,kOn,kC,kP);u={...u,empty:e,net:c.net,wFee:c.wFee,kFee:c.kFee,final:c.final};}
+  S.recs[idx]=u;save();closeM();renderRecs();renderStats();renderWH();renderRpt();
+  showToast("✏️ تم التعديل");
+}
+function closeM(){
+  S.cId=null;S.wId=null;
+  ["mConf","mWeigh","mEdit","mShare"].forEach(id=>document.getElementById(id).classList.remove("active"));
+}
+document.querySelectorAll(".mo").forEach(m=>m.addEventListener("click",function(e){if(e.target===this)closeM();}));
+
+/* ══════════════════════════════════════
+   WAREHOUSES
+══════════════════════════════════════ */
+function renderWH(){
+  document.getElementById("WHG").innerHTML=WHS.map(wh=>{
+    const all=S.recs.filter(r=>r.wh===wh);
+    const dn=all.filter(r=>r.final!=null);
+    const ip=all.filter(r=>r.status!=="weighed");
+    return `<div class="whc">
+      <div class="whn">🏭 ${wh}</div>
+      <div class="whst">
+        <div class="whs"><span class="whsk">الإجمالي</span><span class="whsv">${AR(all.length)}</span></div>
+        <div class="whs"><span class="whsk">مكتملة</span><span class="whsv" style="color:var(--gn)">${AR(dn.length)}</span></div>
+        <div class="whs"><span class="whsk">جارية</span><span class="whsv" style="color:var(--or)">${AR(ip.length)}</span></div>
+        <div class="whs"><span class="whsk">الصافي</span><span class="whsv">${fKG(dn.reduce((s,r)=>s+r.net,0))}</span></div>
+        <div class="whs"><span class="whsk">المجموع</span><span class="whsv" style="color:var(--go2)">${fIQD(dn.reduce((s,r)=>s+r.final,0))}</span></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ══════════════════════════════════════
+   REPORTS
+══════════════════════════════════════ */
+function sRpt(p,btn){S.rptP=p;document.querySelectorAll(".ptb").forEach(b=>b.classList.remove("active"));btn.classList.add("active");renderRpt();}
+function getRptData(){
+  const base=document.getElementById("rDt").value||toDay();
+  const bd=new Date(base);
+  return S.recs.filter(r=>{
+    if(!r.dk)return false;
+    if(S.rptP==="daily")return r.dk===base;
+    if(S.rptP==="weekly"){const d=(bd-new Date(r.dk))/(864e5);return d>=0&&d<7;}
+    if(S.rptP==="monthly")return r.dk.slice(0,7)===base.slice(0,7);
+    return true;
+  });
+}
+function renderRpt(){
+  const data=getRptData();
+  const wrap=document.getElementById("RW");
+  if(!data.length){wrap.innerHTML=`<div style="text-align:center;color:var(--mu);padding:30px">لا توجد بيانات</div>`;return;}
+  const dn=data.filter(r=>r.final!=null);
+  const tN=dn.reduce((s,r)=>s+r.net,0);
+  const tF=dn.reduce((s,r)=>s+r.final,0);
+  const rows=data.map(r=>`<tr>
+    <td>${AR(r.seq)}</td><td>${tAr(r.dk)}</td><td>${r.plate}</td><td>${r.driver}</td>
+    <td>${MAT[r.mat]?.label}</td><td>${r.wh}</td>
+    <td>${fKG(r.gross)}</td><td>${r.empty?fKG(r.empty):"—"}</td><td>${r.net?fKG(r.net):"—"}</td>
+    <td>${r.ppkg?fIQD(r.ppkg):"—"}</td>
+    <td>${r.kOn?AR(r.kC)+" "+r.kType:"—"}</td>
+    <td>${r.kOn?fIQD(r.kFee):"—"}</td>
+    <td>${fIQD(r.final)||"—"}</td>
+    <td><span class="badge ${SB[r.status]||""}">${SL[r.status]||r.status}</span></td>
+  </tr>`).join("");
+  wrap.innerHTML=`<table class="rtbl"><thead><tr>
+    <th>#</th><th>التاريخ</th><th>اللوحة</th><th>السائق</th><th>المادة</th><th>المخزن</th>
+    <th>الكلي</th><th>الفارغ</th><th>الصافي</th><th>سعر كغم</th><th>الكبس</th><th>أجور كبس</th><th>المبلغ</th><th>الحالة</th>
+  </tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr class="tot"><td colspan="8">الإجمالي — ${AR(data.length)} وصل (${AR(dn.length)} مكتمل)</td>
+    <td>${fKG(tN)}</td><td>—</td><td>—</td><td>—</td><td>${fIQD(tF)}</td><td>—</td>
+  </tr></tfoot></table>`;
+}
+
+function expXL(){
+  const data=getRptData();
+  if(!data.length){showToast("⚠ لا بيانات");return;}
+  const ws_data=[
+    ["#","التاريخ","اللوحة","السائق","المادة","المخزن","الكلي(كغم)","الفارغ(كغم)","الصافي(كغم)","سعر كغم","عدد كبسات","نوع كبس","أجور كبس","المبلغ النهائي","الحالة"],
+    ...data.map(r=>[r.seq,r.dk,r.plate,r.driver,MAT[r.mat]?.label,r.wh,r.gross||"",r.empty||"",r.net||"",r.ppkg||"",r.kOn?r.kC:"",r.kOn?r.kType:"",r.kOn?r.kFee:"",r.final||"",SL[r.status]||r.status]),
+    [],["","","","","","","","","الإجمالي:",data.filter(r=>r.net!=null).reduce((s,r)=>s+r.net,0),"","","",data.filter(r=>r.final!=null).reduce((s,r)=>s+r.final,0),""]
+  ];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(ws_data);
+  XLSX.utils.book_append_sheet(wb,ws,"وصلات");
+  // محاولة الحفظ في مسار Android
+  try{
+    XLSX.writeFile(wb,`ميزان_الشمس_${S.rptP}_${toDay()}.xlsx`);
+  }catch(e){
+    XLSX.writeFile(wb,`ميزان_الشمس_${S.rptP}_${toDay()}.xlsx`);
+  }
+  showToast("📥 تم تنزيل Excel");
+}
+
+/* ══════════════════════════════════════
+   STATS
+══════════════════════════════════════ */
+function renderStats(){
+  const r=S.recs,dn=r.filter(x=>x.final!=null);
+  const st=[
+    {l:"إجمالي الوصلات",v:AR(r.length),i:"📋",c:"#6366f1"},
+    {l:"انتظار تأكيد",v:AR(r.filter(x=>x.status==="waiting").length),i:"⏳",c:"#f97316"},
+    {l:"انتظار وزن فارغ",v:AR(r.filter(x=>x.status==="confirmed").length),i:"🏭",c:"#eab308"},
+    {l:"مكتملة",v:AR(dn.length),i:"✅",c:"#10b981"},
+    {l:"الوزن الصافي الكلي",v:fKG(dn.reduce((s,x)=>s+x.net,0)),i:"⚖️",c:"#f59e0b"},
+    {l:"أجور الوزن",v:fIQD(dn.reduce((s,x)=>s+x.wFee,0)),i:"💰",c:"#10b981"},
+    {l:"أجور الكبس (مطروحة)",v:fIQD(dn.filter(x=>x.kOn).reduce((s,x)=>s+(x.kFee||0),0)),i:"🔧",c:"#8b5cf6"},
+    {l:"المجموع النهائي",v:fIQD(dn.reduce((s,x)=>s+x.final,0)),i:"💎",c:"#f59e0b"},
+    {l:"وصلات الجت",v:AR(r.filter(x=>x.mat==="jet").length),i:"🌾",c:"#84cc16"},
+    {l:"وصلات الجرش",v:AR(r.filter(x=>x.mat==="gravel").length),i:"🪨",c:"#78716c"},
+  ];
+  document.getElementById("SG").innerHTML=st.map(s=>`
+    <div class="sc" style="border-top-color:${s.c}">
+      <span class="si">${s.i}</span><span class="sv">${s.v}</span><span class="sl">${s.l}</span>
+    </div>`).join("");
+}
+
+/* ══════════════════════════════════════
+   PRINT TEMPLATES
+══════════════════════════════════════ */
+const COHEAD=`
+<div class="pct">
+  <div class="pcn">☀️ ميزان الشمس</div>
+  <div class="pctag">لوزن كافة الشاحنات الخفيفة والثقيلة بدقة عالية — بدقة ١ كغم</div>
+  <div class="pcbadge">✅ حاصل على شهادة الجهاز المركزي لتقييس والسيطرة النوعية</div>
+</div>
+<div class="pgbar"></div>`;
+
+const COFTR=`
+<div class="prf">
+  <div class="prft">بإدارة أبو إبراهيم — ميزان الشمس</div>
+  <div class="prfi">
+    📍 بغداد — أبي غريب — منطقة الزيدان<br/>
+    📞 أبو إبراهيم: <strong>٠٧٥٠٢٨٣١٢٠٠ &nbsp;—&nbsp; ٠٧٧٢٤٢٥٦٦٣٢</strong><br/>
+    📞 بركات: <strong>٠٧٨١٥٥٧٧٥٩٥ &nbsp;—&nbsp; ٠٧٥٠٠٨٧٣٧٣٢</strong>
+  </div>
+  <div class="prfn">ملاحظة: حاصل على شهادة الجهاز المركزي لتقييس والسيطرة النوعية</div>
+</div>`;
+
+function buildReceipt(r,btns=true){
+  const isW=r.status!=="weighed";
+  const sec=t=>`<div class="psec">${t}</div>`;
+  const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${v}</span></div>`;
+  let b=sec("معلومات الوصل");
+  b+=row("رقم الوصل / التسلسل",r.id+" / "+AR(r.seq));
+  b+=row("الحالة",SL[r.status]||r.status);
+  b+=row("المخزن","🏭 "+r.wh);
+  b+=sec("بيانات السيارة");
+  b+=row("السائق",r.driver);
+  b+=row("رقم العجلة",r.plate);
+  b+=row("نوع الحمولة",MAT[r.mat]?.icon+" "+MAT[r.mat]?.label);
+  b+=sec("الأوزان");
+  b+=row("① الوزن الكلي (محمل)",fKG(r.gross));
+  b+=row("② الوزن الفارغ",isW?"— في الانتظار —":fKG(r.empty));
+  b+=row("③ الوزن الصافي",isW?"— في الانتظار —":fKG(r.net));
+  b+=sec("الأجور");
+  b+=row("سعر الكغم",r.ppkg?fIQD(r.ppkg):"— لم يُحدد بعد —");
+  if(!isW){
+    b+=row("أجور الوزن",fIQD(r.wFee));
+    if(r.kOn){b+=row("نوع الكبس / العدد",r.kType+" / "+AR(r.kC)+" كبسة");b+=row("أجور الكبس (مطروحة)","− "+fIQD(r.kFee));}
+  }
+  b+=sec("التوقيتات");
+  b+=row("وزن محمل",tAr(r.loadAt)+" | "+r.loadBy);
+  if(r.confAt)b+=row("تأكيد مخزن",tAr(r.confAt)+" | "+r.confBy);
+  if(r.weighAt)b+=row("وزن فارغ + إغلاق",tAr(r.weighAt)+" | "+r.weighBy);
+  const tot=!isW?`<div class="prtot"><span class="pk">💰 المبلغ النهائي</span><span class="pv">${fIQD(r.final)}</span></div>`:"";
+  const wb2=isW?`<div class="prwb">⏳ ${r.status==="waiting"?"بانتظار تأكيد المخزن":"بانتظار الوزن الفارغ"}</div>`:"";
+  const fbtns=btns?`<div class="pbtns">
+    <button class="pdop" onclick="window.print()">🖨️ طباعة / PDF</button>
+    <button style="flex:1;padding:9px;border-radius:7px;border:none;background:#3b82f6;color:#fff;font-weight:900;cursor:pointer;font-size:12px;font-family:'Cairo',sans-serif" onclick="shareCurrent()">📤 مشاركة</button>
+    <button class="pbk" onclick="closePrint()">← رجوع</button>
+  </div>`:"";
+  const d=new Date();const p=x=>String(x).padStart(2,"0");
+  return `${COHEAD}
+    <div class="prh">
+      <div class="prhtl">⚖️ وصل تحميل عجلة</div>
+      <div class="prhmt">${tAr(toDay())}<br/>${tAr(p(d.getHours())+":"+p(d.getMinutes()))}</div>
+    </div>
+    ${wb2}<div class="prb">${b}</div>${tot}${COFTR}${fbtns}`;
+}
+
+function openPrint(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  document.getElementById("PC").innerHTML=buildReceipt(r,true);
+  document.getElementById("AS").classList.remove("active");
+  document.getElementById("PS").style.display="flex";
+}
+function closePrint(){
+  document.getElementById("PS").style.display="none";
+  document.getElementById("AS").classList.add("active");
+}
+
+/* ══════════════════════════════════════
+   PRINT CSS (shared for iframe PDF)
+══════════════════════════════════════ */
+const PDF_CSS=`*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Cairo',sans-serif;direction:rtl;background:#fff;}
+.pct{background:#fff;padding:7px 14px 3px;text-align:center;border-bottom:2px solid #0a1628;}
+.pcn{font-size:20px;font-weight:900;color:#0a1628;}.pctag{font-size:9px;color:#475569;margin-top:2px;font-weight:600;}
+.pcbadge{display:inline-block;background:#f59e0b;color:#fff;font-size:7px;font-weight:800;padding:1px 7px;border-radius:20px;margin-top:2px;}
+.pgbar{height:2px;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);}
+.prh{background:#0a1628;color:#fff;padding:6px 14px;display:flex;justify-content:space-between;align-items:center;}
+.prhtl{font-size:12px;font-weight:900;}.prhmt{font-size:7px;opacity:.6;text-align:left;line-height:1.4;}
+.prb{padding:4px 12px;}.psec{background:#f1f5f9;padding:2px 9px;font-size:7px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;margin:1px 0;}
+.prr{display:flex;justify-content:space-between;align-items:center;padding:2px 9px;border-bottom:1px solid #f8fafc;}
+.prk{color:#475569;font-size:9px;font-weight:600;}.prv{color:#0f172a;font-size:9px;font-weight:900;}
+.prtot{display:flex;justify-content:space-between;padding:7px 12px;background:#0a1628;}
+.prtot .pk{font-size:11px;font-weight:700;color:#fff;}.prtot .pv{font-size:12px;font-weight:900;color:#f59e0b;}
+.prwb{background:#fff7ed;border:1.5px dashed #f97316;border-radius:4px;padding:4px;margin:4px 12px;text-align:center;color:#ea580c;font-weight:900;font-size:8px;}
+.prf{background:#f8fafc;border-top:2px solid #e2e8f0;padding:5px 12px;text-align:center;}
+.prft{font-size:10px;font-weight:900;color:#0a1628;margin-bottom:2px;}.prfi{font-size:8px;color:#475569;line-height:1.8;}
+.prfn{font-size:7px;color:#94a3b8;margin-top:2px;font-style:italic;}
+.col-wh-title{background:linear-gradient(135deg,#0a1628,#1e3a5f);color:#fff;padding:5px 12px;font-size:10px;font-weight:900;border-top:2px solid #f59e0b;}
+.coltbl{width:100%;border-collapse:collapse;font-size:8px;}
+.coltbl th{background:#1e293b;color:#94a3b8;padding:4px 6px;text-align:right;font-weight:800;border-bottom:2px solid #334155;white-space:nowrap;}
+.coltbl td{padding:3px 6px;border-bottom:1px solid #f1f5f9;color:#0f172a;white-space:nowrap;}
+.coltbl tr:nth-child(even) td{background:#f8fafc;}
+.coltbl .ctot td{background:#0a1628!important;color:#f59e0b!important;font-weight:900;}
+.col-wh-summary{display:flex;border-top:1px solid #e2e8f0;}
+.col-wh-summary div{flex:1;padding:5px 6px;text-align:center;border-left:1px solid #e2e8f0;}
+.col-wh-summary .ck{font-size:7px;color:#64748b;font-weight:800;}
+.col-wh-summary .cv{font-size:10px;font-weight:900;}`;
+
+/* ══════════════════════════════════════
+   CURRENT PRINT STATE (for share button inside print view)
+══════════════════════════════════════ */
+let _currentPrintHTML="";
+let _currentPrintTitle="وصل";
+
+function openPrint(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  _currentPrintHTML=buildReceipt(r,false);
+  _currentPrintTitle=`وصل_${r.plate}_${r.dk||toDay()}`;
+  document.getElementById("PC").innerHTML=buildReceipt(r,true);
+  document.getElementById("AS").classList.remove("active");
+  document.getElementById("PS").style.display="flex";
+}
+function closePrint(){
+  document.getElementById("PS").style.display="none";
+  document.getElementById("AS").classList.add("active");
+}
+// called from share button inside print view
+function shareCurrent(){
+  shareHTMLasPDF(_currentPrintHTML,_currentPrintTitle);
+}
+
+/* ══════════════════════════════════════
+   CORE: HTML → iframe → print/share
+══════════════════════════════════════ */
+function buildFullHTML(bodyHTML){
+  return`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet"/>
+    <style>${PDF_CSS}</style></head><body>${bodyHTML}</body></html>`;
+}
+
+async function printViaIframe(html){
+  const fr=document.createElement("iframe");
+  fr.style.cssText="position:fixed;top:-9999px;left:-9999px;width:595px;height:842px;border:none;";
+  document.body.appendChild(fr);
+  const dc=fr.contentDocument||fr.contentWindow.document;
+  dc.open();dc.write(html);dc.close();
+  await new Promise(res=>setTimeout(res,1400));
+  fr.contentWindow.print();
+  setTimeout(()=>document.body.removeChild(fr),4000);
+}
+
+async function doPDF(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  showToast("📄 جاري فتح PDF...",2500);
+  await printViaIframe(buildFullHTML(buildReceipt(r,false)));
+}
+
+/* ══════════════════════════════════════
+   SHARE ENGINE
+   استخدم Web Share API إذا متاح (موبايل)
+   وإلا افتح قائمة مشاركة يدوية
+══════════════════════════════════════ */
+async function shareHTMLasPDF(html,title){
+  // محاولة Web Share API (Android/iOS)
+  if(navigator.share){
+    try{
+      // نحول HTML إلى Blob ثم File
+      const blob=new Blob([buildFullHTML(html)],{type:"text/html"});
+      const file=new File([blob],title+".html",{type:"text/html"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title,text:"ميزان الشمس — "+title});
+        showToast("✅ تم الإرسال");
+        return;
+      }
+      // fallback: شارك كرابط نصي
+      await navigator.share({title,text:"ميزان الشمس — "+title});
+      showToast("✅ تم الإرسال");
+      return;
+    }catch(e){if(e.name!=="AbortError")console.warn("share:",e);}
+  }
+  // fallback: افتح قائمة خيارات
+  openShareMenu(html,title);
+}
+
+function openShareMenu(html,title){
+  const encoded=encodeURIComponent(buildFullHTML(html));
+  const dataUrl="data:text/html;charset=utf-8,"+encoded;
+  const opts=document.getElementById("shareOpts");
+  opts.innerHTML=`
+    <a href="${dataUrl}" download="${title}.html" onclick="closeM()" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s3);border-radius:9px;color:var(--tx);text-decoration:none;font-size:13px;font-weight:700">
+      <span style="font-size:20px">💾</span> حفظ كملف HTML (افتح في المتصفح كـ PDF)
+    </a>
+    <button onclick="printMenu_do('${title}');closeM();" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s3);border-radius:9px;color:var(--tx);border:none;cursor:pointer;font-size:13px;font-weight:700;width:100%;text-align:right">
+      <span style="font-size:20px">🖨️</span> طباعة / حفظ PDF
+    </button>
+    <button onclick="copyAsText('${title}');closeM();" style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--s3);border-radius:9px;color:var(--tx);border:none;cursor:pointer;font-size:13px;font-weight:700;width:100%;text-align:right">
+      <span style="font-size:20px">📋</span> نسخ المحتوى
+    </button>`;
+  // store for use
+  window._shareHTML=html;
+  window._shareTitle=title;
+  document.getElementById("mShare").classList.add("active");
+}
+
+function printMenu_do(title){
+  if(window._shareHTML) printViaIframe(buildFullHTML(window._shareHTML));
+}
+function copyAsText(title){
+  const tmp=document.createElement("div");
+  tmp.innerHTML=window._shareHTML||"";
+  navigator.clipboard?.writeText(tmp.textContent||"").then(()=>showToast("✅ تم النسخ")).catch(()=>showToast("⚠ النسخ غير مدعوم"));
+}
+
+/* ══════════════════════════════════════
+   SHARE: Single record
+══════════════════════════════════════ */
+async function shareRec(id){
+  const r=S.recs.find(x=>x.id===id);if(!r)return;
+  showToast("📤 جاري التحضير...",2000);
+  const title=`وصل_${r.plate}_${r.dk||toDay()}`;
+  await shareHTMLasPDF(buildReceipt(r,false),title);
+}
+
+/* ══════════════════════════════════════
+   EXCEL HELPERS
+══════════════════════════════════════ */
+function buildXLData(period,wh="all"){
+  const now2=new Date(),p=x=>String(x).padStart(2,"0");
+  const td=`${now2.getFullYear()}-${p(now2.getMonth()+1)}-${p(now2.getDate())}`;
+  const bd=new Date(td);
+  let data=S.recs.filter(r=>{
+    if(!r.dk)return false;
+    const rd=new Date(r.dk);
+    if(period==="daily")return r.dk===td;
+    if(period==="weekly"){const d=(bd-rd)/(864e5);return d>=0&&d<7;}
+    if(period==="monthly")return r.dk.slice(0,7)===td.slice(0,7);
+    return true;
+  });
+  if(wh!=="all") data=data.filter(r=>r.wh===wh);
+  return data;
+}
+function makeXLBlob(data,sheetName){
+  const ws_data=[
+    ["#","التاريخ","اللوحة","السائق","المادة","المخزن","الكلي(كغم)","الفارغ(كغم)","الصافي(كغم)","سعر كغم","عدد كبسات","نوع كبس","أجور كبس","المبلغ النهائي","الحالة"],
+    ...data.map(r=>[r.seq,r.dk,r.plate,r.driver,MAT[r.mat]?.label,r.wh,r.gross||"",r.empty||"",r.net||"",r.ppkg||"",r.kOn?r.kC:"",r.kOn?r.kType:"",r.kOn?r.kFee:"",r.final||"",SL[r.status]||r.status]),
+    [],["","","","","","","","","الإجمالي:",data.filter(r=>r.net!=null).reduce((s,r)=>s+r.net,0),"","","",data.filter(r=>r.final!=null).reduce((s,r)=>s+r.final,0),""]
+  ];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(ws_data);
+  XLSX.utils.book_append_sheet(wb,ws,sheetName||"وصلات");
+  return XLSX.write(wb,{bookType:"xlsx",type:"array"});
+}
+function expXL(){
+  // called from report tab
+  const data=getRptData();
+  if(!data.length){showToast("⚠ لا بيانات");return;}
+  const arr=makeXLBlob(data,"وصلات");
+  const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=`ميزان_الشمس_${S.rptP}_${toDay()}.xlsx`;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+  showToast("📥 تم تنزيل Excel");
+}
+function expXLPeriod(period){
+  const data=buildXLData(period);
+  if(!data.length){showToast("⚠ لا بيانات لهذه الفترة");return;}
+  const arr=makeXLBlob(data,"وصلات");
+  const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=`ميزان_الشمس_${period}_${toDay()}.xlsx`;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+  showToast("📥 تم تنزيل Excel");
+}
+async function shareXL(period,wh="all"){
+  const data=buildXLData(period,wh);
+  if(!data.length){showToast("⚠ لا بيانات");return;}
+  showToast("📊 جاري تحضير Excel...",2000);
+  const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
+  const whLabel=wh==="all"?"":"_"+wh;
+  const fname=`ميزان_الشمس_${PL[period]||period}${whLabel}_${toDay()}.xlsx`;
+  const arr=makeXLBlob(data,wh==="all"?"وصلات":"مخزن_"+wh);
+  const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const file=new File([blob],fname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({files:[file],title:fname,text:"ميزان الشمس — تقرير Excel"});
+      showToast("✅ تم الإرسال");return;
+    }catch(e){if(e.name==="AbortError")return;console.warn(e);}
+  }
+  // fallback download
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},2000);
+  showToast("📥 تم التنزيل (المشاركة غير مدعومة على هذا الجهاز)");
+}
+
+/* ══════════════════════════════════════
+   COLLECTION — combined all warehouses
+══════════════════════════════════════ */
+function getCollData(period){
+  const now2=new Date(),p=x=>String(x).padStart(2,"0");
+  const td=`${now2.getFullYear()}-${p(now2.getMonth()+1)}-${p(now2.getDate())}`;
+  return S.recs.filter(r=>{
+    if(!r.dk||r.status!=="weighed")return false;
+    if(period==="daily")return r.dk===td;
+    if(period==="weekly"){const d=(now2-new Date(r.dk))/(864e5);return d>=0&&d<7;}
+    if(period==="monthly")return r.dk.slice(0,7)===td.slice(0,7);
+    return false;
+  });
+}
+
+/* ══════════════════════════════════════
+   BUILD COLLECTION HTML
+══════════════════════════════════════ */
+function buildWhSection(wRecs,wh){
+  if(!wRecs.length)return"";
+  const wNet=wRecs.reduce((s,r)=>s+r.net,0);
+  const wFin=wRecs.reduce((s,r)=>s+r.final,0);
+  const wWFee=wRecs.reduce((s,r)=>s+r.wFee,0);
+  const wKFee=wRecs.filter(r=>r.kOn).reduce((s,r)=>s+(r.kFee||0),0);
+  const rows=wRecs.map((r,i)=>`
+    <tr>
+      <td>${AR(i+1)}</td><td>${tAr(r.dk)}</td><td>${r.plate}</td><td>${r.driver}</td>
+      <td>${MAT[r.mat]?.label}</td>
+      <td>${fKG(r.gross)}</td><td>${fKG(r.empty)}</td>
+      <td><strong>${fKG(r.net)}</strong></td>
+      <td>${fIQD(r.ppkg)}</td>
+      <td>${r.kOn?AR(r.kC)+" "+r.kType:"—"}</td>
+      <td>${r.kOn?fIQD(r.kFee):"—"}</td>
+      <td><strong style="color:#d97706">${fIQD(r.final)}</strong></td>
+    </tr>`).join("");
+  return`
+    <div class="col-wh-title">🏭 مخزن ${wh} — ${AR(wRecs.length)} وصل</div>
+    <div style="padding:0 8px 5px">
+      <table class="coltbl">
+        <thead><tr>
+          <th>#</th><th>التاريخ</th><th>اللوحة</th><th>السائق</th><th>المادة</th>
+          <th>الكلي</th><th>الفارغ</th><th>الصافي</th><th>سعر</th><th>كبس</th><th>أج.كبس</th><th>المبلغ</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="ctot">
+          <td colspan="7">مجموع ${wh}</td>
+          <td><strong>${fKG(wNet)}</strong></td>
+          <td>—</td><td>—</td><td>${fIQD(wKFee)}</td>
+          <td><strong>${fIQD(wFin)}</strong></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="col-wh-summary">
+      ${[["الصافي",fKG(wNet),"#f59e0b"],["أجور",fIQD(wWFee),"#10b981"],["كبس",fIQD(wKFee),"#8b5cf6"],["المجموع",fIQD(wFin),"#d97706"]].map(([k,v,c])=>`<div><span class="ck">${k}</span><div class="cv" style="color:${c}">${v}</div></div>`).join("")}
+    </div>`;
+}
+
+function buildCollHTML(data,period,wh="all",btns=true){
+  const PL={daily:"اليومية",weekly:"الأسبوعية",monthly:"الشهرية"};
+  const now2=new Date(),p=x=>String(x).padStart(2,"0");
+  const dl=tAr(`${now2.getFullYear()}-${p(now2.getMonth()+1)}-${p(now2.getDate())}`);
+  const tNet=data.reduce((s,r)=>s+r.net,0);
+  const tFin=data.reduce((s,r)=>s+r.final,0);
+  const tWFee=data.reduce((s,r)=>s+r.wFee,0);
+  const tKFee=data.filter(r=>r.kOn).reduce((s,r)=>s+(r.kFee||0),0);
+  const whLabel=wh==="all"?"جميع المخازن":"مخزن "+wh;
+  const whsToShow=wh==="all"?WHS:[wh];
+  const whSections=whsToShow.map(w=>buildWhSection(data.filter(r=>r.wh===w),w)).join("");
+  const grandSum=`
+    <div style="background:#0a1628;padding:8px 12px;margin-top:3px">
+      <div style="color:#94a3b8;font-size:8px;font-weight:800;margin-bottom:5px;text-align:center">الإجمالي${wh==="all"?" الشامل لجميع المخازن":" — "+wh}</div>
+      <div style="display:flex;gap:0">
+        ${[["الوزن الصافي",fKG(tNet),"#f59e0b"],["أجور الوزن",fIQD(tWFee),"#10b981"],["أجور الكبس",fIQD(tKFee),"#a78bfa"],["المجموع",fIQD(tFin),"#f59e0b"]].map(([k,v,c])=>`<div style="flex:1;text-align:center;border-left:1px solid #1e3a5f;padding:4px 3px"><div style="font-size:7px;color:#94a3b8;font-weight:800;margin-bottom:2px">${k}</div><div style="font-size:10px;font-weight:900;color:${c}">${v}</div></div>`).join("")}
+      </div>
+    </div>`;
+  const fbtns=btns?`<div class="colbtns" style="padding:8px;display:flex;gap:6px;background:#fff;border-top:1px solid #e2e8f0">
+    <button onclick="window.print()" style="flex:2;padding:9px;border-radius:7px;border:none;background:#0a1628;color:#fff;font-weight:900;cursor:pointer;font-size:12px;font-family:'Cairo',sans-serif">🖨️ طباعة</button>
+    <button onclick="shareCurrent()" style="flex:1;padding:9px;border-radius:7px;border:none;background:#3b82f6;color:#fff;font-weight:900;cursor:pointer;font-size:11px;font-family:'Cairo',sans-serif">📤 مشاركة</button>
+    <button onclick="closePrint()" style="flex:1;padding:9px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:800;cursor:pointer;font-size:11px;font-family:'Cairo',sans-serif">← رجوع</button>
+  </div>`:"";
+  return`<div style="background:#fff;font-family:'Cairo',sans-serif;direction:rtl">
+    ${COHEAD}
+    <div style="background:#1e293b;color:#fff;padding:8px 14px;text-align:center">
+      <div style="font-size:14px;font-weight:900;color:#f59e0b">💼 المحصلة ${PL[period]} — ${whLabel}</div>
+      <div style="font-size:8px;opacity:.7;margin-top:2px">تاريخ: ${dl} | ${AR(data.length)} وصل مكتمل</div>
+    </div>
+    ${data.length===0?`<div style="text-align:center;padding:25px;color:#64748b;font-size:12px">لا توجد وصلات مكتملة</div>`:`${whSections}${grandSum}`}
+    ${COFTR}
+    ${fbtns}
+  </div>`;
+}
+
+function openColl(period,wh="all"){
+  const data=getCollData(period).filter(r=>wh==="all"||r.wh===wh);
+  const PL={daily:"اليومية",weekly:"الأسبوعية",monthly:"الشهرية"};
+  const whLabel=wh==="all"?"جميع المخازن":"مخزن "+wh;
+  _currentPrintHTML=buildCollHTML(data,period,wh,false);
+  _currentPrintTitle=`محصلة_${PL[period]}_${wh==="all"?"الكل":wh}_${toDay()}`;
+  document.getElementById("PC").innerHTML=buildCollHTML(data,period,wh,true);
+  document.getElementById("AS").classList.remove("active");
+  document.getElementById("PS").style.display="flex";
+  showToast("💼 "+whLabel+" — "+AR(data.length)+" وصل");
+}
+
+async function shareColl(period,wh="all"){
+  const data=getCollData(period).filter(r=>wh==="all"||r.wh===wh);
+  const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
+  const whLabel=wh==="all"?"الكل":wh;
+  const title=`محصلة_${PL[period]}_${whLabel}_${toDay()}`;
+  showToast("📤 جاري التحضير...",2000);
+  await shareHTMLasPDF(buildCollHTML(data,period,wh,false),title);
+}
+
+/* ══════════════════════════════════════
+   RENDER PER-WAREHOUSE COLL BUTTONS
+══════════════════════════════════════ */
+function renderWhCollGrid(){
+  const grid=document.getElementById("whCollGrid");
+  if(!grid)return;
+  const periods=[
+    {id:"daily",label:"اليوم",cls:"bg"},
+    {id:"weekly",label:"الأسبوع",cls:"bor"},
+    {id:"monthly",label:"الشهر",cls:"bgn"},
+  ];
+  grid.innerHTML=WHS.map(wh=>`
+    <div style="background:var(--s2);border-radius:10px;padding:11px">
+      <div style="font-size:13px;font-weight:900;color:var(--tx);margin-bottom:8px">🏭 مخزن ${wh}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        ${periods.map(per=>`
+          <div style="text-align:center">
+            <div style="font-size:9px;color:var(--mu);font-weight:800;margin-bottom:4px">${per.label}</div>
+            <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+              <button class="btn ${per.cls} bsm" onclick="openColl('${per.id}','${wh}')">🖨️</button>
+              <button class="btn bbl bsm" onclick="shareColl('${per.id}','${wh}')">📤</button>
+              <button class="btn bgh bsm" onclick="shareXL('${per.id}','${wh}')">📊</button>
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
+}
+</script>
+</body>
+</html>
