@@ -39,6 +39,15 @@
           onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.15.0/dist/leaflet-geoman.css'"/>
     <style>
         :root{--primary:#e65100;--primary-dark:#b53d00;--primary-light:#f57c00;--primary-accent:#fff3e0;--dark-bg:#0f172a;--sidebar-bg:#1e293b;--body-bg:#f8fafc;--card-bg:#ffffff;--text-main:#334155;--text-muted:#64748b;--border-color:#e2e8f0;--mow-color:#ef6c00;--collect-color:#f59e0b;--press-color:#2563eb;--danger:#ef4444;--success:#10b981;--warning:#f59e0b;--info:#3b82f6;--radius-lg:16px;--radius-md:12px;--radius-sm:8px;--shadow:0 4px 6px -1px rgb(0 0 0 / 0.05),0 2px 4px -2px rgb(0 0 0 / 0.05);--shadow-md:0 10px 15px -3px rgb(0 0 0 / 0.07),0 4px 6px -4px rgb(0 0 0 / 0.07);--shadow-lg:0 20px 25px -5px rgb(0 0 0 / 0.1),0 8px 10px -6px rgb(0 0 0 / 0.1);--transition-fast:0.15s ease;--transition-normal:0.25s ease;--header-height:75px;--sidebar-width:280px;}
+        /* ══ الوضع الليلي — نفس متغيرات CSS، قيم مختلفة فقط ══ */
+        html[data-theme="dark"]{--body-bg:#0b1220;--card-bg:#111827;--text-main:#cbd5e1;--text-muted:#94a3b8;--border-color:#243043;--sidebar-bg:#0a0f1a;--primary-accent:#3a2410;}
+        html[data-theme="dark"] body{background-color:var(--body-bg);}
+        html[data-theme="dark"] .ctrl-card,html[data-theme="dark"] .order-card,html[data-theme="dark"] .card-header-badge,html[data-theme="dark"] .card-footer{background:#0f172a;}
+        html[data-theme="dark"] .form-group input,html[data-theme="dark"] .form-group select,html[data-theme="dark"] .form-group textarea{background-color:#0b1220;color:var(--text-main);}
+        html[data-theme="dark"] .btn-outline{color:var(--text-main);}
+        html[data-theme="dark"] .info-row .val,html[data-theme="dark"] h1,html[data-theme="dark"] h3,html[data-theme="dark"] strong{color:#e2e8f0;}
+        html[data-theme="dark"] .login-screen{background:radial-gradient(circle at top right,#241708,#0b1220);}
+        html[data-theme="dark"] .login-card{background:#111827;border-color:var(--border-color);}
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
         html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;height:100%;}
         /* ══ إصلاح التخطيط الأساسي ══ */
@@ -1035,10 +1044,45 @@
     </style>
 </head>
 <body>
+    <script>
+    // ✅ تطبيق الوضع الليلي فوراً قبل أول رسم لتفادي "الوميض" بين الوضعين
+    try {
+        if (localStorage.getItem('sun_theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    } catch(e) {}
+    </script>
     <div id="loadingScreen" class="loading-overlay"><div class="loading-spinner"></div><p style="margin-top:16px;color:var(--text-muted);font-weight:600;">جاري تحميل النظام...</p></div>
 
     <!-- دوال عالمية - تعمل فوراً بمجرد تحميل الصفحة -->
     <script>
+    // ✅ دالة تنقية نصوص المستخدم قبل إدراجها في innerHTML — تمنع حقن HTML/سكربت
+    // (تخزين اسم أرض/معدة/مستخدم يحتوي وسوم HTML ثم عرضه لاحقاً لأي مستخدم آخر)
+    window.esc = function(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, function(c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+
+    // ✅ الوضع الليلي — يعتمد كلياً على متغيرات CSS الموجودة أصلاً في :root
+    window.ThemeManager = {
+        toggle() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            this.set(!isDark);
+        },
+        set(dark) {
+            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+            try { localStorage.setItem('sun_theme', dark ? 'dark' : 'light'); } catch(e) {}
+            const btn = document.getElementById('theme-toggle-btn');
+            if (btn) btn.textContent = dark ? '☀️' : '🌙';
+        },
+        init() {
+            const saved = (function(){ try { return localStorage.getItem('sun_theme'); } catch(e){ return null; } })();
+            this.set(saved === 'dark');
+        }
+    };
+
     // تسجيل الدخول المباشر — لا ينتظر UI ولا Firebase
     async function handleLoginGlobal() {
         var username = (document.getElementById('login-username') || {}).value || '';
@@ -1140,6 +1184,7 @@
 
     // Enter على الحقول
     document.addEventListener('DOMContentLoaded', function() {
+        try { ThemeManager.init(); } catch(e) {}
         ['login-username','login-password'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.addEventListener('keydown', function(e) {
@@ -1234,8 +1279,8 @@
             <div class="login-logo">☀️</div>
             <h2 class="login-title">شركة الشمس الرقمية</h2>
             <p class="login-subtitle">نظام إدارة الحقول والمكائن الذكي v6.0</p>
-            <div class="form-group"><label>اسم المستخدم أو السائق:</label><input type="text" id="login-username" placeholder="أدخل الاسم الحقيقي..." autocomplete="username" onkeydown="if(event.key==='Enter') handleLoginGlobal()"></div>
-            <div class="form-group"><label>الرمز الخاص (PIN Code):</label><input type="password" id="login-password" placeholder="أدخل الرمز السري..." autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLoginGlobal()"></div>
+            <div class="form-group"><label for="login-username">اسم المستخدم أو السائق:</label><input type="text" id="login-username" placeholder="أدخل الاسم الحقيقي..." autocomplete="username" aria-label="اسم المستخدم أو السائق" onkeydown="if(event.key==='Enter') handleLoginGlobal()"></div>
+            <div class="form-group"><label for="login-password">الرمز الخاص (PIN Code):</label><input type="password" id="login-password" placeholder="أدخل الرمز السري..." autocomplete="current-password" aria-label="الرمز الخاص" onkeydown="if(event.key==='Enter') handleLoginGlobal()"></div>
             <button class="btn btn-primary btn-block btn-lg" onclick="handleLoginGlobal()" id="login-submit-btn">🔓 تسجيل الدخول للنظام</button>
             <div id="login-error" class="login-error">❌ الرمز أو الاسم غير صحيح!</div>
         </div>
@@ -1260,8 +1305,13 @@
             <li class="sidebar-logout-item"><button class="menu-btn" style="color:#ef4444;" onclick="handleLogoutGlobal()"><span>🛑</span><span>خروج</span></button></li>
         </ul>
         <div class="sidebar-footer">
+            <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">
+                <button id="theme-toggle-btn" class="btn btn-outline btn-sm" title="تبديل الوضع الليلي" aria-label="تبديل الوضع الليلي" onclick="ThemeManager.toggle()">🌙</button>
+                <button id="sync-status-btn" class="btn btn-outline btn-sm" title="عناصر بانتظار المزامنة" aria-label="عناصر بانتظار المزامنة" onclick="SyncManager.syncAll()" style="display:none;">⏳ 0</button>
+                <button class="btn btn-outline btn-sm nav-admin-only" title="نسخ احتياطي واستعادة" aria-label="نسخ احتياطي واستعادة" onclick="BackupManager.openModal()">💾</button>
+            </div>
             <button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" onclick="handleLogoutGlobal()">🛑 خروج</button>
-            <p>نظام الشمس الذكي v6.0</p>
+            <p>نظام الشمس الذكي v6.0 <b>Pro Max</b></p>
         </div>
     </aside>
     <div class="app-container">
@@ -1395,7 +1445,7 @@
                                             </div>
                                         </div>
                                         <div style="display:flex;gap:8px;">
-                                            <button onclick="BaleCounter.recordBale()" style="flex:2;background:var(--primary);color:white;border:none;border-radius:10px;padding:13px;font-weight:700;cursor:pointer;font-size:14px;">💾 تسجيل الكبس</button>
+                                            <button id="record-bale-btn" onclick="BaleCounter.recordBale()" style="flex:2;background:var(--primary);color:white;border:none;border-radius:10px;padding:13px;font-weight:700;cursor:pointer;font-size:14px;">💾 تسجيل الكبس</button>
                                             <button onclick="BaleCounter.toggleHistory()" style="flex:1;background:#fff;border:1px solid #fed7aa;color:#c2410c;border-radius:10px;padding:13px;font-weight:700;cursor:pointer;font-size:12px;">📋 السجل</button>
                                         </div>
                                     </div>
@@ -1452,7 +1502,7 @@
             <div id="tab-fleet" class="tab-panel"><div id="fleet-grid-container" class="grid-layout"><div class="empty-state"><div class="empty-state-icon">🚜</div><div class="empty-state-title">جاري الاتصال...</div></div></div></div>
             <div id="tab-plots" class="tab-panel"><div id="plots-grid-container" class="grid-layout"><div class="empty-state"><div class="empty-state-icon">🌾</div><div class="empty-state-title">جاري جلب القيود...</div></div></div></div>
             <div id="tab-users" class="tab-panel">
-                <div style="background:white;padding:25px;border-radius:var(--radius-lg);border:1px solid var(--border-color);box-shadow:var(--shadow);margin-bottom:25px;"><h3 style="color:var(--primary);margin-bottom:15px;">➕ إنشاء حساب موظف/سائق جديد</h3><div class="form-row"><div class="form-group"><label>الاسم الكامل للمستخدم:</label><input type="text" id="new-user-name" placeholder="مثال: أحمد الحصان"><div class="error-message"></div></div><div class="form-group"><label>نوع الصلاحية في النظام:</label><select id="new-user-role"><option value="manager">مسؤول (إعطاء أوامر ورسم أراضي)</option><option value="driver">سائق (مقتصر على رؤية الخريطة وقبول الأوامر)</option></select></div><div class="form-group"><label>الرمز الخاص (PIN Code):</label><input type="text" id="new-user-pass" placeholder="مثال: 5544"><div class="error-message"></div></div><div class="form-group" style="display:flex;align-items:flex-end;"><button class="btn btn-success btn-block" style="height:45px;" onclick="UserManager.createUser(document.getElementById('new-user-name').value,document.getElementById('new-user-role').value,document.getElementById('new-user-pass').value)">💾 توليد الحساب والرمز</button></div></div></div>
+                <div style="background:white;padding:25px;border-radius:var(--radius-lg);border:1px solid var(--border-color);box-shadow:var(--shadow);margin-bottom:25px;"><h3 style="color:var(--primary);margin-bottom:15px;">➕ إنشاء حساب موظف/سائق جديد</h3><div class="form-row"><div class="form-group"><label for="new-user-name">الاسم الكامل للمستخدم:</label><input type="text" id="new-user-name" placeholder="مثال: أحمد الحصان"><div class="error-message"></div></div><div class="form-group"><label for="new-user-role">نوع الصلاحية في النظام:</label><select id="new-user-role"><option value="manager">مسؤول (إعطاء أوامر ورسم أراضي)</option><option value="driver">سائق (مقتصر على رؤية الخريطة وقبول الأوامر)</option></select></div><div class="form-group"><label for="new-user-pass">الرمز الخاص (PIN Code):</label><input type="text" id="new-user-pass" placeholder="مثال: 5544"><div class="error-message"></div></div><div class="form-group" style="display:flex;align-items:flex-end;"><button class="btn btn-success btn-block" style="height:45px;" onclick="UserManager.createUser(document.getElementById('new-user-name').value,document.getElementById('new-user-role').value,document.getElementById('new-user-pass').value)">💾 توليد الحساب والرمز</button></div></div></div>
                 <h3 style="margin-bottom:15px;color:#1e293b;">👤 قائمة الرموز والحسابات النشطة في النظام</h3><div class="grid-layout" id="users-list-container"></div>
             </div>
             <div id="tab-history" class="tab-panel">
@@ -1461,15 +1511,15 @@
             </div>
         </main>
     </div>
-    <div id="machineModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle" class="modal-title">إضافة طاقم ومعدة جديدة</h3></div><input type="hidden" id="edit-id"><div class="form-row"><div class="form-group" style="grid-column:1/-1;"><label>اسم المجموعة / الطاقم:</label><input type="text" id="form-name" placeholder="مثال: طاقم الفرات - ماكنة ١"><div class="error-message"></div></div><div class="form-group"><label>نوع المرحلة:</label><select id="form-type" onchange="toggleBaleSizeField()"><option value="mow">🌿 مرحلة الحش</option><option value="collect">🧺 مرحلة اللم</option><option value="press">📦 مرحلة الكبس</option></select></div><div class="form-group"><label>اسم السائق المرتبط:</label><select id="form-driver"><option value="">-- اختر السائق --</option></select><div class="error-message"></div></div><div class="form-group"><label>نوع الجرار:</label><input type="text" id="form-tractor" placeholder="مثال: جون دير 8335"></div><div class="form-group"><label>الملحق:</label><input type="text" id="form-attachment" placeholder="مثال: حاصدة أعلاف"></div>
+    <div id="machineModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle" class="modal-title">إضافة طاقم ومعدة جديدة</h3></div><input type="hidden" id="edit-id"><div class="form-row"><div class="form-group" style="grid-column:1/-1;"><label for="form-name">اسم المجموعة / الطاقم:</label><input type="text" id="form-name" placeholder="مثال: طاقم الفرات - ماكنة ١"><div class="error-message"></div></div><div class="form-group"><label for="form-type">نوع المرحلة:</label><select id="form-type" onchange="toggleBaleSizeField()"><option value="mow">🌿 مرحلة الحش</option><option value="collect">🧺 مرحلة اللم</option><option value="press">📦 مرحلة الكبس</option></select></div><div class="form-group"><label for="form-driver">اسم السائق المرتبط:</label><select id="form-driver"><option value="">-- اختر السائق --</option></select><div class="error-message"></div></div><div class="form-group"><label for="form-tractor">نوع الجرار:</label><input type="text" id="form-tractor" placeholder="مثال: جون دير 8335"></div><div class="form-group"><label for="form-attachment">الملحق:</label><input type="text" id="form-attachment" placeholder="مثال: حاصدة أعلاف"></div>
         <!-- حقل حجم الكبسة - يظهر فقط عند اختيار نوع الكبس -->
         <div class="form-group" id="bale-size-field-wrapper" style="grid-column:1/-1; background:linear-gradient(135deg,#eff6ff,#dbeafe); border-radius:var(--radius-md); padding:14px; border:1px solid #93c5fd; display:none;">
-            <label style="color:#1d4ed8; font-size:13px; font-weight:800;">📦 حجم الكبسة الثابت <span style="font-size:11px;color:#3b82f6;">(يظهر للسائق دائماً)</span></label>
+            <label for="form-bale-size" style="color:#1d4ed8; font-size:13px; font-weight:800;">📦 حجم الكبسة الثابت <span style="font-size:11px;color:#3b82f6;">(يظهر للسائق دائماً)</span></label>
             <input type="text" id="form-bale-size" placeholder="مثال: 1.2×0.7×0.6 م · أو · 400 كجم · أو · 500×120×90 سم" style="border-color:#93c5fd; background:white; margin-top:6px; font-size:14px; font-weight:700; color:#1e40af;">
             <p style="font-size:11px; color:#3b82f6; margin-top:6px;">💡 سيظهر هذا الحجم ثابتاً في شاشة السائق كمرجع أثناء الكبس</p>
         </div>
-        <div class="form-group" style="grid-column:1/-1;"><label>رقم التسلسل للجهاز (IMEI):</label><input type="text" id="form-imei" placeholder="15 رقماً"><div class="error-message"></div></div></div><div class="modal-footer"><button class="btn btn-outline" style="flex:1;" onclick="UI.closeModal('machineModal')">إلغاء</button><button class="btn btn-primary" style="flex:1;" onclick="saveMachine()">💾 حفظ التغييرات</button></div></div></div>
-    <div id="plotModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">💾 تسجيل وتوثيق الحقل الجديد</h3></div><p id="calculated-area-notice" class="alert alert-success" style="margin-bottom:15px;"></p><div class="form-group"><label>اسم الأرض:</label><input type="text" id="plot-name" placeholder="مثال: حقل الشمال"><div class="error-message"></div></div><div class="form-group"><label>نوع العلف:</label><input type="text" id="plot-crop" placeholder="مثال: شعير"></div><div class="form-group"><label>المساحة (دونم):</label><input type="number" step="0.01" id="plot-area" placeholder="0.00"><div class="error-message"></div></div><div class="modal-footer"><button class="btn btn-outline" style="flex:1;" onclick="UI.cancelPlotSaving()">إلغاء</button><button class="btn btn-primary" style="flex:1;" onclick="savePlot()">تأكيد وحفظ الأرض</button></div></div></div>
+        <div class="form-group" style="grid-column:1/-1;"><label for="form-imei">رقم التسلسل للجهاز (IMEI):</label><input type="text" id="form-imei" placeholder="15 رقماً"><div class="error-message"></div></div></div><div class="modal-footer"><button class="btn btn-outline" style="flex:1;" onclick="UI.closeModal('machineModal')">إلغاء</button><button class="btn btn-primary" style="flex:1;" onclick="saveMachine()">💾 حفظ التغييرات</button></div></div></div>
+    <div id="plotModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 class="modal-title">💾 تسجيل وتوثيق الحقل الجديد</h3></div><p id="calculated-area-notice" class="alert alert-success" style="margin-bottom:15px;"></p><div class="form-group"><label for="plot-name">اسم الأرض:</label><input type="text" id="plot-name" placeholder="مثال: حقل الشمال"><div class="error-message"></div></div><div class="form-group"><label for="plot-crop">نوع العلف:</label><input type="text" id="plot-crop" placeholder="مثال: شعير"></div><div class="form-group"><label for="plot-area">المساحة (دونم):</label><input type="number" step="0.01" id="plot-area" placeholder="0.00"><div class="error-message"></div></div><div class="modal-footer"><button class="btn btn-outline" style="flex:1;" onclick="UI.cancelPlotSaving()">إلغاء</button><button class="btn btn-primary" style="flex:1;" onclick="savePlot()">تأكيد وحفظ الأرض</button></div></div></div>
     <!-- ══ modal تعديل سجل الكبس ══ -->
     <div id="recEditModal" class="modal">
         <div class="modal-content">
@@ -1542,19 +1592,19 @@
             </div>
             <input type="hidden" id="edit-user-id">
             <div class="form-group">
-                <label>الاسم الكامل للمستخدم:</label>
+                <label for="edit-user-name">الاسم الكامل للمستخدم:</label>
                 <input type="text" id="edit-user-name" placeholder="أدخل الاسم الكامل">
                 <div class="error-message"></div>
             </div>
             <div class="form-group">
-                <label>نوع الصلاحية:</label>
+                <label for="edit-user-role">نوع الصلاحية:</label>
                 <select id="edit-user-role">
                     <option value="manager">مسؤول (إعطاء أوامر ورسم أراضي)</option>
                     <option value="driver">سائق (مقتصر على رؤية الخريطة وقبول الأوامر)</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>الرمز الخاص (PIN Code):</label>
+                <label for="edit-user-pass">الرمز الخاص (PIN Code):</label>
                 <input type="text" id="edit-user-pass" placeholder="4-8 أرقام">
                 <div class="error-message"></div>
             </div>
@@ -1562,6 +1612,23 @@
                 <button class="btn btn-outline" style="flex:1;" onclick="UI.closeModal('userEditModal')">إلغاء</button>
                 <button class="btn btn-primary" style="flex:1;" onclick="UserManager.updateUser(document.getElementById('edit-user-id').value, document.getElementById('edit-user-name').value, document.getElementById('edit-user-role').value, document.getElementById('edit-user-pass').value)">💾 حفظ التعديلات</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ══ modal النسخ الاحتياطي والاستعادة ══ -->
+    <div id="backupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h3 class="modal-title">💾 نسخ احتياطي واستعادة</h3></div>
+            <div class="form-group">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;line-height:1.8;">نزّل نسخة احتياطية كاملة من كل البيانات (الأراضي، الأسطول، الحسابات، السجل، وسجلات الكبس) كملف JSON واحد يمكن استخدامه لاستعادة البيانات لاحقاً.</p>
+                <button class="btn btn-primary btn-block" onclick="BackupManager.exportAll()">⬇️ تنزيل نسخة احتياطية الآن</button>
+            </div>
+            <div class="form-group" style="margin-top:6px;border-top:1px solid var(--border-color);padding-top:16px;">
+                <label for="backup-restore-file">استعادة من ملف نسخة احتياطية (JSON):</label>
+                <input type="file" id="backup-restore-file" accept="application/json" onchange="BackupManager.importFile(this.files[0])">
+                <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">⚠️ الاستعادة تدمج بيانات الملف مع البيانات الحالية وتُزامنها مع السحابة — متاحة للمدير العام فقط.</p>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline" style="flex:1;" onclick="UI.closeModal('backupModal')">إغلاق</button></div>
         </div>
     </div>
 
@@ -1924,7 +1991,11 @@
             let failCount = 0;
             const poll = async () => {
                 try {
-                    const headers = {};
+                    // ✅ يجب طلب X-Firebase-ETag صراحة، وإلا فإن Firebase REST لا يرسل
+                    // رأس ETag أبداً، وبالتالي "lastEtag" يبقى فارغاً للأبد ولا يعمل
+                    // الفلتر المقارن أدناه، فتتكرر استدعاءات callback عند كل استطلاع
+                    // حتى لو لم يتغيّر شيء
+                    const headers = { 'X-Firebase-ETag': 'true' };
                     if (lastEtag) headers['If-None-Match'] = lastEtag;
                     const r = await fetch(`${FB_BASE}/${this.path}.json?auth=${FB_KEY}`, { headers });
                     if (r.status === 304) return; // لا تغيير — لا تستدعي callback
@@ -2004,19 +2075,24 @@
     <script>
     // ═══ تحميل Leaflet مع fallbacks متعددة ═══
     window._leafletReady = false;
+    window._leafletFailed = false;
     window._leafletCallbacks = [];
 
-    // دالة تُنفَّذ عند جهوزية Leaflet
-    window._onLeafletReady = function() {
-        window._leafletReady = true;
-        console.log('✅ Leaflet ready, L =', typeof L);
+    // دالة تُنفَّذ عند جهوزية Leaflet (أو فشل تحميله نهائياً)
+    window._onLeafletReady = function(failed) {
+        window._leafletReady = !failed;
+        window._leafletFailed = !!failed;
+        console.log(failed ? '❌ Leaflet فشل التحميل نهائياً' : '✅ Leaflet ready, L =', typeof L);
         window._leafletCallbacks.forEach(function(cb) { try { cb(); } catch(e){} });
         window._leafletCallbacks = [];
     };
 
     // تسجيل callback عند جهوزية Leaflet
     window._whenLeafletReady = function(cb) {
-        if (window._leafletReady && typeof L !== 'undefined') { cb(); }
+        // ✅ إذا فشل التحميل نهائياً، نفّذ الـ callback فوراً بدل تركه معلّقاً
+        // للأبد (المستدعي/MapSystem.init يتكفّلان بإظهار رسالة الفشل المناسبة)
+        if (window._leafletFailed) { cb(); }
+        else if (window._leafletReady && typeof L !== 'undefined') { cb(); }
         else { window._leafletCallbacks.push(cb); }
     };
 
@@ -2051,7 +2127,7 @@
         function tryNext() {
             if (idx >= srcs.length) {
                 console.warn('❌ Leaflet فشل التحميل من كل المصادر');
-                window._onLeafletReady(); // نُعلم بالفشل أيضاً
+                window._onLeafletReady(true); // نُعلم بالفشل أيضاً
                 return;
             }
             const src = srcs[idx++];
@@ -2173,7 +2249,9 @@ const SecureStorage = {
 const LocalDB = {
     db: null,
     dbName: 'SunSystemDB',
-    version: 1,
+    // ✅ v2: أضاف فهرس "synced" الناقص من مخزن "users" (كان يُسبب فشل مزامنة
+    // الحسابات دائماً بخطأ "index not found" لأن المخزن أُنشئ بدونه في v1)
+    version: 2,
 
     async init() {
         return new Promise((resolve, reject) => {
@@ -2187,6 +2265,7 @@ const LocalDB = {
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
+                const tx = event.target.transaction;
 
                 if (!db.objectStoreNames.contains('plots')) {
                     const plotsStore = db.createObjectStore('plots', { keyPath: 'id' });
@@ -2208,7 +2287,19 @@ const LocalDB = {
                 }
 
                 if (!db.objectStoreNames.contains('users')) {
-                    db.createObjectStore('users', { keyPath: 'id' });
+                    const usersStore = db.createObjectStore('users', { keyPath: 'id' });
+                    usersStore.createIndex('name', 'name', { unique: false });
+                    usersStore.createIndex('synced', 'synced', { unique: false });
+                } else {
+                    // ✅ ترقية من v1: أضِف الفهرس الناقص لقواعد بيانات موجودة مسبقاً
+                    // (كان "users" يُنشأ بدون فهرس "synced" فتفشل مزامنة الحسابات دائماً)
+                    const usersStore = tx.objectStore('users');
+                    if (!usersStore.indexNames.contains('name')) {
+                        usersStore.createIndex('name', 'name', { unique: false });
+                    }
+                    if (!usersStore.indexNames.contains('synced')) {
+                        usersStore.createIndex('synced', 'synced', { unique: false });
+                    }
                 }
 
                 if (!db.objectStoreNames.contains('orders')) {
@@ -3222,7 +3313,7 @@ const NavigationSystem = {
             MapSystem.addMarker('nav-dest', center.lat, center.lng, {
                 radius: 12,
                 color: '#e65100',
-                popup: `<b>${plot.name}</b>`
+                popup: `<b>${esc(plot.name)}</b>`
             });
         }
 
@@ -3287,8 +3378,8 @@ const NavigationSystem = {
         infoEl.innerHTML = `📍 ${distText} · ⏱ ~${timeMin} دقيقة`;
 
         if (dist < 0.1) {
-            infoEl.innerHTML = `✅ وصلت إلى ${AppState.plots[this.activePlotId].name}!`;
-            Toast.success(`🎉 وصلت إلى ${AppState.plots[this.activePlotId].name}!`);
+            infoEl.innerHTML = `✅ وصلت إلى ${esc(AppState.plots[this.activePlotId].name)}!`;
+            Toast.success(`🎉 وصلت إلى ${esc(AppState.plots[this.activePlotId].name)}!`);
         }
 
         UI.renderDriverPlotsList();
@@ -3764,8 +3855,16 @@ const HistoryManager = {
 
 // ===== نظام إدارة المستخدمين =====
 const UserManager = {
+    _creatingUser: false,
+
     async createUser(name, role, password) {
-        if (!name || name.trim().length < 2) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin) { Toast.error('⛔ هذا الإجراء متاح للمدير العام فقط'); return false; }
+        // ✅ حارس ضد الضغط المزدوج/السريع الذي كان يُنشئ حسابين متطابقين
+        if (this._creatingUser) return false;
+
+        name = (name || '').trim();
+        if (!name || name.length < 2) {
             Toast.error('يرجى إدخال اسم المستخدم (حرفان على الأقل)');
             return false;
         }
@@ -3773,29 +3872,55 @@ const UserManager = {
             Toast.error('الرمز يجب أن يكون بين 4-8 أرقام');
             return false;
         }
+        // ✅ منع إنشاء حساب مكرر بنفس الاسم
+        const existing = Object.values(AppState.users || {}).find(u => u && u.name === name);
+        if (existing) {
+            Toast.error('يوجد حساب بهذا الاسم بالفعل');
+            return false;
+        }
 
-        const userData = { name, role, password };
+        this._creatingUser = true;
+        const btn = document.querySelector('#tab-users button.btn-success');
+        if (btn) { btn.disabled = true; }
 
-        // حفظ محلياً
-        await LocalDB.save('users', { ...userData, id: Date.now().toString(), synced: false });
+        try {
+            const userData = { name, role, password };
 
-        // حفظ في Firebase
-        if (db && NetworkManager.isOnline) {
-            try {
-                await push(dbUsersRef, userData);
-                Toast.success('تم إنشاء الحساب بنجاح');
-                return true;
-            } catch (error) {
-                Toast.error('فشل الحفظ في السحابة، تم الحفظ محلياً');
-                return false;
+            // حفظ محلياً
+            await LocalDB.save('users', { ...userData, id: Date.now().toString(), synced: false });
+
+            let ok = true;
+            // حفظ في Firebase
+            if (db && NetworkManager.isOnline) {
+                try {
+                    await push(dbUsersRef, userData);
+                    Toast.success('تم إنشاء الحساب بنجاح');
+                } catch (error) {
+                    Toast.error('فشل الحفظ في السحابة، تم الحفظ محلياً');
+                    ok = false;
+                }
+            } else {
+                Toast.warning('تم الحفظ محلياً فقط - سيتم المزامنة عند الاتصال');
             }
-        } else {
-            Toast.warning('تم الحفظ محلياً فقط - سيتم المزامنة عند الاتصال');
-            return true;
+
+            // ✅ تفريغ النموذج بعد الحفظ حتى لا يُعاد إرسال نفس البيانات بالخطأ
+            const nameEl = document.getElementById('new-user-name');
+            const passEl = document.getElementById('new-user-pass');
+            const roleEl = document.getElementById('new-user-role');
+            if (nameEl) nameEl.value = '';
+            if (passEl) passEl.value = '';
+            if (roleEl) roleEl.value = 'manager';
+
+            return ok;
+        } finally {
+            this._creatingUser = false;
+            if (btn) { btn.disabled = false; }
         }
     },
 
     async deleteUser(id) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin) { Toast.error('⛔ هذا الإجراء متاح للمدير العام فقط'); return; }
         if (!await customConfirm('هل أنت متأكد من حذف هذا الحساب؟', '👤')) return;
 
         // ✅ حذف فوري من الذاكرة وتحديث الواجهة
@@ -3825,6 +3950,8 @@ const UserManager = {
     },
 
     async updateUser(id, name, role, password) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin) { Toast.error('⛔ هذا الإجراء متاح للمدير العام فقط'); return false; }
         if (!name || name.trim().length < 2) {
             Toast.error('يرجى إدخال الاسم (حرفان على الأقل)');
             return false;
@@ -3920,6 +4047,8 @@ const UserManager = {
 // ===== نظام إدارة الأسطول =====
 const FleetManager = {
     async saveMachine(data, id = null) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin) { Toast.error('⛔ هذا الإجراء متاح للمدير العام فقط'); return false; }
         // التحقق المباشر من القيم بدون الاعتماد على form id
         if (!data.name || data.name.trim().length < 2) {
             Toast.error('يرجى إدخال اسم المجموعة/الطاقم (حرفان على الأقل)');
@@ -3994,6 +4123,8 @@ const FleetManager = {
     },
 
     async deleteMachine(id) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin) { Toast.error('⛔ هذا الإجراء متاح للمدير العام فقط'); return; }
         if (!await customConfirm('هل أنت متأكد من حذف هذه المعدة؟', '🚜')) return;
 
         // ✅ حذف فوري من AppState وتحديث الواجهة
@@ -4034,6 +4165,8 @@ const FleetManager = {
 // ===== نظام إدارة الأراضي =====
 const PlotManager = {
     async savePlot(data) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin && !AppState.isManager) { Toast.error('⛔ هذا الإجراء متاح للمدير/المسؤول فقط'); return false; }
         if (!data.name || String(data.name).trim().length < 1) {
             Toast.error('يرجى إدخال اسم الأرض');
             return false;
@@ -4096,6 +4229,8 @@ const PlotManager = {
     },
 
     async deletePlot(id) {
+        // ✅ حاجز صلاحيات في العميل (دفاع إضافي — لا يُغني عن قواعد أمان Firebase الحقيقية)
+        if (!AppState.isAdmin && !AppState.isManager) { Toast.error('⛔ هذا الإجراء متاح للمدير/المسؤول فقط'); return; }
         if (!await customConfirm('هل أنت متأكد من حذف هذه الأرض؟\nلا يمكن التراجع عن هذا الإجراء.', '🌾')) return;
 
         // ✅ حذف فوري من الذاكرة أولاً
@@ -4193,7 +4328,7 @@ const OrderManager = {
         if (db && NetworkManager.isOnline) {
             try {
                 await set(ref(db, 'orders/' + driver), orderData);
-                Toast.success(`تم إرسال الأمر إلى ${driver}`);
+                Toast.success(`تم إرسال الأمر إلى ${esc(driver)}`);
                 return true;
             } catch (error) {
                 Toast.error('فشل الإرسال');
@@ -4248,29 +4383,45 @@ const SyncManager = {
         const connEl = document.getElementById('dash-connection-status');
         if (connEl) { connEl.innerText = '🟢 متصل بالإنترنت'; connEl.style.color = 'var(--success)'; }
 
+        // ✅ مزامنة عنصر واحد: تدفعه لـ Firebase بمفتاح جديد، ثم تستبدل السجل
+        // المحلي بمفتاح Firebase الحقيقي بدل ترك نسخة محلية "مزامنة" منفصلة عن
+        // النسخة السحابية الجديدة (وإلا يتكرر العنصر عند كل مزامنة لاحقة)
+        const syncOne = async (store, dbRef, localId, item) => {
+            const { synced, id, ...payload } = item;
+            const res = await push(dbRef, payload);
+            const newId = (res && res.key) || localId;
+            if (newId !== localId) {
+                try { await LocalDB.delete(store, localId); } catch (e) {}
+            }
+            await LocalDB.save(store, { ...payload, id: newId, synced: true });
+            if (AppState[store] && AppState[store][localId]) {
+                delete AppState[store][localId];
+            }
+            if (AppState[store]) {
+                AppState[store][newId] = { ...payload, id: newId };
+            }
+        };
+
         try {
             // مزامنة الأراضي
             const plots = await LocalDB.getAll('plots', 'synced', false);
             for (let pi = 0; pi < plots.length; pi++) {
                 const plot = plots[pi];
-                await push(dbPlotsRef, { ...plot, synced: undefined });
-                await LocalDB.save('plots', { ...plot, synced: true });
+                await syncOne('plots', dbPlotsRef, plot.id, plot);
             }
 
             // مزامنة المكائن
             const fleet = await LocalDB.getAll('fleet', 'synced', false);
             for (let fi = 0; fi < fleet.length; fi++) {
                 const machine = fleet[fi];
-                await push(dbFleetRef, { ...machine, synced: undefined });
-                await LocalDB.save('fleet', { ...machine, synced: true });
+                await syncOne('fleet', dbFleetRef, machine.id, machine);
             }
 
             // مزامنة المستخدمين
             const users = await LocalDB.getAll('users', 'synced', false);
             for (let ui = 0; ui < users.length; ui++) {
                 const user = users[ui];
-                await push(dbUsersRef, { ...user, synced: undefined });
-                await LocalDB.save('users', { ...user, synced: true });
+                await syncOne('users', dbUsersRef, user.id, user);
             }
 
             // تحديث وقت المزامنة النهائي
@@ -4282,8 +4433,122 @@ const SyncManager = {
         } catch (error) {
             console.error('Sync error:', error);
         }
+
+        try { await this.updatePendingBadge(); } catch(e) {}
+    },
+
+    // ✅ يُظهر عدد العناصر المحفوظة محلياً فقط بانتظار المزامنة مع السحابة
+    // (يستجيب لتوصية "أظهر طابور المزامنة المعلّق" حتى يعرف المستخدم أن بياناته لم تصل بعد)
+    async updatePendingBadge() {
+        const btn = document.getElementById('sync-status-btn');
+        if (!btn) return;
+        try {
+            const [plots, fleet, users] = await Promise.all([
+                LocalDB.getAll('plots', 'synced', false).catch(() => []),
+                LocalDB.getAll('fleet', 'synced', false).catch(() => []),
+                LocalDB.getAll('users', 'synced', false).catch(() => [])
+            ]);
+            const pendingBales = (window._pendingBales || []).length;
+            const total = plots.length + fleet.length + users.length + pendingBales;
+            if (total > 0) {
+                btn.style.display = 'inline-flex';
+                btn.textContent = `⏳ ${total}`;
+                btn.title = `${total} عنصر بانتظار المزامنة — اضغط للمحاولة الآن`;
+            } else {
+                btn.style.display = 'none';
+            }
+        } catch (e) {}
     }
 };
+
+// ===== نظام النسخ الاحتياطي والاستعادة (تصدير/استيراد كامل البيانات كملف JSON) =====
+const BackupManager = {
+    async exportAll() {
+        try {
+            const baleRecords = (typeof BaleCounter !== 'undefined') ? await BaleCounter.getAllRecordsAll() : [];
+            const backup = {
+                app: 'الشمس الذكي',
+                version: 'pro-max-1.0',
+                exportedAt: new Date().toISOString(),
+                plots: AppState.plots || {},
+                fleet: AppState.fleet || {},
+                users: AppState.users || {},
+                history: AppState.history || {},
+                baleRecords
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const d = new Date();
+            a.download = `alshams-backup-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            Toast.success('✅ تم تنزيل النسخة الاحتياطية');
+        } catch (e) {
+            console.error('Backup export error:', e);
+            Toast.error('❌ فشل إنشاء النسخة الاحتياطية');
+        }
+    },
+
+    async importFile(file) {
+        if (!AppState.isAdmin) { Toast.error('⛔ الاستعادة متاحة للمدير العام فقط'); return; }
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data || typeof data !== 'object') throw new Error('invalid backup file');
+
+            if (!await customConfirm('سيتم دمج بيانات النسخة الاحتياطية مع البيانات الحالية ومزامنتها مع السحابة. هل تريد المتابعة؟', '📥')) return;
+
+            let restored = 0;
+            const restoreCategory = async (store, items) => {
+                if (!items || typeof items !== 'object') return;
+                for (const id of Object.keys(items)) {
+                    const item = { ...items[id], id, synced: false };
+                    await LocalDB.save(store, item);
+                    if (!AppState[store]) AppState[store] = {};
+                    AppState[store][id] = item;
+                    restored++;
+                }
+            };
+            await restoreCategory('plots', data.plots);
+            await restoreCategory('fleet', data.fleet);
+            await restoreCategory('users', data.users);
+
+            if (Array.isArray(data.baleRecords) && typeof BaleCounter !== 'undefined') {
+                const existing = await BaleCounter.getAllRecordsAll();
+                const existingIds = new Set(existing.map(r => r && r.id));
+                const merged = existing.concat(data.baleRecords.filter(r => r && r.id && !existingIds.has(r.id)));
+                await LocalDB.save('settings', { key: BaleCounter.STORAGE_KEY, value: merged });
+                restored += data.baleRecords.length;
+            }
+
+            Toast.success(`✅ تمت استعادة ${restored} عنصر — جاري المزامنة مع السحابة...`);
+            try { UI.renderPlots(AppState.plots); } catch(e) {}
+            try { UI.renderFleet(AppState.fleet); } catch(e) {}
+            try { UI.renderUsers(AppState.users); } catch(e) {}
+            try { await SyncManager.syncAll(); } catch(e) {}
+            this.closeModal();
+        } catch (e) {
+            console.error('Backup import error:', e);
+            Toast.error('❌ ملف النسخة الاحتياطية غير صالح');
+        }
+    },
+
+    openModal() {
+        const modal = document.getElementById('backupModal');
+        if (modal) modal.classList.add('visible');
+    },
+    closeModal() {
+        const modal = document.getElementById('backupModal');
+        if (modal) modal.classList.remove('visible');
+        const fileInput = document.getElementById('backup-restore-file');
+        if (fileInput) fileInput.value = '';
+    }
+};
+window.BackupManager = BackupManager;
 
 console.log('✅ تم تحميل نظام إدارة البيانات بنجاح');
 
@@ -4407,7 +4672,12 @@ const BaleCounter = {
         input.value = val;
     },
 
+    _recording: false,
+
     async recordBale() {
+        // ✅ حارس ضد الضغط المزدوج/السريع الذي كان يُسجّل نفس الكبسة مرتين
+        if (this._recording) return;
+
         const plotSelect = document.getElementById('bale-plot-select');
         const countInput = document.getElementById('bale-count-input');
 
@@ -4426,6 +4696,12 @@ const BaleCounter = {
             Toast.error('❌ الأرض غير موجودة');
             return;
         }
+
+        this._recording = true;
+        const btn = document.getElementById('record-bale-btn');
+        if (btn) btn.disabled = true;
+
+        try {
 
         const record = {
             id: Date.now().toString(),
@@ -4484,12 +4760,21 @@ const BaleCounter = {
         // Update dashboard
         UI.updateTotalBalesDisplay();
 
-        Toast.success(`✅ تم تسجيل ${count} كبسة في ${plot.name}`);
+        Toast.success(`✅ تم تسجيل ${count} كبسة في ${esc(plot.name)}`);
+
+        } finally {
+            this._recording = false;
+            if (btn) btn.disabled = false;
+        }
     },
 
     async saveRecord(record) {
-        const records = await this.getAllRecords();
-        records.push(record);
+        // ✅ يجب القراءة من كامل السجلات (كل الأيام) وليس سجلات اليوم فقط،
+        // وإلا فإن الحفظ سيستبدل كامل الأرشيف بسجلات اليوم الحالي فقط ويُفقد كل شيء آخر
+        const records = await this.getAllRecordsAll();
+        const existingIdx = records.findIndex(r => r.id === record.id);
+        if (existingIdx >= 0) records[existingIdx] = record;
+        else records.push(record);
         await LocalDB.save('settings', { key: this.STORAGE_KEY, value: records });
     },
 
@@ -4552,7 +4837,7 @@ const BaleCounter = {
             return `
                 <div style="background:white;border-radius:8px;padding:10px;border:1px solid #fed7aa;display:flex;justify-content:space-between;align-items:center;">
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:700;font-size:13px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🌾 ${r.plotName}</div>
+                        <div style="font-weight:700;font-size:13px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🌾 ${esc(r.plotName)}</div>
                         <div style="font-size:11px;color:#64748b;margin-top:2px;">${time} · ${r.plotArea} دونم</div>
                     </div>
                     <div style="text-align:center;margin-right:8px;">
@@ -4671,7 +4956,7 @@ const UI = {
                 const loginEl = document.getElementById('loginScreen');
                 if (loginEl) { loginEl.classList.add('hidden'); loginEl.style.display = 'none'; }
                 await this.applyPermissions();
-                try { Toast.success(`مرحباً ${user.name} 👋`); } catch(e) {}
+                try { Toast.success(`مرحباً ${esc(user.name)} 👋`); } catch(e) {}
             } else {
                 if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = '❌ الرمز أو الاسم غير صحيح!'; }
             }
@@ -5026,7 +5311,7 @@ const UI = {
                     MapSystem.upsertFleetMarker(id, machine.lat, machine.lng, {
                         color,
                         heading,
-                        popup: `<b>🏴 ${machine.name}</b><br>👤 ${machine.driver}${speedTxt}`
+                        popup: `<b>🏴 ${esc(machine.name)}</b><br>👤 ${esc(machine.driver)}${speedTxt}`
                     });
                 }
             } catch(e) {}
@@ -5041,15 +5326,15 @@ const UI = {
             card.className = 'data-card';
             card.innerHTML = `
                 <div class="card-header-badge">
-                    <strong style="color: ${color}; font-size:16px;">🚜 ${machine.name}</strong>
+                    <strong style="color: ${color}; font-size:16px;">🚜 ${esc(machine.name)}</strong>
                     <span style="background:${color}15; color:${color}; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700;">${typeText}</span>
                 </div>
                 <div class="card-body">
-                    <div class="info-row"><span class="label">السائق:</span><span class="val">${machine.driver}</span></div>
-                    <div class="info-row"><span class="label">الجرار:</span><span class="val">${machine.tractor || '-'}</span></div>
-                    <div class="info-row"><span class="label">الملحق:</span><span class="val">${machine.attachment || '-'}</span></div>
-                    <div class="info-row"><span class="label">IMEI:</span><span class="val">${machine.imei || 'لا يوجد'}</span></div>
-                    ${machine.type === 'press' && machine.baleSize ? `<div class="info-row"><span class="label">📦 حجم الكبسة:</span><span class="val primary" style="font-size:15px;">${machine.baleSize}</span></div>` : ''}
+                    <div class="info-row"><span class="label">السائق:</span><span class="val">${esc(machine.driver)}</span></div>
+                    <div class="info-row"><span class="label">الجرار:</span><span class="val">${esc(machine.tractor) || '-'}</span></div>
+                    <div class="info-row"><span class="label">الملحق:</span><span class="val">${esc(machine.attachment) || '-'}</span></div>
+                    <div class="info-row"><span class="label">IMEI:</span><span class="val">${esc(machine.imei) || 'لا يوجد'}</span></div>
+                    ${machine.type === 'press' && machine.baleSize ? `<div class="info-row"><span class="label">📦 حجم الكبسة:</span><span class="val primary" style="font-size:15px;">${esc(machine.baleSize)}</span></div>` : ''}
                 </div>
                 <div class="card-footer">
                     <button class="btn btn-outline btn-sm" onclick="UI.openMachineModal('${id}')">📝 تعديل</button>
@@ -5065,12 +5350,12 @@ const UI = {
                 item.innerHTML = `
                     <div class="tracking-dot"></div>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${machine.name}</div>
-                        <div style="font-size:11px; color:var(--text-muted);">👤 ${machine.driver}${speedLine}</div>
+                        <div style="font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(machine.name)}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">👤 ${esc(machine.driver)}${speedLine}</div>
                     </div>
                     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
                         <span style="font-size:10px; background:${color}18; color:${color}; padding:3px 7px; border-radius:10px; font-weight:700; white-space:nowrap;">${typeText}</span>
-                        ${machine.type === 'press' && machine.baleSize ? `<span style="font-size:9px; background:#fff3e0; color:var(--primary); padding:2px 6px; border-radius:8px; font-weight:700;">📦 ${machine.baleSize}</span>` : ''}
+                        ${machine.type === 'press' && machine.baleSize ? `<span style="font-size:9px; background:#fff3e0; color:var(--primary); padding:2px 6px; border-radius:8px; font-weight:700;">📦 ${esc(machine.baleSize)}</span>` : ''}
                     </div>
                 `;
                 item.onclick = () => {
@@ -5104,11 +5389,11 @@ const UI = {
             const hasCoords = plot.coords && Array.isArray(plot.coords) && plot.coords.length >= 3;
             const popupContent = isDriver
                 ? `<div style="text-align:center; font-family:Cairo,sans-serif; min-width:160px;">
-                    <div style="font-size:16px; font-weight:800; color:#1e293b; margin-bottom:4px;">🌾 ${plot.name}</div>
-                    <div style="font-size:12px; color:#64748b; margin-bottom:8px;">${plot.crop || ''} · ${plot.area} دونم</div>
+                    <div style="font-size:16px; font-weight:800; color:#1e293b; margin-bottom:4px;">🌾 ${esc(plot.name)}</div>
+                    <div style="font-size:12px; color:#64748b; margin-bottom:8px;">${esc(plot.crop) || ''} · ${plot.area} دونم</div>
                     <button onclick="NavigationSystem.start('${id}')" style="background:#e65100; color:white; border:none; border-radius:8px; padding:8px 16px; font-weight:700; cursor:pointer; font-size:13px; width:100%;">🧭 ابدأ الملاحة</button>
                    </div>`
-                : `<b>🌾 ${plot.name}</b><br>${plot.crop || ''} · ${plot.area} دونم`;
+                : `<b>🌾 ${esc(plot.name)}</b><br>${esc(plot.crop) || ''} · ${plot.area} دونم`;
 
             if (hasCoords) {
                 MapSystem.addPolygon(id, plot.coords, { popup: popupContent });
@@ -5118,8 +5403,8 @@ const UI = {
             card.className = 'data-card';
             card.innerHTML = `
                 <div class="card-body">
-                    <h3 style="margin-bottom:8px;">🌾 ${plot.name}</h3>
-                    <div class="info-row"><span class="label">الصنف:</span><span class="val">${plot.crop || 'غير محدد'}</span></div>
+                    <h3 style="margin-bottom:8px;">🌾 ${esc(plot.name)}</h3>
+                    <div class="info-row"><span class="label">الصنف:</span><span class="val">${esc(plot.crop) || 'غير محدد'}</span></div>
                     <div class="info-row"><span class="label">المساحة:</span><span class="val primary">${plot.area} دونم</span></div>
                 </div>
                 <div class="card-footer">
@@ -5145,12 +5430,12 @@ const UI = {
 
         Object.entries(data).forEach(([id, user]) => {
             const roleColor = roleColors[user.role] || '#64748b';
-            const roleText  = roleTexts[user.role]  || user.role;
+            const roleText  = roleTexts[user.role]  || esc(user.role);
             const card = document.createElement('div');
             card.className = 'data-card';
             card.innerHTML = `
                 <div class="card-header-badge">
-                    <strong style="font-size:15px;">👤 ${user.name}</strong>
+                    <strong style="font-size:15px;">👤 ${esc(user.name)}</strong>
                     <span style="background:${roleColor}18;color:${roleColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${roleText}</span>
                 </div>
                 <div class="card-body">
@@ -5220,7 +5505,7 @@ const UI = {
                     break;
                 case 'nav':
                     dotClass = 'nav'; icon = '🧭';
-                    text = `بدأ الملاحة إلى: ${entry.plotName || 'أرض غير معروفة'}`;
+                    text = `بدأ الملاحة إلى: ${esc(entry.plotName) || 'أرض غير معروفة'}`;
                     sub = entry.plotArea ? `${entry.plotArea} دونم` : '';
                     break;
                 case 'location':
@@ -5230,12 +5515,12 @@ const UI = {
                     break;
                 case 'order':
                     dotClass = 'order'; icon = '📣';
-                    text = `أمر: ${entry.text || ''}`;
+                    text = `أمر: ${esc(entry.text) || ''}`;
                     break;
                 case 'bale':
                     dotClass = 'bale'; icon = '📦';
-                    text = entry.text || 'تسجيل كبس';
-                    sub = entry.baleSize ? `حجم: ${entry.baleSize}` : '';
+                    text = esc(entry.text) || 'تسجيل كبس';
+                    sub = entry.baleSize ? `حجم: ${esc(entry.baleSize)}` : '';
                     if (entry.count) sub += (sub ? ' · ' : '') + `العدد: ${entry.count}`;
                     break;
             }
@@ -5296,8 +5581,8 @@ const UI = {
                 <div class="driver-plot-item ${isActive ? 'selected' : ''}" onclick="UI.focusPlot('${id}')">
                     <div class="driver-plot-icon">🌾</div>
                     <div class="driver-plot-info">
-                        <div class="plot-title">${p.name}</div>
-                        <div class="plot-meta">${p.crop || 'غير محدد'} · ${p.area} دونم${distText ? ' · <b style="color:var(--primary)">' + distText + '</b>' : ''}</div>
+                        <div class="plot-title">${esc(p.name)}</div>
+                        <div class="plot-meta">${esc(p.crop) || 'غير محدد'} · ${p.area} دونم${distText ? ' · <b style="color:var(--primary)">' + distText + '</b>' : ''}</div>
                     </div>
                     <button class="driver-plot-nav-btn ${isActive ? 'cancel' : ''}" 
                         onclick="event.stopPropagation(); ${isActive ? 'NavigationSystem.cancel()' : `NavigationSystem.start('${id}')`}">
@@ -5329,7 +5614,7 @@ const UI = {
 
         if (order && order.active) {
             container.innerHTML = `
-                <p style="margin-bottom:10px; font-weight:700;">💬 ${order.text}</p>
+                <p style="margin-bottom:10px; font-weight:700;">💬 ${esc(order.text)}</p>
                 <button class="btn btn-success btn-block" onclick="OrderManager.acceptOrder('${(AppState.currentUser && AppState.currentUser.name)}')">✅ قبول وجاري التنفيذ</button>
             `;
             Toast.info('📬 أمر جديد وارد!');
@@ -5505,15 +5790,18 @@ const UI = {
     updateActiveDrivers() {
         const el = document.getElementById('dash-active-drivers');
         if (!el) return;
-        // عدّ السائقين الذين لهم إحداثية محدّثة خلال آخر 10 دقائق
+        // عدّ السائقين (وليس المكائن) الذين لهم إحداثية محدّثة خلال آخر 10 دقائق
+        // — سائق واحد قد يُدير أكثر من معدة، فيجب العدّ حسب اسم السائق لا حسب المعدة
         const cutoff = Date.now() - 600000;
-        let active = 0;
+        const activeDrivers = new Set();
         Object.values(AppState.fleet || {}).forEach(m => {
-            if (m.lastSeen && m.lastSeen > cutoff) active++;
-            else if (m.lat && m.lat !== 33.3128) active++; // تقريبي
+            if (!m.driver) return;
+            const isActive = (m.lastSeen && m.lastSeen > cutoff) ||
+                (m.lat && m.lat !== 33.3128 && m.lng && m.lng !== 44.3615); // تقريبي
+            if (isActive) activeDrivers.add(m.driver);
         });
-        el.innerText = active;
-        el.style.color = active > 0 ? 'var(--success)' : 'var(--text-muted)';
+        el.innerText = activeDrivers.size;
+        el.style.color = activeDrivers.size > 0 ? 'var(--success)' : 'var(--text-muted)';
     },
 
     updateActivityLog() {
@@ -5535,12 +5823,12 @@ const UI = {
         }
         const icons = { start:'🟢', stop:'🔴', nav:'🧭', location:'📍', bale:'📦', order:'📣' };
         const texts = {
-            start: e => `${e.driver} بدأ بث الموقع`,
-            stop:  e => `${e.driver} أوقف البث`,
-            nav:   e => `${e.driver} بدأ الملاحة إلى ${e.plotName||'أرض'}`,
-            location: e => `${e.driver} — إحداثية جديدة`,
-            bale:  e => `${e.driver} سجّل ${e.count||''} كبسة في ${e.plotName||'أرض'}`,
-            order: e => `أمر لـ ${e.driver}: ${e.text||''}`
+            start: e => `${esc(e.driver)} بدأ بث الموقع`,
+            stop:  e => `${esc(e.driver)} أوقف البث`,
+            nav:   e => `${esc(e.driver)} بدأ الملاحة إلى ${esc(e.plotName)||'أرض'}`,
+            location: e => `${esc(e.driver)} — إحداثية جديدة`,
+            bale:  e => `${esc(e.driver)} سجّل ${e.count||''} كبسة في ${esc(e.plotName)||'أرض'}`,
+            order: e => `أمر لـ ${esc(e.driver)}: ${esc(e.text)||''}`
         };
         el.innerHTML = recent.map(e => {
             const t = new Date(e.ts).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
@@ -5754,6 +6042,9 @@ async function initApp() {
     // 5. تهيئة UI (لا تحتاج Leaflet)
     try { UI.init(); } catch(e) { console.warn('UI:', e); }
     try { if (db && NetworkManager.isOnline) SyncManager.syncAll(); } catch(e) {}
+    try { SyncManager.updatePendingBadge(); } catch(e) {}
+    // ✅ تحديث دوري لعداد "بانتظار المزامنة" حتى بدون فتح شاشة جديدة
+    setInterval(() => { try { SyncManager.updatePendingBadge(); } catch(e) {} }, 30000);
 
     // 6. ═══ تهيئة الخريطة — الانتظار الذكي لـ Leaflet ═══
     const _initMapWhenReady = async () => {
@@ -5967,7 +6258,17 @@ window.BaleCounter = BaleCounter;
             var iconEl  = document.getElementById('confirmIcon');
             var okBtn   = document.getElementById('confirmOkBtn');
             var cancelBtn = document.getElementById('confirmCancelBtn');
-            if (!overlay) { resolve(true); return; }
+            if (!overlay || !okBtn || !cancelBtn) { resolve(true); return; }
+
+            // ✅ استنساخ الأزرار يزيل أي مستمعين معلّقين من نداءات customConfirm
+            // سابقة لم تُحسَم بعد؛ بدون هذا، نداءان متتاليان قبل ضغط المستخدم
+            // يجعلان ضغطة واحدة تُحسم كلا الطلبين معاً بصمت
+            var newOkBtn = okBtn.cloneNode(true);
+            okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            okBtn = newOkBtn;
+            var newCancelBtn = cancelBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            cancelBtn = newCancelBtn;
 
             if (msgEl)  msgEl.innerText  = message || 'هل أنت متأكد؟';
             if (iconEl) iconEl.innerText = icon    || '🗑️';
@@ -5976,8 +6277,7 @@ window.BaleCounter = BaleCounter;
 
             function cleanup(result) {
                 overlay.style.display = 'none';
-                okBtn.removeEventListener('click', onOk);
-                cancelBtn.removeEventListener('click', onCancel);
+                overlay.onclick = null;
                 resolve(result);
             }
             function onOk()     { cleanup(true);  }
@@ -6099,8 +6399,8 @@ const DailyAchievement = {
                     <div class="achievement-plot-row">
                         <div class="achievement-plot-icon">🌾</div>
                         <div style="flex:1;min-width:0;">
-                            <div class="achievement-plot-name">${info.name}</div>
-                            ${info.baleSize ? `<div class="achievement-bale-size-tag">📦 ${info.baleSize}</div>` : ''}
+                            <div class="achievement-plot-name">${esc(info.name)}</div>
+                            ${info.baleSize ? `<div class="achievement-bale-size-tag">📦 ${esc(info.baleSize)}</div>` : ''}
                         </div>
                         <div style="text-align:center;">
                             <div class="achievement-plot-count">${info.count}</div>
@@ -6129,7 +6429,7 @@ const DailyAchievement = {
                         <span style="font-size:11px;color:#64748b;font-weight:700;width:100%;margin-bottom:4px;">👷 تفصيل حسب السائق:</span>
                         ${Object.entries(driverTotals).sort((a,b)=>b[1]-a[1]).map(([driver, count]) => `
                             <div class="achievement-driver-chip">
-                                👤 ${driver}
+                                👤 ${esc(driver)}
                                 <span class="achievement-driver-count">${count} كبسة</span>
                             </div>
                         `).join('')}
@@ -6263,22 +6563,22 @@ const RecordsSystem = {
         return `<div class="rec-card" id="rec-card-${i}">
             <div class="rec-top">
                 <div>
-                    <div class="rec-name">👤 ${r.driver || '—'}</div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">🌾 ${r.plotName || '—'}</div>
+                    <div class="rec-name">👤 ${esc(r.driver) || '—'}</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">🌾 ${esc(r.plotName) || '—'}</div>
                 </div>
                 <span style="background:#fff3e0;color:var(--primary);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">📦 كبس بالات</span>
             </div>
             <div class="rec-meta">
                 <span>📅 ${time}</span>
-                ${r.baleSize ? `<span>📦 ${r.baleSize}</span>` : ''}
+                ${r.baleSize ? `<span>📦 ${esc(r.baleSize)}</span>` : ''}
             </div>
             <div class="rec-vals">
                 <div class="rec-val-item">
                     <span class="rec-val-key">الكبسات</span>
                     <span class="rec-val-v" style="font-size:26px;color:var(--primary);">${r.count||0}</span>
                 </div>
-                ${r.baleSize ? `<div class="rec-val-item"><span class="rec-val-key">حجم الكبسة</span><span class="rec-val-v" style="color:#2563eb;">${r.baleSize}</span></div>` : ''}
-                <div class="rec-val-item"><span class="rec-val-key">الأرض</span><span class="rec-val-v">${r.plotName||'—'}</span></div>
+                ${r.baleSize ? `<div class="rec-val-item"><span class="rec-val-key">حجم الكبسة</span><span class="rec-val-v" style="color:#2563eb;">${esc(r.baleSize)}</span></div>` : ''}
+                <div class="rec-val-item"><span class="rec-val-key">الأرض</span><span class="rec-val-v">${esc(r.plotName)||'—'}</span></div>
             </div>
             <div class="rec-actions" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
                 <button onclick='RecordsSystem.printRec(${JSON.stringify(r).replace(/</g,"&lt;").replace(/'/g,"&#39;")})' style="padding:7px 14px;border-radius:8px;border:1px solid var(--border-color);background:white;font-size:12px;font-weight:700;cursor:pointer;flex:1;">🖨️ وصل</button>
@@ -6455,7 +6755,7 @@ const RecordsSystem = {
             const infoEl = document.getElementById('rec-edit-info');
             if (infoEl) {
                 const t = r.ts ? new Date(r.ts).toLocaleString('ar-IQ',{dateStyle:'short',timeStyle:'short'}) : r.date||'—';
-                infoEl.innerHTML = `👤 ${r.driver||'—'} · 📅 ${t}`;
+                infoEl.innerHTML = `👤 ${esc(r.driver)||'—'} · 📅 ${t}`;
             }
             // فتح المودال
             const modal = document.getElementById('recEditModal');
@@ -6569,7 +6869,7 @@ const RecordsSystem = {
 
     printRec(r) {
         const time = r.ts ? new Date(r.ts).toLocaleString('ar-IQ',{dateStyle:'long',timeStyle:'short'}) : r.date||'—';
-        const row=(k,v)=>`<div class="rpt-row"><span class="rpt-key">${k}</span><span class="rpt-val">${v}</span></div>`;
+        const row=(k,v)=>`<div class="rpt-row"><span class="rpt-key">${esc(k)}</span><span class="rpt-val">${esc(v)}</span></div>`;
         const html = `
         <div class="rpt-company-head"><div class="rpt-company-name">☀️ شركة الشمس</div><div style="font-size:11px;color:#64748b;">وصل تسجيل إنتاج الكبس</div></div>
         <div style="height:3px;background:linear-gradient(90deg,#e65100,#f57c00);"></div>
@@ -6710,9 +7010,9 @@ const CollectionSystem = {
         const byDriver = {};
         recs.forEach(r => { const k=r.driver||'—'; byDriver[k]=(byDriver[k]||0)+(r.count||0); });
         const plotRows = Object.values(byPlot).sort((a,b)=>b.count-a.count)
-            .map((p,i)=>`<tr><td style="text-align:center;color:#94a3b8;">${i+1}</td><td style="font-weight:700;">🌾 ${p.name}</td><td style="text-align:center;">${p.baleSize||'—'}</td><td style="text-align:center;font-weight:800;font-size:15px;color:var(--primary);">${p.count}</td></tr>`).join('');
+            .map((p,i)=>`<tr><td style="text-align:center;color:#94a3b8;">${i+1}</td><td style="font-weight:700;">🌾 ${esc(p.name)}</td><td style="text-align:center;">${esc(p.baleSize)||'—'}</td><td style="text-align:center;font-weight:800;font-size:15px;color:var(--primary);">${p.count}</td></tr>`).join('');
         const driverRows = Object.entries(byDriver).sort((a,b)=>b[1]-a[1])
-            .map(([d,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);"><span style="font-weight:700;">👤 ${d}</span><span style="font-size:18px;font-weight:800;color:var(--primary);">${c} <span style="font-size:11px;color:#94a3b8;">كبسة</span></span></div>`).join('');
+            .map(([d,c])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);"><span style="font-weight:700;">👤 ${esc(d)}</span><span style="font-size:18px;font-weight:800;color:var(--primary);">${c} <span style="font-size:11px;color:#94a3b8;">كبسة</span></span></div>`).join('');
         return { total, byPlot, byDriver, plotRows, driverRows };
     },
 
@@ -6750,9 +7050,9 @@ const CollectionSystem = {
         const PL = { daily:'اليومية', weekly:'الأسبوعية', monthly:'الشهرية' };
         const { total, byPlot, byDriver } = this.buildCollHTML(recs, '');
         const plotRows = Object.values(byPlot).sort((a,b)=>b.count-a.count)
-            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.name}</td><td style="text-align:center">${p.baleSize||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
+            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(p.name)}</td><td style="text-align:center">${esc(p.baleSize)||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
         const driverRowsHtml = Object.entries(byDriver).sort((a,b)=>b[1]-a[1])
-            .map(([d,c])=>`<tr><td>${d}</td><td style="text-align:center;font-weight:800;color:#e65100">${c}</td></tr>`).join('');
+            .map(([d,c])=>`<tr><td>${esc(d)}</td><td style="text-align:center;font-weight:800;color:#e65100">${c}</td></tr>`).join('');
         const html = `
         <div class="rpt-company-head"><div class="rpt-company-name">☀️ شركة الشمس</div><div style="font-size:11px;color:#64748b;">محصلة الكبسات ${PL[this._balesPeriod]}</div></div>
         <div style="height:3px;background:linear-gradient(90deg,#e65100,#f57c00);"></div>
@@ -6799,7 +7099,7 @@ const CollectionSystem = {
         const label = (from||'البداية')+' → '+(to||'النهاية');
         const { total, byPlot } = this.buildCollHTML(recs,'');
         const rows = Object.values(byPlot).sort((a,b)=>b.count-a.count)
-            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.name}</td><td style="text-align:center">${p.baleSize||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
+            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(p.name)}</td><td style="text-align:center">${esc(p.baleSize)||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
         const el = document.getElementById('coll-range-result');
         if(el) el.innerHTML = `✅ <strong>${recs.length}</strong> سجل · <strong style="color:var(--primary)">${total} كبسة</strong>`;
         const html = `
@@ -6892,11 +7192,16 @@ const DriverSearch = {
             ...Object.values(fleet).map(m=>m.driver),
             ...Object.values(fleet).map(m=>m.name)
         ].filter(Boolean))];
-        container.innerHTML = all.map(n=>
-            `<button onclick="DriverSearch.doSearch('${n.replace(/'/g,"\\'")}'); document.getElementById('driver-search-input').value='${n.replace(/'/g,"\\'")}'"
+        container.innerHTML = all.map(n=>{
+            // ✅ تنقية مزدوجة: أولاً كسلسلة JS آمنة داخل onclick، ثم كقيمة HTML آمنة
+            // للسمة نفسها — وإلا فإن اسماً يحتوي على علامة اقتباس مزدوجة (") يمكنه
+            // كسر سمة onclick بالكامل وحقن سمات/سكربت جديد
+            const jsSafe = String(n).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const attrSafe = esc(jsSafe);
+            return `<button onclick="DriverSearch.doSearch('${attrSafe}'); document.getElementById('driver-search-input').value='${attrSafe}'"
             style="padding:5px 12px;border-radius:20px;border:1px solid var(--border-color);background:${this._name===n?'var(--primary)':'white'};color:${this._name===n?'white':'var(--text-muted)'};font-size:12px;font-weight:700;cursor:pointer;">
-            👤 ${n}</button>`
-        ).join('');
+            👤 ${esc(n)}</button>`;
+        }).join('');
     },
 
     filterByPeriod(recs) {
@@ -6944,7 +7249,7 @@ const DriverSearch = {
         this._lastFleet = fleetMatches;
 
         if(!baleRecs.length && !fleetMatches.length) {
-            container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:40px;margin-bottom:12px;">😔</div><div style="font-size:15px;font-weight:700;">لا نتائج لـ "${this._name}"</div></div>`;
+            container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:40px;margin-bottom:12px;">😔</div><div style="font-size:15px;font-weight:700;">لا نتائج لـ "${esc(this._name)}"</div></div>`;
             return;
         }
 
@@ -6962,12 +7267,12 @@ const DriverSearch = {
                 const txt=m.type==='press'?'كبس بالات':m.type==='mow'?'حش وقص':'لم وتجميع';
                 return `<div class="search-result-box" style="border-right:4px solid ${clr};">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-                        <div><div style="font-size:16px;font-weight:700;color:#1e293b;">🚜 ${m.name}</div><div style="font-size:13px;color:var(--text-muted);margin-top:2px;">👤 ${m.driver||'—'}</div></div>
+                        <div><div style="font-size:16px;font-weight:700;color:#1e293b;">🚜 ${esc(m.name)}</div><div style="font-size:13px;color:var(--text-muted);margin-top:2px;">👤 ${esc(m.driver)||'—'}</div></div>
                         <span style="background:${clr}18;color:${clr};padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">${txt}</span>
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text-muted);">
-                        <span>🚜 ${m.tractor||'—'}</span><span>🔧 ${m.attachment||'—'}</span>
-                        ${m.baleSize?`<span style="color:#2563eb;font-weight:700;">📦 ${m.baleSize}</span>`:''}
+                        <span>🚜 ${esc(m.tractor)||'—'}</span><span>🔧 ${esc(m.attachment)||'—'}</span>
+                        ${m.baleSize?`<span style="color:#2563eb;font-weight:700;">📦 ${esc(m.baleSize)}</span>`:''}
                     </div>
                 </div>`;
             }).join('');
@@ -6987,7 +7292,7 @@ const DriverSearch = {
                 <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🌾 تفصيل الأراضي</div>
                 ${Object.values(byPlot).sort((a,b)=>b.count-a.count).map(p=>`
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border:1px solid var(--border-color);">
-                    <div><div style="font-weight:700;font-size:13px;">🌾 ${p.name}</div>${p.baleSize?`<div style="font-size:11px;color:#2563eb;margin-top:2px;">📦 ${p.baleSize}</div>`:''}</div>
+                    <div><div style="font-weight:700;font-size:13px;">🌾 ${esc(p.name)}</div>${p.baleSize?`<div style="font-size:11px;color:#2563eb;margin-top:2px;">📦 ${esc(p.baleSize)}</div>`:''}</div>
                     <div style="text-align:center;"><div style="font-size:22px;font-weight:800;color:var(--primary);">${p.count}</div><div style="font-size:10px;color:#94a3b8;">كبسة</div></div>
                 </div>`).join('')}
             </div>`;
@@ -7007,12 +7312,12 @@ const DriverSearch = {
         const byPlot={};
         recs.forEach(r=>{ const k=r.plotName||'—'; if(!byPlot[k]) byPlot[k]={name:k,count:0,baleSize:r.baleSize||''}; byPlot[k].count+=(r.count||0); });
         const rows=Object.values(byPlot).sort((a,b)=>b.count-a.count)
-            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${p.name}</td><td style="text-align:center">${p.baleSize||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
-        const fleet=(this._lastFleet||[]).map(m=>`<tr><td>${m.name}</td><td>${m.type==='press'?'كبس':m.type==='mow'?'حش':'لم'}</td><td>${m.tractor||'—'}</td><td>${m.baleSize||'—'}</td></tr>`).join('');
+            .map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(p.name)}</td><td style="text-align:center">${esc(p.baleSize)||'—'}</td><td style="text-align:center;font-weight:800;color:#e65100">${p.count}</td></tr>`).join('');
+        const fleet=(this._lastFleet||[]).map(m=>`<tr><td>${esc(m.name)}</td><td>${m.type==='press'?'كبس':m.type==='mow'?'حش':'لم'}</td><td>${esc(m.tractor)||'—'}</td><td>${esc(m.baleSize)||'—'}</td></tr>`).join('');
         const html=`
         <div class="rpt-company-head"><div class="rpt-company-name">☀️ شركة الشمس</div><div style="font-size:11px;color:#64748b;">تقرير السائق — ${PL[this._period]}</div></div>
         <div style="height:3px;background:linear-gradient(90deg,#e65100,#f57c00);"></div>
-        <div class="rpt-head"><div style="font-size:14px;font-weight:700;">👤 ${name}</div><div style="font-size:10px;opacity:.7;">${PL[this._period]}</div></div>
+        <div class="rpt-head"><div style="font-size:14px;font-weight:700;">👤 ${esc(name)}</div><div style="font-size:10px;opacity:.7;">${PL[this._period]}</div></div>
         <div class="rpt-body" style="padding:10px 14px;">
             <div style="text-align:center;padding:12px;background:#fff3e0;border-radius:8px;margin-bottom:12px;">
                 <div style="font-size:40px;font-weight:800;color:#e65100;">${total}</div>
@@ -7544,17 +7849,17 @@ const TrackPlayer = {
                 text = `موقع (${e.method === 'gps' ? 'GPS' : 'IP'}) — ${(e.lat||0).toFixed(4)},${(e.lng||0).toFixed(4)}`;
                 if (e.speedKmh && e.speedKmh > 0.5) text += ` · ⚡${e.speedKmh.toFixed(0)}كم/س`;
             }
-            else if (e.type === 'bale') text = `📦 كبس ${e.count} في ${e.plotName || '—'}`;
+            else if (e.type === 'bale') text = `📦 كبس ${e.count} في ${esc(e.plotName) || '—'}`;
             else if (e.type === 'start') text = '▶ بدء بث الموقع';
             else if (e.type === 'stop') text = '⏹ إيقاف البث';
-            else if (e.type === 'nav') text = `🧭 ملاحة → ${e.plotName || '—'}`;
-            else text = e.text || e.type;
+            else if (e.type === 'nav') text = `🧭 ملاحة → ${esc(e.plotName) || '—'}`;
+            else text = esc(e.text) || e.type;
 
             return `<div class="tp-event-item" id="tp-ev-${i}" onclick="TrackPlayer._goToFrame(${i})">
                 <div class="tp-event-dot" style="background:${colors[e.type]||'#94a3b8'};"></div>
                 <div class="tp-event-info">
                     <div class="tp-event-text">${icons[e.type]||'•'} ${text}</div>
-                    <div class="tp-event-time">⏰ ${t} · ${e.driver || ''}</div>
+                    <div class="tp-event-time">⏰ ${t} · ${esc(e.driver) || ''}</div>
                 </div>
                 <span class="tp-event-idx">${i + 1}</span>
             </div>`;
@@ -7679,7 +7984,7 @@ const TrackPlayer = {
 
                 const speedTxt = (displaySpeed && displaySpeed > 0.5) ? ` · ⚡ ${displaySpeed.toFixed(0)} كم/س` : '';
                 this._driverMarker.bindTooltip(
-                    `${e.driver || ''} — ${new Date(e.ts).toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'})}${speedTxt}`,
+                    `${esc(e.driver) || ''} — ${new Date(e.ts).toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'})}${speedTxt}`,
                     { permanent: false, direction: 'top' }
                 );
 
@@ -7691,7 +7996,7 @@ const TrackPlayer = {
                 const baleMarker = L.marker([displayLat, displayLng], {
                     icon: L.divIcon({
                         className: '',
-                        html: `<div style="background:#f97316;color:white;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);margin-top:-35px;">📦 ${e.count} كبسة — ${e.plotName||''}</div>`,
+                        html: `<div style="background:#f97316;color:white;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);margin-top:-35px;">📦 ${e.count} كبسة — ${esc(e.plotName)||''}</div>`,
                         iconSize: [120, 28],
                         iconAnchor: [60, 14]
                     }),
@@ -7821,7 +8126,7 @@ const TrackPlayer = {
                     html: `<div style="background:#f97316;color:white;border-radius:8px;padding:3px 7px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.4);">📦 ${e.count}</div>`,
                     iconSize: [50, 22], iconAnchor: [25, 11]
                 })
-            }).addTo(this.map).bindPopup(`📦 ${e.count} كبسة — ${e.plotName || ''}`);
+            }).addTo(this.map).bindPopup(`📦 ${e.count} كبسة — ${esc(e.plotName) || ''}`);
             this._eventMarkers.push(m);
         });
 
