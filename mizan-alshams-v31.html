@@ -1215,10 +1215,177 @@
         page-break-after: avoid;
         break-after: avoid;
       }
+      /* كشف المجاميع يبدأ دائماً في صفحة مستقلة وينهي الطباعة */
+      .batch-summary-card {
+        page-break-before: always;
+        break-before: page;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
       @page {
         size: A4 portrait;
         margin: 5mm;
       }
+    }
+
+    /* ===== كشف مجاميع الوصولات المحددة (الطباعة الجماعية) ===== */
+    .batch-summary-card {
+      background: var(--white);
+      border: 3px solid var(--gold);
+      border-radius: 14px;
+      box-shadow: inset 0 0 0 5px #FFFDF9, inset 0 0 0 7px var(--gold-accent);
+      padding: 18px 20px 22px;
+      margin: 0 auto 6mm;
+      max-width: 200mm;
+      color: var(--ink);
+      font-family: 'Cairo', sans-serif;
+    }
+    .bs-head {
+      text-align: center;
+      border-bottom: 2px dashed var(--gold);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+    .bs-title {
+      font-family: 'El Messiri', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .bs-sub {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    /* الجدول الرئيسي وحده يحتاج min-width ضخماً ليتمرّر أفقياً (القاعدة العامة
+       table{min-width:2600px}). أي جدول آخر — التقرير، كشف المجاميع، سلة
+       المحذوفات، النسخ الاحتياطية — يجب أن يتسع لحاويته وإلا خرج عن الصفحة
+       وقُصّت أعمدته عند الطباعة. */
+    .report-table,
+    .bs-table,
+    .aux-table {
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+    /* .num-font العامة تفرض 1.15rem !important، وهي كبيرة جداً لجدول من 13 عموداً */
+    .bs-table,
+    .bs-table th,
+    .bs-table td {
+      font-size: 0.68rem !important;
+    }
+    .aux-table,
+    .aux-table th,
+    .aux-table td {
+      font-size: 0.86rem !important;
+    }
+    .bs-table-wrap {
+      overflow-x: auto;
+      margin-bottom: 14px;
+    }
+    .bs-table {
+      width: 100%;
+      border-collapse: collapse;
+      /* أعمدة ثابتة النسب: بدونها تتمدد الأعمدة الـ13 وتُقصّ عند الطباعة */
+      table-layout: fixed;
+      font-size: 0.68rem;
+    }
+    .bs-table th,
+    .bs-table td {
+      border: 1px solid #E2D4AE;
+      padding: 4px 3px;
+      text-align: center;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+    /* الأرقام السالبة تُعرض بإشارتها على اليسار كما هو متعارف عليه محاسبياً */
+    .bs-table td[dir="ltr"],
+    .bs-tile-val,
+    .bs-grand-val {
+      direction: ltr;
+      unicode-bidi: embed;
+    }
+    .bs-table thead th {
+      background: var(--parchment-2);
+      color: var(--navy);
+      font-weight: 700;
+      white-space: normal;
+      word-break: break-word;
+    }
+    .bs-table tbody tr:nth-child(even) td {
+      background: #FDFAF2;
+    }
+    .bs-table tfoot td {
+      background: var(--navy);
+      color: var(--gold-light);
+      font-weight: 800;
+      border-color: var(--navy);
+    }
+    .bs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .bs-tile {
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      background: #FFFDF7;
+      padding: 9px 12px;
+      text-align: center;
+    }
+    .bs-tile-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .bs-tile-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--navy);
+    }
+    .bs-grand {
+      border: 3px solid var(--navy);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #FFFDF7, var(--gold-light));
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .bs-grand-label {
+      font-family: 'El Messiri', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .bs-grand-val {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--navy);
+    }
+    .bs-sign {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .bs-sign>div {
+      flex: 1;
+      text-align: center;
+    }
+    .bs-sign-line {
+      margin-top: 20px;
+      border-top: 1.5px dotted var(--ink);
+      padding-top: 4px;
+      color: var(--muted);
+      font-weight: 600;
     }
 
     body.report-print-mode {
@@ -2738,7 +2905,16 @@
         const pricePerTonStr = row.hidePrice ? "***" : toArabicDigits(pricePerTon !== null ? fmt(pricePerTon) : "0");
         const receiptFeeStr = toArabicDigits(receiptFee !== null ? fmt(receiptFee) : "0");
         const finalAmtStr = row.hidePrice ? "***" : toArabicDigits(finalAmt !== null ? fmt(finalAmt) : "0");
-        return `<div class="thermal-receipt"><div class="th-header"><svg viewBox="0 0 100 60" width="60" height="36"><circle cx="50" cy="42" r="13" fill="none" stroke="#000" stroke-width="2.5"/><line x1="50" y1="10" x2="50" y2="18" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="20" x2="34" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="72" y1="20" x2="66" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="42" x2="26" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="82" y1="42" x2="74" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg><div class="th-brand-name">ميزان الشمس</div><div class="th-brand-sub">لخدمات الوزن واستلام المحاصيل</div></div><div class="th-title">وصل استلام زراعي</div><div class="th-meta-row"><span>التاريخ: ${dateStr}</span><span>الوقت: ${timeStr}</span></div><div class="th-num-row">رقم الوصل: ${receiptNumStr}</div><div class="th-divider"></div><div class="th-row"><span class="th-label">اسم الفلاح:</span><span class="th-dots">${esc(row.farmer) || ""}</span></div><div class="th-row"><span class="th-label">اسم السائق:</span><span class="th-dots">${esc(row.driver) || ""}</span></div><div class="th-check-row"><span class="th-label">نوع الكبس:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${row.crateType==="سيم"?"✓":""}</span> سيم</span><span class="th-check-opt"><span class="th-box">${row.crateType==="خيط"?"✓":""}</span> خيط</span></span></div><div class="th-check-row"><span class="th-label">مكان التخزين:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${isStore?"✓":""}</span> مخزن${storeName?" ("+esc(storeName)+")":""}</span><span class="th-check-opt"><span class="th-box">${isYard?"✓":""}</span> ساحة</span></span></div><div class="th-row"><span class="th-label">عدد الكبسات:</span><span class="th-dots">${crateCountStr}</span></div><div class="th-divider"></div><div class="th-weight-row"><span>الوزن الكلي <span class="th-en">(Gross)</span>:</span><span class="th-val">${grossStr} كجم</span></div><div class="th-weight-row"><span>الوزن الفارغ <span class="th-en">(Tare)</span>:</span><span class="th-val">${tareStr} كجم</span></div><div class="th-weight-row"><span>الوزن الصافي <span class="th-en">(Net)</span>:</span><span class="th-val">${netStr} كجم</span></div><div class="th-divider"></div><div class="th-price-row"><span>السعر للكيلو:</span><span>${priceStr} د.ع</span></div><div class="th-price-row"><span>سعر الطن:</span><span>${pricePerTonStr} د.ع</span></div><div class="th-price-row"><span>سعر الوصل:</span><span>${receiptFeeStr} د.ع</span></div><div class="th-total-box"><div class="th-total-label">السعر الكلي</div><div class="th-total-val">${finalAmtStr} د.ع</div></div>${row.notes?`<div class="th-notes-row"><span class="th-label">ملاحظات:</span><div class="th-dots">${esc(row.notes)}</div></div>`:""}<div class="th-divider"></div><div class="th-sign-block"><div class="th-sign-line"><span class="th-label">توقيع السائق:</span><span class="th-dots"></span></div><div class="th-sign-line"><span class="th-label">توقيع المستلم:</span><span class="th-dots"></span></div></div></div>`;
+        const sub = calcSubtotal(row);
+        const cratePrice = parseNum(row.cratePrice);
+        const crateTotal = calcCrateTotal(row);
+        const discount = parseNum(row.discount);
+        const seqStr = toArabicDigits(row.seq || num || "");
+        const subStr = row.hidePrice ? "***" : toArabicDigits(sub !== null ? fmt(sub) : "0");
+        const cratePriceStr = toArabicDigits(cratePrice !== null ? fmt(cratePrice) : "0");
+        const crateTotalStr = toArabicDigits(fmt(crateTotal));
+        const discountStr = toArabicDigits(discount !== null ? fmt(discount) : "0");
+        return `<div class="thermal-receipt"><div class="th-header"><svg viewBox="0 0 100 60" width="60" height="36"><circle cx="50" cy="42" r="13" fill="none" stroke="#000" stroke-width="2.5"/><line x1="50" y1="10" x2="50" y2="18" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="20" x2="34" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="72" y1="20" x2="66" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="42" x2="26" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="82" y1="42" x2="74" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg><div class="th-brand-name">ميزان الشمس</div><div class="th-brand-sub">لخدمات الوزن واستلام المحاصيل</div></div><div class="th-title">وصل استلام زراعي</div><div class="th-meta-row"><span>التاريخ: ${dateStr}</span><span>الوقت: ${timeStr}</span></div><div class="th-num-row">رقم الوصل: ${receiptNumStr} &nbsp;•&nbsp; الصف: ${seqStr}</div><div class="th-divider"></div><div class="th-row"><span class="th-label">اسم الفلاح:</span><span class="th-dots">${esc(row.farmer) || ""}</span></div><div class="th-row"><span class="th-label">اسم السائق:</span><span class="th-dots">${esc(row.driver) || ""}</span></div><div class="th-check-row"><span class="th-label">نوع الكبس:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${row.crateType==="سيم"?"✓":""}</span> سيم</span><span class="th-check-opt"><span class="th-box">${row.crateType==="خيط"?"✓":""}</span> خيط</span></span></div><div class="th-check-row"><span class="th-label">مكان التخزين:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${isStore?"✓":""}</span> مخزن${storeName?" ("+esc(storeName)+")":""}</span><span class="th-check-opt"><span class="th-box">${isYard?"✓":""}</span> ساحة</span></span></div><div class="th-row"><span class="th-label">عدد الكبسات:</span><span class="th-dots">${crateCountStr}</span></div><div class="th-row"><span class="th-label">سعر الكبسة:</span><span class="th-dots">${cratePriceStr} د.ع</span></div><div class="th-divider"></div><div class="th-weight-row"><span>الوزن الكلي <span class="th-en">(Gross)</span>:</span><span class="th-val">${grossStr} كجم</span></div><div class="th-weight-row"><span>الوزن الفارغ <span class="th-en">(Tare)</span>:</span><span class="th-val">${tareStr} كجم</span></div><div class="th-weight-row"><span>الوزن الصافي <span class="th-en">(Net)</span>:</span><span class="th-val">${netStr} كجم</span></div><div class="th-divider"></div><div class="th-price-row"><span>السعر للكيلو:</span><span>${priceStr} د.ع</span></div><div class="th-price-row"><span>سعر الطن:</span><span>${pricePerTonStr} د.ع</span></div><div class="th-price-row"><span>المبلغ قبل الخصم:</span><span>${subStr} د.ع</span></div><div class="th-price-row"><span>إجمالي سعر الكبسات:</span><span>- ${crateTotalStr} د.ع</span></div><div class="th-price-row"><span>الخصم:</span><span>- ${discountStr} د.ع</span></div><div class="th-price-row"><span>سعر الوصل:</span><span>- ${receiptFeeStr} د.ع</span></div><div class="th-total-box"><div class="th-total-label">المبلغ الصافي النهائي</div><div class="th-total-val">${finalAmtStr} د.ع</div></div>${row.notes?`<div class="th-notes-row"><span class="th-label">ملاحظات:</span><div class="th-dots">${esc(row.notes)}</div></div>`:""}<div class="th-divider"></div><div class="th-sign-block"><div class="th-sign-line"><span class="th-label">توقيع السائق:</span><span class="th-dots"></span></div><div class="th-sign-line"><span class="th-label">توقيع المستلم:</span><span class="th-dots"></span></div></div></div>`;
       }
 
       const THERMAL_PRINT_STYLES = `
@@ -2862,13 +3038,166 @@
         }
       }
 
+      /* صف واحد داخل جدول الوصل الرسمي */
+      function rcField(label, value, opts) {
+        const o = opts || {};
+        const unit = o.unit ? `<span class="rc-unit-badge">${o.unit}</span>` : "";
+        const cls = "rc-field-input-side" + (o.unit ? " split" : "");
+        const valCls = "rc-val-dots" + (o.num === false ? "" : " num-font");
+        /* dir=ltr على القيم الرقمية حتى تظهر إشارة السالب على يسار الرقم */
+        const dir = o.num === false ? "" : ' dir="ltr"';
+        const style = o.color ? ` style="color:${o.color};"` : "";
+        const icon = o.icon || "•";
+        const iconStyle = o.iconStyle || "";
+        return `<div class="rc-field-row"><div class="${cls}">${unit}<span class="${valCls}"${dir}${style}>${value}</span></div>` +
+          `<div class="rc-field-label-side"><span>${label}</span>` +
+          `<span class="rc-icon-circle"${iconStyle ? ' style="' + iconStyle + '"' : ""}>${icon}</span></div></div>`;
+      }
+
       function renderReceiptHTML(row, num) {
         const net = calcNet(row);
         const price = parseNum(row.price);
+        const sub = calcSubtotal(row);
+        const crateCount = parseNum(row.crateCount);
+        const cratePrice = parseNum(row.cratePrice);
+        const crateTotal = calcCrateTotal(row);
+        const discount = parseNum(row.discount);
+        const receiptFee = parseNum(row.receiptFee);
         const finalAmt = calcAmount(row);
         const mainDate = document.getElementById("subject").value || row.date || getToday();
         const displayNum = formatReceiptNumber(row, num);
-        return `<div class="single-receipt-card"><span class="rc-corner-ornament tl"></span><span class="rc-corner-ornament tr"></span><span class="rc-corner-ornament bl"></span><span class="rc-corner-ornament br"></span><div class="rc-header-top"><div class="rc-sun-logo-area"><div class="rc-sun-graphic"><svg viewBox="0 0 120 70" width="105" height="55"><path d="M 12,55 Q 32,18 55,12 Q 25,28 16,55 Z" fill="#C59B27"/><circle cx="75" cy="42" r="18" fill="#C59B27"/><path d="M 75,14 L 75,20 M 52,22 L 57,26 M 98,22 L 93,26 M 44,42 L 50,42 M 106,42 L 100,42" stroke="#C59B27" stroke-width="3" stroke-linecap="round"/></svg></div><h2 class="rc-brand-title-main">ميزان الشمس</h2><p class="rc-brand-subtitle">لخدمات الوزن واستلام المحاصيل</p></div><div class="rc-title-badge-box"><div class="rc-main-title-pill">وصل استلام محصول</div><div class="rc-meta-line"><span>رقم الوصل :</span><span class="rc-dotted-val num-font">${displayNum}</span></div><div class="rc-meta-line"><span>التاريخ :</span><span class="rc-dotted-val num-font">${row.date||mainDate}</span><span>📅</span></div></div></div><div class="rc-fields-table"><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.farmer)||""}</span></div><div class="rc-field-label-side"><span>اسم الفلاح</span><span class="rc-icon-circle">🌱</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.driver)||""}</span></div><div class="rc-field-label-side"><span>اسم السائق</span><span class="rc-icon-circle">🛞</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font">${parseNum(row.gross)!==null?fmt(parseNum(row.gross)):""}</span></div><div class="rc-field-label-side"><span>الوزن الكلي</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font">${parseNum(row.tare)!==null?fmt(parseNum(row.tare)):""}</span></div><div class="rc-field-label-side"><span>الوزن الفارغ</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font" style="color:#2A7A4C;">${net!==null?fmt(net):""}</span></div><div class="rc-field-label-side"><span>الوزن الصافي</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">دينار</span><span class="rc-val-dots num-font">${row.hidePrice?"***":(price!==null?fmt(price):"")}</span></div><div class="rc-field-label-side"><span>السعر للكيلو</span><span class="rc-icon-circle">🪙</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots num-font">${parseNum(row.crateCount)!==null?parseNum(row.crateCount):""}</span></div><div class="rc-field-label-side"><span>عدد الكبسات</span><span class="rc-icon-circle">📦</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><div class="rc-checkboxes-group"><div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="خيط"?"✓":""}</span><span>خيط</span></div><div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="سيم"?"✓":""}</span><span>سيم</span></div></div></div><div class="rc-field-label-side"><span>نوع الكبس</span><span class="rc-icon-circle">🧺</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.location)||""}</span></div><div class="rc-field-label-side"><span>مكان التخزين</span><span class="rc-icon-circle">🏭</span></div></div></div><div class="rc-total-bar-box"><div class="rc-total-bar-value"><span class="rc-unit-badge">دينار</span><span class="rc-total-val-text num-font">${row.hidePrice?"***":(finalAmt!==null?fmt(finalAmt):"")}</span></div><div class="rc-total-bar-label"><span>السعر الكلي</span><span class="rc-total-icon-circle">$</span></div></div><div class="rc-notes-box"><div class="rc-notes-line-row"><span>ملاحظات :</span><span class="rc-notes-dotted-flex">${esc(row.notes)||""}</span></div><div class="rc-notes-line-row"><span class="rc-notes-dotted-flex"></span></div></div><div class="rc-footer-area"><div class="rc-signature-block"><span>توقيع المستلم</span><div class="rc-signature-lines">......................</div></div><div class="rc-official-stamp"><div class="rc-stamp-content"><span class="rc-stamp-sun-icon">☀️</span><span class="rc-stamp-brand-name">ميزان الشمس</span><span class="rc-stamp-desc">لخدمات الوزن</span><span class="rc-stamp-stars">★ ★ ★</span></div></div><div class="rc-signature-block"><span>توقيع السائق</span><div class="rc-signature-lines">......................</div></div></div></div>`;
+        const hide = row.hidePrice;
+        const kg = { unit: "كجم", icon: "KG", iconStyle: "font-size:0.7rem;font-weight:800;" };
+        const din = function(icon) { return { unit: "دينار", icon: icon }; };
+        const money = function(v) { return hide ? "***" : (v !== null ? fmt(v) : ""); };
+
+        const fields =
+          rcField("اسم الفلاح", esc(row.farmer) || "", { icon: "🌱", num: false }) +
+          rcField("اسم السائق", esc(row.driver) || "", { icon: "🛞", num: false }) +
+          rcField("مكان التخزين", esc(row.location) || "", { icon: "🏭", num: false }) +
+          rcField("الوزن الكلي", parseNum(row.gross) !== null ? fmt(parseNum(row.gross)) : "", kg) +
+          rcField("الوزن الفارغ", parseNum(row.tare) !== null ? fmt(parseNum(row.tare)) : "", kg) +
+          rcField("الوزن الصافي", net !== null ? fmt(net) : "",
+            { unit: "كجم", icon: "KG", iconStyle: "font-size:0.7rem;font-weight:800;", color: "#2A7A4C" }) +
+          rcField("السعر للكيلو", money(price), din("🪙")) +
+          rcField("المبلغ قبل الخصم", money(sub), din("🧮")) +
+          rcField("عدد الكبسات", crateCount !== null ? fmt(crateCount) : "", { icon: "📦" }) +
+          `<div class="rc-field-row"><div class="rc-field-input-side"><div class="rc-checkboxes-group">` +
+          `<div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="خيط"?"✓":""}</span><span>خيط</span></div>` +
+          `<div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="سيم"?"✓":""}</span><span>سيم</span></div>` +
+          `</div></div><div class="rc-field-label-side"><span>نوع الكبس</span><span class="rc-icon-circle">🧺</span></div></div>` +
+          rcField("سعر الكبسة", cratePrice !== null ? fmt(cratePrice) : "", din("🏷️")) +
+          rcField("إجمالي سعر الكبسات", crateTotal > 0 ? fmt(crateTotal) : "", din("📦")) +
+          rcField("الخصم", discount !== null ? fmt(discount) : "", din("➖")) +
+          rcField("سعر الوصل", receiptFee !== null ? fmt(receiptFee) : "", din("🧾"));
+
+        return `<div class="single-receipt-card"><span class="rc-corner-ornament tl"></span><span class="rc-corner-ornament tr"></span><span class="rc-corner-ornament bl"></span><span class="rc-corner-ornament br"></span><div class="rc-header-top"><div class="rc-sun-logo-area"><div class="rc-sun-graphic"><svg viewBox="0 0 120 70" width="105" height="55"><path d="M 12,55 Q 32,18 55,12 Q 25,28 16,55 Z" fill="#C59B27"/><circle cx="75" cy="42" r="18" fill="#C59B27"/><path d="M 75,14 L 75,20 M 52,22 L 57,26 M 98,22 L 93,26 M 44,42 L 50,42 M 106,42 L 100,42" stroke="#C59B27" stroke-width="3" stroke-linecap="round"/></svg></div><h2 class="rc-brand-title-main">ميزان الشمس</h2><p class="rc-brand-subtitle">لخدمات الوزن واستلام المحاصيل</p></div><div class="rc-title-badge-box"><div class="rc-main-title-pill">وصل استلام محصول</div><div class="rc-meta-line"><span>رقم الوصل :</span><span class="rc-dotted-val num-font">${displayNum}</span></div><div class="rc-meta-line"><span>الصف :</span><span class="rc-dotted-val num-font">${row.seq||num||""}</span></div><div class="rc-meta-line"><span>التاريخ :</span><span class="rc-dotted-val num-font">${formatDateDMY(row.date||mainDate)}</span><span>📅</span></div></div></div><div class="rc-fields-table">${fields}</div><div class="rc-total-bar-box"><div class="rc-total-bar-value"><span class="rc-unit-badge">دينار</span><span class="rc-total-val-text num-font" dir="ltr">${row.hidePrice?"***":(finalAmt!==null?fmt(finalAmt):"")}</span></div><div class="rc-total-bar-label"><span>المبلغ الصافي النهائي</span><span class="rc-total-icon-circle">$</span></div></div><div class="rc-notes-box"><div class="rc-notes-line-row"><span>ملاحظات :</span><span class="rc-notes-dotted-flex">${esc(row.notes)||""}</span></div><div class="rc-notes-line-row"><span class="rc-notes-dotted-flex"></span></div></div><div class="rc-footer-area"><div class="rc-signature-block"><span>توقيع المستلم</span><div class="rc-signature-lines">......................</div></div><div class="rc-official-stamp"><div class="rc-stamp-content"><span class="rc-stamp-sun-icon">☀️</span><span class="rc-stamp-brand-name">ميزان الشمس</span><span class="rc-stamp-desc">لخدمات الوزن</span><span class="rc-stamp-stars">★ ★ ★</span></div></div><div class="rc-signature-block"><span>توقيع السائق</span><div class="rc-signature-lines">......................</div></div></div></div>`;
+      }
+
+      /* مجاميع مجموعة وصولات — تُستعمل في الطباعة الجماعية وفي شريط التحديد */
+      function computeTotals(list) {
+        const t = { count: list.length, net: 0, gross: 0, tare: 0, crates: 0, crateValue: 0,
+          sub: 0, discount: 0, fees: 0, final: 0, hasHidden: false };
+        list.forEach(function(r) {
+          const net = calcNet(r),
+            sub = calcSubtotal(r),
+            amt = calcAmount(r);
+          if (net !== null) t.net += net;
+          if (sub !== null) t.sub += sub;
+          if (amt !== null) t.final += amt;
+          t.gross += parseNum(r.gross) || 0;
+          t.tare += parseNum(r.tare) || 0;
+          t.crates += parseNum(r.crateCount) || 0;
+          t.crateValue += calcCrateTotal(r);
+          t.discount += parseNum(r.discount) || 0;
+          t.fees += parseNum(r.receiptFee) || 0;
+          if (r.hidePrice) t.hasHidden = true;
+        });
+        return t;
+      }
+
+      function buildBatchSummaryHTML(list) {
+        if (!list || !list.length) return "";
+        const t = computeTotals(list);
+        const now = new Date();
+        const subject = document.getElementById("subject").value || "";
+        const dates = Array.from(new Set(list.map(r => r.date || getToday()))).sort();
+        const dateLabel = dates.length === 1 ? formatDateDMY(dates[0]) :
+          (formatDateDMY(dates[0]) + " ← " + formatDateDMY(dates[dates.length - 1]));
+        const m = function(v) { return t.hasHidden ? "***" : fmt(v); };
+
+        let body = "";
+        list.forEach(function(r, i) {
+          const net = calcNet(r),
+            amt = calcAmount(r);
+          body += "<tr>" +
+            "<td>" + (i + 1) + "</td>" +
+            "<td>" + esc(formatReceiptNumber(r, r.id)) + "</td>" +
+            "<td style=\"text-align:right;\">" + esc(r.farmer) + "</td>" +
+            "<td style=\"text-align:right;\">" + esc(r.driver) + "</td>" +
+            "<td dir=\"ltr\">" + (parseNum(r.gross) !== null ? fmt(parseNum(r.gross)) : "—") + "</td>" +
+            "<td dir=\"ltr\">" + (parseNum(r.tare) !== null ? fmt(parseNum(r.tare)) : "—") + "</td>" +
+            "<td dir=\"ltr\">" + (net !== null ? fmt(net) : "—") + "</td>" +
+            "<td dir=\"ltr\">" + (parseNum(r.crateCount) || 0) + "</td>" +
+            "<td>" + esc(r.crateType) + "</td>" +
+            "<td dir=\"ltr\">" + (r.hidePrice ? "***" : (parseNum(r.cratePrice) !== null ? fmt(parseNum(r.cratePrice)) : "—")) + "</td>" +
+            "<td dir=\"ltr\">" + (r.hidePrice ? "***" : (parseNum(r.price) !== null ? fmt(parseNum(r.price)) : "—")) + "</td>" +
+            "<td dir=\"ltr\">" + (r.hidePrice ? "***" : fmt(parseNum(r.receiptFee) || 0)) + "</td>" +
+            "<td dir=\"ltr\">" + (r.hidePrice ? "***" : (amt !== null ? fmt(amt) : "—")) + "</td>" +
+            "</tr>";
+        });
+
+        const tile = function(label, value, unit) {
+          return `<div class="bs-tile"><div class="bs-tile-label">${label}</div>` +
+            `<div class="bs-tile-val num-font">${value}${unit ? ' <span style="font-size:0.75rem;font-weight:700;">' + unit + "</span>" : ""}</div></div>`;
+        };
+
+        return `<div class="batch-summary-card">
+          <div class="bs-head">
+            <div class="bs-title">كشف مجاميع الوصولات المحددة</div>
+            <div class="bs-sub">ميزان الشمس لخدمات الوزن واستلام المحاصيل${subject ? " • " + esc(subject) : ""} • ${esc(dateLabel)} • تاريخ الطباعة: ${formatDateDMY(getToday())} — ${twoDigits(now.getHours())}:${twoDigits(now.getMinutes())}</div>
+          </div>
+          <div class="bs-table-wrap"><table class="bs-table num-font">
+            <colgroup>
+              <col style="width:4%"><col style="width:10%"><col style="width:11.5%"><col style="width:10%">
+              <col style="width:6.5%"><col style="width:6.5%"><col style="width:7%">
+              <col style="width:5.5%"><col style="width:5%"><col style="width:8%">
+              <col style="width:7.5%"><col style="width:8.5%"><col style="width:10%">
+            </colgroup>
+            <thead><tr>
+              <th>م</th><th>رقم الوصل</th><th>اسم الفلاح</th><th>اسم السائق</th>
+              <th>الكلي</th><th>الفارغ</th><th>الصافي</th>
+              <th>كبسات</th><th>النوع</th><th>سعر الكبسة</th>
+              <th>سعر الكيلو</th><th>سعر الوصل</th><th>الصافي النهائي</th>
+            </tr></thead>
+            <tbody>${body}</tbody>
+            <tfoot><tr>
+              <td colspan="4">الإجمالي (${t.count} وصل)</td>
+              <td dir="ltr">${fmt(t.gross)}</td><td dir="ltr">${fmt(t.tare)}</td><td dir="ltr">${fmt(t.net)}</td>
+              <td dir="ltr">${fmt(t.crates)}</td><td>—</td><td>—</td>
+              <td>—</td><td dir="ltr">${m(t.fees)}</td><td dir="ltr">${m(t.final)}</td>
+            </tr></tfoot>
+          </table></div>
+          <div class="bs-grid">
+            ${tile("عدد الوصولات", fmt(t.count))}
+            ${tile("إجمالي الوزن الصافي", fmt(t.net), "كجم")}
+            ${tile("إجمالي عدد الكبسات", fmt(t.crates))}
+            ${tile("إجمالي المبلغ قبل الخصم", m(t.sub), "دينار")}
+            ${tile("إجمالي سعر الكبسات", m(t.crateValue), "دينار")}
+            ${tile("إجمالي الخصومات", m(t.discount), "دينار")}
+            ${tile("إجمالي أسعار الوصولات", m(t.fees), "دينار")}
+            ${tile("محصلة سعر الطن", t.net > 0 ? m(t.final * 1000 / t.net) : "—", "دينار")}
+          </div>
+          <div class="bs-grand">
+            <span class="bs-grand-label">💰 السعر الكلي لجميع الوصولات</span>
+            <span class="bs-grand-val num-font">${m(t.final)} <span style="font-size:0.95rem;">دينار</span></span>
+          </div>
+          <div class="bs-sign">
+            <div>توقيع المستلم<div class="bs-sign-line">......................</div></div>
+            <div>توقيع المحاسب<div class="bs-sign-line">......................</div></div>
+            <div>توقيع السائق<div class="bs-sign-line">......................</div></div>
+          </div>
+        </div>`;
       }
 
       function showSingleReceiptModal(row, num) {
@@ -2889,6 +3218,9 @@
         }
         let receiptsHTML = "";
         selected.forEach((r) => { receiptsHTML += renderReceiptHTML(r, r.id); });
+        /* كشف المجاميع في آخر الطباعة الجماعية: السعر الكلي، عدد الكبسات،
+           والوزن الصافي لكل الوصولات المحددة. */
+        receiptsHTML += buildBatchSummaryHTML(selected);
         document.getElementById("receiptModalBody").innerHTML =
           `<div class="receipt-sheet" id="receiptCardToPdf">${receiptsHTML}</div>`;
         document.getElementById("receiptModal").classList.add("active");
@@ -3235,7 +3567,7 @@
         document.getElementById("emptyTrashBtn").style.display = "inline-flex";
         let html =
           `<div style="max-height:52vh; overflow:auto; border:1.5px solid var(--gold); border-radius:10px;">` +
-          `<table style="width:100%; border-collapse:collapse; font-size:0.88rem;"><thead><tr style="background:var(--parchment-2);">` +
+          `<table class="aux-table" style="border-collapse:collapse;"><thead><tr style="background:var(--parchment-2);">` +
           `<th style="padding:8px;">رقم الوصل</th><th style="padding:8px;">الفلاح</th><th style="padding:8px;">التاريخ</th>` +
           `<th style="padding:8px;">الصافي (كجم)</th><th style="padding:8px;">المبلغ النهائي</th>` +
           `<th style="padding:8px;">حُذف منذ</th><th style="padding:8px;">استرجاع</th></tr></thead><tbody>`;
@@ -3329,7 +3661,7 @@
           return;
         }
         let html =
-          `<div style="border:1.5px solid var(--gold); border-radius:10px; overflow:hidden;"><table style="width:100%; border-collapse:collapse; font-size:0.88rem;">` +
+          `<div style="border:1.5px solid var(--gold); border-radius:10px; overflow:hidden;"><table class="aux-table" style="border-collapse:collapse;">` +
           `<thead><tr style="background:var(--parchment-2);"><th style="padding:8px;">وقت اللقطة</th><th style="padding:8px;">عدد الوصولات</th><th style="padding:8px;">استعادة</th></tr></thead><tbody>`;
         snaps.forEach(function(s) {
           let when = s.savedAt;
