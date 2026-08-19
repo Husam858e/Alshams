@@ -1,0 +1,4113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ميزان الشمس — سجل عمليات الوزن والوصولات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js">
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js">
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics-compat.js"></script>
+  <style>
+    :root {
+      --ink: #1C252C;
+      --navy: #0F2232;
+      --navy-light: #1A365D;
+      --bronze: #5C3D19;
+      --gold: #C59B27;
+      --gold-light: #F7E9C4;
+      --gold-accent: #E8C468;
+      --parchment: #FAF8F5;
+      --parchment-2: #F1E5C9;
+      --white: #FFFFFF;
+      --muted: #667085;
+      --danger: #A63A2A;
+      --danger-bg: #fdf2f0;
+      --success: #2A7A4C;
+      --success-bg: #EAF5ED;
+      --warning-bg: #FFF4E5;
+      --warning-text: #B76E00;
+      --warning-border: #FFE0B2;
+      --shadow: 0 10px 25px rgba(15, 34, 50, 0.12);
+      --border-radius-sm: 8px;
+      --border-radius-md: 12px;
+      --border-radius-lg: 16px;
+      --transition: 0.15s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #F4F0E8;
+      color: var(--ink);
+      font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+      padding: 20px 14px 60px;
+      min-height: 100vh;
+      overscroll-behavior: contain;
+    }
+
+    .app-container {
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+
+    .num-font,
+    .net-cell,
+    .subtotal-cell,
+    .amount-cell,
+    thead th .unit,
+    .rc-val,
+    .rc-meta,
+    .rc-total-val,
+    tbody td input[inputmode="decimal"],
+    tbody td input[inputmode="numeric"],
+    input[type="date"],
+    select {
+      font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+      font-weight: 500 !important;
+      font-size: 1.15rem !important;
+    }
+
+    tr.row-completed-green {
+      background-color: #d4edda !important;
+    }
+    tr.row-completed-orange {
+      background-color: #f5c6aa !important;
+    }
+
+    .frame {
+      position: relative;
+      background: var(--white);
+      border: 3px solid var(--gold);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow), inset 0 0 0 6px #FFFDF9, inset 0 0 0 8px var(--gold-accent);
+      padding: 24px 26px;
+      margin-bottom: 22px;
+    }
+
+    .corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+    }
+    .corner.tl {
+      top: 4px;
+      left: 4px;
+      border-top: 3px solid var(--navy);
+      border-left: 3px solid var(--navy);
+      border-top-left-radius: 8px;
+    }
+    .corner.tr {
+      top: 4px;
+      right: 4px;
+      border-top: 3px solid var(--navy);
+      border-right: 3px solid var(--navy);
+      border-top-right-radius: 8px;
+    }
+    .corner.bl {
+      bottom: 4px;
+      left: 4px;
+      border-bottom: 3px solid var(--navy);
+      border-left: 3px solid var(--navy);
+      border-bottom-left-radius: 8px;
+    }
+    .corner.br {
+      bottom: 4px;
+      right: 4px;
+      border-bottom: 3px solid var(--navy);
+      border-right: 3px solid var(--navy);
+      border-bottom-right-radius: 8px;
+    }
+
+    .header-frame {
+      text-align: center;
+      padding: 20px;
+    }
+    .brand {
+      font-family: 'El Messiri', 'Cairo', serif;
+      font-size: clamp(2.2rem, 5vw, 3.1rem);
+      font-weight: 700;
+      color: var(--navy);
+      margin: 2px 0;
+    }
+    .tagline {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: .9rem;
+      margin-bottom: 12px;
+    }
+    .status-badges-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .autosave-badge,
+    .net-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid #B8E2C4;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .subject-box {
+      max-width: 650px;
+      margin: 8px auto 0;
+      border: 2px solid var(--gold);
+      border-radius: 25px;
+      padding: 6px 18px;
+      background: #FFFDF8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 0 0 2px var(--gold-light);
+    }
+    .subject-box input {
+      border: none;
+      background: transparent;
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--navy);
+      text-align: center;
+      width: 100%;
+      outline: none;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .toolbar-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar {
+      display: flex;
+      background: var(--parchment-2);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--gold);
+      gap: 4px;
+      align-items: center;
+    }
+    .filter-btn {
+      border: none;
+      background: transparent;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .filter-btn.active {
+      background: var(--white);
+      color: var(--ink);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .date-shortcuts-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 18px;
+      background: #FAF5E8;
+      padding: 10px 14px;
+      border-radius: var(--border-radius-md);
+      border: 1.5px solid var(--gold);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .date-shortcuts-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 6px;
+    }
+    .date-chip {
+      border: 1.5px solid var(--gold);
+      background: var(--white);
+      color: var(--navy);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .date-chip:hover {
+      background: var(--gold-light);
+      transform: translateY(-1px);
+    }
+    .date-chip.active {
+      background: var(--navy);
+      color: var(--gold-light);
+      border-color: var(--navy);
+      box-shadow: 0 2px 8px rgba(15, 34, 50, 0.25);
+    }
+    .search-box {
+      position: relative;
+      min-width: 280px;
+      flex: 1;
+      max-width: 450px;
+    }
+    .search-input {
+      width: 100%;
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 600;
+      background: var(--white);
+      color: var(--navy);
+      outline: none;
+      transition: all var(--transition);
+    }
+    .search-input:focus {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(15, 34, 50, 0.15);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--border-radius-sm);
+      border: 1.5px solid var(--gold);
+      padding: 9px 16px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 600;
+      font-size: .88rem;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--navy);
+      min-height: 42px;
+      transition: all var(--transition);
+    }
+    .btn:hover {
+      box-shadow: 0 4px 12px rgba(15, 34, 50, .18);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--gold-light), var(--gold-accent));
+      color: var(--navy);
+      border-color: var(--navy);
+    }
+    .btn-ghost {
+      background: var(--parchment);
+    }
+    .btn-accent {
+      background: var(--navy);
+      color: #fff;
+      border-color: var(--navy);
+    }
+    .btn-accent:hover {
+      background: var(--navy-light);
+      color: #fff;
+    }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-excel {
+      background: #E8F5E9;
+      color: #1B5E20;
+      border-color: #2E7D32;
+    }
+    .btn-excel:hover {
+      background: #2E7D32;
+      color: #fff;
+    }
+    .btn-thermal {
+      background: #FFF3CD;
+      color: #856404;
+      border-color: #FFEEBA;
+    }
+    .btn-thermal:hover {
+      background: #FFEEBA;
+      color: #533f03;
+    }
+
+    .table-frame {
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      min-width: 2600px;
+    }
+    th.col-farmer,
+    td.col-farmer {
+      min-width: 250px;
+      width: 270px;
+    }
+    th.col-farmer-left,
+    td.col-farmer-left {
+      min-width: 240px !important;
+      width: 260px !important;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: linear-gradient(180deg, #F5E8C9, #E6CD8B);
+      color: var(--navy);
+      font-weight: 600;
+      font-size: .82rem;
+      padding: 12px 5px;
+      border-bottom: 2px solid var(--gold);
+      border-left: 1px solid rgba(201, 151, 31, 0.3);
+      white-space: nowrap;
+      text-align: center;
+    }
+    thead th:last-child {
+      border-left: none;
+    }
+    .unit {
+      display: block;
+      font-weight: 400;
+      font-size: .68rem;
+      color: var(--muted);
+    }
+    tbody td {
+      padding: 6px 4px;
+      border-bottom: 1px solid #EFE3C3;
+      border-left: 1px solid #F3E8CE;
+      text-align: center;
+      font-size: .88rem;
+      vertical-align: middle;
+    }
+    tbody tr:nth-child(even) {
+      background: rgba(247, 233, 196, 0.22);
+    }
+    tbody tr:hover {
+      background: rgba(232, 196, 104, 0.25);
+    }
+
+    input[type=text],
+    input[type=password],
+    input[type=date],
+    select {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 7px 4px;
+      font-family: 'Cairo', sans-serif;
+      font-size: .88rem;
+      background: transparent;
+      color: var(--ink);
+      text-align: center;
+      transition: all var(--transition);
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    tbody td input[data-field="farmer"] {
+      text-align: right !important;
+      padding-right: 10px !important;
+      font-weight: 600 !important;
+      font-size: 1.05rem !important;
+    }
+    tbody td input[data-field="farmer-readonly"] {
+      text-align: right !important;
+      font-weight: 600 !important;
+      font-size: 1.05rem !important;
+      color: var(--navy) !important;
+      background: transparent !important;
+      border: none !important;
+      width: 100%;
+    }
+    select {
+      cursor: pointer;
+      font-weight: 500;
+    }
+    input:hover,
+    select:hover {
+      background: var(--parchment);
+    }
+    input:focus,
+    select:focus {
+      background: var(--white);
+      border-color: var(--gold);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(201, 151, 31, 0.25);
+    }
+    input:disabled,
+    select:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      background-color: #f0f0f0;
+      cursor: not-allowed;
+    }
+    ::placeholder {
+      color: #bfbfbf;
+      opacity: 1;
+    }
+    input[data-field="driver"]::placeholder {
+      color: #d0d0d0;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .price-cell-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .eye-toggle-btn {
+      border: none;
+      background: transparent;
+      color: var(--navy);
+      cursor: pointer;
+      padding: 3px;
+      opacity: 0.7;
+    }
+    .eye-toggle-btn.is-hidden {
+      color: var(--danger);
+    }
+    .net-cell,
+    .subtotal-cell,
+    .amount-cell {
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+      color: #888;
+      min-width: 85px;
+    }
+    .net-cell.has-value,
+    .subtotal-cell.has-value,
+    .amount-cell.has-value {
+      color: var(--navy);
+    }
+    .discount-input {
+      color: var(--danger);
+    }
+    .masked-text {
+      font-family: monospace;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+
+    .col-action {
+      width: 36px;
+    }
+    .icon-btn {
+      border: none;
+      background: transparent;
+      color: var(--navy);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: inline-flex;
+    }
+    .icon-btn:hover {
+      background: var(--parchment-2);
+    }
+    .icon-btn-danger:hover {
+      background: #f3dcd6;
+      color: var(--danger);
+    }
+    .status-toggle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--navy);
+      background: var(--parchment);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+    .status-toggle.completed {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+    .status-toggle.incomplete {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+    }
+
+    .summary-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: space-around;
+      text-align: center;
+    }
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 140px;
+    }
+    .summary-item span {
+      font-size: .82rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .summary-item b {
+      font-size: 1.5rem;
+      color: var(--navy);
+      font-variant-numeric: tabular-nums;
+      font-weight: 400;
+    }
+    .selected-summary {
+      margin-top: 16px;
+      padding: 14px 20px;
+      background: #FFFDF7;
+      border: 2px solid var(--gold);
+      border-radius: var(--border-radius-md);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px 40px;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 0 2px var(--gold-light);
+      font-weight: 500;
+      color: var(--navy);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 34, 50, 0.75);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: #FAF8F5;
+      border: 3px solid var(--gold);
+      border-radius: var(--border-radius-lg);
+      max-width: 850px;
+      width: 100%;
+      max-height: 98vh;
+      overflow-y: auto;
+      padding: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      border: none;
+      background: var(--navy);
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      z-index: 10;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    .receipt-sheet {
+      background: #FFF;
+      width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    .single-receipt-card {
+      background: #FFFDF8;
+      border: 3.5px solid #C59B27;
+      border-radius: 18px;
+      padding: 16px 20px;
+      position: relative;
+      box-shadow: inset 0 0 0 4px #FFFDF9, inset 0 0 0 7px #E8C468;
+      color: #0F2232;
+      direction: rtl;
+      font-family: 'Cairo', sans-serif;
+      width: 100%;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 10px;
+    }
+    .rc-corner-ornament {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .rc-corner-ornament.tl {
+      top: 6px;
+      right: 6px;
+      border-top: 3.5px solid #0F2232;
+      border-right: 3.5px solid #0F2232;
+      border-top-right-radius: 10px;
+    }
+    .rc-corner-ornament.tr {
+      top: 6px;
+      left: 6px;
+      border-top: 3.5px solid #0F2232;
+      border-left: 3.5px solid #0F2232;
+      border-top-left-radius: 10px;
+    }
+    .rc-corner-ornament.bl {
+      bottom: 6px;
+      right: 6px;
+      border-bottom: 3.5px solid #0F2232;
+      border-right: 3.5px solid #0F2232;
+      border-bottom-right-radius: 10px;
+    }
+    .rc-corner-ornament.br {
+      bottom: 6px;
+      left: 6px;
+      border-bottom: 3.5px solid #0F2232;
+      border-left: 3.5px solid #0F2232;
+      border-bottom-left-radius: 10px;
+    }
+
+    .rc-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .rc-sun-logo-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      margin-top: -5px;
+    }
+    .rc-sun-graphic {
+      width: 110px;
+      height: 55px;
+      position: relative;
+    }
+    .rc-brand-title-main {
+      font-family: 'El Messiri', 'Cairo', serif;
+      font-size: 2.3rem;
+      font-weight: 700;
+      color: #0F2232;
+      line-height: 1.15;
+      margin-top: -2px;
+      letter-spacing: -0.5px;
+    }
+    .rc-brand-subtitle {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #8C6A1D;
+      margin-top: 1px;
+    }
+    .rc-title-badge-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .rc-main-title-pill {
+      background: #0F2232;
+      color: #F7E9C4;
+      font-family: 'El Messiri', 'Cairo', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      padding: 6px 24px;
+      border-radius: 24px;
+      border: 2px solid #C59B27;
+      box-shadow: 0 3px 8px rgba(15, 34, 50, 0.2);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .rc-meta-line {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0F2232;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rc-meta-line .rc-dotted-val {
+      border-bottom: 1.5px dotted #667085;
+      min-width: 110px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .rc-fields-table {
+      display: flex;
+      flex-direction: column;
+      border: 2px solid #C59B27;
+      border-radius: var(--border-radius-md);
+      background: #FFF;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .rc-field-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid #EAE0C8;
+      min-height: 40px;
+    }
+    .rc-fields-table .rc-field-row:last-child {
+      border-bottom: none;
+    }
+    .rc-field-input-side {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+    }
+    .rc-field-input-side.split {
+      justify-content: space-between;
+    }
+    .rc-field-label-side {
+      width: 165px;
+      background: #0F2232;
+      color: #FFF;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 14px;
+      gap: 10px;
+      border-left: 2px solid #C59B27;
+      height: 100%;
+      min-height: 40px;
+      flex-shrink: 0;
+    }
+    .rc-field-label-side .rc-icon-circle {
+      width: 26px;
+      height: 26px;
+      background: #C59B27;
+      color: #0F2232;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .rc-val-dots {
+      flex: 1;
+      border-bottom: 1.5px dotted #8C6A1D;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #0F2232;
+      padding: 0 4px;
+      min-height: 22px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rc-unit-badge {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #5C3D19;
+      background: #F7E9C4;
+      padding: 2px 10px;
+      border-radius: 6px;
+      border: 1px solid #C59B27;
+      flex-shrink: 0;
+    }
+    .rc-checkboxes-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      width: 100%;
+    }
+    .rc-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #0F2232;
+    }
+    .rc-box-square {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #0F2232;
+      border-radius: 4px;
+      background: #FFF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #0F2232;
+    }
+
+    .rc-total-bar-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid #C59B27;
+      border-radius: var(--border-radius-md);
+      background: #FFF;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .rc-total-bar-label {
+      background: #0F2232;
+      color: #FFF;
+      font-family: 'El Messiri', 'Cairo', serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 10px 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-right: 2px solid #C59B27;
+      flex-shrink: 0;
+    }
+    .rc-total-bar-label .rc-total-icon-circle {
+      width: 28px;
+      height: 28px;
+      background: #C59B27;
+      color: #0F2232;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+    .rc-total-bar-value {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+    .rc-total-val-text {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #0F2232;
+      text-align: right;
+      flex: 1;
+      border-bottom: 1.5px dotted #8C6A1D;
+      margin-left: 15px;
+      padding-bottom: 2px;
+    }
+
+    .rc-notes-box {
+      border: 1.5px dashed #C59B27;
+      border-radius: 10px;
+      background: #FAF6ED;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .rc-notes-line-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0F2232;
+    }
+    .rc-notes-dotted-flex {
+      flex: 1;
+      border-bottom: 1.5px dotted #0F2232;
+      min-height: 20px;
+      padding: 0 6px;
+      font-weight: 600;
+    }
+
+    .rc-footer-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 4px;
+      position: relative;
+    }
+    .rc-signature-block {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0F2232;
+      width: 140px;
+    }
+    .rc-signature-lines {
+      margin-top: 6px;
+      letter-spacing: 3px;
+      font-size: 0.85rem;
+      color: #0F2232;
+    }
+    .rc-official-stamp {
+      width: 115px;
+      height: 115px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #FFFDF8;
+      box-shadow: inset 0 0 0 2px #C59B27, inset 0 0 0 4px #0F2232;
+      padding: 4px;
+      flex-shrink: 0;
+      margin: 0 auto;
+    }
+    .rc-stamp-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #0F2232;
+      line-height: 1.15;
+    }
+    .rc-stamp-sun-icon {
+      font-size: 1.2rem;
+      color: #C59B27;
+      margin-bottom: -1px;
+    }
+    .rc-stamp-brand-name {
+      font-family: 'El Messiri', 'Cairo', serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0F2232;
+    }
+    .rc-stamp-desc {
+      font-size: 0.55rem;
+      color: #555;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .rc-stamp-stars {
+      font-size: 0.6rem;
+      color: #C59B27;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    .net-cell.is-negative,
+    .amount-cell.is-negative {
+      color: var(--danger) !important;
+      font-weight: 700 !important;
+    }
+    tr.row-invalid-weight > td {
+      background-color: #fdecea !important;
+    }
+
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Cairo', sans-serif;
+      font-size: 10px;
+      direction: rtl;
+    }
+    .report-table th,
+    .report-table td {
+      border: 1px solid #999;
+      padding: 4px 3px;
+      text-align: center;
+    }
+    .report-table thead th {
+      background: #E6CD8B;
+      color: #0F2232;
+      font-weight: 700;
+    }
+    .report-table tfoot td {
+      background: #F7E9C4;
+      font-weight: 700;
+    }
+    .report-head {
+      text-align: center;
+      margin-bottom: 10px;
+      font-family: 'El Messiri', 'Cairo', serif;
+    }
+    .report-head h2 {
+      font-size: 20px;
+      color: #0F2232;
+    }
+    .report-head p {
+      font-size: 11px;
+      color: #555;
+      font-weight: 600;
+      font-family: 'Cairo', sans-serif;
+    }
+
+    .scroll-arrow {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: var(--gold-light);
+      border: 2px solid var(--gold);
+      cursor: pointer;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 800;
+      box-shadow: 0 4px 15px rgba(15, 34, 50, 0.3);
+      transition: all var(--transition);
+      opacity: 0.7;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    .scroll-arrow:hover {
+      opacity: 1;
+      transform: translateY(-50%) scale(1.1);
+      box-shadow: 0 6px 20px rgba(15, 34, 50, 0.4);
+    }
+    .scroll-arrow:active {
+      transform: translateY(-50%) scale(0.95);
+      background: var(--gold);
+      color: var(--navy);
+    }
+    .scroll-arrow-left {
+      right: 6px;
+    }
+    .scroll-arrow-right {
+      left: 6px;
+    }
+
+    @media (min-width: 2700px) {
+      .scroll-arrow {
+        display: none;
+      }
+    }
+    @media (max-width: 768px) {
+      .scroll-arrow {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+      }
+      .scroll-arrow-left {
+        right: 2px;
+      }
+      .scroll-arrow-right {
+        left: 2px;
+      }
+    }
+
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      .modal-overlay.print-target,
+      .modal-overlay.print-target * {
+        visibility: visible !important;
+      }
+      .modal-overlay.print-target {
+        position: absolute !important;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        height: 100% !important;
+        background: #FFF !important;
+        padding: 0 !important;
+        backdrop-filter: none !important;
+      }
+      .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        background: #FFF !important;
+      }
+      .modal-close,
+      .modal-actions {
+        display: none !important;
+      }
+      .receipt-sheet {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .single-receipt-card {
+        page-break-after: always;
+        break-after: page;
+        margin: 0 auto 6mm;
+      }
+      body.report-print-mode #reportPrintContainer,
+      body.report-print-mode #reportPrintContainer * {
+        visibility: visible !important;
+      }
+      body.report-print-mode #reportPrintContainer {
+        position: absolute !important;
+        top: 0;
+        right: 0;
+        left: 0;
+        width: 100% !important;
+      }
+      .single-receipt-card:last-child {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 5mm;
+      }
+    }
+
+    body.report-print-mode {
+      min-height: 0 !important;
+      padding: 0 !important;
+      background: #FFF !important;
+    }
+    body.report-print-mode>*:not(#reportPrintContainer) {
+      display: none !important;
+    }
+    body.report-print-mode #reportPrintContainer {
+      display: block !important;
+      background: #FFF !important;
+      color: #000 !important;
+      padding: 4px !important;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="frame header-frame">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <svg viewBox="0 0 64 40" width="46" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--navy);">
+        <line x1="32" y1="4" x2="32" y2="32" /><line x1="10" y1="12" x2="54" y2="12" />
+        <path d="M10,12 L4,24 A8,6 0 0,0 16,24 Z" /><path d="M54,12 L48,24 A8,6 0 0,0 60,24 Z" />
+        <line x1="23" y1="34" x2="41" y2="34" /><circle cx="32" cy="10" r="2.5" fill="currentColor" stroke="none" />
+      </svg>
+      <h1 class="brand">ميزان الشمس</h1>
+      <p class="tagline">سجل ونظام عمليات الوزن والوصولات المعتمد</p>
+      <div class="status-badges-container">
+        <div class="autosave-badge" id="saveBadge">✓ محفوظ تلقائياً في الجهاز</div>
+        <div class="net-status-badge" id="netStatusBadge">🔍 جاري الفحص...</div>
+        <div class="net-status-badge" id="cloudStatusBadge" title="اضغط لإدارة المزامنة السحابية" style="cursor:pointer; background:var(--parchment-2); color:var(--bronze); border-color:var(--gold);">☁️ المزامنة غير مفعّلة</div>
+        <div class="net-status-badge" id="syncPendingBadge" title="عدد الوصولات التي لم تصل السحابة بعد" style="display:none;"></div>
+      </div>
+      <div class="subject-box"><input type="text" id="subject" placeholder="سجل عمليات التاريخ الحالي / المرجع"></div>
+    </header>
+
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <div class="filter-bar">
+          <button type="button" class="filter-btn active" data-filter="all">الكل</button>
+          <button type="button" class="filter-btn" data-filter="مخزن">المخزن فقط</button>
+          <button type="button" class="filter-btn" data-filter="ساحة">الساحة فقط</button>
+        </div>
+        <div class="filter-bar">
+          <button type="button" class="filter-btn date-main-btn active" data-date-filter="all">كل التواريخ</button>
+          <button type="button" class="filter-btn date-main-btn" data-date-filter="today">اليوم</button>
+          <button type="button" class="filter-btn date-main-btn" data-date-filter="yesterday">أمس</button>
+          <input type="date" id="customDateInput" class="num-font" title="اختر تاريخ محدد للوصولات" style="border:none; background:transparent; font-size:0.85rem; padding:2px 6px; cursor:pointer; outline:none; color:var(--navy);">
+        </div>
+        <div class="search-box"><input type="text" id="searchInput" class="search-input" placeholder="🔍 بحث ذكي مركّب (مثال: أحمد مخزن ابراهيم 500)" autocomplete="off"></div>
+      </div>
+      <div class="toolbar-group">
+        <button type="button" id="undoBtn" class="btn btn-ghost" disabled title="تراجع (Ctrl+Z)">⏪ تراجع</button>
+        <button type="button" id="redoBtn" class="btn btn-ghost" disabled title="إعادة (Ctrl+Y)">⏩ إعادة</button>
+        <button type="button" id="printBatchBtn" class="btn btn-accent">🖨️ طباعة الوصولات المحددة</button>
+        <button type="button" id="exportFullPdfBtn" class="btn btn-ghost">📄 PDF كامل</button>
+        <button type="button" id="exportExcelBtn" class="btn btn-excel">📊 تصدير الكل Excel</button>
+        <button type="button" id="exportStoreExcelBtn" class="btn btn-excel">🏭 تصدير المخزن Excel</button>
+        <button type="button" id="exportDayExcelBtn" class="btn btn-excel">📅 تصدير اليوم Excel</button>
+        <button type="button" id="exportBtn" class="btn btn-ghost">💾 JSON</button>
+        <button type="button" id="importBtn" class="btn btn-ghost">📂 استيراد</button>
+        <button type="button" id="cloudBtn" class="btn btn-accent">☁️ المزامنة السحابية</button>
+        <button type="button" id="trashBtn" class="btn btn-ghost" title="الوصولات المحذوفة — يمكن استرجاعها">🗑️ سلة المحذوفات</button>
+        <button type="button" id="backupBtn" class="btn btn-ghost" title="النسخ الاحتياطية المحفوظة على هذا الجهاز">🛟 النسخ الاحتياطية</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+    </div>
+
+    <div id="hiddenNotice" style="display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--warning-bg); border:1.5px solid var(--warning-border); color:var(--warning-text); border-radius:var(--border-radius-md); padding:9px 14px; margin-bottom:10px; font-size:0.88rem; font-weight:700;"></div>
+
+    <div class="date-shortcuts-bar" id="dateShortcutsContainer">
+      <span class="date-shortcuts-title">📅 اختصار التواريخ المسجلة:</span>
+      <div id="dynamicDateChips" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
+      <button type="button" id="addRowBtn" class="btn btn-primary">➕ إضافة عملية</button>
+    </div>
+
+    <div class="frame table-frame">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="table-wrapper" id="tableWrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>م</th>
+              <th><input type="checkbox" id="selectAllCheckbox" title="تحديد الكل للطباعة"></th>
+              <th class="col-farmer">اسم الفلاح</th>
+              <th>الكلي <span class="unit">كجم</span></th>
+              <th>الفارغ <span class="unit">كجم</span></th>
+              <th>الصافي <span class="unit">كجم</span></th>
+              <th>السعر <span class="unit">دينار/كجم</span></th>
+              <th style="background: linear-gradient(180deg, #E2F0D9, #C5E0B4);">المبلغ قبل الخصم <span class="unit">دينار</span></th>
+              <th style="background: linear-gradient(180deg, #FCE4D6, #F8CBAD);">الخصم <span class="unit">دينار</span></th>
+              <th>اسم السائق</th>
+              <th>عدد الكبسات</th>
+              <th>نوع الكبس</th>
+              <th>سعر الكبسة</th>
+              <th>إجمالي سعر الكبسات <span class="unit">دينار</span></th>
+              <th>مكان التخزين</th>
+              <th>سعر الوصل <span class="unit">أقصى 5000</span></th>
+              <th>المبلغ الصافي النهائي</th>
+              <th>التاريخ</th>
+              <th>ملاحظات</th>
+              <th>الحالة</th>
+              <th class="col-farmer-left">الفلاح</th>
+              <th class="col-action">طباعة</th>
+              <th class="col-action">ح.حرارية</th>
+              <th class="col-action">نسخ</th>
+              <th class="col-action">حذف</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="selected-summary" id="selectedSummary">
+        <span>📌 الوصولات المحددة للطباعة: <span id="selectedCount" class="num-font">0</span></span>
+        <span>⚖️ إجمالي الصافي: <span id="selectedNet" class="num-font">0</span> كجم</span>
+        <span>📦 إجمالي الكبسات: <span id="selectedCrates" class="num-font">0</span></span>
+        <span>💰 إجمالي الخصم: <span id="selectedDiscount" class="num-font">0</span> دينار</span>
+        <span>💵 إجمالي الصافي النهائي: <span id="selectedAmount" class="num-font">0</span> دينار</span>
+      </div>
+    </div>
+
+    <div class="frame summary-frame">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="summary-item"><span>عدد العمليات المعروضة</span><span id="totalCount" class="num-font">0</span></div>
+      <div class="summary-item"><span>إجمالي الصافي (كجم)</span><span id="totalNet" class="num-font">0</span></div>
+      <div class="summary-item"><span>إجمالي الخصومات</span><span id="totalDiscount" class="num-font">0</span></div>
+      <div class="summary-item"><span>إجمالي المبالغ الصافية النهائية</span><span id="totalAmount" class="num-font">0</span></div>
+      <div class="summary-item"><span>محصلة سعر الطن</span><span id="totalTonPrice" class="num-font">0</span></div>
+      <div style="flex-basis:100%; display:flex; gap:18px; flex-wrap:wrap; justify-content:center; font-size:0.8rem; font-weight:600; color:var(--muted); margin-top:6px;">
+        <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#d4edda; border:1px solid #b7d8bf; vertical-align:-1px;"></span> مكتملة وبها سعر</span>
+        <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#f5c6aa; border:1px solid #e0a97f; vertical-align:-1px;"></span> مكتملة بدون سعر</span>
+        <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#fdecea; border:1px solid #e6a79e; vertical-align:-1px;"></span> الوزن الفارغ أكبر من الكلي (خطأ إدخال)</span>
+        <span>⌨️ Ctrl+Enter للانتقال بين الحقول • Ctrl+Z تراجع • Ctrl+Y إعادة</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="scroll-arrow scroll-arrow-right" id="scrollArrowRight" title="الأعمدة المخفية على اليسار (اختصار: سهم يمين ⌨️)">◀</button>
+  <button class="scroll-arrow scroll-arrow-left" id="scrollArrowLeft" title="الأعمدة المخفية على اليمين (اختصار: سهم يسار ⌨️)">▶</button>
+
+  <div id="reportPrintContainer" style="display:none;"></div>
+
+  <div class="modal-overlay" id="receiptModal">
+    <div class="modal-content">
+      <button class="modal-close" id="closeModalBtn">&times;</button>
+      <div id="receiptModalBody"></div>
+      <div class="modal-actions" id="modalActions">
+        <button type="button" id="printReceiptBtn" class="btn btn-primary">🖨️ طباعة الوصولات</button>
+        <button type="button" id="downloadReceiptPdfBtn" class="btn btn-accent">📄 تصدير PDF</button>
+        <button type="button" id="downloadReceiptExcelBtn" class="btn btn-excel">📊 تصدير Excel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="cloudModal">
+    <div class="modal-content" style="max-width:480px;">
+      <button class="modal-close" id="closeCloudModalBtn">&times;</button>
+      <div style="padding:8px 4px;">
+        <h3 style="font-family:'El Messiri',serif; font-size:1.5rem; color:var(--navy); text-align:center; margin-bottom:6px;">☁️ المزامنة السحابية</h3>
+        <p style="text-align:center; font-size:0.85rem; color:var(--muted); font-weight:600; margin-bottom:16px;">المزامنة تعمل تلقائياً بدون تسجيل دخول. كل جهاز يفتح هذا الملف يرى نفس السجل، والعمل يستمر كاملاً بدون إنترنت ثم يُرفع تلقائياً عند عودة الاتصال.</p>
+
+        <div style="background:#FFFDF7; border:2px solid var(--gold); border-radius:12px; padding:12px 14px; font-size:0.9rem; font-weight:600; color:var(--navy); line-height:1.9;">
+          <div>🔌 الحالة: <span id="cloudStateText">—</span></div>
+          <div>🗂️ مساحة العمل: <span id="cloudWorkspace" style="direction:ltr; display:inline-block;">—</span></div>
+          <div>🕒 آخر مزامنة: <span id="cloudLastSync">—</span></div>
+          <div>📋 عدد العمليات المزامَنة: <span id="cloudRowCount" class="num-font">0</span></div>
+          <div>📦 عدد العمليات على هذا الجهاز: <span id="cloudLocalCount" class="num-font">0</span></div>
+          <div>⏳ بانتظار الرفع: <span id="cloudPending" class="num-font">0</span></div>
+          <div>🖥️ معرّف هذا الجهاز: <span id="cloudDeviceId" style="direction:ltr; display:inline-block; font-size:0.8rem;">—</span></div>
+          <div>🌐 مصدر الفتح: <span id="cloudOrigin" style="direction:ltr; display:inline-block; font-size:0.78rem; word-break:break-all;">—</span></div>
+          <div>🧾 رمز الخطأ: <span id="cloudErrCode" style="direction:ltr; display:inline-block; font-size:0.78rem; word-break:break-all;">—</span></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cloudPushAllBtn" class="btn btn-primary">⬆️ رفع كل البيانات المحلية</button>
+          <button type="button" id="cloudReconnectBtn" class="btn btn-ghost">🔄 إعادة الاتصال</button>
+        </div>
+
+        <p id="cloudMsg" style="margin-top:12px; text-align:center; font-size:0.85rem; font-weight:700; min-height:20px;"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="trashModal">
+    <div class="modal-content" style="max-width:900px;">
+      <button class="modal-close" id="closeTrashModalBtn">&times;</button>
+      <div style="padding:6px 4px;">
+        <h3 style="font-family:'El Messiri',serif; font-size:1.5rem; color:var(--navy); text-align:center; margin-bottom:6px;">🗑️ سلة المحذوفات</h3>
+        <p style="text-align:center; font-size:0.85rem; color:var(--muted); font-weight:600; margin-bottom:14px;">
+          كل وصل تحذفه يُحفظ هنا ولا يُمحى نهائياً. اضغط «استرجاع» لإعادته إلى السجل.
+          المسح النهائي لا يحدث إلا بضغطك على «مسح نهائي» — ولا يمكن التراجع عنه.
+        </p>
+        <div id="trashListBody"></div>
+        <div class="modal-actions">
+          <button type="button" id="restoreAllTrashBtn" class="btn btn-primary">↩️ استرجاع الكل</button>
+          <button type="button" id="emptyTrashBtn" class="btn btn-danger">🔥 مسح السلة نهائياً</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="backupModal">
+    <div class="modal-content" style="max-width:620px;">
+      <button class="modal-close" id="closeBackupModalBtn">&times;</button>
+      <div style="padding:6px 4px;">
+        <h3 style="font-family:'El Messiri',serif; font-size:1.5rem; color:var(--navy); text-align:center; margin-bottom:6px;">🛟 النسخ الاحتياطية المحلية</h3>
+        <p style="text-align:center; font-size:0.85rem; color:var(--muted); font-weight:600; margin-bottom:14px;">
+          يحفظ التطبيق لقطة كاملة للسجل على هذا الجهاز كل 10 دقائق ويحتفظ بآخر 8 لقطات.
+          استعمل هذه القائمة إذا احتجت العودة بالسجل كله إلى حالة سابقة.
+          الاستعادة لا تحذف شيئاً: تُدمج اللقطة مع السجل الحالي.
+        </p>
+        <div id="backupListBody"></div>
+        <p id="backupMsg" style="margin-top:12px; text-align:center; font-size:0.85rem; font-weight:700; min-height:20px;"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-content" style="max-width:450px;">
+      <button class="modal-close" id="closeConfirmModalBtn">&times;</button>
+      <div style="text-align:center; padding:10px 0;">
+        <div style="color:var(--danger); font-size:2rem; margin-bottom:10px;">⚠️</div>
+        <h3 id="confirmTitle" style="font-family:'El Messiri',serif; font-size:1.5rem; color:var(--navy); margin-bottom:10px;">تأكيد</h3>
+        <p id="confirmMessage" style="font-size:0.95rem; color:var(--muted); margin-bottom:20px; font-weight:600;">هل أنت متأكد؟</p>
+        <div class="modal-actions">
+          <button type="button" id="confirmActionBtn" class="btn btn-danger">تأكيد</button>
+          <button type="button" id="cancelConfirmBtn" class="btn btn-ghost">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Service Worker — نسخة v31.
+       تصحيح مهم: النسخة السابقة كانت تخزّن *كل* طلبات GET في الكاش، بما فيها
+       قناة الاتصال المباشر بـ Firestore، وكانت تُرجّح النسخة المخزّنة على الشبكة.
+       نتيجة ذلك: استهلاك مساحة التخزين حتى الامتلاء (فيفشل الحفظ المحلي)،
+       واحتمال عرض لقطة قديمة من السحابة، وعدم وصول تحديثات الملف للمستخدم.
+       الآن: مرور مباشر لكل نطاقات Firebase/Google، وشبكة-أولاً لملف التطبيق. */
+    if ("serviceWorker" in navigator) {
+      const swCode = [
+        "const CACHE_NAME='mizan-alshams-cache-v31';",
+        "const CACHEABLE_HOSTS=['fonts.googleapis.com','fonts.gstatic.com','cdnjs.cloudflare.com','cdn.jsdelivr.net'];",
+        "function isCacheable(url){",
+        " if(url.origin===self.location.origin) return true;",
+        " if(CACHEABLE_HOSTS.indexOf(url.hostname)>-1) return true;",
+        " if(url.hostname==='www.gstatic.com'&&url.pathname.indexOf('/firebasejs/')===0) return true;",
+        " return false;",
+        "}",
+        "function putInCache(req,res){try{const c=res.clone();caches.open(CACHE_NAME).then(function(ca){ca.put(req,c);});}catch(e){}return res;}",
+        "self.addEventListener('install',function(e){self.skipWaiting();});",
+        "self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return k===CACHE_NAME?null:caches.delete(k);}));}).then(function(){return self.clients.claim();}));});",
+        "self.addEventListener('fetch',function(e){",
+        " if(e.request.method!=='GET') return;",
+        " var url;try{url=new URL(e.request.url);}catch(err){return;}",
+        " if(!isCacheable(url)) return;",
+        " var isDoc=e.request.mode==='navigate'||e.request.destination==='document';",
+        " if(isDoc){e.respondWith(fetch(e.request).then(function(res){return putInCache(e.request,res);}).catch(function(){return caches.match(e.request);}));return;}",
+        " e.respondWith(caches.match(e.request).then(function(cached){",
+        "  var net=fetch(e.request).then(function(res){return putInCache(e.request,res);}).catch(function(){return cached;});",
+        "  return cached||net;}));",
+        "});"
+      ].join("");
+      try {
+        const blob = new Blob([swCode], { type: "application/javascript" });
+        navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+      } catch (e) {}
+    }
+
+    (function() {
+      const STORAGE_KEY = "mizan_alshams_v20_data";
+      const MIRROR_KEY = "mizan_alshams_v20_data_mirror";
+      const SNAPSHOT_PREFIX = "mizan_alshams_snap_";
+      const MAX_SNAPSHOTS = 8;
+      const SNAPSHOT_EVERY_MS = 10 * 60 * 1000;
+      const MAX_HISTORY = 50;
+      const SCROLL_AMOUNT = 400;
+      const MAX_RECEIPT_FEE = 5000;
+
+      const ICON_PRINT =
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M6 17v4h12v-4"/></svg>`;
+      const ICON_THERMAL =
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`;
+      const ICON_DELETE =
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>`;
+      const ICON_COPY =
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+      const ICON_EYE_OPEN =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      const ICON_EYE_CLOSED =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+      let rows = [];
+      let nextId = 1;
+      let activeFilter = "all";
+      let activeDateFilter = "all";
+      let searchQuery = "";
+      let confirmCallback = null;
+      let history = [];
+      let historyIndex = -1;
+      let isRestoring = false;
+      let scrollInterval = null;
+      const tableWrapper = document.getElementById("tableWrapper");
+      const scrollArrowLeft = document.getElementById("scrollArrowLeft");
+      const scrollArrowRight = document.getElementById("scrollArrowRight");
+
+      function updateNetworkStatus() {
+        const badge = document.getElementById("netStatusBadge");
+        if (!badge) return;
+        if (navigator.onLine) {
+          badge.style.background = "var(--success-bg)";
+          badge.style.color = "var(--success)";
+          badge.style.borderColor = "#B8E2C4";
+          badge.innerHTML = "🟢 متصل بالإنترنت";
+        } else {
+          badge.style.background = "var(--warning-bg)";
+          badge.style.color = "var(--warning-text)";
+          badge.style.borderColor = "var(--warning-border)";
+          badge.innerHTML = "🟠 يعمل أوفلاين (بدون إنترنت)";
+        }
+      }
+      window.addEventListener("online", updateNetworkStatus);
+      window.addEventListener("offline", updateNetworkStatus);
+
+      function normalizeDigits(str) {
+        if (!str) return "";
+        return String(str).replace(/[٠۰]/g, "0").replace(/[١۱]/g, "1").replace(/[٢۲]/g, "2").replace(
+          /[٣۳]/g, "3").replace(/[٤۴]/g, "4").replace(/[٥۵]/g, "5").replace(/[٦۶]/g, "6").replace(
+          /[٧۷]/g, "7").replace(/[٨۸]/g, "8").replace(/[٩۹]/g, "9").replace(/٫/g, ".");
+      }
+
+      function normalizeArabicText(str) {
+        if (str === null || str === undefined) return "";
+        let text = String(str);
+        text = normalizeDigits(text);
+        text = text.toLowerCase();
+        text = text.replace(/[أإآء]/g, "ا");
+        text = text.replace(/ة/g, "ه");
+        text = text.replace(/ى/g, "ي");
+        text = text.replace(/[\u064B-\u0652]/g, "");
+        return text.trim();
+      }
+
+      function cleanNumericInput(val) {
+        if (!val) return "";
+        let normalized = normalizeDigits(val);
+        let cleaned = normalized.replace(/[^0-9.]/g, "");
+        const firstDot = cleaned.indexOf(".");
+        if (firstDot !== -1) {
+          cleaned = cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).replace(/\./g, "");
+        }
+        return cleaned;
+      }
+
+      function parseNum(v) {
+        const cleaned = normalizeDigits(v);
+        const val = parseFloat(cleaned);
+        return isNaN(val) ? null : val;
+      }
+
+      function fmt(n) {
+        if (n === null || n === undefined || isNaN(n)) return "—";
+        return Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+      }
+
+      function esc(str) {
+        if (str === null || str === undefined) return "";
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g,
+          "&quot;").replace(/'/g, "&#39;");
+      }
+
+      function getToday() {
+        const d = new Date();
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(
+          2, "0");
+      }
+
+      function getYesterday() {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(
+          2, "0");
+      }
+
+      function formatDateDisplayShort(dateStr) {
+        if (!dateStr) return "";
+        const parts = dateStr.split("-");
+        if (parts.length === 3) {
+          return `${parseInt(parts[2], 10)} / ${parseInt(parts[1], 10)}`;
+        }
+        return dateStr;
+      }
+
+      function deepClone(data) {
+        return JSON.parse(JSON.stringify(data));
+      }
+
+      function saveHistory() {
+        if (isRestoring) return;
+        const state = {
+          rows: deepClone(rows),
+          subject: document.getElementById("subject").value,
+          nextId: nextId
+        };
+        history = history.slice(0, historyIndex + 1);
+        history.push(state);
+        if (history.length > MAX_HISTORY) history.shift();
+        historyIndex = history.length - 1;
+        updateUndoButtons();
+      }
+
+      let historyTimer = null;
+
+      function scheduleHistory() {
+        if (historyTimer) clearTimeout(historyTimer);
+        historyTimer = setTimeout(function() {
+          historyTimer = null;
+          saveHistory();
+        }, 600);
+      }
+
+      function flushHistory() {
+        if (historyTimer) {
+          clearTimeout(historyTimer);
+          historyTimer = null;
+          saveHistory();
+        }
+      }
+
+      function undo() {
+        flushHistory();
+        if (historyIndex <= 0) return;
+        historyIndex--;
+        restoreState(history[historyIndex]);
+      }
+
+      function redo() {
+        flushHistory();
+        if (historyIndex >= history.length - 1) return;
+        historyIndex++;
+        restoreState(history[historyIndex]);
+      }
+
+      function restoreState(state) {
+        isRestoring = true;
+        const previousRows = rows;
+        const before = Object.create(null);
+        previousRows.forEach(function(r) { before[r.docId] = JSON.stringify(cloudPayload(r)); });
+
+        rows = deepClone(state.rows);
+        const restoredDocs = Object.create(null);
+        rows.forEach(function(r) { restoredDocs[r.docId] = true; });
+
+        /* صف موجود محلياً وغائب عن الحالة المستعادة:
+           - إن كان هذا الجهاز هو من أنشأه، فالتراجع يقصده فعلاً → يُحفظ كمحذوف
+             قابل للاسترجاع (لا يُمحى نهائياً).
+           - إن كان قادماً من جهاز آخر عبر المزامنة، فهو ليس جزءاً من تاريخ التراجع
+             المحلي أصلاً → يبقى كما هو. بدون هذا التمييز كان Ctrl+Z على جهاز
+             يُخفي وصولات كتبها جهاز آخر. */
+        const myDevice = getDeviceId();
+        Object.keys(before).forEach(function(docId) {
+          if (restoredDocs[docId]) return;
+          const src = previousRows.find(r => r.docId === docId);
+          if (!src) return;
+          const ghost = deepClone(src);
+          if (ghost.createdBy && ghost.createdBy !== myDevice) {
+            rows.push(ghost);
+            return;
+          }
+          ghost.deleted = true;
+          ghost.deletedAt = Date.now();
+          ghost.selected = false;
+          touchRow(ghost);
+          rows.push(ghost);
+        });
+
+        /* إعادة ختم الوقت لكل صف تغيّر فعلياً، حتى لا تدهس نسخةُ السحابة نتيجةَ التراجع */
+        rows.forEach(function(r) {
+          const sig = JSON.stringify(cloudPayload(r));
+          if (before[r.docId] !== sig) touchRow(r);
+        });
+
+        nextId = state.nextId;
+        document.getElementById("subject").value = state.subject || "";
+        ensureRowIdentity();
+        render();
+        saveToLocalStorage();
+        updateUndoButtons();
+        isRestoring = false;
+      }
+
+      function updateUndoButtons() {
+        document.getElementById("undoBtn").disabled = historyIndex <= 0;
+        document.getElementById("redoBtn").disabled = historyIndex >= history.length - 1;
+      }
+
+      function genDocId() {
+        try {
+          if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        } catch (e) {}
+        return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      }
+
+      function blankRow() {
+        return {
+          id: 0,
+          docId: "",
+          seq: 0,
+          selected: false,
+          farmer: "",
+          gross: "",
+          tare: "",
+          price: "",
+          discount: "",
+          driver: "",
+          crateCount: "",
+          crateType: "",
+          cratePrice: "",
+          location: "",
+          receiptFee: "",
+          notes: "",
+          date: getToday(),
+          hidePrice: false,
+          completed: false,
+          /* حقول جديدة (v31) — أساس حل مشكلة اختفاء الوصولات:
+             deleted/deletedAt : الحذف أصبح "علامة" لا مسحاً نهائياً، فيمكن الاسترجاع.
+             createdAt/updatedAt: ختم زمني لحسم التعارض بين الأجهزة (الأحدث يفوز)
+                                  بدل أن تدهس نسخة قديمة من جهاز آخر ما كتبته للتو. */
+          deleted: false,
+          deletedAt: 0,
+          createdAt: 0,
+          createdBy: "",
+          updatedAt: 0,
+          updatedBy: ""
+        };
+      }
+
+      /* أي تعديل محلي يجب أن يمرّ من هنا حتى يحمل ختماً زمنياً أحدث من نسخة السحابة */
+      function touchRow(row) {
+        if (!row) return row;
+        row.updatedAt = Date.now();
+        row.updatedBy = getDeviceId();
+        return row;
+      }
+
+      function newRow() {
+        const r = blankRow();
+        r.id = nextId++;
+        r.docId = genDocId();
+        r.createdAt = Date.now();
+        r.createdBy = getDeviceId();
+        r.seq = nextSeqForDate(r.date);
+        touchRow(r);
+        return r;
+      }
+
+      /* رقم الوصل مبني على seq داخل نفس التاريخ، فيجب أن يكون فريداً لكل تاريخ */
+      function nextSeqForDate(dateStr) {
+        const d = dateStr || getToday();
+        let max = 0;
+        rows.forEach(function(r) {
+          if ((r.date || getToday()) === d) max = Math.max(max, Number(r.seq) || 0);
+        });
+        return max + 1;
+      }
+
+      /* يضمن أن لكل صف: docId فريد، id محلي فريد، و seq فريد داخل تاريخه.
+         بدون هذا كان صفّان قادمان من جهازين مختلفين يحملان نفس id، فيؤدي حذف
+         أحدهما إلى حذف الاثنين معاً، وتذهب الكتابة في الصف الثاني إلى الأول. */
+      function ensureRowIdentity() {
+        const seenDoc = Object.create(null);
+        const seenId = Object.create(null);
+        const seqByDate = Object.create(null);
+        let maxId = rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+
+        rows.forEach(function(r) {
+          if (!r.docId || seenDoc[r.docId]) r.docId = genDocId();
+          seenDoc[r.docId] = true;
+          if (!r.createdAt) r.createdAt = Number(r.updatedAt) || Date.now();
+          if (!r.updatedAt) r.updatedAt = r.createdAt;
+
+          let id = Number(r.id) || 0;
+          if (!id || seenId[id]) id = ++maxId;
+          r.id = id;
+          seenId[id] = true;
+
+          const d = r.date || getToday();
+          if (!seqByDate[d]) seqByDate[d] = Object.create(null);
+          let seq = Number(r.seq) || 0;
+          if (!seq || seqByDate[d][seq]) {
+            let candidate = 1;
+            while (seqByDate[d][candidate]) candidate++;
+            seq = candidate;
+            r.seq = seq;
+          }
+          seqByDate[d][seq] = true;
+        });
+        nextId = Math.max(nextId, maxId + 1);
+      }
+
+      function liveRows() {
+        return rows.filter(r => !r.deleted);
+      }
+
+      function trashedRows() {
+        return rows.filter(r => r.deleted)
+          .sort((a, b) => (Number(b.deletedAt) || 0) - (Number(a.deletedAt) || 0));
+      }
+
+      function rowByDoc(docId) {
+        return rows.find(r => r.docId === docId) || null;
+      }
+
+      /* حذف = وضع علامة فقط. الصف يبقى في السجل وفي السحابة ويمكن استرجاعه
+         من "سلة المحذوفات". هذا يمنع أي فقدان نهائي للبيانات. */
+      function softDeleteRow(row) {
+        if (!row || row.deleted) return;
+        row.deleted = true;
+        row.deletedAt = Date.now();
+        row.selected = false;
+        touchRow(row);
+      }
+
+      function restoreRow(row) {
+        if (!row || !row.deleted) return;
+        row.deleted = false;
+        row.deletedAt = 0;
+        row.seq = nextSeqForDate(row.date);
+        touchRow(row);
+      }
+
+      /* المسح النهائي هو الطريق الوحيد لإزالة مستند من السحابة، ولا يحدث إلا
+         بطلب صريح من المستخدم من داخل سلة المحذوفات. لا شيء في التطبيق يمحو
+         بياناتٍ تلقائياً بعد اليوم. */
+      function permanentlyDelete(docIds) {
+        const ids = docIds.filter(Boolean);
+        if (!ids.length) return;
+        rows = rows.filter(r => ids.indexOf(r.docId) === -1);
+        if (CLOUD.db && CLOUD.ready) {
+          commitChunks(ids.map(function(id) { return { type: "del", id: id }; }));
+        } else {
+          ids.forEach(function(id) { delete CLOUD.lastPushed[id]; });
+        }
+      }
+
+      function trashAgeDays(row) {
+        if (!row.deletedAt) return 0;
+        return Math.floor((Date.now() - row.deletedAt) / (24 * 60 * 60 * 1000));
+      }
+
+      function sanitizeImportedRows(list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(function(r) {
+          const merged = blankRow();
+          for (let k in r) {
+            if (merged.hasOwnProperty(k)) merged[k] = r[k];
+          }
+          merged.id = Number(r && r.id) || 0;
+          merged.seq = Number(r && r.seq) || 0;
+          merged.createdAt = Number(r && r.createdAt) || 0;
+          merged.updatedAt = Number(r && r.updatedAt) || 0;
+          merged.deletedAt = Number(r && r.deletedAt) || 0;
+          merged.deleted = !!merged.deleted;
+          if (!merged.date) merged.date = getToday();
+          const fee = parseNum(merged.receiptFee);
+          if (fee !== null && fee > MAX_RECEIPT_FEE) merged.receiptFee = String(MAX_RECEIPT_FEE);
+          merged.selected = false;
+          merged.completed = !!merged.completed;
+          merged.hidePrice = !!merged.hidePrice;
+          return merged;
+        });
+      }
+
+      /* دمج قائمة صفوف واردة (من ملف JSON) مع السجل الحالي دون حذف أي شيء:
+         الصف الجديد يُضاف، والموجود يُحدَّث فقط إذا كانت النسخة الواردة أحدث. */
+      function mergeRows(incoming) {
+        let added = 0,
+          updated = 0,
+          skipped = 0;
+        incoming.forEach(function(inc) {
+          if (!inc.docId) inc.docId = genDocId();
+          const existing = rowByDoc(inc.docId);
+          if (!existing) {
+            inc.id = 0;
+            rows.push(inc);
+            added++;
+            return;
+          }
+          if ((Number(inc.updatedAt) || 0) > (Number(existing.updatedAt) || 0)) {
+            const keepId = existing.id;
+            Object.keys(inc).forEach(function(k) {
+              if (k === "id" || k === "selected") return;
+              existing[k] = inc[k];
+            });
+            existing.id = keepId;
+            updated++;
+          } else {
+            skipped++;
+          }
+        });
+        ensureRowIdentity();
+        return { added: added, updated: updated, skipped: skipped };
+      }
+
+      function calcNet(row) {
+        const g = parseNum(row.gross),
+          t = parseNum(row.tare);
+        return (g !== null && t !== null) ? g - t : null;
+      }
+
+      function calcSubtotal(row) {
+        const net = calcNet(row);
+        const price = parseNum(row.price);
+        if (net === null || price === null) return null;
+        return net * price;
+      }
+
+      function calcCrateTotal(row) {
+        const cCount = parseNum(row.crateCount) || 0;
+        const cPrice = parseNum(row.cratePrice) || 0;
+        return cCount * cPrice;
+      }
+
+      function calcAmount(row) {
+        const sub = calcSubtotal(row);
+        if (sub === null) return null;
+        const discount = parseNum(row.discount) || 0;
+        const crateTotal = calcCrateTotal(row);
+        const fee = parseNum(row.receiptFee) || 0;
+        return sub - discount - crateTotal - fee;
+      }
+
+      let lastSaveStamp = 0;
+
+      function markSaved(ok) {
+        const badge = document.getElementById("saveBadge");
+        if (!badge) return;
+        if (!ok) {
+          badge.style.background = "var(--danger-bg)";
+          badge.style.color = "var(--danger)";
+          badge.style.borderColor = "var(--danger)";
+          badge.textContent = "⚠️ تعذّر الحفظ التلقائي — ذاكرة المتصفح ممتلئة (صدّر نسخة JSON فوراً)";
+          return;
+        }
+        const now = Date.now();
+        if (now - lastSaveStamp < 1500) return;
+        lastSaveStamp = now;
+        const d = new Date();
+        const two = n => String(n).padStart(2, "0");
+        badge.style.background = "var(--success-bg)";
+        badge.style.color = "var(--success)";
+        badge.style.borderColor = "#B8E2C4";
+        badge.textContent = "✓ محفوظ تلقائياً — آخر حفظ " + two(d.getHours()) + ":" + two(d.getMinutes()) + ":" +
+          two(d.getSeconds());
+      }
+
+      function currentStateJSON() {
+        return JSON.stringify({
+          subject: document.getElementById("subject").value,
+          rows: rows,
+          nextId: nextId,
+          savedAt: new Date().toISOString(),
+          version: 31
+        });
+      }
+
+      /* يحذف أقدم اللقطات الاحتياطية لتحرير مساحة عند امتلاء ذاكرة المتصفح */
+      function pruneSnapshots(keep) {
+        const keys = [];
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.indexOf(SNAPSHOT_PREFIX) === 0) keys.push(k);
+          }
+        } catch (e) { return; }
+        keys.sort();
+        while (keys.length > keep) {
+          try { localStorage.removeItem(keys.shift()); } catch (e) { break; }
+        }
+      }
+
+      let lastSnapshotAt = 0;
+
+      function writeSnapshot(payload) {
+        try {
+          pruneSnapshots(MAX_SNAPSHOTS - 1);
+          localStorage.setItem(SNAPSHOT_PREFIX + new Date().toISOString().replace(/[:.]/g, "-"), payload);
+          lastSnapshotAt = Date.now();
+        } catch (e) {
+          pruneSnapshots(2);
+        }
+      }
+
+      function listSnapshots() {
+        const out = [];
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || k.indexOf(SNAPSHOT_PREFIX) !== 0) continue;
+            let count = 0,
+              savedAt = "";
+            try {
+              const parsed = JSON.parse(localStorage.getItem(k));
+              count = Array.isArray(parsed.rows) ? parsed.rows.filter(r => !r.deleted).length : 0;
+              savedAt = parsed.savedAt || "";
+            } catch (e) {}
+            out.push({ key: k, count: count, savedAt: savedAt });
+          }
+        } catch (e) {}
+        return out.sort((a, b) => (a.key < b.key ? 1 : -1));
+      }
+
+      function saveToLocalStorage() {
+        const payload = currentStateJSON();
+        let ok = false;
+        try {
+          localStorage.setItem(STORAGE_KEY, payload);
+          ok = true;
+        } catch (e) {
+          /* الذاكرة ممتلئة: نحرّر اللقطات القديمة ثم نعيد المحاولة بدل فقدان الحفظ */
+          pruneSnapshots(1);
+          try {
+            localStorage.setItem(STORAGE_KEY, payload);
+            ok = true;
+          } catch (e2) {}
+        }
+        /* نسخة مرآة: إذا تلفت النسخة الأساسية أو انقطع الحفظ في منتصفه نقرأ منها.
+           مؤجّلة ثانيتين حتى لا نُضاعف زمن الكتابة مع كل ضغطة مفتاح. */
+        if (ok) {
+          if (mirrorTimer) clearTimeout(mirrorTimer);
+          mirrorTimer = setTimeout(writeMirror, 2000);
+          if (Date.now() - lastSnapshotAt > SNAPSHOT_EVERY_MS) writeSnapshot(payload);
+        }
+        markSaved(ok);
+        cloudSync();
+      }
+
+      let mirrorTimer = null;
+
+      function writeMirror() {
+        if (mirrorTimer) { clearTimeout(mirrorTimer);
+          mirrorTimer = null; }
+        try { localStorage.setItem(MIRROR_KEY, currentStateJSON()); } catch (e) {}
+      }
+
+      function hydrateRows(list) {
+        return (Array.isArray(list) ? list : []).map(function(r) {
+          const merged = blankRow();
+          for (let k in r) {
+            if (merged.hasOwnProperty(k)) merged[k] = r[k];
+          }
+          merged.id = Number(r.id) || 0;
+          merged.seq = Number(r.seq) || 0;
+          merged.createdAt = Number(r.createdAt) || 0;
+          merged.updatedAt = Number(r.updatedAt) || 0;
+          merged.deletedAt = Number(r.deletedAt) || 0;
+          merged.deleted = !!r.deleted;
+          merged.selected = !!r.selected;
+          merged.completed = !!r.completed;
+          merged.hidePrice = !!r.hidePrice;
+          if (!merged.date) merged.date = getToday();
+          return merged;
+        });
+      }
+
+      function applyLoadedState(data) {
+        if (!data || !Array.isArray(data.rows)) return false;
+        if (typeof data.subject === "string") document.getElementById("subject").value = data.subject;
+        rows = hydrateRows(data.rows);
+        const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+        nextId = Math.max(Number(data.nextId) || 0, maxId + 1);
+        ensureRowIdentity();
+        return true;
+      }
+
+      /* يقرأ من النسخة الأساسية، وإن فشلت يسقط تلقائياً إلى المرآة ثم إلى أحدث لقطة.
+         سابقاً كان أي تلف في المفتاح الأساسي يعني بدء السجل فارغاً. */
+      function loadFromLocalStorage() {
+        const sources = [STORAGE_KEY, MIRROR_KEY].concat(listSnapshots().map(s => s.key));
+        for (let i = 0; i < sources.length; i++) {
+          try {
+            const raw = localStorage.getItem(sources[i]);
+            if (!raw) continue;
+            const data = JSON.parse(raw);
+            if (!Array.isArray(data.rows)) continue;
+            if (!applyLoadedState(data)) continue;
+            if (i > 0) {
+              setTimeout(function() {
+                cloudMsg("تمت الاستعادة من نسخة احتياطية محلية (" + sources[i] + ").", "info");
+              }, 0);
+            }
+            return rows.length > 0;
+          } catch (e) {}
+        }
+        return false;
+      }
+
+      function getVisibleRows() {
+        const rawQuery = searchQuery.trim();
+        const tokens = normalizeArabicText(rawQuery).split(/\s+/).filter(Boolean);
+        return rows.filter(r => {
+          if (r.deleted) return false;
+          const loc = r.location || "";
+          const matchesFilter = (activeFilter === "all") || (activeFilter === "مخزن" && loc.includes(
+            "مخزن")) || (activeFilter === "ساحة" && loc.includes("ساحة"));
+          if (!matchesFilter) return false;
+          const rowDate = r.date || getToday();
+          if (activeDateFilter !== "all" && rowDate !== activeDateFilter) {
+            return false;
+          }
+          if (tokens.length === 0) return true;
+          const net = calcNet(r);
+          const sub = calcSubtotal(r);
+          const amt = calcAmount(r);
+          const rowSearchBlob = normalizeArabicText([
+            r.id, r.farmer, r.driver, r.gross, r.tare, net !== null ? net : "", r.price, sub !== null ?
+            sub : "", r.discount, r.crateCount, r.crateType, r.cratePrice, r.location, r.receiptFee,
+            amt !== null ? amt : "", r.date, r.notes, r.completed ? "مكتمل تم نجاح" :
+            "قيد الانتظار غير مكتمل"
+          ].join(" "));
+          return tokens.every(token => rowSearchBlob.includes(token));
+        });
+      }
+
+      function getRowColorClass(row) {
+        if (!row.completed) return "";
+        const priceVal = parseNum(row.price);
+        const hasPrice = (priceVal !== null && priceVal > 0);
+        return hasPrice ? "row-completed-green" : "row-completed-orange";
+      }
+
+      function renderDateShortcuts() {
+        const container = document.getElementById("dynamicDateChips");
+        if (!container) return;
+        const live = liveRows();
+        const uniqueDates = Array.from(new Set(live.map(r => r.date || getToday()))).sort().reverse();
+        if (uniqueDates.length === 0) {
+          container.innerHTML =
+            `<span style="font-size:0.82rem; color:var(--muted);">لا توجد تواريخ مسجلة بعد</span>`;
+          return;
+        }
+        let html = "";
+        uniqueDates.forEach(d => {
+          const isActive = (activeDateFilter === d);
+          const countForDate = live.filter(r => (r.date || getToday()) === d).length;
+          html +=
+            `<button type="button" class="date-chip ${isActive ? "active" : ""}" data-date="${d}">📅 ${formatDateDisplayShort(d)} (${countForDate})</button>`;
+        });
+        container.innerHTML = html;
+      }
+
+      /* هل يحتوي الصف على أي بيانات فعلية؟ يُستعمل حتى لا تُقفل حقول صفٍّ ممتلئ
+         لمجرد أن خانة اسم الفلاح فارغة أو مُسحت بالخطأ. */
+      function rowHasData(r) {
+        const fields = ["gross", "tare", "price", "discount", "driver", "crateCount", "crateType",
+          "cratePrice", "location", "receiptFee", "notes"];
+        return fields.some(function(k) { return String(r[k] || "").trim() !== ""; });
+      }
+
+      function rowIsEditable(r) {
+        return (r.farmer && r.farmer.trim() !== "") || rowHasData(r);
+      }
+
+      function setRowInputsDisabled(tr, disabled) {
+        const excludeFields = ['farmer', 'selected', 'farmer-readonly'];
+        const inputs = tr.querySelectorAll('input:not([type="hidden"]), select');
+        inputs.forEach(input => {
+          const field = input.dataset.field;
+          if (field && excludeFields.includes(field)) return;
+          if (disabled) {
+            input.setAttribute('disabled', 'disabled');
+          } else {
+            input.removeAttribute('disabled');
+          }
+        });
+      }
+
+      function render() {
+        const visible = getVisibleRows();
+        const tbody = document.getElementById("tableBody");
+        if (visible.length === 0) {
+          tbody.innerHTML =
+            `<tr class="empty-row"><td colspan="25" style="padding:40px 10px; color:var(--muted); font-weight:600; text-align:center;">${(searchQuery || activeDateFilter !== "all" || activeFilter !== "all") ? "لا توجد وصولات تطابق التصفية والتاريخ المحدد — جرّب زر «إظهار كل الوصولات» أعلاه" : "لا توجد عمليات مسجّلة بعد"}</td></tr>`;
+        } else {
+          let html = "";
+          visible.forEach((r, idx) => {
+            const net = calcNet(r);
+            const sub = calcSubtotal(r);
+            const crateTot = calcCrateTotal(r);
+            const amt = calcAmount(r);
+            const rowDate = r.date || getToday();
+            const rowColorClass = getRowColorClass(r);
+            const farmerFilled = rowIsEditable(r);
+            html += `<tr data-id="${r.id}" data-doc="${esc(r.docId)}" class="${rowColorClass}${net!==null&&net<0?" row-invalid-weight":""}"><td class="num-font">${idx+1}</td><td><input type="checkbox" data-field="selected" ${r.selected?"checked":""}></td><td class="col-farmer"><input type="text" data-field="farmer" value="${esc(r.farmer)}" placeholder="اسم الفلاح الثلاثي"></td><td><input type="text" inputmode="decimal" class="num-font" data-field="gross" value="${esc(r.gross)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="decimal" class="num-font" data-field="tare" value="${esc(r.tare)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="net-cell num-font${net!==null?" has-value":""}${net!==null&&net<0?" is-negative":""}">${net!==null?fmt(net):"—"}</td><td><div class="price-cell-wrapper"><button type="button" class="eye-toggle-btn${r.hidePrice?" is-hidden":""}" data-action="toggle-price">${r.hidePrice?ICON_EYE_CLOSED:ICON_EYE_OPEN}</button><input type="${r.hidePrice?"password":"text"}" inputmode="decimal" class="num-font" data-field="price" value="${esc(r.price)}" placeholder="السعر"${farmerFilled ? '' : ' disabled'}></div></td><td class="subtotal-cell num-font${sub!==null?" has-value":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(sub!==null?fmt(sub):"—")}</td><td><input type="text" class="discount-input num-font" inputmode="decimal" data-field="discount" value="${esc(r.discount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="driver" value="${esc(r.driver)}" placeholder="اسم السائق"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="numeric" class="num-font" data-field="crateCount" value="${esc(r.crateCount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><select data-field="crateType"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="خيط" ${r.crateType==="خيط"?"selected":""}>خيط</option><option value="سيم" ${r.crateType==="سيم"?"selected":""}>سيم</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="cratePrice" value="${esc(r.cratePrice)}" placeholder="سعر الكبسة"${farmerFilled ? '' : ' disabled'}></td><td class="crate-total-cell num-font" style="font-weight:400; color:var(--navy);">${crateTot > 0 ? fmt(crateTot) : "—"}</td><td><select data-field="location"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="مخزن ابراهيم" ${r.location==="مخزن ابراهيم"?"selected":""}>مخزن ابراهيم</option><option value="مخزن بركات" ${r.location==="مخزن بركات"?"selected":""}>مخزن بركات</option><option value="مخزن أبو إبراهيم" ${r.location==="مخزن أبو إبراهيم"?"selected":""}>مخزن أبو إبراهيم</option><option value="ساحة" ${r.location==="ساحة"?"selected":""}>ساحة</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="receiptFee" value="${esc(r.receiptFee)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="amount-cell num-font${amt!==null?" has-value":""}${amt!==null&&amt<0?" is-negative":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(amt!==null?fmt(amt):"—")}</td><td><input type="date" class="num-font" data-field="date" value="${esc(rowDate)}"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="notes" value="${esc(r.notes)}" placeholder="ملاحظات"${farmerFilled ? '' : ' disabled'}></td><td><button type="button" class="status-toggle ${r.completed?"completed":"incomplete"}" data-action="toggle-status">${r.completed?"✔":"✖"}</button></td><td class="col-farmer-left"><input type="text" readonly data-field="farmer-readonly" value="${esc(r.farmer)}" style="background:transparent; border:none; text-align:right; font-weight:600; color:var(--navy); width:100%;" tabindex="-1"></td><td class="col-action"><button type="button" class="icon-btn" data-action="print" title="طباعة رسمية">${ICON_PRINT}</button></td><td class="col-action"><button type="button" class="icon-btn btn-thermal" data-action="thermal-print" title="طباعة حرارية 80mm">${ICON_THERMAL}</button></td><td class="col-action"><button type="button" class="icon-btn" data-action="duplicate" title="نسخ العملية">${ICON_COPY}</button></td><td class="col-action"><button type="button" class="icon-btn icon-btn-danger" data-action="delete" title="حذف">${ICON_DELETE}</button></td></tr>`;
+          });
+          tbody.innerHTML = html;
+        }
+        renderDateShortcuts();
+        updateGeneralSummary();
+        updateSelectedSummary();
+        syncSelectAllCheckbox();
+        updateDayExportBtnLabel();
+        updateHiddenNotice(visible.length);
+        updateTrashButton();
+      }
+
+      /* أهم سبب لظنّ المستخدم أن وصلاً "اختفى" هو أنه مخفي خلف تصفية تاريخ أو بحث.
+         هذا الشريط يوضّح صراحةً كم وصلاً مخفياً ولماذا، مع زر لإلغاء التصفية فوراً. */
+      function updateHiddenNotice(visibleCount) {
+        const el = document.getElementById("hiddenNotice");
+        if (!el) return;
+        const total = liveRows().length;
+        const hidden = total - visibleCount;
+        const filtering = (activeFilter !== "all") || (activeDateFilter !== "all") || searchQuery.trim() !== "";
+        if (hidden <= 0 || !filtering) {
+          el.style.display = "none";
+          el.innerHTML = "";
+          return;
+        }
+        const reasons = [];
+        if (activeDateFilter !== "all") reasons.push("تاريخ: " + formatDateDMY(activeDateFilter));
+        if (activeFilter !== "all") reasons.push("مكان: " + activeFilter);
+        if (searchQuery.trim()) reasons.push("بحث: " + searchQuery.trim());
+        el.style.display = "flex";
+        el.innerHTML = "<span>👁️ يوجد <b class=\"num-font\">" + hidden +
+          "</b> وصلاً غير معروض بسبب التصفية الحالية (" + esc(reasons.join(" • ")) +
+          "). الوصولات ليست محذوفة.</span>" +
+          "<button type=\"button\" id=\"clearFiltersBtn\" class=\"btn btn-ghost\" style=\"padding:4px 12px;\">إظهار كل الوصولات</button>";
+      }
+
+      function updateTrashButton() {
+        const btn = document.getElementById("trashBtn");
+        if (!btn) return;
+        const n = trashedRows().length;
+        btn.textContent = n ? "🗑️ سلة المحذوفات (" + n + ")" : "🗑️ سلة المحذوفات";
+        btn.classList.toggle("btn-accent", n > 0);
+        btn.classList.toggle("btn-ghost", n === 0);
+      }
+
+      function clearAllFilters() {
+        activeFilter = "all";
+        activeDateFilter = "all";
+        searchQuery = "";
+        const searchEl = document.getElementById("searchInput");
+        if (searchEl) searchEl.value = "";
+        const customEl = document.getElementById("customDateInput");
+        if (customEl) customEl.value = "";
+        document.querySelectorAll(".filter-btn[data-filter]").forEach(function(b) {
+          b.classList.toggle("active", b.dataset.filter === "all");
+        });
+        document.querySelectorAll(".date-main-btn").forEach(function(b) {
+          b.classList.toggle("active", b.dataset.dateFilter === "all");
+        });
+        render();
+      }
+
+      function syncSelectAllCheckbox() {
+        const box = document.getElementById("selectAllCheckbox");
+        if (!box) return;
+        const visible = getVisibleRows();
+        const sel = visible.filter(r => r.selected).length;
+        box.checked = visible.length > 0 && sel === visible.length;
+        box.indeterminate = sel > 0 && sel < visible.length;
+      }
+
+      function updateGeneralSummary() {
+        const visible = getVisibleRows();
+        let count = 0,
+          netSum = 0,
+          discSum = 0,
+          amtSum = 0;
+        visible.forEach(r => {
+          const net = calcNet(r);
+          const amt = calcAmount(r);
+          const disc = parseNum(r.discount) || 0;
+          if (net !== null) { count++;
+            netSum += net; }
+          if (amt !== null) amtSum += amt;
+          discSum += disc;
+        });
+        document.getElementById("totalCount").textContent = count;
+        document.getElementById("totalNet").textContent = fmt(netSum);
+        document.getElementById("totalDiscount").textContent = fmt(discSum);
+        document.getElementById("totalAmount").textContent = fmt(amtSum);
+        const tonPrice = netSum > 0 ? (amtSum * 1000 / netSum) : null;
+        document.getElementById("totalTonPrice").textContent = fmt(tonPrice);
+      }
+
+      function updateSelectedSummary() {
+        const selected = rows.filter(r => r.selected);
+        let count = 0,
+          netSum = 0,
+          crateSum = 0,
+          discSum = 0,
+          amtSum = 0;
+        selected.forEach(r => {
+          const net = calcNet(r);
+          const amt = calcAmount(r);
+          const disc = parseNum(r.discount) || 0;
+          const crates = parseNum(r.crateCount) || 0;
+          if (net !== null) { count++;
+            netSum += net; }
+          if (amt !== null) amtSum += amt;
+          crateSum += crates;
+          discSum += disc;
+        });
+        document.getElementById("selectedCount").textContent = count;
+        document.getElementById("selectedNet").textContent = fmt(netSum);
+        document.getElementById("selectedCrates").textContent = crateSum;
+        document.getElementById("selectedDiscount").textContent = fmt(discSum);
+        document.getElementById("selectedAmount").textContent = fmt(amtSum);
+      }
+
+      function doScroll(direction) { tableWrapper.scrollLeft += direction * SCROLL_AMOUNT; }
+
+      function startScroll(direction) { doScroll(direction);
+        stopScroll();
+        scrollInterval = setInterval(() => { doScroll(direction); }, 60); }
+
+      function stopScroll() { if (scrollInterval) { clearInterval(scrollInterval);
+          scrollInterval = null; } }
+
+      scrollArrowLeft.addEventListener("pointerdown", function(e) { e.preventDefault();
+        e.stopPropagation();
+        startScroll(1); });
+      scrollArrowRight.addEventListener("pointerdown", function(e) { e.preventDefault();
+        e.stopPropagation();
+        startScroll(-1); });
+      scrollArrowLeft.addEventListener("click", function(e) { e.preventDefault();
+        e.stopPropagation(); if (!scrollInterval) doScroll(1); });
+      scrollArrowRight.addEventListener("click", function(e) { e.preventDefault();
+        e.stopPropagation(); if (!scrollInterval) doScroll(-1); });
+      document.addEventListener("pointerup", stopScroll);
+      document.addEventListener("pointercancel", stopScroll);
+      document.addEventListener("mouseup", stopScroll);
+      document.addEventListener("touchend", stopScroll);
+      document.addEventListener("touchcancel", stopScroll);
+
+      function isEditableTarget(el) {
+        if (!el) return false;
+        const tag = el.tagName;
+        return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || el.isContentEditable === true;
+      }
+
+      document.addEventListener("keydown", function(e) {
+        if (isEditableTarget(e.target)) return;
+        if (document.querySelector(".modal-overlay.active")) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+        if (e.key === "ArrowLeft") { e.preventDefault();
+          doScroll(-1); return; }
+        if (e.key === "ArrowRight") { e.preventDefault();
+          doScroll(1); return; }
+        if (e.key === "ArrowUp") { e.preventDefault();
+          window.scrollBy({ top: -SCROLL_AMOUNT, behavior: "smooth" }); return; }
+        if (e.key === "ArrowDown") { e.preventDefault();
+          window.scrollBy({ top: SCROLL_AMOUNT, behavior: "smooth" }); return; }
+      });
+
+      document.getElementById("tableBody").addEventListener("keydown", function(e) {
+        const target = e.target;
+        const isTextLikeInput = target.tagName === "INPUT" && target.type !== "checkbox";
+        const isSelectInput = target.tagName === "SELECT";
+        if (!isTextLikeInput && !isSelectInput) return;
+        if (e.key === "Enter" && e.ctrlKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          const tr = target.closest("tr");
+          if (!tr) return;
+          const focusableElements = Array.from(tr.querySelectorAll(
+              "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select")).filter(
+            el => el.offsetParent !== null && !el.disabled);
+          const currentIndex = focusableElements.indexOf(target);
+          if (currentIndex > -1 && currentIndex + 1 < focusableElements.length) {
+            focusableElements[currentIndex + 1].focus();
+          } else {
+            const nextTr = tr.nextElementSibling;
+            if (nextTr && nextTr.dataset && nextTr.dataset.id) {
+              const nextRowInputs = Array.from(nextTr.querySelectorAll(
+                  "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select")).filter(
+                el => el.offsetParent !== null && !el.disabled);
+              if (nextRowInputs.length > 0) {
+                nextRowInputs[0].focus();
+              }
+            } else {
+              document.getElementById("addRowBtn").click();
+              setTimeout(() => {
+                const lastTr = document.getElementById("tableBody").lastElementChild;
+                if (lastTr) {
+                  const lastRowInputs = Array.from(lastTr.querySelectorAll(
+                      "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select"))
+                    .filter(el => el.offsetParent !== null && !el.disabled);
+                  if (lastRowInputs.length > 0) {
+                    lastRowInputs[0].focus();
+                  }
+                }
+              }, 50);
+            }
+          }
+        }
+      });
+
+      document.getElementById("tableBody").addEventListener("click", function(e) {
+        const target = e.target;
+        const btn = target.closest("button[data-action]");
+        if (btn) {
+          const tr = btn.closest("tr");
+          const row = rowByDoc(tr.dataset.doc);
+          if (!row) return;
+          const action = btn.dataset.action;
+          if (action === "delete") {
+            const label = (row.farmer && row.farmer.trim()) ? ("«" + row.farmer.trim() + "»") : "هذه العملية";
+            showConfirm("تأكيد حذف العملية",
+              "سيتم نقل وصل " + label +
+              " إلى سلة المحذوفات ويمكنك استرجاعه في أي وقت من زر «سلة المحذوفات». متابعة؟",
+              function() {
+                softDeleteRow(row);
+                render();
+                saveToLocalStorage();
+                saveHistory();
+              }, true);
+          } else if (action === "duplicate") {
+            const copy = deepClone(row);
+            copy.id = nextId++;
+            copy.docId = genDocId();
+            copy.createdAt = Date.now();
+            copy.seq = nextSeqForDate(copy.date);
+            copy.selected = false;
+            copy.completed = false;
+            copy.deleted = false;
+            copy.deletedAt = 0;
+            touchRow(copy);
+            rows.splice(rows.indexOf(row) + 1, 0, copy);
+            render();
+            saveToLocalStorage();
+            saveHistory();
+          } else if (action === "print") {
+            showSingleReceiptModal(row, row.id);
+          } else if (action === "thermal-print") {
+            printThermalReceipt(row, row.id);
+          } else if (action === "toggle-price") {
+            row.hidePrice = !row.hidePrice;
+            touchRow(row);
+            render();
+            saveToLocalStorage();
+            saveHistory();
+          } else if (action === "toggle-status") {
+            row.completed = !row.completed;
+            touchRow(row);
+            const rowColorClass = getRowColorClass(row);
+            tr.className = rowColorClass;
+            const statusBtn = tr.querySelector(".status-toggle");
+            if (statusBtn) {
+              statusBtn.className = "status-toggle " + (row.completed ? "completed" : "incomplete");
+              statusBtn.textContent = row.completed ? "✔" : "✖";
+            }
+            saveToLocalStorage();
+            saveHistory();
+          }
+          return;
+        }
+      });
+
+      document.getElementById("tableBody").addEventListener("input", function(e) {
+        const field = e.target.dataset.field;
+        if (!field) return;
+        const tr = e.target.closest("tr");
+        const row = rowByDoc(tr.dataset.doc);
+        if (!row) return;
+
+        if (field === "farmer") {
+          const wasFilled = rowIsEditable(row);
+          row.farmer = e.target.value;
+          const readonlyInput = tr.querySelector("input[data-field=\"farmer-readonly\"]");
+          if (readonlyInput) readonlyInput.value = e.target.value;
+          const isFilled = rowIsEditable(row);
+          if (wasFilled !== isFilled) {
+            setRowInputsDisabled(tr, !isFilled);
+          }
+        } else if (field === "receiptFee") {
+          let cleaned = cleanNumericInput(e.target.value);
+          let numVal = parseFloat(cleaned);
+          if (!isNaN(numVal) && numVal > MAX_RECEIPT_FEE) {
+            cleaned = String(MAX_RECEIPT_FEE);
+          }
+          if (e.target.value !== cleaned) {
+            e.target.value = cleaned;
+          }
+          row[field] = cleaned;
+        } else if (e.target.inputMode === "decimal" || e.target.inputMode === "numeric") {
+          const cleaned = cleanNumericInput(e.target.value);
+          if (e.target.value !== cleaned) {
+            e.target.value = cleaned;
+          }
+          row[field] = cleaned;
+        } else {
+          row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        }
+
+        const net = calcNet(row);
+        const sub = calcSubtotal(row);
+        const crateTot = calcCrateTotal(row);
+        const amt = calcAmount(row);
+        const netCell = tr.querySelector(".net-cell");
+        const subCell = tr.querySelector(".subtotal-cell");
+        const amtCell = tr.querySelector(".amount-cell");
+        const crateTotCell = tr.querySelector(".crate-total-cell");
+        if (netCell) { netCell.textContent = net !== null ? fmt(net) : "—";
+          netCell.classList.toggle("has-value", net !== null);
+          netCell.classList.toggle("is-negative", net !== null && net < 0);
+          tr.classList.toggle("row-invalid-weight", net !== null && net < 0); }
+        if (subCell) { subCell.innerHTML = row.hidePrice ? "<span class=\"masked-text\">***</span>" : (sub !== null ?
+            fmt(sub) : "—");
+          subCell.classList.toggle("has-value", sub !== null); }
+        if (crateTotCell) { crateTotCell.textContent = crateTot > 0 ? fmt(crateTot) : "—"; }
+        if (amtCell) { amtCell.innerHTML = row.hidePrice ? "<span class=\"masked-text\">***</span>" : (amt !== null ?
+            fmt(amt) : "—");
+          amtCell.classList.toggle("has-value", amt !== null);
+          amtCell.classList.toggle("is-negative", amt !== null && amt < 0); }
+        touchRow(row);
+        updateGeneralSummary();
+        updateSelectedSummary();
+        if (field === "selected") syncSelectAllCheckbox();
+        saveToLocalStorage();
+        scheduleHistory();
+      });
+
+      document.getElementById("tableBody").addEventListener("change", function(e) {
+        const field = e.target.dataset.field;
+        if (!field) return;
+        const tr = e.target.closest("tr");
+        const row = rowByDoc(tr.dataset.doc);
+        if (!row) return;
+        const id = row.id;
+        const prevDate = row.date;
+        row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        /* تغيير التاريخ يعني رقم وصل جديد ضمن اليوم الجديد، وإلا تكرّرت الأرقام */
+        if (field === "date" && row.date !== prevDate) row.seq = nextSeqForDate(row.date);
+        touchRow(row);
+        saveToLocalStorage();
+        const isSelect = e.target.tagName.toLowerCase() === "select";
+        const needsRender = isSelect || e.target.type === "checkbox" || e.target.type === "date";
+        if (needsRender) {
+          flushHistory();
+          render();
+          saveHistory();
+        } else {
+          scheduleHistory();
+        }
+        if (isSelect && e.target.value !== "") {
+          setTimeout(() => {
+            const newTr = document.querySelector(`tr[data-id="${id}"]`);
+            if (newTr) {
+              const focusableElements = Array.from(newTr.querySelectorAll(
+                  "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select"))
+                .filter(el => el.offsetParent !== null && !el.disabled);
+              let foundCurrent = false;
+              for (let i = 0; i < focusableElements.length; i++) {
+                const el = focusableElements[i];
+                if (foundCurrent) { el.focus(); break; }
+                if (el.dataset.field === field && el.tagName === "SELECT") { foundCurrent = true; }
+              }
+            }
+          }, 10);
+        }
+      });
+
+      document.getElementById("selectAllCheckbox").addEventListener("change", function(e) {
+        const checked = e.target.checked;
+        getVisibleRows().forEach(r => r.selected = checked);
+        render();
+        saveToLocalStorage();
+        saveHistory();
+      });
+
+      document.getElementById("addRowBtn").addEventListener("click", function() {
+        /* البحث النشط يخفي الصف الجديد الفارغ فيبدو وكأن الإضافة لم تحدث */
+        if (searchQuery.trim()) {
+          searchQuery = "";
+          document.getElementById("searchInput").value = "";
+        }
+        const r = newRow();
+        r.date = (activeDateFilter !== "all") ? activeDateFilter : getToday();
+        r.seq = nextSeqForDate(r.date);
+        if (activeFilter === "مخزن") r.location = "مخزن ابراهيم";
+        else if (activeFilter === "ساحة") r.location = "ساحة";
+        rows.push(r);
+        render();
+        saveToLocalStorage();
+        saveHistory();
+        const newTr = document.querySelector(`tr[data-doc="${r.docId}"]`);
+        if (newTr) {
+          newTr.scrollIntoView({ block: "center", behavior: "smooth" });
+          const firstInput = newTr.querySelector('input[data-field="farmer"]');
+          if (firstInput) firstInput.focus();
+        }
+      });
+
+      document.querySelectorAll(".filter-btn[data-filter]").forEach(btn => {
+        btn.addEventListener("click", function() {
+          document.querySelectorAll(".filter-btn[data-filter]").forEach(b => b.classList.remove(
+            "active"));
+          this.classList.add("active");
+          activeFilter = this.dataset.filter;
+          render();
+        });
+      });
+
+      document.querySelectorAll(".date-main-btn").forEach(btn => {
+        btn.addEventListener("click", function() {
+          document.querySelectorAll(".date-main-btn").forEach(b => b.classList.remove("active"));
+          this.classList.add("active");
+          const filterType = this.dataset.dateFilter;
+          document.getElementById("customDateInput").value = "";
+          if (filterType === "today") { activeDateFilter = getToday(); } else if (filterType ===
+            "yesterday") { activeDateFilter = getYesterday(); } else { activeDateFilter = "all"; }
+          render();
+        });
+      });
+
+      document.getElementById("customDateInput").addEventListener("change", function() {
+        if (this.value) {
+          document.querySelectorAll(".date-main-btn").forEach(b => b.classList.remove("active"));
+          activeDateFilter = this.value;
+          render();
+        }
+      });
+
+      document.getElementById("dynamicDateChips").addEventListener("click", function(e) {
+        const chip = e.target.closest(".date-chip");
+        if (!chip) return;
+        activeDateFilter = chip.dataset.date;
+        document.querySelectorAll(".date-main-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById("customDateInput").value = activeDateFilter;
+        render();
+      });
+
+      document.getElementById("subject").addEventListener("input", function() {
+        saveToLocalStorage();
+        scheduleHistory();
+      });
+
+      document.getElementById("searchInput").addEventListener("input", function() {
+        searchQuery = this.value;
+        render();
+      });
+
+      document.getElementById("hiddenNotice").addEventListener("click", function(e) {
+        if (e.target.closest("#clearFiltersBtn")) clearAllFilters();
+      });
+
+      document.getElementById("undoBtn").addEventListener("click", undo);
+      document.getElementById("redoBtn").addEventListener("click", redo);
+      document.addEventListener("keydown", function(e) {
+        if (!e.key || !(e.ctrlKey || e.metaKey)) return;
+        const k = e.key.toLowerCase();
+        if (k === "z" && !e.shiftKey) { e.preventDefault();
+          undo(); } else if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault();
+          redo(); }
+      });
+
+      function formatDateDMY(dateStr) {
+        if (!dateStr) return "";
+        const parts = dateStr.split("-");
+        if (parts.length === 3) { return `${parts[2]}-${parts[1]}-${parts[0]}`; }
+        return dateStr;
+      }
+
+      function formatTimeArabic12(d) {
+        let hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, "0");
+        const period = hours >= 12 ? "مساءً" : "صباحاً";
+        hours = hours % 12;
+        if (hours === 0) hours = 12;
+        return `${String(hours).padStart(2, "0")}:${minutes} ${period}`;
+      }
+
+      function formatReceiptNumber(row, num) {
+        const dateSrc = row.date || getToday();
+        const d = new Date(dateSrc + "T00:00:00");
+        const yy = String(d.getFullYear()).slice(-2);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const seq = String(row.seq || num || 0).padStart(3, "0");
+        return `${seq}-${yy}${mm}${dd}`;
+      }
+
+      function toArabicDigits(str) {
+        if (str === null || str === undefined) return "";
+        const map = { "0": "٠", "1": "١", "2": "٢", "3": "٣", "4": "٤", "5": "٥", "6": "٦", "7": "٧", "8": "٨", "9": "٩" };
+        return String(str).replace(/[0-9]/g, function(d) { return map[d]; });
+      }
+
+      function buildThermalReceiptHTML(row, num) {
+        const net = calcNet(row);
+        const price = parseNum(row.price);
+        const pricePerTon = price !== null ? price * 1000 : null;
+        const receiptFee = parseNum(row.receiptFee);
+        const finalAmt = calcAmount(row);
+        const now = new Date();
+        const loc = row.location || "";
+        const isStore = loc.includes("مخزن");
+        const isYard = loc.includes("ساحة");
+        const storeName = isStore ? loc.replace("مخزن", "").trim() : "";
+        const dateStr = toArabicDigits(formatDateDMY(row.date || getToday()));
+        const timeStr = toArabicDigits(formatTimeArabic12(now));
+        const receiptNumStr = toArabicDigits(formatReceiptNumber(row, num));
+        const crateCountStr = parseNum(row.crateCount) !== null ? toArabicDigits(parseNum(row.crateCount)) : "";
+        const grossStr = toArabicDigits(parseNum(row.gross) !== null ? fmt(parseNum(row.gross)) : "0");
+        const tareStr = toArabicDigits(parseNum(row.tare) !== null ? fmt(parseNum(row.tare)) : "0");
+        const netStr = toArabicDigits(net !== null ? fmt(net) : "0");
+        const priceStr = row.hidePrice ? "***" : toArabicDigits(price !== null ? fmt(price) : "0");
+        const pricePerTonStr = row.hidePrice ? "***" : toArabicDigits(pricePerTon !== null ? fmt(pricePerTon) : "0");
+        const receiptFeeStr = toArabicDigits(receiptFee !== null ? fmt(receiptFee) : "0");
+        const finalAmtStr = row.hidePrice ? "***" : toArabicDigits(finalAmt !== null ? fmt(finalAmt) : "0");
+        return `<div class="thermal-receipt"><div class="th-header"><svg viewBox="0 0 100 60" width="60" height="36"><circle cx="50" cy="42" r="13" fill="none" stroke="#000" stroke-width="2.5"/><line x1="50" y1="10" x2="50" y2="18" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="20" x2="34" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="72" y1="20" x2="66" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="42" x2="26" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="82" y1="42" x2="74" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg><div class="th-brand-name">ميزان الشمس</div><div class="th-brand-sub">لخدمات الوزن واستلام المحاصيل</div></div><div class="th-title">وصل استلام زراعي</div><div class="th-meta-row"><span>التاريخ: ${dateStr}</span><span>الوقت: ${timeStr}</span></div><div class="th-num-row">رقم الوصل: ${receiptNumStr}</div><div class="th-divider"></div><div class="th-row"><span class="th-label">اسم الفلاح:</span><span class="th-dots">${esc(row.farmer) || ""}</span></div><div class="th-row"><span class="th-label">اسم السائق:</span><span class="th-dots">${esc(row.driver) || ""}</span></div><div class="th-check-row"><span class="th-label">نوع الكبس:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${row.crateType==="سيم"?"✓":""}</span> سيم</span><span class="th-check-opt"><span class="th-box">${row.crateType==="خيط"?"✓":""}</span> خيط</span></span></div><div class="th-check-row"><span class="th-label">مكان التخزين:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${isStore?"✓":""}</span> مخزن${storeName?" ("+esc(storeName)+")":""}</span><span class="th-check-opt"><span class="th-box">${isYard?"✓":""}</span> ساحة</span></span></div><div class="th-row"><span class="th-label">عدد الكبسات:</span><span class="th-dots">${crateCountStr}</span></div><div class="th-divider"></div><div class="th-weight-row"><span>الوزن الكلي <span class="th-en">(Gross)</span>:</span><span class="th-val">${grossStr} كجم</span></div><div class="th-weight-row"><span>الوزن الفارغ <span class="th-en">(Tare)</span>:</span><span class="th-val">${tareStr} كجم</span></div><div class="th-weight-row"><span>الوزن الصافي <span class="th-en">(Net)</span>:</span><span class="th-val">${netStr} كجم</span></div><div class="th-divider"></div><div class="th-price-row"><span>السعر للكيلو:</span><span>${priceStr} د.ع</span></div><div class="th-price-row"><span>سعر الطن:</span><span>${pricePerTonStr} د.ع</span></div><div class="th-price-row"><span>سعر الوصل:</span><span>${receiptFeeStr} د.ع</span></div><div class="th-total-box"><div class="th-total-label">السعر الكلي</div><div class="th-total-val">${finalAmtStr} د.ع</div></div>${row.notes?`<div class="th-notes-row"><span class="th-label">ملاحظات:</span><div class="th-dots">${esc(row.notes)}</div></div>`:""}<div class="th-divider"></div><div class="th-sign-block"><div class="th-sign-line"><span class="th-label">توقيع السائق:</span><span class="th-dots"></span></div><div class="th-sign-line"><span class="th-label">توقيع المستلم:</span><span class="th-dots"></span></div></div></div>`;
+      }
+
+      const THERMAL_PRINT_STYLES = `
+        @page { size: 80mm auto; margin: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background: #fff; width: 80mm; }
+        body {
+          margin: 0;
+          padding: 0;
+          color: #000;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .thermal-receipt {
+          width: 80mm;
+          background: #fff;
+          color: #000;
+          font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+          padding: 8px 10px 10px;
+          font-size: 12px;
+          line-height: 1.35;
+          direction: rtl;
+          box-sizing: border-box;
+        }
+        .th-header { text-align: center; margin-bottom: 2px; }
+        .th-brand-name { font-family: 'El Messiri', 'Cairo', serif; font-size: 15px; font-weight: 700; margin-top: 2px; }
+        .th-brand-sub { font-size: 9px; font-weight: 600; color: #333; margin-top: 1px; }
+        .th-title { font-family: 'El Messiri', 'Cairo', serif; font-size: 19px; font-weight: 700; text-align: center; margin: 6px 0 8px; padding-bottom: 8px; border-bottom: 1.5px dashed #000; }
+        .th-meta-row { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+        .th-num-row { text-align: center; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+        .th-divider { border-top: 1.5px dashed #000; margin: 8px 0; }
+        .th-row { display: flex; align-items: baseline; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 7px; }
+        .th-row .th-label { font-weight: 700; white-space: nowrap; }
+        .th-row .th-dots { flex: 1; border-bottom: 1px dotted #000; min-height: 15px; text-align: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .th-check-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; margin-bottom: 7px; }
+        .th-check-opts { display: flex; align-items: center; gap: 12px; }
+        .th-check-opt { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .th-box { width: 13px; height: 13px; border: 1.5px solid #000; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+        .th-weight-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; gap: 6px; }
+        .th-weight-row .th-en { font-weight: 400; font-size: 10px; }
+        .th-weight-row .th-val { font-weight: 800; white-space: nowrap; }
+        .th-price-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        .th-total-box { border-top: 1.5px dashed #000; border-bottom: 1.5px dashed #000; padding: 8px 0; margin: 8px 0; text-align: center; }
+        .th-total-box .th-total-label { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+        .th-total-box .th-total-val { font-size: 17px; font-weight: 800; }
+        .th-notes-row { font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+        .th-notes-row .th-dots { border-bottom: 1px dotted #000; display: block; min-height: 14px; margin-top: 2px; }
+        .th-sign-block { margin-top: 4px; }
+        .th-sign-line { display: flex; align-items: baseline; gap: 6px; font-size: 11.5px; font-weight: 700; margin-bottom: 12px; }
+        .th-sign-line .th-dots { flex: 1; border-bottom: 1px dotted #000; min-height: 14px; }
+      `;
+
+      function printThermalReceipt(row, num) {
+        if (window.__thermalPrintBusy) return;
+        window.__thermalPrintBusy = true;
+        try {
+          const receiptHTML = buildThermalReceiptHTML(row, num);
+          const docHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>${THERMAL_PRINT_STYLES}</style>
+</head><body>${receiptHTML}</body></html>`;
+
+          const iframe = document.createElement("iframe");
+          iframe.setAttribute("aria-hidden", "true");
+          iframe.style.cssText = "position:fixed; top:0; left:-9999px; width:302px; height:500px; border:0;";
+
+          let printStarted = false;
+          let cleanedUp = false;
+
+          const cleanup = function() {
+            if (cleanedUp) return;
+            cleanedUp = true;
+            window.__thermalPrintBusy = false;
+            setTimeout(function() {
+              if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 300);
+          };
+
+          const doPrint = function() {
+            if (printStarted) return;
+            printStarted = true;
+            let win = null;
+            try { win = iframe.contentWindow; } catch (e) {}
+            if (!win) { cleanup(); return; }
+            try { win.addEventListener("afterprint", cleanup); } catch (e) {}
+            try {
+              win.focus();
+              win.print();
+            } catch (e) {}
+            setTimeout(cleanup, 1500);
+          };
+
+          iframe.onload = function() {
+            let win = null;
+            try { win = iframe.contentWindow; } catch (e) {}
+            let fontsReady = Promise.resolve();
+            try {
+              if (win && win.document && win.document.fonts && win.document.fonts.ready) {
+                fontsReady = win.document.fonts.ready;
+              }
+            } catch (e) {}
+            Promise.race([
+              fontsReady,
+              new Promise(function(resolve) { setTimeout(resolve, 400); })
+            ]).then(function() {
+              setTimeout(doPrint, 50);
+            });
+          };
+
+          // Fallback: if the iframe's load event is ever delayed or skipped
+          // (seen on some mobile browsers / POS print bridges), still open
+          // the print dialog instead of silently doing nothing.
+          setTimeout(doPrint, 2500);
+
+          document.body.appendChild(iframe);
+          iframe.srcdoc = docHTML;
+        } catch (e) {
+          window.__thermalPrintBusy = false;
+        }
+      }
+
+      function renderReceiptHTML(row, num) {
+        const net = calcNet(row);
+        const price = parseNum(row.price);
+        const finalAmt = calcAmount(row);
+        const mainDate = document.getElementById("subject").value || row.date || getToday();
+        const displayNum = formatReceiptNumber(row, num);
+        return `<div class="single-receipt-card"><span class="rc-corner-ornament tl"></span><span class="rc-corner-ornament tr"></span><span class="rc-corner-ornament bl"></span><span class="rc-corner-ornament br"></span><div class="rc-header-top"><div class="rc-sun-logo-area"><div class="rc-sun-graphic"><svg viewBox="0 0 120 70" width="105" height="55"><path d="M 12,55 Q 32,18 55,12 Q 25,28 16,55 Z" fill="#C59B27"/><circle cx="75" cy="42" r="18" fill="#C59B27"/><path d="M 75,14 L 75,20 M 52,22 L 57,26 M 98,22 L 93,26 M 44,42 L 50,42 M 106,42 L 100,42" stroke="#C59B27" stroke-width="3" stroke-linecap="round"/></svg></div><h2 class="rc-brand-title-main">ميزان الشمس</h2><p class="rc-brand-subtitle">لخدمات الوزن واستلام المحاصيل</p></div><div class="rc-title-badge-box"><div class="rc-main-title-pill">وصل استلام محصول</div><div class="rc-meta-line"><span>رقم الوصل :</span><span class="rc-dotted-val num-font">${displayNum}</span></div><div class="rc-meta-line"><span>التاريخ :</span><span class="rc-dotted-val num-font">${row.date||mainDate}</span><span>📅</span></div></div></div><div class="rc-fields-table"><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.farmer)||""}</span></div><div class="rc-field-label-side"><span>اسم الفلاح</span><span class="rc-icon-circle">🌱</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.driver)||""}</span></div><div class="rc-field-label-side"><span>اسم السائق</span><span class="rc-icon-circle">🛞</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font">${parseNum(row.gross)!==null?fmt(parseNum(row.gross)):""}</span></div><div class="rc-field-label-side"><span>الوزن الكلي</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font">${parseNum(row.tare)!==null?fmt(parseNum(row.tare)):""}</span></div><div class="rc-field-label-side"><span>الوزن الفارغ</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">كجم</span><span class="rc-val-dots num-font" style="color:#2A7A4C;">${net!==null?fmt(net):""}</span></div><div class="rc-field-label-side"><span>الوزن الصافي</span><span class="rc-icon-circle" style="font-size:0.7rem;font-weight:800;">KG</span></div></div><div class="rc-field-row"><div class="rc-field-input-side split"><span class="rc-unit-badge">دينار</span><span class="rc-val-dots num-font">${row.hidePrice?"***":(price!==null?fmt(price):"")}</span></div><div class="rc-field-label-side"><span>السعر للكيلو</span><span class="rc-icon-circle">🪙</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots num-font">${parseNum(row.crateCount)!==null?parseNum(row.crateCount):""}</span></div><div class="rc-field-label-side"><span>عدد الكبسات</span><span class="rc-icon-circle">📦</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><div class="rc-checkboxes-group"><div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="خيط"?"✓":""}</span><span>خيط</span></div><div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="سيم"?"✓":""}</span><span>سيم</span></div></div></div><div class="rc-field-label-side"><span>نوع الكبس</span><span class="rc-icon-circle">🧺</span></div></div><div class="rc-field-row"><div class="rc-field-input-side"><span class="rc-val-dots">${esc(row.location)||""}</span></div><div class="rc-field-label-side"><span>مكان التخزين</span><span class="rc-icon-circle">🏭</span></div></div></div><div class="rc-total-bar-box"><div class="rc-total-bar-value"><span class="rc-unit-badge">دينار</span><span class="rc-total-val-text num-font">${row.hidePrice?"***":(finalAmt!==null?fmt(finalAmt):"")}</span></div><div class="rc-total-bar-label"><span>السعر الكلي</span><span class="rc-total-icon-circle">$</span></div></div><div class="rc-notes-box"><div class="rc-notes-line-row"><span>ملاحظات :</span><span class="rc-notes-dotted-flex">${esc(row.notes)||""}</span></div><div class="rc-notes-line-row"><span class="rc-notes-dotted-flex"></span></div></div><div class="rc-footer-area"><div class="rc-signature-block"><span>توقيع المستلم</span><div class="rc-signature-lines">......................</div></div><div class="rc-official-stamp"><div class="rc-stamp-content"><span class="rc-stamp-sun-icon">☀️</span><span class="rc-stamp-brand-name">ميزان الشمس</span><span class="rc-stamp-desc">لخدمات الوزن</span><span class="rc-stamp-stars">★ ★ ★</span></div></div><div class="rc-signature-block"><span>توقيع السائق</span><div class="rc-signature-lines">......................</div></div></div></div>`;
+      }
+
+      function showSingleReceiptModal(row, num) {
+        const html =
+          `<div class="receipt-sheet" id="receiptCardToPdf">${renderReceiptHTML(row, num)}</div>`;
+        document.getElementById("receiptModalBody").innerHTML = html;
+        document.getElementById("receiptModal").classList.add("active");
+        window._currentReceiptRows = [row];
+        window._currentReceiptNum = num;
+      }
+
+      document.getElementById("printBatchBtn").addEventListener("click", function() {
+        const selected = rows.filter(r => r.selected);
+        if (selected.length === 0) {
+          showConfirm("تنبيه", "يرجى تحديد عملية وزن واحدة على الأقل من مربع التحديد (☑) لطباعة وصولاتها.",
+            null, false);
+          return;
+        }
+        let receiptsHTML = "";
+        selected.forEach((r) => { receiptsHTML += renderReceiptHTML(r, r.id); });
+        document.getElementById("receiptModalBody").innerHTML =
+          `<div class="receipt-sheet" id="receiptCardToPdf">${receiptsHTML}</div>`;
+        document.getElementById("receiptModal").classList.add("active");
+        window._currentReceiptRows = selected;
+        window._currentReceiptNum = "محدد";
+      });
+
+      document.getElementById("closeModalBtn").addEventListener("click", () => {
+        document.getElementById("receiptModal").classList.remove("active");
+      });
+
+      document.getElementById("printReceiptBtn").addEventListener("click", function() {
+        const modal = document.getElementById("receiptModal");
+        modal.classList.add("print-target");
+        window.print();
+        modal.classList.remove("print-target");
+      });
+
+      document.getElementById("downloadReceiptPdfBtn").addEventListener("click", function() {
+        const element = document.getElementById("receiptCardToPdf");
+        if (typeof html2pdf !== "undefined") {
+          html2pdf().set({
+            margin: 4,
+            filename: "receipts-" + Date.now() + ".pdf",
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+          }).from(element).save();
+        } else {
+          const modal = document.getElementById("receiptModal");
+          modal.classList.add("print-target");
+          window.print();
+          modal.classList.remove("print-target");
+        }
+      });
+
+      function exportRowsToExcel(rowsToExport, fileName) {
+        if (rowsToExport.length === 0) {
+          showConfirm("تنبيه", "لا توجد بيانات لتصديرها.", null, false);
+          return;
+        }
+        if (typeof XLSX !== "undefined") {
+          const headers = ["رقم الوصل", "اسم الفلاح", "الكلي (كجم)", "الفارغ (كجم)", "الصافي (كجم)",
+            "السعر (دينار)", "المبلغ قبل الخصم", "الخصم (دينار)", "اسم السائق", "عدد الكبسات", "نوع الكبس",
+            "سعر الكبسة", "إجمالي سعر الكبسات", "مكان التخزين", "سعر الوصل", "المبلغ الصافي النهائي", "التاريخ",
+            "ملاحظات", "الحالة"
+          ];
+          const headerStyle = {
+            font: { name: "Cairo", sz: 11, bold: true, color: { rgb: "0F2232" } },
+            fill: { fgColor: { rgb: "E6CD8B" } },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: { top: { style: "thin", color: { rgb: "C59B27" } }, bottom: { style: "medium",
+                color: { rgb: "0F2232" } }, left: { style: "thin", color: { rgb: "C59B27" } },
+              right: { style: "thin", color: { rgb: "C59B27" } } }
+          };
+          const cellStyleEven = {
+            font: { name: "Cairo", sz: 10, color: { rgb: "1C252C" } },
+            fill: { fgColor: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: { top: { style: "thin", color: { rgb: "EFE3C3" } }, bottom: { style: "thin",
+                color: { rgb: "EFE3C3" } }, left: { style: "thin", color: { rgb: "EFE3C3" } },
+              right: { style: "thin", color: { rgb: "EFE3C3" } } }
+          };
+          const cellStyleOdd = {
+            font: { name: "Cairo", sz: 10, color: { rgb: "1C252C" } },
+            fill: { fgColor: { rgb: "FDF8EC" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: { top: { style: "thin", color: { rgb: "EFE3C3" } }, bottom: { style: "thin",
+                color: { rgb: "EFE3C3" } }, left: { style: "thin", color: { rgb: "EFE3C3" } },
+              right: { style: "thin", color: { rgb: "EFE3C3" } } }
+          };
+          const netAmtStyle = {
+            font: { name: "Cairo", sz: 10, bold: true, color: { rgb: "0F2232" } },
+            fill: { fgColor: { rgb: "F7E9C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: { top: { style: "thin", color: { rgb: "C59B27" } }, bottom: { style: "thin",
+                color: { rgb: "C59B27" } }, left: { style: "thin", color: { rgb: "C59B27" } },
+              right: { style: "thin", color: { rgb: "C59B27" } } }
+          };
+          const sheetData = [];
+          sheetData.push(headers.map(h => ({ v: h, t: "s", s: headerStyle })));
+          rowsToExport.forEach((r, idx) => {
+            const net = calcNet(r);
+            const sub = calcSubtotal(r);
+            const crateTot = calcCrateTotal(r);
+            const amt = calcAmount(r);
+            const style = (idx % 2 === 0) ? cellStyleEven : cellStyleOdd;
+            const originalRow = [{ v: formatReceiptNumber(r, r.id), t: "s", s: style }, { v: r.farmer || "",
+              t: "s", s: style }, { v: parseNum(r.gross) || 0, t: "n",
+              s: style }, { v: parseNum(r.tare) || 0, t: "n", s: style }, { v: net || 0, t: "n",
+              s: netAmtStyle }, { v: r.hidePrice ? "***" : (parseNum(r.price) || 0), t: r.hidePrice ? "s" :
+                "n", s: style }, { v: r.hidePrice ? "***" : (sub || 0), t: r.hidePrice ? "s" : "n",
+              s: style }, { v: parseNum(r.discount) || 0, t: "n", s: style }, { v: r.driver || "", t: "s",
+              s: style }, { v: parseNum(r.crateCount) || 0, t: "n", s: style }, { v: r.crateType || "",
+              t: "s", s: style }, { v: parseNum(r.cratePrice) || 0, t: "n", s: style }, { v: crateTot || 0,
+              t: "n", s: style }, { v: r.location || "", t: "s", s: style }, { v: parseNum(r.receiptFee) ||
+              0, t: "n", s: style }, { v: r.hidePrice ? "***" : (amt || 0), t: r.hidePrice ? "s" : "n",
+              s: netAmtStyle }, { v: r.date || getToday(), t: "s", s: style }, { v: r.notes || "", t: "s",
+              s: style }, { v: r.completed ? "مكتمل" : "قيد الانتظار", t: "s", s: style }
+            ];
+            sheetData.push(originalRow);
+          });
+          const totalStyle = {
+            font: { name: "Cairo", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "0F2232" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: { top: { style: "medium", color: { rgb: "C59B27" } }, bottom: { style: "medium",
+                color: { rgb: "C59B27" } }, left: { style: "thin", color: { rgb: "C59B27" } },
+              right: { style: "thin", color: { rgb: "C59B27" } } }
+          };
+          const totalsRow = headers.map(() => ({ v: "", t: "s", s: totalStyle }));
+          totalsRow[0] = { v: "الإجمالي", t: "s", s: totalStyle };
+          totalsRow[1] = { v: "عدد العمليات: " + rowsToExport.length, t: "s", s: totalStyle };
+          [2, 3, 4, 6, 7, 9, 12, 14, 15].forEach(function(colIdx) {
+            let sum = 0;
+            for (let i = 1; i < sheetData.length; i++) {
+              const cell = sheetData[i][colIdx];
+              if (cell && typeof cell.v === "number") sum += cell.v;
+            }
+            totalsRow[colIdx] = { v: Math.round(sum * 100) / 100, t: "n", s: totalStyle };
+          });
+          sheetData.push(totalsRow);
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.aoa_to_sheet(sheetData);
+          wb.Workbook = { Views: [{ RTL: true }], Names: [{ Sheet: 0, Name: "_xlnm.Print_Titles",
+              Ref: "'جدول_العمليات'!$1:$1" }] };
+          ws["!cols"] = [{ wch: 18 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 },
+            { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 16 },
+            { wch: 26 }, { wch: 16 }, { wch: 32 }, { wch: 20 }
+          ];
+          ws["!rows"] = sheetData.map((_, i) => ({
+            hpt: (i === 0) ? 40 : (i === sheetData.length - 1) ? 32 : 30
+          }));
+          ws["!margins"] = { left: 0.25, right: 0.25, top: 0.3, bottom: 0.3, header: 0.15, footer: 0.15 };
+          ws["!pageSetup"] = { paperSize: 9, orientation: "landscape", fitToWidth: 1, fitToHeight: 0 };
+          ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sheetData.length - 2,
+              c: headers.length - 1 } }) };
+          XLSX.utils.book_append_sheet(wb, ws, "جدول_العمليات");
+          XLSX.writeFile(wb, (fileName || "mizan_alshams") + ".xlsx");
+        } else {
+          showConfirm("تنبيه", "مكتبة XLSX غير متوفرة حالياً.", null, false);
+        }
+      }
+
+      document.getElementById("downloadReceiptExcelBtn").addEventListener("click", function() {
+        exportRowsToExcel(window._currentReceiptRows || [], "وصول_ميزان_الشمس_" + Date.now());
+      });
+      document.getElementById("exportExcelBtn").addEventListener("click", function() {
+        exportRowsToExcel(liveRows(), "ميزان_الشمس_جميع_العمليات_" + Date.now());
+      });
+      document.getElementById("exportStoreExcelBtn").addEventListener("click", function() {
+        exportRowsToExcel(liveRows().filter(r => (r.location || "").includes("مخزن")),
+          "ميزان_الشمس_المخزن_" + Date.now());
+      });
+      document.getElementById("exportDayExcelBtn").addEventListener("click", function() {
+        const exportDate = (activeDateFilter !== "all") ? activeDateFilter : getToday();
+        exportRowsToExcel(liveRows().filter(r => (r.date || getToday()) === exportDate),
+          "ميزان_الشمس_يومية_" + exportDate);
+      });
+      function updateDayExportBtnLabel() {
+        const btn = document.getElementById("exportDayExcelBtn");
+        if (!btn) return;
+        const d = (activeDateFilter !== "all") ? activeDateFilter : getToday();
+        let label;
+        if (d === getToday()) label = "اليوم";
+        else if (d === getYesterday()) label = "أمس";
+        else label = formatDateDMY(d);
+        btn.textContent = "📅 تصدير " + label + " Excel";
+      }
+      function buildReportHTML() {
+        const visible = getVisibleRows();
+        const subject = document.getElementById("subject").value || "";
+        const now = new Date();
+        const two = n => String(n).padStart(2, "0");
+        let totNet = 0,
+          totSub = 0,
+          totDisc = 0,
+          totCrates = 0,
+          totCrateVal = 0,
+          totFee = 0,
+          totAmt = 0;
+        let body = "";
+        visible.forEach(function(r, i) {
+          const net = calcNet(r);
+          const sub = calcSubtotal(r);
+          const crateTot = calcCrateTotal(r);
+          const amt = calcAmount(r);
+          const fee = parseNum(r.receiptFee) || 0;
+          const disc = parseNum(r.discount) || 0;
+          const crates = parseNum(r.crateCount) || 0;
+          if (net !== null) totNet += net;
+          if (sub !== null) totSub += sub;
+          if (amt !== null) totAmt += amt;
+          totDisc += disc;
+          totCrates += crates;
+          totCrateVal += crateTot;
+          totFee += fee;
+          const hide = r.hidePrice;
+          body += "<tr>" +
+            "<td>" + (i + 1) + "</td>" +
+            "<td>" + esc(formatDateDMY(r.date || getToday())) + "</td>" +
+            "<td style=\"text-align:right;\">" + esc(r.farmer) + "</td>" +
+            "<td style=\"text-align:right;\">" + esc(r.driver) + "</td>" +
+            "<td>" + (parseNum(r.gross) !== null ? fmt(parseNum(r.gross)) : "—") + "</td>" +
+            "<td>" + (parseNum(r.tare) !== null ? fmt(parseNum(r.tare)) : "—") + "</td>" +
+            "<td>" + (net !== null ? fmt(net) : "—") + "</td>" +
+            "<td>" + (hide ? "***" : (parseNum(r.price) !== null ? fmt(parseNum(r.price)) : "—")) + "</td>" +
+            "<td>" + (hide ? "***" : (sub !== null ? fmt(sub) : "—")) + "</td>" +
+            "<td>" + fmt(disc) + "</td>" +
+            "<td>" + crates + "</td>" +
+            "<td>" + esc(r.crateType) + "</td>" +
+            "<td>" + fmt(crateTot) + "</td>" +
+            "<td>" + esc(r.location) + "</td>" +
+            "<td>" + fmt(fee) + "</td>" +
+            "<td>" + (hide ? "***" : (amt !== null ? fmt(amt) : "—")) + "</td>" +
+            "<td>" + (r.completed ? "مكتمل" : "قيد الانتظار") + "</td>" +
+            "<td style=\"text-align:right;\">" + esc(r.notes) + "</td>" +
+            "</tr>";
+        });
+        const filterLabel = (activeFilter === "all" ? "كل الأماكن" : activeFilter) + " — " +
+          (activeDateFilter === "all" ? "كل التواريخ" : formatDateDMY(activeDateFilter)) +
+          (searchQuery.trim() ? " — بحث: " + esc(searchQuery.trim()) : "");
+        return "<div class=\"report-head\"><h2>ميزان الشمس — تقرير عمليات الوزن</h2>" +
+          "<p>" + (subject ? esc(subject) + " • " : "") + filterLabel + " • عدد العمليات: " + visible.length +
+          " • تاريخ الطباعة: " + formatDateDMY(getToday()) + " " + two(now.getHours()) + ":" +
+          two(now.getMinutes()) + "</p></div>" +
+          "<table class=\"report-table\"><thead><tr>" +
+          "<th>م</th><th>التاريخ</th><th>اسم الفلاح</th><th>السائق</th><th>الكلي</th><th>الفارغ</th>" +
+          "<th>الصافي</th><th>السعر</th><th>قبل الخصم</th><th>الخصم</th><th>الكبسات</th><th>النوع</th>" +
+          "<th>إجمالي الكبسات</th><th>مكان التخزين</th><th>سعر الوصل</th><th>الصافي النهائي</th>" +
+          "<th>الحالة</th><th>ملاحظات</th></tr></thead><tbody>" + body + "</tbody><tfoot><tr>" +
+          "<td colspan=\"4\">الإجمالي</td><td>—</td><td>—</td><td>" + fmt(totNet) + "</td><td>—</td><td>" +
+          fmt(totSub) + "</td><td>" + fmt(totDisc) + "</td><td>" + totCrates + "</td><td>—</td><td>" +
+          fmt(totCrateVal) + "</td><td>—</td><td>" + fmt(totFee) + "</td><td>" + fmt(totAmt) +
+          "</td><td colspan=\"2\">—</td></tr></tfoot></table>";
+      }
+
+      document.getElementById("exportFullPdfBtn").addEventListener("click", function() {
+        const visible = getVisibleRows();
+        if (visible.length === 0) {
+          showConfirm("تنبيه", "لا توجد عمليات معروضة لطباعتها بالتصفية الحالية.", null, false);
+          return;
+        }
+        const container = document.getElementById("reportPrintContainer");
+        container.innerHTML = buildReportHTML();
+        const pageStyle = document.createElement("style");
+        pageStyle.textContent = "@page { size: A4 landscape; margin: 8mm; }";
+        document.head.appendChild(pageStyle);
+        document.body.classList.add("report-print-mode");
+        const cleanup = function() {
+          document.body.classList.remove("report-print-mode");
+          if (pageStyle.parentNode) pageStyle.parentNode.removeChild(pageStyle);
+          container.innerHTML = "";
+          window.removeEventListener("afterprint", cleanup);
+        };
+        window.addEventListener("afterprint", cleanup);
+        setTimeout(function() {
+          window.print();
+          setTimeout(cleanup, 1200);
+        }, 60);
+      });
+      document.getElementById("exportBtn").addEventListener("click", function() {
+        const data = { subject: document.getElementById("subject").value, rows: rows, nextId: nextId,
+          exportDate: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "mizan_alshams_backup_" + Date.now() + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+      document.getElementById("importBtn").addEventListener("click", function() {
+        document.getElementById("importFile").click();
+      });
+      document.getElementById("importFile").addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          try {
+            const data = JSON.parse(evt.target.result);
+            if (Array.isArray(data.rows)) {
+              /* الاستيراد أصبح دمجاً لا استبدالاً. الاستبدال كان يحذف كل وصل غير
+                 موجود في الملف — ومع المزامنة كان الحذف ينتشر إلى بقية الأجهزة. */
+              showConfirm("تأكيد الاستيراد",
+                "سيتم دمج " + data.rows.length +
+                " عملية مع السجل الحالي: تُضاف الجديدة، وتُحدَّث الموجودة إن كانت نسخة الملف أحدث. لن يُحذف أي وصل. متابعة؟",
+                function() {
+                  const res = mergeRows(sanitizeImportedRows(data.rows));
+                  nextId = Math.max(nextId, Number(data.nextId) || 0);
+                  if (data.subject && !document.getElementById("subject").value) {
+                    document.getElementById("subject").value = data.subject;
+                  }
+                  saveToLocalStorage();
+                  saveHistory();
+                  clearAllFilters();
+                  showConfirm("تم الاستيراد",
+                    "أُضيف " + res.added + " وصلاً، وحُدّث " + res.updated + " وصلاً، وتُرك " + res.skipped +
+                    " وصلاً كما هو (النسخة الحالية أحدث).", null, false);
+                }, true);
+            } else { showConfirm("خطأ", "بنية ملف JSON غير صالحة.", null, false); }
+          } catch (err) { showConfirm("خطأ", "فشل قراءة ملف JSON.", null, false); }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      });
+
+      function showConfirm(title, message, onConfirm, showCancel) {
+        if (showCancel === undefined) showCancel = true;
+        const modal = document.getElementById("confirmModal");
+        document.getElementById("confirmTitle").textContent = title;
+        document.getElementById("confirmMessage").textContent = message;
+        document.getElementById("cancelConfirmBtn").style.display = showCancel ? "inline-flex" : "none";
+        confirmCallback = onConfirm;
+        modal.classList.add("active");
+      }
+      document.getElementById("confirmActionBtn").addEventListener("click", function() {
+        document.getElementById("confirmModal").classList.remove("active");
+        if (confirmCallback) { confirmCallback();
+          confirmCallback = null; }
+      });
+      document.getElementById("cancelConfirmBtn").addEventListener("click", function() {
+        document.getElementById("confirmModal").classList.remove("active");
+        confirmCallback = null;
+      });
+      document.getElementById("closeConfirmModalBtn").addEventListener("click", function() {
+        document.getElementById("confirmModal").classList.remove("active");
+        confirmCallback = null;
+      });
+
+      /* ==================== سلة المحذوفات ==================== */
+      function renderTrashList() {
+        const body = document.getElementById("trashListBody");
+        if (!body) return;
+        const list = trashedRows();
+        if (!list.length) {
+          body.innerHTML =
+            `<p style="text-align:center; padding:26px 10px; color:var(--muted); font-weight:600;">السلة فارغة — لم يُحذف أي وصل.</p>`;
+          document.getElementById("restoreAllTrashBtn").style.display = "none";
+          document.getElementById("emptyTrashBtn").style.display = "none";
+          return;
+        }
+        document.getElementById("restoreAllTrashBtn").style.display = "inline-flex";
+        document.getElementById("emptyTrashBtn").style.display = "inline-flex";
+        let html =
+          `<div style="max-height:52vh; overflow:auto; border:1.5px solid var(--gold); border-radius:10px;">` +
+          `<table style="width:100%; border-collapse:collapse; font-size:0.88rem;"><thead><tr style="background:var(--parchment-2);">` +
+          `<th style="padding:8px;">رقم الوصل</th><th style="padding:8px;">الفلاح</th><th style="padding:8px;">التاريخ</th>` +
+          `<th style="padding:8px;">الصافي (كجم)</th><th style="padding:8px;">المبلغ النهائي</th>` +
+          `<th style="padding:8px;">حُذف منذ</th><th style="padding:8px;">استرجاع</th></tr></thead><tbody>`;
+        list.forEach(function(r) {
+          const net = calcNet(r);
+          const amt = calcAmount(r);
+          const days = trashAgeDays(r);
+          const ago = days === 0 ? "اليوم" : (days === 1 ? "يوم" : days + " يوماً");
+          html += `<tr style="border-top:1px solid var(--gold-light); text-align:center;">` +
+            `<td style="padding:7px;" class="num-font">${esc(formatReceiptNumber(r, r.id))}</td>` +
+            `<td style="padding:7px; font-weight:700;">${esc(r.farmer) || "—"}</td>` +
+            `<td style="padding:7px;" class="num-font">${esc(formatDateDMY(r.date || ""))}</td>` +
+            `<td style="padding:7px;" class="num-font">${net !== null ? fmt(net) : "—"}</td>` +
+            `<td style="padding:7px;" class="num-font">${r.hidePrice ? "***" : (amt !== null ? fmt(amt) : "—")}</td>` +
+            `<td style="padding:7px;">${ago}</td>` +
+            `<td style="padding:7px;"><button type="button" class="btn btn-primary" style="padding:4px 12px; font-size:0.82rem;" data-restore="${esc(r.docId)}">↩️ استرجاع</button></td>` +
+            `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        body.innerHTML = html;
+      }
+
+      function openTrashModal() {
+        renderTrashList();
+        document.getElementById("trashModal").classList.add("active");
+      }
+
+      document.getElementById("trashBtn").addEventListener("click", openTrashModal);
+      document.getElementById("closeTrashModalBtn").addEventListener("click", function() {
+        document.getElementById("trashModal").classList.remove("active");
+      });
+
+      document.getElementById("trashListBody").addEventListener("click", function(e) {
+        const btn = e.target.closest("button[data-restore]");
+        if (!btn) return;
+        const row = rowByDoc(btn.dataset.restore);
+        if (!row) return;
+        restoreRow(row);
+        clearAllFilters();
+        saveToLocalStorage();
+        saveHistory();
+        renderTrashList();
+        cloudMsg("");
+        const tr = document.querySelector(`tr[data-doc="${row.docId}"]`);
+        if (tr) tr.scrollIntoView({ block: "center" });
+      });
+
+      document.getElementById("restoreAllTrashBtn").addEventListener("click", function() {
+        const list = trashedRows();
+        if (!list.length) return;
+        showConfirm("استرجاع الكل", "سيتم إرجاع " + list.length + " وصلاً إلى السجل. متابعة؟", function() {
+          list.forEach(restoreRow);
+          clearAllFilters();
+          saveToLocalStorage();
+          saveHistory();
+          renderTrashList();
+        }, true);
+      });
+
+      document.getElementById("emptyTrashBtn").addEventListener("click", function() {
+        const list = trashedRows();
+        if (!list.length) return;
+        /* بدون اتصال بالسحابة سيبقى المستند هناك ويعود عند أول مزامنة — نخبر
+           المستخدم بدل أن يظنّ أن المسح تم ثم يفاجأ بعودة الصفوف. */
+        if (CLOUD.available && !CLOUD.ready) {
+          showConfirm("تعذّر المسح النهائي",
+            "المزامنة السحابية غير متصلة الآن. المسح النهائي يحتاج اتصالاً حتى لا تعود الوصولات عند أول مزامنة. " +
+            "أعد المحاولة بعد عودة الاتصال.", null, false);
+          return;
+        }
+        showConfirm("مسح نهائي",
+          "سيتم مسح " + list.length +
+          " وصلاً نهائياً من هذا الجهاز ومن السحابة، ولا يمكن استرجاعها بعد ذلك. هل أنت متأكد؟",
+          function() {
+            permanentlyDelete(list.map(r => r.docId));
+            render();
+            saveToLocalStorage();
+            saveHistory();
+            renderTrashList();
+          }, true);
+      });
+
+      /* ==================== النسخ الاحتياطية المحلية ==================== */
+      function renderBackupList() {
+        const body = document.getElementById("backupListBody");
+        if (!body) return;
+        const snaps = listSnapshots();
+        if (!snaps.length) {
+          body.innerHTML =
+            `<p style="text-align:center; padding:24px 10px; color:var(--muted); font-weight:600;">لا توجد لقطات بعد — تُحفظ أول لقطة بعد بدء العمل بقليل.</p>`;
+          return;
+        }
+        let html =
+          `<div style="border:1.5px solid var(--gold); border-radius:10px; overflow:hidden;"><table style="width:100%; border-collapse:collapse; font-size:0.88rem;">` +
+          `<thead><tr style="background:var(--parchment-2);"><th style="padding:8px;">وقت اللقطة</th><th style="padding:8px;">عدد الوصولات</th><th style="padding:8px;">استعادة</th></tr></thead><tbody>`;
+        snaps.forEach(function(s) {
+          let when = s.savedAt;
+          try {
+            const d = new Date(s.savedAt);
+            if (!isNaN(d.getTime())) {
+              when = formatDateDMY(d.getFullYear() + "-" + twoDigits(d.getMonth() + 1) + "-" + twoDigits(d.getDate())) +
+                " • " + twoDigits(d.getHours()) + ":" + twoDigits(d.getMinutes());
+            }
+          } catch (e) {}
+          html += `<tr style="border-top:1px solid var(--gold-light); text-align:center;">` +
+            `<td style="padding:8px;" class="num-font">${esc(when)}</td>` +
+            `<td style="padding:8px;" class="num-font">${s.count}</td>` +
+            `<td style="padding:8px;"><button type="button" class="btn btn-accent" style="padding:4px 12px; font-size:0.82rem;" data-snap="${esc(s.key)}">استعادة (دمج)</button></td>` +
+            `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        body.innerHTML = html;
+      }
+
+      document.getElementById("backupBtn").addEventListener("click", function() {
+        renderBackupList();
+        document.getElementById("backupMsg").textContent = "";
+        document.getElementById("backupModal").classList.add("active");
+      });
+      document.getElementById("closeBackupModalBtn").addEventListener("click", function() {
+        document.getElementById("backupModal").classList.remove("active");
+      });
+
+      document.getElementById("backupListBody").addEventListener("click", function(e) {
+        const btn = e.target.closest("button[data-snap]");
+        if (!btn) return;
+        const key = btn.dataset.snap;
+        let data = null;
+        try { data = JSON.parse(localStorage.getItem(key)); } catch (err) {}
+        if (!data || !Array.isArray(data.rows)) {
+          document.getElementById("backupMsg").textContent = "تعذّرت قراءة هذه اللقطة.";
+          document.getElementById("backupMsg").style.color = "var(--danger)";
+          return;
+        }
+        showConfirm("استعادة نسخة احتياطية",
+          "سيتم دمج اللقطة مع السجل الحالي: تُضاف الوصولات الناقصة ولا يُحذف أي وصل موجود. متابعة؟",
+          function() {
+            const res = mergeRows(sanitizeImportedRows(data.rows));
+            saveToLocalStorage();
+            saveHistory();
+            clearAllFilters();
+            renderBackupList();
+            const msg = document.getElementById("backupMsg");
+            msg.style.color = "var(--success)";
+            msg.textContent = "✔ تمت الاستعادة — أُضيف " + res.added + " وصلاً وحُدّث " + res.updated + ".";
+          }, true);
+      });
+
+      /* ==================== المزامنة السحابية (Firebase) ==================== */
+      const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyDuPGGZ3EkEGApwgHauFluUgn-fbUC1Qhk",
+        authDomain: "alshams-scale.firebaseapp.com",
+        projectId: "alshams-scale",
+        storageBucket: "alshams-scale.firebasestorage.app",
+        messagingSenderId: "840344573248",
+        appId: "1:840344573248:web:5b28984a41d7008bdfd6a5",
+        measurementId: "G-CH6WHX3LMV"
+      };
+      const WORKSPACE_ID = "alshams-main";
+      /* اجعلها true فقط إذا فعّلت Anonymous من Firebase Console ← Authentication.
+         عند false يتصل التطبيق بـ Firestore مباشرة دون أي مصادقة، وتكون الحماية من قواعد Firestore. */
+      const USE_ANONYMOUS_AUTH = false;
+
+      const CLOUD = {
+        available: false,
+        ready: false,
+        user: null,
+        db: null,
+        unsubRows: null,
+        unsubMeta: null,
+        timer: null,
+        lastPushed: {},
+        lastSync: null,
+        pushing: false,
+        signingIn: false,
+        authError: "",
+        authErrorKind: "danger",
+        authErrorBadge: "⚠️ تعذّر تفعيل المزامنة",
+        authCode: "",
+        started: false,
+        firstSnapshotDone: false,
+        reconciled: false,
+        retryTimer: null
+      };
+
+      function setCloudError(text, kind, badgeText, code) {
+        CLOUD.authError = text;
+        CLOUD.authErrorKind = kind || "danger";
+        CLOUD.authErrorBadge = badgeText || "⚠️ تعذّر تفعيل المزامنة";
+        CLOUD.authCode = code || "";
+      }
+
+      function isWebOrigin() {
+        return location.protocol === "http:" || location.protocol === "https:";
+      }
+
+      function getDeviceId() {
+        let id = "";
+        try {
+          id = localStorage.getItem("mizan_device_id") || "";
+          if (!id) {
+            id = "dev-" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+            localStorage.setItem("mizan_device_id", id);
+          }
+        } catch (e) {
+          id = "dev-temp";
+        }
+        return id;
+      }
+
+      let pendingRemoteRender = false;
+
+      function setCloudBadge(text, kind) {
+        const badge = document.getElementById("cloudStatusBadge");
+        if (!badge) return;
+        const palette = {
+          ok: ["var(--success-bg)", "var(--success)", "#B8E2C4"],
+          info: ["#EAF1FB", "var(--navy-light)", "#B8CDE8"],
+          warn: ["var(--warning-bg)", "var(--warning-text)", "var(--warning-border)"],
+          danger: ["var(--danger-bg)", "var(--danger)", "var(--danger)"],
+          off: ["var(--parchment-2)", "var(--bronze)", "var(--gold)"]
+        };
+        const c = palette[kind] || palette.off;
+        badge.style.background = c[0];
+        badge.style.color = c[1];
+        badge.style.borderColor = c[2];
+        badge.textContent = text;
+      }
+
+      function cloudMsg(text, kind) {
+        const el = document.getElementById("cloudMsg");
+        if (!el) return;
+        el.textContent = text || "";
+        el.style.color = kind === "danger" ? "var(--danger)" : (kind === "ok" ? "var(--success)" : "var(--muted)");
+      }
+
+      function twoDigits(n) { return String(n).padStart(2, "0"); }
+
+      function updateCloudUI() {
+        const wsEl = document.getElementById("cloudWorkspace");
+        if (wsEl) wsEl.textContent = WORKSPACE_ID;
+        const devEl = document.getElementById("cloudDeviceId");
+        if (devEl) devEl.textContent = getDeviceId();
+        const countEl = document.getElementById("cloudRowCount");
+        if (countEl) countEl.textContent = Object.keys(CLOUD.lastPushed).length;
+        const pending = CLOUD.started ? unsyncedCount() : rows.length;
+        const pendEl = document.getElementById("cloudPending");
+        if (pendEl) {
+          pendEl.textContent = pending;
+          pendEl.style.color = pending > 0 ? "var(--danger)" : "var(--success)";
+        }
+        const localEl = document.getElementById("cloudLocalCount");
+        if (localEl) localEl.textContent = liveRows().length + " (+" + trashedRows().length + " في السلة)";
+        const syncBadge = document.getElementById("syncPendingBadge");
+        if (syncBadge) {
+          if (pending > 0) {
+            syncBadge.style.display = "inline-flex";
+            syncBadge.style.background = "var(--warning-bg)";
+            syncBadge.style.color = "var(--warning-text)";
+            syncBadge.style.borderColor = "var(--warning-border)";
+            syncBadge.textContent = "⏳ " + pending + " بانتظار الرفع للسحابة";
+          } else if (CLOUD.ready) {
+            syncBadge.style.display = "inline-flex";
+            syncBadge.style.background = "var(--success-bg)";
+            syncBadge.style.color = "var(--success)";
+            syncBadge.style.borderColor = "#B8E2C4";
+            syncBadge.textContent = "✅ كل الوصولات مرفوعة للسحابة";
+          } else {
+            syncBadge.style.display = "none";
+          }
+        }
+        const d = CLOUD.lastSync;
+        const syncEl = document.getElementById("cloudLastSync");
+        if (syncEl) syncEl.textContent = d ?
+          (twoDigits(d.getHours()) + ":" + twoDigits(d.getMinutes()) + ":" + twoDigits(d.getSeconds())) : "—";
+
+        const codeEl = document.getElementById("cloudErrCode");
+        if (codeEl) codeEl.textContent = CLOUD.authCode || "—";
+        const originEl = document.getElementById("cloudOrigin");
+        if (originEl) {
+          let org = "";
+          try { org = location.protocol + "//" + (location.host || "(ملف محلي)"); } catch (e) { org = "—"; }
+          originEl.textContent = org;
+        }
+
+        let stateText = "غير مفعّلة";
+        if (CLOUD.authError) {
+          stateText = CLOUD.authError;
+          setCloudBadge(CLOUD.authErrorBadge, CLOUD.authErrorKind);
+        } else if (!CLOUD.available) {
+          stateText = "المكتبات السحابية غير محمّلة";
+          setCloudBadge("☁️ السحابة غير متاحة", "warn");
+        } else if (!CLOUD.started) {
+          stateText = "جاري تجهيز الاتصال…";
+          setCloudBadge("⏳ جاري تفعيل المزامنة…", "info");
+        } else if (!navigator.onLine) {
+          stateText = "أوفلاين — التعديلات محفوظة وستُرفع تلقائياً";
+          setCloudBadge("☁️ أوفلاين — سيتم الرفع تلقائياً", "warn");
+        } else if (CLOUD.ready) {
+          stateText = "متصل ويعمل";
+          setCloudBadge("☁️ مزامنة مفعّلة" + (CLOUD.lastSync ? " • " + twoDigits(CLOUD.lastSync.getHours()) +
+            ":" + twoDigits(CLOUD.lastSync.getMinutes()) : ""), "ok");
+        } else {
+          stateText = "جاري الاتصال بالسحابة…";
+          setCloudBadge("⏳ جاري الاتصال بالسحابة…", "info");
+        }
+        const stEl = document.getElementById("cloudStateText");
+        if (stEl) stEl.textContent = stateText;
+      }
+
+      function rowsCollection() {
+        return CLOUD.db.collection("workspaces").doc(WORKSPACE_ID).collection("rows");
+      }
+
+      function metaDocRef() {
+        return CLOUD.db.collection("workspaces").doc(WORKSPACE_ID).collection("meta").doc("settings");
+      }
+
+      /* `id` مستثنى عمداً: إنه رقم تسلسلي محلي لكل جهاز. رفعه كان يجعل جهازين
+         ينتجان صفوفاً بنفس الـ id، فيحذف زرُّ الحذف صفّين معاً وتذهب الكتابة
+         إلى الصف الخطأ. المعرّف المعتمد بين الأجهزة هو docId فقط. */
+      const CLOUD_SKIP_FIELDS = { selected: true, id: true };
+
+      function cloudPayload(r) {
+        const template = blankRow();
+        const out = {};
+        Object.keys(template).forEach(function(k) {
+          if (CLOUD_SKIP_FIELDS[k]) return;
+          out[k] = (r[k] === undefined || r[k] === null) ? template[k] : r[k];
+        });
+        return out;
+      }
+
+      function payloadSignature(r) {
+        return JSON.stringify(cloudPayload(r));
+      }
+
+      /* عدد الصفوف التي لم تصل السحابة بعد — يُعرض للمستخدم حتى يعرف
+         متى يكون آمناً إغلاق الصفحة أو تغيير الجهاز. */
+      function unsyncedCount() {
+        if (!CLOUD.ready) return rows.length;
+        let n = 0;
+        rows.forEach(function(r) {
+          if (CLOUD.lastPushed[r.docId] !== payloadSignature(r)) n++;
+        });
+        return n;
+      }
+
+      let remoteRenderIdleTimer = null;
+
+      function flushPendingRemoteRender() {
+        if (!pendingRemoteRender) return;
+        pendingRemoteRender = false;
+        const active = document.activeElement;
+        const keep = active && active.closest && active.closest("#tableBody") ? active : null;
+        const keepDoc = keep ? (keep.closest("tr") || {}).dataset : null;
+        const keepField = keep ? keep.dataset.field : null;
+        const selStart = keep && keep.selectionStart;
+        render();
+        /* إعادة المؤشّر إلى نفس الخانة بعد إعادة الرسم حتى لا تنقطع الكتابة */
+        if (keepDoc && keepDoc.doc && keepField) {
+          const again = document.querySelector(
+            'tr[data-doc="' + keepDoc.doc + '"] [data-field="' + keepField + '"]');
+          if (again) {
+            again.focus();
+            try { if (selStart != null) again.setSelectionRange(selStart, selStart); } catch (e) {}
+          }
+        }
+        updateCloudUI();
+      }
+
+      function safeRender() {
+        const active = document.activeElement;
+        if (active && active.closest && active.closest("#tableBody")) {
+          pendingRemoteRender = true;
+          setCloudBadge("☁️ وصلت تحديثات — ستظهر بعد لحظات", "info");
+          /* لا ننتظر مغادرة الحقل إلى الأبد: إن توقف المستخدم عن الكتابة
+             ثانيتين نعرض الوصولات الواردة، وإلا بقيت مخفية عنه بلا سبب ظاهر. */
+          if (remoteRenderIdleTimer) clearTimeout(remoteRenderIdleTimer);
+          remoteRenderIdleTimer = setTimeout(function() {
+            remoteRenderIdleTimer = null;
+            flushPendingRemoteRender();
+          }, 2000);
+          return;
+        }
+        render();
+      }
+
+      document.getElementById("tableBody").addEventListener("input", function() {
+        if (remoteRenderIdleTimer) {
+          clearTimeout(remoteRenderIdleTimer);
+          remoteRenderIdleTimer = setTimeout(function() {
+            remoteRenderIdleTimer = null;
+            flushPendingRemoteRender();
+          }, 2000);
+        }
+      });
+
+      document.getElementById("tableBody").addEventListener("focusout", function() {
+        if (!pendingRemoteRender) return;
+        setTimeout(function() {
+          const active = document.activeElement;
+          if (active && active.closest && active.closest("#tableBody")) return;
+          if (remoteRenderIdleTimer) { clearTimeout(remoteRenderIdleTimer);
+            remoteRenderIdleTimer = null; }
+          flushPendingRemoteRender();
+        }, 150);
+      });
+
+      function applyRemoteSnapshot(snap) {
+        let changed = false;
+        snap.docChanges().forEach(function(ch) {
+          if (ch.doc.metadata.hasPendingWrites) return;
+          const docId = ch.doc.id;
+          if (ch.type === "removed") {
+            /* لم نعد نمحو الصف محلياً. المستند قد يكون اختفى بسبب حذف من نسخة
+               قديمة من التطبيق، أو بسبب خلل مؤقت. نضع علامة حذف فقط، فيبقى
+               الصف قابلاً للاسترجاع من سلة المحذوفات. */
+            const ghost = rowByDoc(docId);
+            if (ghost && !ghost.deleted) {
+              ghost.deleted = true;
+              ghost.deletedAt = Date.now();
+              ghost.selected = false;
+              changed = true;
+            }
+            delete CLOUD.lastPushed[docId];
+            return;
+          }
+          const data = ch.doc.data() || {};
+          const merged = blankRow();
+          Object.keys(merged).forEach(function(k) {
+            if (CLOUD_SKIP_FIELDS[k]) return;
+            if (data[k] !== undefined && data[k] !== null) merged[k] = data[k];
+          });
+          merged.docId = docId;
+          merged.deleted = !!merged.deleted;
+          merged.updatedAt = Number(merged.updatedAt) || 0;
+          merged.createdAt = Number(merged.createdAt) || merged.updatedAt;
+          if (!merged.date) merged.date = getToday();
+          const idx = rows.findIndex(r => r.docId === docId);
+          if (idx > -1) {
+            const local = rows[idx];
+            const knownPushedSig = CLOUD.lastPushed[docId];
+            const isLocallyDirty = knownPushedSig !== undefined &&
+              payloadSignature(local) !== knownPushedSig;
+            /* تعديل محلي لم يُرفع بعد، أو نسخة محلية أحدث زمنياً: نُبقي المحلي.
+               بدون شرط الوقت كانت نسخة قديمة من جهاز آخر تدهس ما كُتب للتو. */
+            const localIsNewer = (Number(local.updatedAt) || 0) > merged.updatedAt;
+            if (isLocallyDirty || localIsNewer) return;
+            merged.selected = local.selected;
+            merged.id = local.id;
+            if (payloadSignature(local) !== payloadSignature(merged)) {
+              rows[idx] = merged;
+              changed = true;
+            }
+          } else {
+            merged.selected = false;
+            merged.id = 0;
+            rows.push(merged);
+            changed = true;
+          }
+          CLOUD.lastPushed[docId] = payloadSignature(merged);
+        });
+        CLOUD.ready = true;
+        CLOUD.firstSnapshotDone = true;
+        CLOUD.lastSync = new Date();
+        if (changed) {
+          ensureRowIdentity();
+          try {
+            localStorage.setItem(STORAGE_KEY, currentStateJSON());
+          } catch (e) {}
+          safeRender();
+        }
+        updateCloudUI();
+        /* بعد أول لقطة نرفع كل ما هو محلي وغير موجود في السحابة. هذه هي الشبكة
+           التي تلتقط الوصولات المكتوبة أوفلاين أو قبل اكتمال الاتصال. */
+        reconcileAfterFirstSnapshot();
+      }
+
+      /* يضمن أن كل صف محلي وصل السحابة مرة واحدة على الأقل */
+      function reconcileAfterFirstSnapshot() {
+        if (CLOUD.reconciled || !CLOUD.ready) return;
+        CLOUD.reconciled = true;
+        const missing = rows.filter(function(r) { return CLOUD.lastPushed[r.docId] === undefined; });
+        if (missing.length) {
+          commitChunks(missing.map(function(r) {
+            return { type: "set", id: r.docId, data: cloudPayload(r), sig: payloadSignature(r) };
+          }));
+        }
+        cloudSync();
+      }
+
+      function startCloudSync() {
+        if (CLOUD.unsubRows) return;
+        CLOUD.started = true;
+        CLOUD.reconciled = false;
+        ensureRowIdentity();
+        /* لا نضع الصفوف المحلية في lastPushed هنا.
+           كان ذلك يعني: "هذه الصفوف موجودة في السحابة" وهو ادّعاء غير صحيح —
+           فالصف المكتوب أوفلاين أو قبل الاتصال كان يُعتبر مرفوعاً ولا يُرفع أبداً،
+           ثم يختفي عند فتح التطبيق من جهاز آخر أو عند مسح ذاكرة المتصفح.
+           lastPushed يمتلئ الآن فقط بما أكّدته السحابة فعلاً. */
+        setCloudBadge("⏳ جاري الاتصال بالسحابة…", "info");
+        setTimeout(function() {
+          if (!CLOUD.ready && CLOUD.user && navigator.onLine && !CLOUD.authError) {
+            setCloudError(
+              "تم الاتصال لكن قاعدة البيانات لم تستجب. تأكد من إنشاء Firestore Database ومن قواعد الأمان (Rules).",
+              "danger", "⚠️ قاعدة البيانات لا تستجيب");
+            updateCloudUI();
+          }
+        }, 15000);
+        CLOUD.unsubRows = rowsCollection().onSnapshot(applyRemoteSnapshot, function(err) {
+          CLOUD.ready = false;
+          const code = (err && err.code) || "";
+          if (code.indexOf("permission-denied") > -1) {
+            setCloudError(
+              "قواعد Firestore ترفض الوصول. افتح Firestore Database ← Rules والصق القواعد الموجودة في " +
+              "ملف الإعداد (تسمح بالمسار workspaces/alshams-main بدون تسجيل دخول).",
+              "danger", "⚠️ عدّل قواعد Firestore", code);
+          } else if (code.indexOf("not-found") > -1 || code.indexOf("failed-precondition") > -1) {
+            setCloudError("لم يتم إنشاء قاعدة Firestore بعد. افتح Firestore Database ← Create database.",
+              "danger", "⚠️ قاعدة Firestore غير منشأة", code);
+          } else if (code.indexOf("unavailable") > -1) {
+            setCloudError("لا يمكن الوصول للخادم حالياً — سيُعاد المحاولة تلقائياً.", "warn",
+              "☁️ الخادم غير متاح مؤقتاً", code);
+          } else {
+            setCloudError("تعذّر الوصول للبيانات: " + (err && err.message ? err.message : ""), "danger",
+              "⚠️ خطأ في المزامنة", code);
+          }
+          updateCloudUI();
+          cloudMsg(CLOUD.authError, "danger");
+        });
+        CLOUD.unsubMeta = metaDocRef().onSnapshot(function(doc) {
+          if (!doc.exists || doc.metadata.hasPendingWrites) return;
+          const data = doc.data() || {};
+          const subjectEl = document.getElementById("subject");
+          if (typeof data.subject === "string" && data.subject !== subjectEl.value &&
+            document.activeElement !== subjectEl) {
+            subjectEl.value = data.subject;
+          }
+          if (data.nextId) nextId = Math.max(nextId, Number(data.nextId) || 0);
+        }, function() {});
+      }
+
+      function stopCloudSync() {
+        if (CLOUD.unsubRows) { CLOUD.unsubRows();
+          CLOUD.unsubRows = null; }
+        if (CLOUD.unsubMeta) { CLOUD.unsubMeta();
+          CLOUD.unsubMeta = null; }
+        CLOUD.ready = false;
+        CLOUD.lastPushed = {};
+        CLOUD.lastSync = null;
+        CLOUD.reconciled = false;
+        CLOUD.firstSnapshotDone = false;
+      }
+
+      function cloudSync() {
+        if (!CLOUD.ready) return;
+        if (CLOUD.timer) clearTimeout(CLOUD.timer);
+        CLOUD.timer = setTimeout(doCloudPush, 600);
+      }
+
+      /* رفع فوري بلا انتظار. كان الرفع مؤجّلاً 1.2 ثانية، فإذا أُغلقت الصفحة أو
+         قُفل الهاتف خلالها ماتَ المؤقّت قبل أن تُرسل الكتابة أصلاً — والوصل الذي
+         كُتب لتوّه لا يصل السحابة أبداً. يُستدعى عند إخفاء الصفحة وقبل إغلاقها. */
+      function flushCloudPush() {
+        if (CLOUD.timer) { clearTimeout(CLOUD.timer);
+          CLOUD.timer = null; }
+        try { doCloudPush(); } catch (e) {}
+      }
+
+      function commitChunks(ops, onDone) {
+        let index = 0;
+        const step = function() {
+          if (index >= ops.length) { if (onDone) onDone();
+            return; }
+          const chunk = ops.slice(index, index + 400);
+          index += 400;
+          const batch = CLOUD.db.batch();
+          chunk.forEach(function(op) {
+            const ref = rowsCollection().doc(op.id);
+            if (op.type === "del") {
+              batch.delete(ref);
+            } else {
+              /* ملاحظة مهمة: ختم الخادم يُكتب في حقل منفصل (serverUpdatedAt).
+                 لو كتبناه فوق updatedAt لتحوّل الرقم إلى Timestamp، وعندها تفشل
+                 مقارنة "الأحدث يفوز" فلا تُطبَّق تحديثات الأجهزة الأخرى إطلاقاً. */
+              batch.set(ref, Object.assign({}, op.data, {
+                serverUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }));
+            }
+          });
+          batch.commit().then(function() {
+            chunk.forEach(function(op) {
+              if (op.type === "del") delete CLOUD.lastPushed[op.id];
+              else CLOUD.lastPushed[op.id] = op.sig;
+            });
+            CLOUD.lastSync = new Date();
+            updateCloudUI();
+            step();
+          }).catch(function(err) {
+            /* لا نُعلّم هذه الصفوف كمرفوعة، فتبقى ضمن "غير مزامن" ويُعاد رفعها.
+               سابقاً كان الفشل يوقف الرفع بصمت دون أي محاولة لاحقة. */
+            setCloudBadge("⚠️ تعذّر الرفع — سيُعاد تلقائياً", "danger");
+            cloudMsg("خطأ أثناء الرفع: " + (err && err.message ? err.message : "") +
+              " — ستتم إعادة المحاولة تلقائياً.", "danger");
+            updateCloudUI();
+            if (CLOUD.retryTimer) clearTimeout(CLOUD.retryTimer);
+            CLOUD.retryTimer = setTimeout(function() {
+              CLOUD.retryTimer = null;
+              if (navigator.onLine) doCloudPush();
+            }, 8000);
+          });
+        };
+        step();
+      }
+
+      function doCloudPush() {
+        CLOUD.timer = null;
+        if (!CLOUD.ready) return;
+        ensureRowIdentity();
+        const ops = [];
+        rows.forEach(function(r) {
+          const sig = payloadSignature(r);
+          if (CLOUD.lastPushed[r.docId] !== sig) {
+            ops.push({ type: "set", id: r.docId, data: cloudPayload(r), sig: sig });
+          }
+        });
+        /* أُزيل هنا استنتاج الحذف بالمقارنة:
+           كان كل معرّف موجود في lastPushed وغير موجود في rows يُحذف نهائياً من
+           السحابة على جميع الأجهزة. أي انكماش عابر في القائمة المحلية — تراجع
+           Ctrl+Z، أو استيراد ملف، أو نسخة محلية قديمة عند بدء التشغيل — كان
+           يتحوّل إلى مسح نهائي غير قابل للاسترجاع.
+           الحذف الآن ينتقل كتحديث للحقل deleted، ولا يُمحى أي مستند تلقائياً. */
+        metaDocRef().set({
+          subject: document.getElementById("subject").value,
+          nextId: nextId,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(function() {});
+        if (!ops.length) {
+          CLOUD.lastSync = new Date();
+          updateCloudUI();
+          return;
+        }
+        commitChunks(ops);
+      }
+
+      function pushAllToCloud(silent) {
+        if (!CLOUD.db) return;
+        ensureRowIdentity();
+        const ops = rows.map(function(r) {
+          return { type: "set", id: r.docId, data: cloudPayload(r), sig: payloadSignature(r) };
+        });
+        if (!ops.length) {
+          if (!silent) cloudMsg("لا توجد بيانات محلية لرفعها.", "danger");
+          return;
+        }
+        if (!silent) cloudMsg("جاري رفع " + ops.length + " عملية…", "info");
+        commitChunks(ops, function() {
+          if (!silent) cloudMsg("✔ تم رفع " + ops.length + " عملية بنجاح.", "ok");
+        });
+      }
+
+      function initFirebase() {
+        if (!isWebOrigin()) {
+          CLOUD.available = false;
+          setCloudError(
+            "التطبيق مفتوح كملف محلي (" + location.protocol +
+            ") — المزامنة السحابية تعمل فقط عند فتحه عبر رابط https. البيانات تُحفظ الآن على هذا الجهاز فقط.",
+            "warn", "📴 محلي فقط — افتحه عبر رابط https");
+          updateCloudUI();
+          return;
+        }
+        if (typeof firebase === "undefined" || !firebase.initializeApp) {
+          setCloudError("لم تُحمّل مكتبات Firebase — تأكد من الاتصال بالإنترنت ثم أعد تحميل الصفحة.",
+            "warn", "☁️ السحابة غير متاحة");
+          updateCloudUI();
+          return;
+        }
+        try {
+          if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+        } catch (e) {}
+        try {
+          if (firebase.analytics && location.protocol.indexOf("http") === 0) firebase.analytics();
+        } catch (e) {}
+        CLOUD.available = true;
+        try {
+          CLOUD.db = firebase.firestore();
+          CLOUD.db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
+        } catch (e) {
+          setCloudBadge("☁️ تعذّر تشغيل قاعدة البيانات السحابية", "danger");
+          return;
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+          CLOUD.user = user || null;
+          if (user) {
+            CLOUD.authError = "";
+            CLOUD.authCode = "";
+            startCloudSync();
+            cloudMsg("");
+          }
+          updateCloudUI();
+        });
+        ensureCloudSession();
+        window.addEventListener("online", function() {
+          if (!CLOUD.user) ensureCloudSession();
+          updateCloudUI();
+          cloudSync();
+        });
+        window.addEventListener("offline", updateCloudUI);
+      }
+
+      function ensureCloudSession() {
+        if (!CLOUD.available) return;
+        if (!isWebOrigin()) return;
+        if (!USE_ANONYMOUS_AUTH) {
+          CLOUD.authError = "";
+          CLOUD.authCode = "";
+          startCloudSync();
+          return;
+        }
+        if (CLOUD.signingIn) return;
+        let auth;
+        try {
+          auth = firebase.auth();
+        } catch (e) {
+          setCloudError("مكتبة المصادقة غير محمّلة — أعد تحميل الصفحة.", "danger", "⚠️ تعذّر تفعيل المزامنة");
+          updateCloudUI();
+          return;
+        }
+        if (auth.currentUser) return;
+        CLOUD.signingIn = true;
+        let settled = false;
+        const watchdog = setTimeout(function() {
+          if (settled || CLOUD.user) return;
+          CLOUD.signingIn = false;
+          setCloudError(
+            "لم يستجب خادم المصادقة خلال 15 ثانية. غالباً Anonymous غير مفعّل في Authentication ← Sign-in method.",
+            "danger", "⚠️ تعذّر تفعيل المزامنة", "timeout");
+          updateCloudUI();
+          cloudMsg(CLOUD.authError, "danger");
+          startCloudSync();
+          setTimeout(function() {
+            if (!CLOUD.user && navigator.onLine) ensureCloudSession();
+          }, 20000);
+        }, 15000);
+
+        auth.signInAnonymously().then(function() {
+          settled = true;
+          clearTimeout(watchdog);
+          CLOUD.signingIn = false;
+          CLOUD.authError = "";
+          updateCloudUI();
+        }).catch(function(err) {
+          settled = true;
+          clearTimeout(watchdog);
+          CLOUD.signingIn = false;
+          const code = (err && err.code) || "";
+          const msg = (err && err.message) || "";
+          if (code.indexOf("operation-not-allowed") > -1 || code.indexOf("admin-restricted") > -1) {
+            setCloudError(
+              "الدخول المجهول غير مفعّل في مشروعك. افتح Firebase Console ← Authentication ← Sign-in method ← " +
+              "Anonymous ← Enable. (أو اجعل قواعد Firestore تسمح بدون تسجيل).",
+              "danger", "⚠️ فعّل Anonymous في Firebase", code);
+          } else if (code.indexOf("configuration-not-found") > -1) {
+            setCloudError(
+              "خدمة Authentication لم تُفعّل أصلاً. افتح Firebase Console ← Authentication ← Get started ← " +
+              "فعّل Anonymous.",
+              "danger", "⚠️ فعّل Authentication في المشروع", code);
+          } else if (code.indexOf("api-key-not-valid") > -1 || msg.indexOf("API key") > -1) {
+            setCloudError("مفتاح API غير صالح أو مقيّد. راجع Google Cloud ← Credentials وأزل قيود النطاق.",
+              "danger", "⚠️ مفتاح API مرفوض", code);
+          } else if (msg.indexOf("blocked") > -1 || msg.indexOf("referer") > -1) {
+            setCloudError(
+              "مفتاح API مقيَّد بنطاقات محددة. أضف نطاق الموقع الحالي في Google Cloud ← Credentials ← " +
+              "API key ← Website restrictions.",
+              "danger", "⚠️ النطاق محجوب على مفتاح API", code);
+          } else if (code.indexOf("network") > -1) {
+            setCloudError("لا يوجد اتصال بالإنترنت — ستُعاد المحاولة تلقائياً.", "warn",
+              "☁️ أوفلاين — ستُعاد المحاولة", code);
+          } else {
+            setCloudError("تعذّر الاتصال: " + msg, "danger", "⚠️ تعذّر تفعيل المزامنة", code);
+          }
+          updateCloudUI();
+          cloudMsg(CLOUD.authError, "danger");
+          startCloudSync();
+          setTimeout(function() {
+            if (!CLOUD.user && navigator.onLine) ensureCloudSession();
+          }, 20000);
+        });
+      }
+
+      function openCloudModal() {
+        document.getElementById("cloudModal").classList.add("active");
+        updateCloudUI();
+        if (CLOUD.authError) cloudMsg(CLOUD.authError, CLOUD.authErrorKind === "warn" ? "info" : "danger");
+        else cloudMsg("");
+      }
+
+      document.getElementById("cloudBtn").addEventListener("click", openCloudModal);
+      document.getElementById("cloudStatusBadge").addEventListener("click", openCloudModal);
+      document.getElementById("closeCloudModalBtn").addEventListener("click", function() {
+        document.getElementById("cloudModal").classList.remove("active");
+      });
+
+      document.getElementById("cloudReconnectBtn").addEventListener("click", function() {
+        cloudMsg("جاري إعادة المحاولة…", "info");
+        CLOUD.authError = "";
+        if (!isWebOrigin()) {
+          cloudMsg("الملف مفتوح محلياً (" + location.protocol +
+            ") — انسخه إلى استضافة https ثم افتح الرابط لتعمل المزامنة.", "danger");
+          initFirebase();
+          return;
+        }
+        if (!CLOUD.available && typeof firebase !== "undefined" && firebase.initializeApp) {
+          initFirebase();
+          return;
+        }
+        if (!CLOUD.available) {
+          cloudMsg("المكتبات السحابية غير محمّلة — تأكد من الاتصال ثم أعد تحميل الصفحة.", "danger");
+          return;
+        }
+        stopCloudSync();
+        if (firebase.auth().currentUser) {
+          startCloudSync();
+        } else {
+          ensureCloudSession();
+        }
+        updateCloudUI();
+      });
+
+      document.getElementById("cloudPushAllBtn").addEventListener("click", function() {
+        showConfirm("تأكيد الرفع",
+          "سيتم رفع جميع العمليات المحلية إلى السحابة والكتابة فوق النسخة السحابية لنفس العمليات. متابعة؟",
+          function() { pushAllToCloud(false); }, true);
+      });
+
+      /* ================== نهاية وحدة المزامنة السحابية ================== */
+
+      /* الحفظ المحلي + إرسال الكتابة للسحابة فوراً قبل مغادرة الصفحة.
+         Firestore يحتفظ بالكتابة في طابور محلي دائم ويعيد إرسالها لاحقاً،
+         لكن ذلك لا يحدث إلا إذا صدرت الكتابة فعلاً — وهذا ما لم يكن يحدث. */
+      function persistNow() {
+        try {
+          flushHistory();
+          saveToLocalStorage();
+          writeMirror();
+          flushCloudPush();
+        } catch (e) {}
+      }
+      window.addEventListener("beforeunload", persistNow);
+      window.addEventListener("pagehide", persistNow);
+      window.addEventListener("blur", persistNow);
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState === "hidden") persistNow();
+        else updateCloudUI();
+      });
+
+      updateNetworkStatus();
+      const loaded = loadFromLocalStorage();
+      if (!loaded || liveRows().length === 0) { rows.push(newRow()); }
+      ensureRowIdentity();
+      saveHistory();
+      render();
+      initFirebase();
+      updateCloudUI();
+      /* تحديث دوري لمؤشّر "بانتظار الرفع" حتى يرى المستخدم الحالة الحقيقية */
+      setInterval(function() {
+        updateCloudUI();
+        if (CLOUD.ready && unsyncedCount() > 0) doCloudPush();
+      }, 15000);
+    })();
+  </script>
+</body>
+</html>
