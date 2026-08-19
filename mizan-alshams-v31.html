@@ -1279,6 +1279,70 @@
     .aux-table td {
       font-size: 0.86rem !important;
     }
+    /* ===== خانة رقم الوصل في الجدول ===== */
+    .seq-input {
+      width: 100%;
+      text-align: center;
+      font-weight: 700 !important;
+      border: 1.5px solid transparent;
+      border-radius: 6px;
+      background: #FFFDF7;
+      color: var(--navy);
+      padding: 4px 2px;
+      outline: none;
+    }
+    .seq-input:focus {
+      border-color: var(--navy);
+      background: var(--white);
+    }
+    .seq-input.seq-dup {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    /* ===== تنبيهات منبثقة: لا يحدث شيء مهم دون أن تراه ===== */
+    #toastStack {
+      position: fixed;
+      bottom: 18px;
+      left: 18px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: min(430px, 92vw);
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      background: var(--navy);
+      color: #FFF;
+      border-right: 6px solid var(--gold);
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      line-height: 1.6;
+      box-shadow: 0 8px 22px rgba(15, 34, 50, 0.32);
+      animation: toastIn 0.22s ease;
+    }
+    .toast.warn {
+      background: #7A4B00;
+      border-right-color: #FFC46B;
+    }
+    .toast.danger {
+      background: #7A2418;
+      border-right-color: #FF9A87;
+    }
+    .toast.ok {
+      background: #1D5C39;
+      border-right-color: #8FE0B0;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .bs-table-wrap {
       overflow-x: auto;
       margin-bottom: 14px;
@@ -1453,6 +1517,7 @@
         <button type="button" id="cloudBtn" class="btn btn-accent">☁️ المزامنة السحابية</button>
         <button type="button" id="trashBtn" class="btn btn-ghost" title="الوصولات المحذوفة — يمكن استرجاعها">🗑️ سلة المحذوفات</button>
         <button type="button" id="backupBtn" class="btn btn-ghost" title="النسخ الاحتياطية المحفوظة على هذا الجهاز">🛟 النسخ الاحتياطية</button>
+        <button type="button" id="logBtn" class="btn btn-ghost" title="سجل كل عمليات الحذف والاسترجاع">📜 سجل العمليات</button>
         <input type="file" id="importFile" accept="application/json" hidden>
       </div>
     </div>
@@ -1474,7 +1539,7 @@
         <table>
           <thead>
             <tr>
-              <th>م</th>
+              <th>التسلسل <span class="unit">رقم الوصل</span></th>
               <th><input type="checkbox" id="selectAllCheckbox" title="تحديد الكل للطباعة"></th>
               <th class="col-farmer">اسم الفلاح</th>
               <th>الكلي <span class="unit">كجم</span></th>
@@ -1533,6 +1598,21 @@
   <button class="scroll-arrow scroll-arrow-left" id="scrollArrowLeft" title="الأعمدة المخفية على اليمين (اختصار: سهم يسار ⌨️)">▶</button>
 
   <div id="reportPrintContainer" style="display:none;"></div>
+  <div id="toastStack"></div>
+
+  <div class="modal-overlay" id="logModal">
+    <div class="modal-content" style="max-width:760px;">
+      <button class="modal-close" id="closeLogModalBtn">&times;</button>
+      <div style="padding:6px 4px;">
+        <h3 style="font-family:'El Messiri',serif; font-size:1.5rem; color:var(--navy); text-align:center; margin-bottom:6px;">📜 سجل العمليات</h3>
+        <p style="text-align:center; font-size:0.85rem; color:var(--muted); font-weight:600; margin-bottom:14px;">
+          كل حذف أو استرجاع أو تعديل مهم يُسجَّل هنا مع وقته والجهاز الذي نفّذه.
+          إذا اختفى وصل، ستجد هنا سبب اختفائه.
+        </p>
+        <div id="logListBody"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="receiptModal">
     <div class="modal-content">
@@ -1865,6 +1945,9 @@
           ghost.selected = false;
           touchRow(ghost);
           rows.push(ghost);
+          logActivity("undo-delete",
+            "التراجع (Ctrl+Z) أخفى " + rowLabel(ghost) + " — موجود في سلة المحذوفات.",
+            { toastKind: "warn" });
         });
 
         /* إعادة ختم الوقت لكل صف تغيّر فعلياً، حتى لا تدهس نسخةُ السحابة نتيجةَ التراجع */
@@ -1977,18 +2060,121 @@
           r.id = id;
           seenId[id] = true;
 
+          /* التسلسل (رقم الوصل) ثابت مدى الحياة.
+             سابقاً كان يُعاد ترقيمه تلقائياً عند التعارض — وهذا يعني أن وصلاً
+             رقمه 520 وسُلّم للفلاح مطبوعاً قد يصبح رقماً آخر لاحقاً. لا يتغيّر
+             الآن إلا بأمر صريح منك من خانة الرقم في الجدول. التعارض — إن حدث —
+             يُعرض كتحذير مرئي بدل تعديله من وراء ظهرك. */
           const d = r.date || getToday();
           if (!seqByDate[d]) seqByDate[d] = Object.create(null);
-          let seq = Number(r.seq) || 0;
-          if (!seq || seqByDate[d][seq]) {
-            let candidate = 1;
-            while (seqByDate[d][candidate]) candidate++;
-            seq = candidate;
-            r.seq = seq;
-          }
-          seqByDate[d][seq] = true;
+          if (!Number(r.seq)) r.seq = nextSeqForDate(d);
+          seqByDate[d][Number(r.seq)] = true;
         });
         nextId = Math.max(nextId, maxId + 1);
+        sortRows();
+      }
+
+      /* ترتيب واحد لا يتغيّر بين الأجهزة: التاريخ ثم رقم الوصل ثم وقت الإنشاء
+         ثم المعرّف. أي جهاز يحسب الترتيب نفسه مهما اختلف ترتيب وصول البيانات
+         إليه من السحابة. */
+      function sortRows() {
+        rows.sort(function(a, b) {
+          const da = a.date || "",
+            db = b.date || "";
+          if (da !== db) return da < db ? -1 : 1;
+          const sa = Number(a.seq) || 0,
+            sb = Number(b.seq) || 0;
+          if (sa !== sb) return sa - sb;
+          const ca = Number(a.createdAt) || 0,
+            cb = Number(b.createdAt) || 0;
+          if (ca !== cb) return ca - cb;
+          return String(a.docId) < String(b.docId) ? -1 : 1;
+        });
+      }
+
+      /* تحديث تلوين أرقام الوصولات المكررة دون إعادة بناء الجدول */
+      function refreshSeqDupHighlight() {
+        const dup = duplicateSeqSet();
+        document.querySelectorAll('#tableBody input[data-field="seq"]').forEach(function(input) {
+          const tr = input.closest("tr");
+          const r = tr && rowByDoc(tr.dataset.doc);
+          if (!r) return;
+          const isDup = !!dup[(r.date || "") + "#" + (Number(r.seq) || 0)];
+          input.classList.toggle("seq-dup", isDup);
+          input.title = isDup ?
+            "تنبيه: رقم وصل مكرر في نفس التاريخ — عدّله يدوياً" :
+            "رقم الوصل الثابت — لا يتغير إلا إذا عدّلته بنفسك";
+        });
+      }
+
+      /* مجموعة "التاريخ#الرقم" المكرّرة — تُستعمل لتلوين الصفوف المتعارضة */
+      function duplicateSeqSet() {
+        const seen = Object.create(null);
+        const dup = Object.create(null);
+        rows.forEach(function(r) {
+          if (r.deleted) return;
+          const k = (r.date || "") + "#" + (Number(r.seq) || 0);
+          if (seen[k]) dup[k] = true;
+          seen[k] = true;
+        });
+        return dup;
+      }
+
+      /* ===== تنبيهات وسجل عمليات =====
+         الغرض: ألّا يختفي أو يتغيّر أي وصل دون أن يظهر ذلك للمستخدم صراحةً،
+         مع أثر دائم يمكن الرجوع إليه لاحقاً لمعرفة ما جرى ومن أي جهاز. */
+      const LOG_KEY = "mizan_alshams_activity_log";
+      const MAX_LOG = 400;
+      let activityLog = [];
+
+      function loadActivityLog() {
+        try {
+          const raw = localStorage.getItem(LOG_KEY);
+          activityLog = raw ? (JSON.parse(raw) || []) : [];
+        } catch (e) { activityLog = []; }
+        if (!Array.isArray(activityLog)) activityLog = [];
+      }
+
+      function saveActivityLog() {
+        try {
+          localStorage.setItem(LOG_KEY, JSON.stringify(activityLog.slice(-MAX_LOG)));
+        } catch (e) {}
+      }
+
+      function toast(text, kind, ms) {
+        const stack = document.getElementById("toastStack");
+        if (!stack) return;
+        const el = document.createElement("div");
+        el.className = "toast" + (kind ? " " + kind : "");
+        el.textContent = text;
+        stack.appendChild(el);
+        setTimeout(function() {
+          el.style.transition = "opacity .3s";
+          el.style.opacity = "0";
+          setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
+        }, ms || 6000);
+      }
+
+      function logActivity(kind, text, opts) {
+        const o = opts || {};
+        activityLog.push({
+          at: Date.now(),
+          kind: kind,
+          text: text,
+          device: o.device || getDeviceId(),
+          remote: !!o.remote
+        });
+        if (activityLog.length > MAX_LOG) activityLog = activityLog.slice(-MAX_LOG);
+        saveActivityLog();
+        if (o.silent !== true) toast(text, o.toastKind || "warn", o.ms);
+        const btn = document.getElementById("logBtn");
+        if (btn) btn.classList.add("btn-accent");
+      }
+
+      /* وصف مختصر يعرّف الوصل في الرسائل والسجل */
+      function rowLabel(r) {
+        const name = (r.farmer && r.farmer.trim()) ? r.farmer.trim() : "بلا اسم";
+        return "وصل رقم " + (r.seq || "—") + " — " + name;
       }
 
       function liveRows() {
@@ -2018,7 +2204,7 @@
         if (!row || !row.deleted) return;
         row.deleted = false;
         row.deletedAt = 0;
-        row.seq = nextSeqForDate(row.date);
+        /* الوصل المسترجع يعود برقمه الأصلي — الاسترجاع لا يعني إعادة ترقيم */
         touchRow(row);
       }
 
@@ -2355,7 +2541,7 @@
       }
 
       function setRowInputsDisabled(tr, disabled) {
-        const excludeFields = ['farmer', 'selected', 'farmer-readonly'];
+        const excludeFields = ['farmer', 'selected', 'farmer-readonly', 'seq'];
         const inputs = tr.querySelectorAll('input:not([type="hidden"]), select');
         inputs.forEach(input => {
           const field = input.dataset.field;
@@ -2369,6 +2555,7 @@
       }
 
       function render() {
+        sortRows();
         const visible = getVisibleRows();
         const tbody = document.getElementById("tableBody");
         if (visible.length === 0) {
@@ -2376,6 +2563,7 @@
             `<tr class="empty-row"><td colspan="25" style="padding:40px 10px; color:var(--muted); font-weight:600; text-align:center;">${(searchQuery || activeDateFilter !== "all" || activeFilter !== "all") ? "لا توجد وصولات تطابق التصفية والتاريخ المحدد — جرّب زر «إظهار كل الوصولات» أعلاه" : "لا توجد عمليات مسجّلة بعد"}</td></tr>`;
         } else {
           let html = "";
+          const dupSeqs = duplicateSeqSet();
           visible.forEach((r, idx) => {
             const net = calcNet(r);
             const sub = calcSubtotal(r);
@@ -2384,7 +2572,8 @@
             const rowDate = r.date || getToday();
             const rowColorClass = getRowColorClass(r);
             const farmerFilled = rowIsEditable(r);
-            html += `<tr data-id="${r.id}" data-doc="${esc(r.docId)}" class="${rowColorClass}${net!==null&&net<0?" row-invalid-weight":""}"><td class="num-font">${idx+1}</td><td><input type="checkbox" data-field="selected" ${r.selected?"checked":""}></td><td class="col-farmer"><input type="text" data-field="farmer" value="${esc(r.farmer)}" placeholder="اسم الفلاح الثلاثي"></td><td><input type="text" inputmode="decimal" class="num-font" data-field="gross" value="${esc(r.gross)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="decimal" class="num-font" data-field="tare" value="${esc(r.tare)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="net-cell num-font${net!==null?" has-value":""}${net!==null&&net<0?" is-negative":""}">${net!==null?fmt(net):"—"}</td><td><div class="price-cell-wrapper"><button type="button" class="eye-toggle-btn${r.hidePrice?" is-hidden":""}" data-action="toggle-price">${r.hidePrice?ICON_EYE_CLOSED:ICON_EYE_OPEN}</button><input type="${r.hidePrice?"password":"text"}" inputmode="decimal" class="num-font" data-field="price" value="${esc(r.price)}" placeholder="السعر"${farmerFilled ? '' : ' disabled'}></div></td><td class="subtotal-cell num-font${sub!==null?" has-value":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(sub!==null?fmt(sub):"—")}</td><td><input type="text" class="discount-input num-font" inputmode="decimal" data-field="discount" value="${esc(r.discount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="driver" value="${esc(r.driver)}" placeholder="اسم السائق"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="numeric" class="num-font" data-field="crateCount" value="${esc(r.crateCount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><select data-field="crateType"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="خيط" ${r.crateType==="خيط"?"selected":""}>خيط</option><option value="سيم" ${r.crateType==="سيم"?"selected":""}>سيم</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="cratePrice" value="${esc(r.cratePrice)}" placeholder="سعر الكبسة"${farmerFilled ? '' : ' disabled'}></td><td class="crate-total-cell num-font" style="font-weight:400; color:var(--navy);">${crateTot > 0 ? fmt(crateTot) : "—"}</td><td><select data-field="location"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="مخزن ابراهيم" ${r.location==="مخزن ابراهيم"?"selected":""}>مخزن ابراهيم</option><option value="مخزن بركات" ${r.location==="مخزن بركات"?"selected":""}>مخزن بركات</option><option value="مخزن أبو إبراهيم" ${r.location==="مخزن أبو إبراهيم"?"selected":""}>مخزن أبو إبراهيم</option><option value="ساحة" ${r.location==="ساحة"?"selected":""}>ساحة</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="receiptFee" value="${esc(r.receiptFee)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="amount-cell num-font${amt!==null?" has-value":""}${amt!==null&&amt<0?" is-negative":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(amt!==null?fmt(amt):"—")}</td><td><input type="date" class="num-font" data-field="date" value="${esc(rowDate)}"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="notes" value="${esc(r.notes)}" placeholder="ملاحظات"${farmerFilled ? '' : ' disabled'}></td><td><button type="button" class="status-toggle ${r.completed?"completed":"incomplete"}" data-action="toggle-status">${r.completed?"✔":"✖"}</button></td><td class="col-farmer-left"><input type="text" readonly data-field="farmer-readonly" value="${esc(r.farmer)}" style="background:transparent; border:none; text-align:right; font-weight:600; color:var(--navy); width:100%;" tabindex="-1"></td><td class="col-action"><button type="button" class="icon-btn" data-action="print" title="طباعة رسمية">${ICON_PRINT}</button></td><td class="col-action"><button type="button" class="icon-btn btn-thermal" data-action="thermal-print" title="طباعة حرارية 80mm">${ICON_THERMAL}</button></td><td class="col-action"><button type="button" class="icon-btn" data-action="duplicate" title="نسخ العملية">${ICON_COPY}</button></td><td class="col-action"><button type="button" class="icon-btn icon-btn-danger" data-action="delete" title="حذف">${ICON_DELETE}</button></td></tr>`;
+            const dupSeq = !!dupSeqs[(r.date || "") + "#" + (Number(r.seq) || 0)];
+            html += `<tr data-id="${r.id}" data-doc="${esc(r.docId)}" class="${rowColorClass}${net!==null&&net<0?" row-invalid-weight":""}"><td><input type="text" inputmode="numeric" class="num-font seq-input${dupSeq?" seq-dup":""}" data-field="seq" value="${esc(r.seq)}" title="${dupSeq?"تنبيه: رقم وصل مكرر في نفس التاريخ — عدّله يدوياً":"رقم الوصل الثابت — لا يتغير إلا إذا عدّلته بنفسك"}"></td><td><input type="checkbox" data-field="selected" ${r.selected?"checked":""}></td><td class="col-farmer"><input type="text" data-field="farmer" value="${esc(r.farmer)}" placeholder="اسم الفلاح الثلاثي"></td><td><input type="text" inputmode="decimal" class="num-font" data-field="gross" value="${esc(r.gross)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="decimal" class="num-font" data-field="tare" value="${esc(r.tare)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="net-cell num-font${net!==null?" has-value":""}${net!==null&&net<0?" is-negative":""}">${net!==null?fmt(net):"—"}</td><td><div class="price-cell-wrapper"><button type="button" class="eye-toggle-btn${r.hidePrice?" is-hidden":""}" data-action="toggle-price">${r.hidePrice?ICON_EYE_CLOSED:ICON_EYE_OPEN}</button><input type="${r.hidePrice?"password":"text"}" inputmode="decimal" class="num-font" data-field="price" value="${esc(r.price)}" placeholder="السعر"${farmerFilled ? '' : ' disabled'}></div></td><td class="subtotal-cell num-font${sub!==null?" has-value":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(sub!==null?fmt(sub):"—")}</td><td><input type="text" class="discount-input num-font" inputmode="decimal" data-field="discount" value="${esc(r.discount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="driver" value="${esc(r.driver)}" placeholder="اسم السائق"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="numeric" class="num-font" data-field="crateCount" value="${esc(r.crateCount)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td><select data-field="crateType"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="خيط" ${r.crateType==="خيط"?"selected":""}>خيط</option><option value="سيم" ${r.crateType==="سيم"?"selected":""}>سيم</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="cratePrice" value="${esc(r.cratePrice)}" placeholder="سعر الكبسة"${farmerFilled ? '' : ' disabled'}></td><td class="crate-total-cell num-font" style="font-weight:400; color:var(--navy);">${crateTot > 0 ? fmt(crateTot) : "—"}</td><td><select data-field="location"${farmerFilled ? '' : ' disabled'}><option value="">-- اختر --</option><option value="مخزن ابراهيم" ${r.location==="مخزن ابراهيم"?"selected":""}>مخزن ابراهيم</option><option value="مخزن بركات" ${r.location==="مخزن بركات"?"selected":""}>مخزن بركات</option><option value="مخزن أبو إبراهيم" ${r.location==="مخزن أبو إبراهيم"?"selected":""}>مخزن أبو إبراهيم</option><option value="ساحة" ${r.location==="ساحة"?"selected":""}>ساحة</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="receiptFee" value="${esc(r.receiptFee)}" placeholder="0"${farmerFilled ? '' : ' disabled'}></td><td class="amount-cell num-font${amt!==null?" has-value":""}${amt!==null&&amt<0?" is-negative":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(amt!==null?fmt(amt):"—")}</td><td><input type="date" class="num-font" data-field="date" value="${esc(rowDate)}"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="notes" value="${esc(r.notes)}" placeholder="ملاحظات"${farmerFilled ? '' : ' disabled'}></td><td><button type="button" class="status-toggle ${r.completed?"completed":"incomplete"}" data-action="toggle-status">${r.completed?"✔":"✖"}</button></td><td class="col-farmer-left"><input type="text" readonly data-field="farmer-readonly" value="${esc(r.farmer)}" style="background:transparent; border:none; text-align:right; font-weight:600; color:var(--navy); width:100%;" tabindex="-1"></td><td class="col-action"><button type="button" class="icon-btn" data-action="print" title="طباعة رسمية">${ICON_PRINT}</button></td><td class="col-action"><button type="button" class="icon-btn btn-thermal" data-action="thermal-print" title="طباعة حرارية 80mm">${ICON_THERMAL}</button></td><td class="col-action"><button type="button" class="icon-btn" data-action="duplicate" title="نسخ العملية">${ICON_COPY}</button></td><td class="col-action"><button type="button" class="icon-btn icon-btn-danger" data-action="delete" title="حذف">${ICON_DELETE}</button></td></tr>`;
           });
           tbody.innerHTML = html;
         }
@@ -2572,7 +2761,8 @@
                   "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select")).filter(
                 el => el.offsetParent !== null && !el.disabled);
               if (nextRowInputs.length > 0) {
-                nextRowInputs[0].focus();
+                const farmerInput = nextTr.querySelector('input[data-field="farmer"]');
+                (farmerInput || nextRowInputs[0]).focus();
               }
             } else {
               document.getElementById("addRowBtn").click();
@@ -2583,7 +2773,8 @@
                       "input:not([type=\"hidden\"]):not([type=\"checkbox\"]):not([readonly]), select"))
                     .filter(el => el.offsetParent !== null && !el.disabled);
                   if (lastRowInputs.length > 0) {
-                    lastRowInputs[0].focus();
+                    const farmerInput = lastTr.querySelector('input[data-field="farmer"]');
+                    (farmerInput || lastRowInputs[0]).focus();
                   }
                 }
               }, 50);
@@ -2601,16 +2792,28 @@
           if (!row) return;
           const action = btn.dataset.action;
           if (action === "delete") {
-            const label = (row.farmer && row.farmer.trim()) ? ("«" + row.farmer.trim() + "»") : "هذه العملية";
-            showConfirm("تأكيد حذف العملية",
-              "سيتم نقل وصل " + label +
-              " إلى سلة المحذوفات ويمكنك استرجاعه في أي وقت من زر «سلة المحذوفات». متابعة؟",
-              function() {
-                softDeleteRow(row);
-                render();
-                saveToLocalStorage();
-                saveHistory();
-              }, true);
+            const net = calcNet(row);
+            const amt = calcAmount(row);
+            const lines = [
+              "رقم الوصل : " + (row.seq || "—"),
+              "اسم الفلاح : " + ((row.farmer && row.farmer.trim()) || "— بدون اسم —"),
+              "اسم السائق : " + ((row.driver && row.driver.trim()) || "—"),
+              "الوزن الكلي : " + (parseNum(row.gross) !== null ? fmt(parseNum(row.gross)) + " كجم" : "—"),
+              "الوزن الفارغ : " + (parseNum(row.tare) !== null ? fmt(parseNum(row.tare)) + " كجم" : "—"),
+              "الوزن الصافي : " + (net !== null ? fmt(net) + " كجم" : "—"),
+              "التاريخ : " + formatDateDMY(row.date || getToday()),
+              "المبلغ الصافي النهائي : " + (row.hidePrice ? "***" : (amt !== null ? fmt(amt) + " دينار" : "—"))
+            ];
+            showConfirm("تأكيد حذف الوصل", lines.join("\n"), function() {
+              softDeleteRow(row);
+              logActivity("delete", "حذفتَ " + rowLabel(row) + " (الكلي " +
+                (parseNum(row.gross) !== null ? fmt(parseNum(row.gross)) : "—") + " / الفارغ " +
+                (parseNum(row.tare) !== null ? fmt(parseNum(row.tare)) : "—") +
+                ") — موجود في سلة المحذوفات ويمكن استرجاعه.", { toastKind: "warn" });
+              render();
+              saveToLocalStorage();
+              saveHistory();
+            }, true, "🗑️ نعم، انقله إلى سلة المحذوفات");
           } else if (action === "duplicate") {
             const copy = deepClone(row);
             copy.id = nextId++;
@@ -2669,6 +2872,12 @@
           if (wasFilled !== isFilled) {
             setRowInputsDisabled(tr, !isFilled);
           }
+        } else if (field === "seq") {
+          /* رقم الوصل يُخزَّن رقماً صحيحاً. لا نعيد الترتيب أثناء الكتابة حتى
+             لا يقفز الصف من تحت المؤشّر — الترتيب يتم عند مغادرة الخانة. */
+          const cleaned = cleanNumericInput(e.target.value).replace(/\./g, "");
+          if (e.target.value !== cleaned) e.target.value = cleaned;
+          row.seq = Number(cleaned) || 0;
         } else if (field === "receiptFee") {
           let cleaned = cleanNumericInput(e.target.value);
           let numVal = parseFloat(cleaned);
@@ -2724,13 +2933,26 @@
         const row = rowByDoc(tr.dataset.doc);
         if (!row) return;
         const id = row.id;
-        const prevDate = row.date;
-        row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        /* تغيير التاريخ يعني رقم وصل جديد ضمن اليوم الجديد، وإلا تكرّرت الأرقام */
-        if (field === "date" && row.date !== prevDate) row.seq = nextSeqForDate(row.date);
+        if (field === "seq") {
+          /* رقم فارغ أو صفر غير مقبول: نعيد الرقم السابق بدل ترك الوصل بلا رقم */
+          const val = Number(cleanNumericInput(e.target.value).replace(/\./g, "")) || 0;
+          if (val <= 0) {
+            row.seq = nextSeqForDate(row.date);
+            toast("رقم الوصل لا يمكن أن يكون فارغاً — تم وضع الرقم التالي المتاح: " + row.seq, "warn");
+          } else {
+            row.seq = val;
+          }
+        } else {
+          row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        }
+        /* تغيير التاريخ لا يغيّر رقم الوصل — الرقم ملك الوصل ولا يُعاد توليده */
         touchRow(row);
         saveToLocalStorage();
         const isSelect = e.target.tagName.toLowerCase() === "select";
+        /* تعديل رقم الوصل لا يعيد بناء الجدول: إعادة البناء كانت تنزع الحقل
+           الذي انتقل إليه المؤشّر للتو فتضيع الكتابة التالية (اسم الفلاح مثلاً).
+           نكتفي بتحديث تنبيه التكرار في مكانه، والترتيب يتحدّث في أول رسم لاحق. */
+        if (field === "seq") refreshSeqDupHighlight();
         const needsRender = isSelect || e.target.type === "checkbox" || e.target.type === "date";
         if (needsRender) {
           flushHistory();
@@ -3510,6 +3732,8 @@
                 " عملية مع السجل الحالي: تُضاف الجديدة، وتُحدَّث الموجودة إن كانت نسخة الملف أحدث. لن يُحذف أي وصل. متابعة؟",
                 function() {
                   const res = mergeRows(sanitizeImportedRows(data.rows));
+                  logActivity("import", "استوردتَ ملفاً: أُضيف " + res.added + " وحُدّث " + res.updated +
+                    " وصلاً. لم يُحذف أي وصل.", { toastKind: "ok" });
                   nextId = Math.max(nextId, Number(data.nextId) || 0);
                   if (data.subject && !document.getElementById("subject").value) {
                     document.getElementById("subject").value = data.subject;
@@ -3528,12 +3752,19 @@
         e.target.value = "";
       });
 
-      function showConfirm(title, message, onConfirm, showCancel) {
+      function showConfirm(title, message, onConfirm, showCancel, confirmLabel) {
         if (showCancel === undefined) showCancel = true;
         const modal = document.getElementById("confirmModal");
         document.getElementById("confirmTitle").textContent = title;
-        document.getElementById("confirmMessage").textContent = message;
+        const msgEl = document.getElementById("confirmMessage");
+        /* الرسائل متعددة الأسطر (تفاصيل الوصل قبل الحذف) تُعرض كما كُتبت */
+        msgEl.style.whiteSpace = "pre-line";
+        msgEl.style.textAlign = message.indexOf("\n") > -1 ? "right" : "center";
+        msgEl.style.lineHeight = "1.9";
+        msgEl.textContent = message;
         document.getElementById("cancelConfirmBtn").style.display = showCancel ? "inline-flex" : "none";
+        const okBtn = document.getElementById("confirmActionBtn");
+        okBtn.textContent = confirmLabel || (showCancel ? "تأكيد" : "حسناً");
         confirmCallback = onConfirm;
         modal.classList.add("active");
       }
@@ -3606,6 +3837,7 @@
         const row = rowByDoc(btn.dataset.restore);
         if (!row) return;
         restoreRow(row);
+        logActivity("restore", "استرجعتَ " + rowLabel(row) + " إلى السجل.", { toastKind: "ok" });
         clearAllFilters();
         saveToLocalStorage();
         saveHistory();
@@ -3620,6 +3852,7 @@
         if (!list.length) return;
         showConfirm("استرجاع الكل", "سيتم إرجاع " + list.length + " وصلاً إلى السجل. متابعة؟", function() {
           list.forEach(restoreRow);
+          logActivity("restore", "استرجعتَ " + list.length + " وصلاً من سلة المحذوفات.", { toastKind: "ok" });
           clearAllFilters();
           saveToLocalStorage();
           saveHistory();
@@ -3642,12 +3875,53 @@
           "سيتم مسح " + list.length +
           " وصلاً نهائياً من هذا الجهاز ومن السحابة، ولا يمكن استرجاعها بعد ذلك. هل أنت متأكد؟",
           function() {
+            logActivity("purge", "مسحتَ نهائياً " + list.length + " وصلاً: " +
+              list.slice(0, 5).map(rowLabel).join(" • ") + (list.length > 5 ? " …" : ""),
+              { toastKind: "danger", ms: 10000 });
             permanentlyDelete(list.map(r => r.docId));
             render();
             saveToLocalStorage();
             saveHistory();
             renderTrashList();
           }, true);
+      });
+
+      /* ==================== سجل العمليات ==================== */
+      function renderActivityLog() {
+        const body = document.getElementById("logListBody");
+        if (!body) return;
+        if (!activityLog.length) {
+          body.innerHTML =
+            `<p style="text-align:center; padding:26px 10px; color:var(--muted); font-weight:600;">لا توجد عمليات مسجّلة بعد.</p>`;
+          return;
+        }
+        const icons = { delete: "🗑️", "remote-delete": "📡", "undo-delete": "⏪", restore: "↩️",
+          purge: "🔥", import: "📂" };
+        let html =
+          `<div style="max-height:56vh; overflow:auto; border:1.5px solid var(--gold); border-radius:10px;">` +
+          `<table class="aux-table" style="border-collapse:collapse;"><thead><tr style="background:var(--parchment-2);">` +
+          `<th style="padding:8px;">الوقت</th><th style="padding:8px;">العملية</th><th style="padding:8px;">المصدر</th></tr></thead><tbody>`;
+        activityLog.slice().reverse().forEach(function(e) {
+          const d = new Date(e.at);
+          const when = formatDateDMY(d.getFullYear() + "-" + twoDigits(d.getMonth() + 1) + "-" +
+              twoDigits(d.getDate())) + " • " + twoDigits(d.getHours()) + ":" + twoDigits(d.getMinutes());
+          html += `<tr style="border-top:1px solid var(--gold-light);">` +
+            `<td style="padding:7px; white-space:nowrap;" class="num-font">${esc(when)}</td>` +
+            `<td style="padding:7px; text-align:right;">${icons[e.kind]||"•"} ${esc(e.text)}</td>` +
+            `<td style="padding:7px; font-size:0.78rem; color:var(--muted);">${e.remote?"جهاز آخر":"هذا الجهاز"}</td>` +
+            `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        body.innerHTML = html;
+      }
+
+      document.getElementById("logBtn").addEventListener("click", function() {
+        renderActivityLog();
+        this.classList.remove("btn-accent");
+        document.getElementById("logModal").classList.add("active");
+      });
+      document.getElementById("closeLogModalBtn").addEventListener("click", function() {
+        document.getElementById("logModal").classList.remove("active");
       });
 
       /* ==================== النسخ الاحتياطية المحلية ==================== */
@@ -3992,6 +4266,9 @@
               ghost.deletedAt = Date.now();
               ghost.selected = false;
               changed = true;
+              logActivity("remote-delete",
+                "⚠️ حُذف " + rowLabel(ghost) + " من جهاز آخر — موجود في سلة المحذوفات ويمكنك استرجاعه.",
+                { remote: true, toastKind: "danger", ms: 12000 });
             }
             delete CLOUD.lastPushed[docId];
             return;
@@ -4028,6 +4305,12 @@
             merged.id = 0;
             rows.push(merged);
             changed = true;
+          }
+          /* وصل وصل من جهاز آخر وهو محذوف أصلاً: نُعلم المستخدم أنه في السلة */
+          if (idx === -1 && merged.deleted) {
+            logActivity("remote-delete",
+              "وصل محذوف من جهاز آخر ظهر في سلة المحذوفات: " + rowLabel(merged),
+              { remote: true, silent: true });
           }
           CLOUD.lastPushed[docId] = payloadSignature(merged);
         });
@@ -4427,6 +4710,7 @@
       });
 
       updateNetworkStatus();
+      loadActivityLog();
       const loaded = loadFromLocalStorage();
       if (!loaded || liveRows().length === 0) { rows.push(newRow()); }
       ensureRowIdentity();
