@@ -1310,25 +1310,18 @@
       font-size: 0.86rem !important;
     }
     /* ===== خانة رقم الوصل في الجدول ===== */
-    .seq-input {
-      width: 100%;
+    /* رقم الوصل: يُمنح تلقائياً ولا يقبل التعديل، فيُعرض كنص لا كحقل إدخال */
+    .seq-cell {
       text-align: center;
-      font-weight: 700 !important;
-      border: 1.5px solid transparent;
-      border-radius: 6px;
-      background: #FFFDF7;
+      font-weight: 800 !important;
       color: var(--navy);
-      padding: 4px 2px;
-      outline: none;
+      background: #FFFDF7;
+      user-select: text;
     }
-    .seq-input:focus {
-      border-color: var(--navy);
-      background: var(--white);
-    }
-    .seq-input.seq-dup {
-      background: var(--danger-bg);
+    .seq-cell.seq-dup {
+      background: var(--danger-bg) !important;
       color: var(--danger);
-      border-color: var(--danger);
+      box-shadow: inset 0 0 0 2px var(--danger);
     }
 
     /* ===== تنبيهات منبثقة: لا يحدث شيء مهم دون أن تراه ===== */
@@ -1569,7 +1562,7 @@
         <table>
           <thead>
             <tr>
-              <th>التسلسل <span class="unit">رقم الوصل</span></th>
+              <th>التسلسل <span class="unit">تلقائي</span></th>
               <th style="min-width:96px;">
                 <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
                   <input type="checkbox" id="selectAllCheckbox" title="تحديد كل الوصولات المعروضة للطباعة">
@@ -1624,7 +1617,7 @@
       <div class="summary-item"><span>محصلة سعر الطن</span><span id="totalTonPrice" class="num-font">0</span></div>
       <div style="flex-basis:100%; display:flex; gap:18px; flex-wrap:wrap; justify-content:center; font-size:0.8rem; font-weight:600; color:var(--muted); margin-top:6px;">
         <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#d4edda; border:1px solid #b7d8bf; vertical-align:-1px;"></span> مكتملة وبها سعر</span>
-        <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#f5c6aa; border:1px solid #e0a97f; vertical-align:-1px;"></span> مكتملة بدون سعر</span>
+        <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#f5c6aa; border:1px solid #e0a97f; vertical-align:-1px;"></span> مكتملة وينقصها السعر أو أحد الوزنين</span>
         <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#bcd9f5; border:1px solid #8ab4e0; vertical-align:-1px;"></span> مكتملة — خارجي</span>
         <span><span style="display:inline-block; width:12px; height:12px; border-radius:3px; background:#fdecea; border:1px solid #e6a79e; vertical-align:-1px;"></span> الوزن الفارغ أكبر من الكلي (خطأ إدخال)</span>
         <span>⌨️ Ctrl+Enter للانتقال بين الحقول • Ctrl+Z تراجع • Ctrl+Y إعادة</span>
@@ -2138,15 +2131,14 @@
       /* تحديث تلوين أرقام الوصولات المكررة دون إعادة بناء الجدول */
       function refreshSeqDupHighlight() {
         const dup = duplicateSeqSet();
-        document.querySelectorAll('#tableBody input[data-field="seq"]').forEach(function(input) {
-          const tr = input.closest("tr");
+        document.querySelectorAll("#tableBody [data-seq-cell]").forEach(function(cell) {
+          const tr = cell.closest("tr");
           const r = tr && rowByDoc(tr.dataset.doc);
           if (!r) return;
           const isDup = !!dup[(r.date || "") + "#" + (Number(r.seq) || 0)];
-          input.classList.toggle("seq-dup", isDup);
-          input.title = isDup ?
-            "تنبيه: رقم وصل مكرر في نفس التاريخ — عدّله يدوياً" :
-            "رقم الوصل الثابت — لا يتغير إلا إذا عدّلته بنفسك";
+          cell.classList.toggle("seq-dup", isDup);
+          cell.title = isDup ? "تنبيه: رقم وصل مكرر في نفس التاريخ" :
+            "رقم الوصل — يُمنح تلقائياً ولا يتغير";
         });
       }
 
@@ -2546,11 +2538,14 @@
 
       function getRowColorClass(row) {
         if (!row.completed) return "";
-        /* "خارجي" له لونه الخاص ويسبق قاعدة وجود السعر */
+        /* "خارجي" له لونه الخاص ولا تنطبق عليه قواعد النقص */
         if ((row.location || "").indexOf("خارجي") > -1) return "row-completed-blue";
         const priceVal = parseNum(row.price);
         const hasPrice = (priceVal !== null && priceVal > 0);
-        return hasPrice ? "row-completed-green" : "row-completed-orange";
+        /* الوزن الكلي أو الفارغ الناقص = وصل غير مكتمل البيانات، يُعامل
+           معاملة الوصل بدون سعر تماماً (برتقالي). */
+        const hasWeights = (parseNum(row.gross) !== null && parseNum(row.tare) !== null);
+        return (hasPrice && hasWeights) ? "row-completed-green" : "row-completed-orange";
       }
 
       /* يضبط لون الاكتمال على الصف دون المساس بتنبيه الوزن السالب */
@@ -2601,7 +2596,7 @@
       }
 
       function setRowInputsDisabled(tr, disabled) {
-        const excludeFields = ['farmer', 'selected', 'farmer-readonly', 'seq'];
+        const excludeFields = ['farmer', 'selected', 'farmer-readonly'];
         const inputs = tr.querySelectorAll('input:not([type="hidden"]), select');
         inputs.forEach(input => {
           const field = input.dataset.field;
@@ -2633,7 +2628,7 @@
             const rowColorClass = getRowColorClass(r);
             const farmerFilled = rowIsEditable(r);
             const dupSeq = !!dupSeqs[(r.date || "") + "#" + (Number(r.seq) || 0)];
-            html += `<tr data-id="${r.id}" data-doc="${esc(r.docId)}" class="${rowColorClass}${net!==null&&net<0?" row-invalid-weight":""}"><td><input type="text" inputmode="numeric" class="num-font seq-input${dupSeq?" seq-dup":""}" data-field="seq" placeholder="الرقم" value="${esc(r.seq)}" title="${dupSeq?"تنبيه: رقم وصل مكرر في نفس التاريخ — عدّله يدوياً":"رقم الوصل الثابت — لا يتغير إلا إذا عدّلته بنفسك"}"></td><td><input type="checkbox" data-field="selected" ${r.selected?"checked":""}></td><td class="col-farmer"><input type="text" data-field="farmer" value="${esc(r.farmer)}" placeholder="اسم الفلاح الثلاثي"></td><td><input type="text" inputmode="decimal" class="num-font" data-field="gross" value="${esc(r.gross)}" placeholder="الوزن الكلي"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="decimal" class="num-font" data-field="tare" value="${esc(r.tare)}" placeholder="الوزن الفارغ"${farmerFilled ? '' : ' disabled'}></td><td class="net-cell num-font${net!==null?" has-value":""}${net!==null&&net<0?" is-negative":""}">${net!==null?fmt(net):"—"}</td><td><div class="price-cell-wrapper"><button type="button" class="eye-toggle-btn${r.hidePrice?" is-hidden":""}" data-action="toggle-price">${r.hidePrice?ICON_EYE_CLOSED:ICON_EYE_OPEN}</button><input type="${r.hidePrice?"password":"text"}" inputmode="decimal" class="num-font" data-field="price" value="${esc(r.price)}" placeholder="سعر الكيلو"${farmerFilled ? '' : ' disabled'}></div></td><td class="subtotal-cell num-font${sub!==null?" has-value":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(sub!==null?fmt(sub):"—")}</td><td><input type="text" class="discount-input num-font" inputmode="decimal" data-field="discount" value="${esc(r.discount)}" placeholder="الخصم"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="driver" value="${esc(r.driver)}" placeholder="اسم السائق"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="numeric" class="num-font" data-field="crateCount" value="${esc(r.crateCount)}" placeholder="عدد الكبسات"${farmerFilled ? '' : ' disabled'}></td><td><select data-field="crateType" class="${r.crateType?"":"is-empty"}"${farmerFilled ? '' : ' disabled'}><option value="">نوع الكبس</option><option value="خيط" ${r.crateType==="خيط"?"selected":""}>خيط</option><option value="سيم" ${r.crateType==="سيم"?"selected":""}>سيم</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="cratePrice" value="${esc(r.cratePrice)}" placeholder="سعر الكبسة"${farmerFilled ? '' : ' disabled'}></td><td class="crate-total-cell num-font" style="font-weight:400; color:var(--navy);">${crateTot > 0 ? fmt(crateTot) : "—"}</td><td><select data-field="location" class="${r.location?"":"is-empty"}"${farmerFilled ? '' : ' disabled'}><option value="">مكان التخزين</option><option value="مخزن ابراهيم" ${r.location==="مخزن ابراهيم"?"selected":""}>مخزن ابراهيم</option><option value="مخزن بركات" ${r.location==="مخزن بركات"?"selected":""}>مخزن بركات</option><option value="مخزن أبو إبراهيم" ${r.location==="مخزن أبو إبراهيم"?"selected":""}>مخزن أبو إبراهيم</option><option value="ساحة" ${r.location==="ساحة"?"selected":""}>ساحة</option><option value="الجرش" ${r.location==="الجرش"?"selected":""}>الجرش</option><option value="خارجي" ${r.location==="خارجي"?"selected":""}>خارجي</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="receiptFee" value="${esc(r.receiptFee)}" placeholder="سعر الوصل"${farmerFilled ? '' : ' disabled'}></td><td class="amount-cell num-font${amt!==null?" has-value":""}${amt!==null&&amt<0?" is-negative":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(amt!==null?fmt(amt):"—")}</td><td><input type="date" class="num-font" data-field="date" value="${esc(rowDate)}"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="notes" value="${esc(r.notes)}" placeholder="ملاحظات"${farmerFilled ? '' : ' disabled'}></td><td><button type="button" class="status-toggle ${r.completed?"completed":"incomplete"}" data-action="toggle-status">${r.completed?"✔":"✖"}</button></td><td class="col-farmer-left"><input type="text" readonly data-field="farmer-readonly" value="${esc(r.farmer)}" style="background:transparent; border:none; text-align:right; font-weight:600; color:var(--navy); width:100%;" tabindex="-1"></td><td class="col-action"><button type="button" class="icon-btn" data-action="print" title="طباعة رسمية">${ICON_PRINT}</button></td><td class="col-action"><button type="button" class="icon-btn btn-thermal" data-action="thermal-print" title="طباعة حرارية 80mm">${ICON_THERMAL}</button></td><td class="col-action"><button type="button" class="icon-btn" data-action="duplicate" title="نسخ العملية">${ICON_COPY}</button></td><td class="col-action"><button type="button" class="icon-btn icon-btn-danger" data-action="delete" title="حذف">${ICON_DELETE}</button></td></tr>`;
+            html += `<tr data-id="${r.id}" data-doc="${esc(r.docId)}" class="${rowColorClass}${net!==null&&net<0?" row-invalid-weight":""}"><td class="seq-cell num-font${dupSeq?" seq-dup":""}" data-seq-cell title="${dupSeq?"تنبيه: رقم وصل مكرر في نفس التاريخ":"رقم الوصل — يُمنح تلقائياً ولا يتغير"}">${esc(r.seq)}</td><td><input type="checkbox" data-field="selected" ${r.selected?"checked":""}></td><td class="col-farmer"><input type="text" data-field="farmer" value="${esc(r.farmer)}" placeholder="اسم الفلاح الثلاثي"></td><td><input type="text" inputmode="decimal" class="num-font" data-field="gross" value="${esc(r.gross)}" placeholder="الوزن الكلي"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="decimal" class="num-font" data-field="tare" value="${esc(r.tare)}" placeholder="الوزن الفارغ"${farmerFilled ? '' : ' disabled'}></td><td class="net-cell num-font${net!==null?" has-value":""}${net!==null&&net<0?" is-negative":""}">${net!==null?fmt(net):"—"}</td><td><div class="price-cell-wrapper"><button type="button" class="eye-toggle-btn${r.hidePrice?" is-hidden":""}" data-action="toggle-price">${r.hidePrice?ICON_EYE_CLOSED:ICON_EYE_OPEN}</button><input type="${r.hidePrice?"password":"text"}" inputmode="decimal" class="num-font" data-field="price" value="${esc(r.price)}" placeholder="سعر الكيلو"${farmerFilled ? '' : ' disabled'}></div></td><td class="subtotal-cell num-font${sub!==null?" has-value":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(sub!==null?fmt(sub):"—")}</td><td><input type="text" class="discount-input num-font" inputmode="decimal" data-field="discount" value="${esc(r.discount)}" placeholder="الخصم"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="driver" value="${esc(r.driver)}" placeholder="اسم السائق"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" inputmode="numeric" class="num-font" data-field="crateCount" value="${esc(r.crateCount)}" placeholder="عدد الكبسات"${farmerFilled ? '' : ' disabled'}></td><td><select data-field="crateType" class="${r.crateType?"":"is-empty"}"${farmerFilled ? '' : ' disabled'}><option value="">نوع الكبس</option><option value="خيط" ${r.crateType==="خيط"?"selected":""}>خيط</option><option value="سيم" ${r.crateType==="سيم"?"selected":""}>سيم</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="cratePrice" value="${esc(r.cratePrice)}" placeholder="سعر الكبسة"${farmerFilled ? '' : ' disabled'}></td><td class="crate-total-cell num-font" style="font-weight:400; color:var(--navy);">${crateTot > 0 ? fmt(crateTot) : "—"}</td><td><select data-field="location" class="${r.location?"":"is-empty"}"${farmerFilled ? '' : ' disabled'}><option value="">مكان التخزين</option><option value="مخزن ابراهيم" ${r.location==="مخزن ابراهيم"?"selected":""}>مخزن ابراهيم</option><option value="مخزن بركات" ${r.location==="مخزن بركات"?"selected":""}>مخزن بركات</option><option value="مخزن أبو إبراهيم" ${r.location==="مخزن أبو إبراهيم"?"selected":""}>مخزن أبو إبراهيم</option><option value="ساحة" ${r.location==="ساحة"?"selected":""}>ساحة</option><option value="الجرش" ${r.location==="الجرش"?"selected":""}>الجرش</option><option value="خارجي" ${r.location==="خارجي"?"selected":""}>خارجي</option></select></td><td><input type="text" inputmode="decimal" class="num-font" data-field="receiptFee" value="${esc(r.receiptFee)}" placeholder="سعر الوصل"${farmerFilled ? '' : ' disabled'}></td><td class="amount-cell num-font${amt!==null?" has-value":""}${amt!==null&&amt<0?" is-negative":""}">${r.hidePrice?"<span class=\"masked-text\">***</span>":(amt!==null?fmt(amt):"—")}</td><td><input type="date" class="num-font" data-field="date" value="${esc(rowDate)}"${farmerFilled ? '' : ' disabled'}></td><td><input type="text" data-field="notes" value="${esc(r.notes)}" placeholder="ملاحظات"${farmerFilled ? '' : ' disabled'}></td><td><button type="button" class="status-toggle ${r.completed?"completed":"incomplete"}" data-action="toggle-status">${r.completed?"✔":"✖"}</button></td><td class="col-farmer-left"><input type="text" readonly data-field="farmer-readonly" value="${esc(r.farmer)}" style="background:transparent; border:none; text-align:right; font-weight:600; color:var(--navy); width:100%;" tabindex="-1"></td><td class="col-action"><button type="button" class="icon-btn" data-action="print" title="طباعة رسمية">${ICON_PRINT}</button></td><td class="col-action"><button type="button" class="icon-btn btn-thermal" data-action="thermal-print" title="طباعة حرارية 80mm">${ICON_THERMAL}</button></td><td class="col-action"><button type="button" class="icon-btn" data-action="duplicate" title="نسخ العملية">${ICON_COPY}</button></td><td class="col-action"><button type="button" class="icon-btn icon-btn-danger" data-action="delete" title="حذف">${ICON_DELETE}</button></td></tr>`;
           });
           tbody.innerHTML = html;
         }
@@ -2945,12 +2940,6 @@
           if (wasFilled !== isFilled) {
             setRowInputsDisabled(tr, !isFilled);
           }
-        } else if (field === "seq") {
-          /* رقم الوصل يُخزَّن رقماً صحيحاً. لا نعيد الترتيب أثناء الكتابة حتى
-             لا يقفز الصف من تحت المؤشّر — الترتيب يتم عند مغادرة الخانة. */
-          const cleaned = cleanNumericInput(e.target.value).replace(/\./g, "");
-          if (e.target.value !== cleaned) e.target.value = cleaned;
-          row.seq = Number(cleaned) || 0;
         } else if (field === "receiptFee") {
           let cleaned = cleanNumericInput(e.target.value);
           let numVal = parseFloat(cleaned);
@@ -3010,26 +2999,11 @@
         const row = rowByDoc(tr.dataset.doc);
         if (!row) return;
         const id = row.id;
-        if (field === "seq") {
-          /* رقم فارغ أو صفر غير مقبول: نعيد الرقم السابق بدل ترك الوصل بلا رقم */
-          const val = Number(cleanNumericInput(e.target.value).replace(/\./g, "")) || 0;
-          if (val <= 0) {
-            row.seq = nextSeqForDate(row.date);
-            toast("رقم الوصل لا يمكن أن يكون فارغاً — تم وضع الرقم التالي المتاح: " + row.seq, "warn");
-          } else {
-            row.seq = val;
-          }
-        } else {
-          row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        }
+        row[field] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
         /* تغيير التاريخ لا يغيّر رقم الوصل — الرقم ملك الوصل ولا يُعاد توليده */
         touchRow(row);
         saveToLocalStorage();
         const isSelect = e.target.tagName.toLowerCase() === "select";
-        /* تعديل رقم الوصل لا يعيد بناء الجدول: إعادة البناء كانت تنزع الحقل
-           الذي انتقل إليه المؤشّر للتو فتضيع الكتابة التالية (اسم الفلاح مثلاً).
-           نكتفي بتحديث تنبيه التكرار في مكانه، والترتيب يتحدّث في أول رسم لاحق. */
-        if (field === "seq") refreshSeqDupHighlight();
         const needsRender = isSelect || e.target.type === "checkbox" || e.target.type === "date";
         if (needsRender) {
           flushHistory();
@@ -3097,12 +3071,6 @@
         render();
         saveToLocalStorage();
         saveHistory();
-        const newTr = document.querySelector(`tr[data-doc="${r.docId}"]`);
-        if (newTr) {
-          newTr.scrollIntoView({ block: "center", behavior: "smooth" });
-          const firstInput = newTr.querySelector('input[data-field="farmer"]');
-          if (firstInput) firstInput.focus();
-        }
       });
 
       document.querySelectorAll(".filter-btn[data-filter]").forEach(btn => {
@@ -3231,7 +3199,7 @@
         const cratePriceStr = toArabicDigits(cratePrice !== null ? fmt(cratePrice) : "0");
         const crateTotalStr = toArabicDigits(fmt(crateTotal));
         const discountStr = toArabicDigits(discount !== null ? fmt(discount) : "0");
-        return `<div class="thermal-receipt"><div class="th-header"><svg viewBox="0 0 100 60" width="60" height="36"><circle cx="50" cy="42" r="13" fill="none" stroke="#000" stroke-width="2.5"/><line x1="50" y1="10" x2="50" y2="18" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="20" x2="34" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="72" y1="20" x2="66" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="42" x2="26" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="82" y1="42" x2="74" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg><div class="th-brand-name">ميزان الشمس</div><div class="th-brand-sub">لخدمات الوزن واستلام المحاصيل</div></div><div class="th-title">وصل استلام زراعي</div><div class="th-meta-row"><span>التاريخ: ${dateStr}</span><span>الوقت: ${timeStr}</span></div><div class="th-num-row">رقم الوصل: ${receiptNumStr} &nbsp;•&nbsp; الصف: ${seqStr}</div><div class="th-divider"></div><div class="th-row"><span class="th-label">اسم الفلاح:</span><span class="th-dots">${esc(row.farmer) || ""}</span></div><div class="th-row"><span class="th-label">اسم السائق:</span><span class="th-dots">${esc(row.driver) || ""}</span></div><div class="th-row"><span class="th-label">عدد الكبسات:</span><span class="th-dots">${crateCountStr}</span></div><div class="th-check-row"><span class="th-label">نوع الكبس:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${row.crateType==="سيم"?"✓":""}</span> سيم</span><span class="th-check-opt"><span class="th-box">${row.crateType==="خيط"?"✓":""}</span> خيط</span></span></div><div class="th-check-row"><span class="th-label">مكان التخزين:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${isStore?"✓":""}</span> مخزن${storeName?" ("+esc(storeName)+")":""}</span><span class="th-check-opt"><span class="th-box">${isYard?"✓":""}</span> ساحة</span></span></div><div class="th-row"><span class="th-label">سعر الكبسة:</span><span class="th-dots">${cratePriceStr} د.ع</span></div><div class="th-divider"></div><div class="th-weight-row"><span>الوزن الكلي <span class="th-en">(Gross)</span>:</span><span class="th-val">${grossStr} كجم</span></div><div class="th-weight-row"><span>الوزن الفارغ <span class="th-en">(Tare)</span>:</span><span class="th-val">${tareStr} كجم</span></div><div class="th-weight-row"><span>الوزن الصافي <span class="th-en">(Net)</span>:</span><span class="th-val">${netStr} كجم</span></div><div class="th-divider"></div><div class="th-price-row"><span>السعر للكيلو:</span><span>${priceStr} د.ع</span></div><div class="th-price-row"><span>سعر الطن:</span><span>${pricePerTonStr} د.ع</span></div><div class="th-price-row"><span>المبلغ قبل الخصم:</span><span>${subStr} د.ع</span></div><div class="th-price-row"><span>إجمالي سعر الكبسات:</span><span>- ${crateTotalStr} د.ع</span></div><div class="th-price-row"><span>الخصم:</span><span>- ${discountStr} د.ع</span></div><div class="th-price-row"><span>سعر الوصل:</span><span>- ${receiptFeeStr} د.ع</span></div><div class="th-total-box"><div class="th-total-label">المبلغ الصافي النهائي</div><div class="th-total-val">${finalAmtStr} د.ع</div></div>${row.notes?`<div class="th-notes-row"><span class="th-label">ملاحظات:</span><div class="th-dots">${esc(row.notes)}</div></div>`:""}<div class="th-divider"></div><div class="th-sign-block"><div class="th-sign-line"><span class="th-label">توقيع السائق:</span><span class="th-dots"></span></div><div class="th-sign-line"><span class="th-label">توقيع المستلم:</span><span class="th-dots"></span></div></div></div>`;
+        return `<div class="thermal-receipt"><div class="th-header"><svg viewBox="0 0 100 60" width="60" height="36"><circle cx="50" cy="42" r="13" fill="none" stroke="#000" stroke-width="2.5"/><line x1="50" y1="10" x2="50" y2="18" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="20" x2="34" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="72" y1="20" x2="66" y2="25" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="18" y1="42" x2="26" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/><line x1="82" y1="42" x2="74" y2="42" stroke="#000" stroke-width="2.5" stroke-linecap="round"/></svg><div class="th-brand-name">ميزان الشمس</div><div class="th-brand-sub">لخدمات الوزن واستلام المحاصيل</div></div><div class="th-title">وصل استلام زراعي</div><div class="th-meta-row"><span>التاريخ: ${dateStr}</span><span>الوقت: ${timeStr}</span></div><div class="th-num-row">رقم الوصل: ${receiptNumStr} &nbsp;•&nbsp; الصف: ${seqStr}</div><div class="th-divider"></div><div class="th-row"><span class="th-label">اسم الفلاح:</span><span class="th-dots">${esc(row.farmer) || ""}</span></div><div class="th-row"><span class="th-label">اسم السائق:</span><span class="th-dots">${esc(row.driver) || ""}</span></div><div class="th-row"><span class="th-label">عدد الكبسات:</span><span class="th-dots">${crateCountStr}</span></div><div class="th-check-row"><span class="th-label">نوع الكبس:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${row.crateType==="سيم"?"✓":""}</span> سيم</span><span class="th-check-opt"><span class="th-box">${row.crateType==="خيط"?"✓":""}</span> خيط</span></span></div><div class="th-check-row"><span class="th-label">مكان التخزين:</span><span class="th-check-opts"><span class="th-check-opt"><span class="th-box">${isStore?"✓":""}</span> مخزن${storeName?" ("+esc(storeName)+")":""}</span><span class="th-check-opt"><span class="th-box">${isYard?"✓":""}</span> ساحة</span></span></div><div class="th-row"><span class="th-label">سعر الكبسة:</span><span class="th-dots">${cratePriceStr} د.ع</span></div><div class="th-divider"></div><div class="th-weight-row"><span>الوزن الكلي <span class="th-en">(Gross)</span>:</span><span class="th-val">${grossStr} كجم</span></div><div class="th-weight-row"><span>الوزن الفارغ <span class="th-en">(Tare)</span>:</span><span class="th-val">${tareStr} كجم</span></div><div class="th-weight-row"><span>الوزن الصافي <span class="th-en">(Net)</span>:</span><span class="th-val">${netStr} كجم</span></div><div class="th-divider"></div><div class="th-price-row"><span>السعر للكيلو:</span><span>${priceStr} د.ع</span></div><div class="th-price-row"><span>سعر الطن:</span><span>${pricePerTonStr} د.ع</span></div><div class="th-price-row"><span>إجمالي سعر الكبسات:</span><span>- ${crateTotalStr} د.ع</span></div><div class="th-price-row"><span>الخصم:</span><span>- ${discountStr} د.ع</span></div><div class="th-price-row"><span>سعر الوصل:</span><span>- ${receiptFeeStr} د.ع</span></div><div class="th-total-box"><div class="th-total-label">المبلغ الصافي النهائي</div><div class="th-total-val">${finalAmtStr} د.ع</div></div>${row.notes?`<div class="th-notes-row"><span class="th-label">ملاحظات:</span><div class="th-dots">${esc(row.notes)}</div></div>`:""}<div class="th-divider"></div><div class="th-sign-block"><div class="th-sign-line"><span class="th-label">توقيع السائق:</span><span class="th-dots"></span></div><div class="th-sign-line"><span class="th-label">توقيع المستلم:</span><span class="th-dots"></span></div></div></div>`;
       }
 
       const THERMAL_PRINT_STYLES = `
@@ -3399,7 +3367,6 @@
           rcField("الوزن الصافي", net !== null ? fmt(net) : "",
             { unit: "كجم", icon: "KG", iconStyle: "font-size:0.7rem;font-weight:800;", color: "#2A7A4C" }) +
           rcField("السعر للكيلو", money(price), din("🪙")) +
-          rcField("المبلغ قبل الخصم", money(sub), din("🧮")) +
           `<div class="rc-field-row"><div class="rc-field-input-side"><div class="rc-checkboxes-group">` +
           `<div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="خيط"?"✓":""}</span><span>خيط</span></div>` +
           `<div class="rc-chk-item"><span class="rc-box-square">${row.crateType==="سيم"?"✓":""}</span><span>سيم</span></div>` +
