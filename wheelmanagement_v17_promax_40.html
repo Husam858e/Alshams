@@ -723,6 +723,17 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    ⑧ حراسة العناصر المفقودة في showToast/syncBar/showLoader.
    جديد  : تنبيه قبل الإغلاق وعمليات لم تُزامَن بعد ·
            مهلة متصاعدة بعد ٥ محاولات دخول خاطئة.
+
+   ══ v17.44 — الدفع الشامل والجامع ══
+   ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
+      يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
+      من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
+   ② 💵 الدفع الجامع للصرفيات ولأجور الأعمال — بنفس منطق
+      الشراء تماماً. محرّك الدفع الجامع صار واحداً للأقسام
+      الثلاثة بدل ثلاث نسخ متشابهة.
+   ③ ⚠️ إصلاح إتلاف: الدفع الجامع لأجور النقل كان يمحو وصل
+      الشراء القديم ذا الناقل الواحد — يذهب المبلغ النهائي
+      والصافي والوزن والحالة وسجل دفعات الفلاح كلها.
 ══════════════════════════════════════════════════════════════ */
 const FB_CONFIG={
   apiKey:"AIzaSyAY7ztbF8pWdGoK-iFum_Wc50oidO9r9MM",
@@ -6032,19 +6043,37 @@ function _applyBulkNaqlEntryPayment(entry,payAmount,note){
 
   if(type==='buy'){
     const {recId,entryId}=_parseNaqlMultiId(upd.id);
+    const rec=S.recs.find(x=>x.id===recId);
+    if(!rec)return;
+    let updRec;
     if(entryId){
-      const rec=S.recs.find(x=>x.id===recId);
-      if(!rec||!Array.isArray(rec.naqlList))return;
+      if(!Array.isArray(rec.naqlList))return;
       const newList=rec.naqlList.map(x=>x.id===entryId?{...x,naqlPayments:upd.naqlPayments,naqlPaidTotal:upd.naqlPaidTotal,naqlPaid:upd.naqlPaid,naqlPaidAt:upd.naqlPaidAt}:x);
-      const updRec={...rec,naqlList:newList};
-      const idx=S.recs.findIndex(x=>x.id===recId);
-      if(idx>=0)S.recs[idx]=updRec; else S.recs.unshift(updRec);
-      saveRec(updRec);
+      updRec={...rec,naqlList:newList};
     } else {
-      const idx=S.recs.findIndex(x=>x.id===recId);
-      if(idx>=0)S.recs[idx]=upd; else S.recs.unshift(upd);
-      saveRec(upd);
+      /* ══════════════════════════════════════════════════════
+         ⚠️ إتلاف وصل الشراء — v17.44
+         ──────────────────────────────────────────────────────
+         الوصل القديم بناقل واحد (بلا naqlList) تُمثّله
+         getNaqlEntries بكائن مُركَّب لا يحوي إلا حقول النقل.
+         وكان الكود هنا يحفظ ذلك الكائن مكان الوصل كاملاً:
+         S.recs[idx]=upd ثم saveRec(upd).
+         النتيجة أن دفع أجور النقل جامعاً كان يمحو الوصل —
+         يذهب المبلغ النهائي والصافي والوزن والحالة والمخزن
+         وسجل دفعات الفلاح كلها (قِسنا ٢١ حقلاً تصير ١٣).
+         الصحيح: ندمج حقول النقل في الوصل الأصلي ولا نستبدله.
+         (المسار الفردي في _saveNaqlUpdated كان سليماً لأنه
+          يقرأ الوصل كاملاً من _getNaqlRec.)
+      ══════════════════════════════════════════════════════ */
+      updRec={...rec,
+        naqlPayments:upd.naqlPayments,
+        naqlPaidTotal:upd.naqlPaidTotal,
+        naqlPaid:upd.naqlPaid,
+        naqlPaidAt:upd.naqlPaidAt};
     }
+    const idx=S.recs.findIndex(x=>x.id===recId);
+    if(idx>=0)S.recs[idx]=updRec; else S.recs.unshift(updRec);
+    saveRec(updRec);
   } else if(type==='sell'){
     const idx=SELL_RECS.findIndex(x=>x.id===upd.id);
     if(idx>=0)SELL_RECS[idx]=upd; else SELL_RECS.unshift(upd);
@@ -7354,7 +7383,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.43",
+    build:"17.44",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -7614,7 +7643,11 @@ function toolsGlobalSearch(){
   if(!box)return;
   const R=_toolsSearchData();
   const q=R.q;
-  if(!q){box.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">🔎 اكتب اسماً أو رقم لوحة أو ملاحظة للبحث في كل الأقسام</div>`;return;}
+  if(!q){
+    box.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">🔎 اكتب اسماً أو رقم لوحة أو ملاحظة للبحث في كل الأقسام</div>`;
+    renderGlobalPayPreview();     // v17.44 — لوحة الدفع الشامل تتبع البحث دائماً
+    return;
+  }
   let totalHits=R.totalHits,totalAmt=R.totalAmt,totalRem=R.totalRem;
   /* ══ v17.37 — بطاقة «حساب الناقل» ══
      حين يطابق البحث ناقلاً، هذا هو الرقم الذي يريده فعلاً:
@@ -7663,8 +7696,238 @@ function toolsGlobalSearch(){
       <span style="color:var(--paper-2)">المبالغ: <strong style="color:var(--wheat-hi)">${fIQD(totalAmt)}</strong></span>
       <span style="color:var(--paper-2)">المتبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
     </div>`:"");
+  renderGlobalPayPreview();       // v17.44 — لوحة الدفع الشامل تتبع البحث دائماً
 }
 function toolsSearchKey(e){if(e.key==="Enter")toolsGlobalSearch();}
+
+/* ══════════════════════════════════════════════════════
+   الدفع الشامل — تسديد ما يظهر في البحث الشامل — v17.44
+   ──────────────────────────────────────────────────────
+   البحث الشامل يجمع سجلات الشخص من كل الأقسام في شاشة
+   واحدة، لكن التسديد كان يتطلّب فتح كل قسم على حدة ودفع
+   وصولاته يدوياً. هنا يُدفع كل ما تراه أمامك بمبلغ واحد.
+
+   قواعد مقصودة:
+   ① يوزَّع من الأقدم إلى الأحدث عبر الأقسام كلها معاً —
+     لا قسماً بعد قسم — فالدَّين الأقدم يُسدَّد أولاً.
+   ② يحترم مدى التاريخ ونصّ البحث كما هما على الشاشة
+     بالضبط: ما لا يظهر لا يُدفع.
+   ③ لا تكرار: البحث يستعمل _UNIQ_DATASETS، ووصولات النقل
+     اليدوي محسوبة مرة واحدة ضمن «أجور النقل».
+   ④ أجور النقل لها مسار دفع مستقل (naqlPayments) ويُستعمل
+     كما هو، فلا تختلط أجرة الناقل بمبلغ وصل الفلاح.
+   ⑤ الأقسام غير القابلة للدفع مُستبعَدة عمداً: «العمال»
+     بيانات أساسية لا دَين، و«السلف» مال على العامل لا له،
+     و«حركات العمال» قيود حوافز وخصومات لا فواتير،
+     و«مخزن أربيل» بلا مبالغ. تبقى ظاهرة في البحث ولا تُدفع.
+══════════════════════════════════════════════════════ */
+const _GPAY={
+  buy :{save:r=>saveRec(r),     get:id=>(S.recs||[]).find(x=>x.id===id),     total:getRecTotal, paid:getPaidTotal, after:()=>{renderRecs();renderStats();renderWH();}},
+  sell:{save:r=>saveSellRec(r), get:id=>(SELL_RECS||[]).find(x=>x.id===id),  total:getRecTotal, paid:getPaidTotal, after:()=>{renderSellRecs();}},
+  dam :{save:r=>saveDamRec(r),  get:id=>(DAM_RECS||[]).find(x=>x.id===id),   total:getRecTotal, paid:getPaidTotal, after:()=>{renderDamRecs();}},
+  srf :{save:r=>saveSrfRec(r),  get:id=>(SRF_RECS||[]).find(x=>x.id===id),   total:getRecTotal, paid:getPaidTotal, after:()=>{renderSrfRecs();}},
+  wrk :{save:r=>saveWrkRec(r),  get:id=>(WRK_RECS||[]).find(x=>x.id===id),   total:getRecTotal, paid:getPaidTotal, after:()=>{renderWrkRecs();}},
+  /* الراتب مبلغه في finalNet لا في final/price/amount، فله قارئاه الخاصان */
+  sal :{save:r=>saveSalRec(r),  get:id=>(SAL_RECS||[]).find(x=>x.id===id),   total:r=>r.finalNet||0, after:()=>{renderSalRecs();},
+        paid:r=>(r.payments&&r.payments.length)
+                 ? r.payments.reduce((s,p)=>s+(p.amount||0),0)
+                 : (r.paid?(r.finalNet||0):0)},
+  naql:{naql:true, after:()=>{try{renderNaqlColl();renderNaqlRecs();}catch(e){}}},
+};
+
+/* يُرجع مدخل الدفع الحقيقي لسجل أجرة نقل مُشتقّ من _allNaqlFees */
+function _naqlEntryFromFee(f){
+  if(!f)return null;
+  if(f._kind==="buy"){
+    const {recId,entryId}=_parseNaqlMultiId(f.id);
+    const rec=(S.recs||[]).find(x=>x.id===recId); if(!rec)return null;
+    const en=getNaqlEntries(rec).find(e=>(e._entryId||null)===(entryId||null)); if(!en)return null;
+    return{type:"buy",damId:null,rRef:{...en,id:f.id,driver:rec.driver,plate:rec.plate,dk:rec.dk}};
+  }
+  if(f._kind==="sell"){
+    const r=(SELL_RECS||[]).find(x=>x.id===f.id);
+    return r?{type:"sell",damId:null,rRef:r}:null;
+  }
+  if(f._kind==="dam"){
+    const dam=(DAM_RECS||[]).find(x=>x.id===f._recId);
+    if(!dam||!dam.subRecs)return null;
+    const sub=Object.values(dam.subRecs).find(x=>x.id===f.id);
+    return sub?{type:"dam-sub",damId:dam.id,rRef:sub}:null;
+  }
+  if(f._kind==="mnl"){
+    const r=(MNL_RECS||[]).find(x=>x.id===f.id);
+    return r?{type:"mnl",damId:null,rRef:r}:null;
+  }
+  return null;
+}
+
+/* كل ما هو قابل للدفع ضمن نتائج البحث الحالية — من الأقدم للأحدث */
+function _globalPayItems(){
+  const R=_toolsSearchData();
+  const items=[];
+  R.groups.forEach(g=>{
+    const d=g.d, G=_GPAY[d.k];
+    if(!G)return;                                   // قسم غير قابل للدفع
+    g.hits.forEach(r=>{
+      const amt=G.naql?(r.naqlFee||0):G.total(r);
+      if(!amt||amt<=0)return;
+      const paid=G.naql?(r.naqlPaid||0):G.paid(r);
+      const rem=Math.max(0,amt-paid);
+      if(rem<=0)return;
+      const label=d.rowLabel?d.rowLabel(r)
+                 :(d.fields||[]).map(f=>r[f]).filter(Boolean).slice(0,3).join(" · ");
+      items.push({k:d.k,icon:d.icon,section:d.label,rec:r,
+                  dk:r.dk||"",amt,paid,rem,label:label||r.id||"—"});
+    });
+  });
+  items.sort((a,b)=>{
+    const A=a.dk||"￿", B=b.dk||"￿";       // بلا تاريخ ← آخر الصف
+    if(A!==B)return A.localeCompare(B);
+    return (a.rec.seq||0)-(b.rec.seq||0);
+  });
+  return{items,q:R.q};
+}
+
+/* ══════════════════════════════════════════════════════
+   تطبيق دفعة على عنصر واحد — يُرجع المبلغ المدفوع فعلياً
+   ──────────────────────────────────────────────────────
+   ⚠️ يقرأ السجل من مصدره الحيّ لحظة الدفع، ولا يعتمد على
+   النسخة الملتقطة في _globalPayItems.
+   السبب: الوصل الواحد قد يظهر مرتين في نفس التوزيع — مرة
+   بمبلغه ومرة بأجرة ناقله — وهما يُكتبان في حقلين مختلفين
+   من نفس السجل (payments و naqlPayments). لو انطلقنا من
+   اللقطة القديمة في المرة الثانية لكتبنا فوق ما سجّلته
+   المرة الأولى فتضيع إحدى الدفعتين بلا أثر.
+   ونُعيد حساب المتبقي هنا أيضاً للسبب نفسه.
+══════════════════════════════════════════════════════ */
+function _globalPayApply(item,budget,note){
+  const G=_GPAY[item.k]; if(!G)return 0;
+
+  if(G.naql){
+    const entry=_naqlEntryFromFee(item.rec);   // يقرأ الحيّ أصلاً
+    if(!entry)return 0;
+    const isSub=entry.type==="dam-sub";
+    const fee=isSub?(entry.rRef.trans||0):(entry.rRef.naqlFee||0);
+    const paid=isSub?getDamSubNaqlPaid(entry.rRef):getNaqlPaidTotal(entry.rRef);
+    const pay=Math.min(budget,Math.max(0,fee-paid));
+    if(pay<=0)return 0;
+    _applyBulkNaqlEntryPayment(entry,pay,note);
+    return pay;
+  }
+
+  const r=(G.get&&G.get(item.rec.id))||item.rec;
+  const pay=Math.min(budget,Math.max(0,G.total(r)-G.paid(r)));
+  if(pay<=0)return 0;
+  const payments=[...(r.payments||[]),
+    {amount:pay,at:nowStr(),by:S.cu.name+" (دفع شامل)",note:note||null}];
+  const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
+  const fullyPaid=paidTotal>=G.total(r);
+  G.save({...r,payments,paidTotal,paid:fullyPaid,
+    paidAt:fullyPaid?(r.paidAt||nowStr()):null,
+    paidBy:fullyPaid?(r.paidBy||S.cu.name):null});
+  return pay;
+}
+
+function renderGlobalPayPreview(){
+  const el=document.getElementById("gPayPreview");
+  if(!el)return;
+  const {items,q}=_globalPayItems();
+  if(!q){
+    el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:16px;font-size:12px">🔎 ابحث أولاً — ثم يظهر هنا ما يمكن تسديده</div>`;
+    return;
+  }
+  if(!items.length){
+    el.innerHTML=`<div style="text-align:center;color:var(--settled);padding:16px;font-size:12px">✅ لا يوجد متبقٍّ في نتائج هذا البحث</div>`;
+    return;
+  }
+  const totalRem=items.reduce((s,x)=>s+x.rem,0);
+  // تلخيص لكل قسم
+  const bySec={};
+  items.forEach(x=>{
+    bySec[x.k]=bySec[x.k]||{icon:x.icon,section:x.section,n:0,rem:0};
+    bySec[x.k].n++; bySec[x.k].rem+=x.rem;
+  });
+  const secRows=Object.values(bySec).map(s=>
+    `<span style="background:var(--ink-100);border:1px solid var(--rule);border-radius:7px;padding:3px 7px;font-size:10px;color:var(--paper-2)">
+       ${s.icon} ${esc(s.section)}: <strong style="color:var(--wheat-hi)">${AR(s.n)}</strong> · ${fIQD(s.rem)}</span>`).join("");
+  const rows=items.slice(0,40).map((x,i)=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 9px;border-bottom:1px solid var(--rule);font-size:11px">
+      <span style="color:var(--paper-2);flex:1;min-width:0">${AR(i+1)}. ${x.icon} 📅 ${tAr(x.dk||"—")} — ${esc(x.label)}${x.paid>0?' <span style="color:var(--wheat)">| جزئي</span>':''}</span>
+      <span style="color:var(--wheat-hi);font-weight:700;white-space:nowrap">${fIQD(x.rem)}</span>
+    </div>`).join("");
+  el.innerHTML=`
+    <div style="background:var(--ink-200);border-radius:9px;padding:9px 11px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12px;margin-bottom:6px">
+        <span style="color:var(--paper-2)">سجلات قابلة للتسديد: <strong style="color:var(--wheat-hi)">${AR(items.length)}</strong></span>
+        <span style="color:var(--paper-2)">إجمالي المتبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${secRows}</div>
+    </div>
+    <div style="max-height:240px;overflow-y:auto;background:var(--ink-100);border-radius:9px;border:1px solid var(--rule)">${rows}
+      ${items.length>40?`<div style="padding:6px 9px;font-size:10px;color:var(--paper-3)">…و ${AR(items.length-40)} سجل آخر ضمن التوزيع</div>`:""}
+    </div>`;
+}
+
+/* يملأ الحقل بكامل المتبقي — الحالة الأكثر استعمالاً */
+function gPayFillAll(){
+  const {items}=_globalPayItems();
+  const totalRem=items.reduce((s,x)=>s+x.rem,0);
+  if(totalRem<=0){showToast("✅ لا يوجد متبقٍّ لتسديده");return;}
+  setPayAmt("gPayAmount",totalRem);
+  showToast("💰 المبلغ = كامل المتبقي "+fIQD(totalRem));
+}
+
+function execGlobalPay(){
+  const amount=payAmt("gPayAmount");
+  const note=(document.getElementById("gPayNote")?.value||"").trim();
+  const {items,q}=_globalPayItems();
+  if(!q){showToast("⚠ ابحث أولاً");return;}
+  if(!amount||amount<=0){showToast("⚠ أدخل مبلغاً صحيحاً");return;}
+  if(!items.length){showToast("⚠ لا يوجد متبقٍّ في نتائج هذا البحث");return;}
+  const totalRem=items.reduce((s,x)=>s+x.rem,0);
+  if(!confirm(`سيوزَّع ${Math.round(amount).toLocaleString("en")} د.ع على ${items.length} سجلاً `
+    +`من الأقدم إلى الأحدث (إجمالي المتبقي ${Math.round(totalRem).toLocaleString("en")} د.ع).\n\nهل تريد المتابعة؟`))return;
+
+  let pool=amount;
+  const results=[],touched=new Set();
+  for(const it of items){
+    if(pool<=0)break;
+    const paid=_globalPayApply(it,pool,note);
+    if(paid<=0)continue;
+    results.push({...it,paidNow:paid,fullyPaid:paid>=it.rem});   // rem محسوب قبل التوزيع
+    touched.add(it.k);
+    pool-=paid;
+  }
+  const totalPaid=amount-pool;
+  if(!results.length){showToast("⚠ لم يتم تسجيل أي دفعة");return;}
+
+  document.getElementById("gPayResult").innerHTML=`
+    <div style="background:var(--settled-wash);border:1px solid var(--settled);border-radius:10px;padding:11px;margin-top:8px">
+      <div style="font-size:12px;color:var(--settled);font-weight:700;margin-bottom:7px">✅ تم التسديد على ${AR(results.length)} سجل في ${AR(touched.size)} قسم</div>
+      <div style="max-height:220px;overflow-y:auto">
+      ${results.map(r=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px dashed var(--settled-rule)">
+        <span style="color:var(--paper-2);flex:1;min-width:0">${r.icon} 📅 ${tAr(r.dk||"—")} — ${esc(r.label)}</span>
+        <span style="color:var(--settled);font-weight:700;white-space:nowrap">${fIQD(r.paidNow)}${r.fullyPaid?' ✅':' 💰'}</span>
+      </div>`).join("")}
+      </div>
+      <div style="margin-top:7px;font-size:13px;color:var(--wheat-hi);font-weight:700">إجمالي المدفوع: ${fIQD(totalPaid)}</div>
+      ${pool>0?`<div style="margin-top:4px;font-size:11px;color:var(--owing)">⚠ متبقٍّ من المبلغ المُدخل لم يُستعمل (سُدِّد كل ما ظهر في البحث): ${fIQD(pool)}</div>`:""}
+    </div>`;
+  const a=document.getElementById("gPayAmount");if(a)a.value="";
+  const n=document.getElementById("gPayNote");if(n)n.value="";
+  // حدّث الأقسام المتأثّرة ثم أعِد البحث فيظهر المتبقي الجديد
+  touched.forEach(k=>{try{_GPAY[k].after&&_GPAY[k].after();}catch(e){}});
+  toolsGlobalSearch();
+  renderGlobalPayPreview();
+  showToast("✅ تم الدفع الشامل — "+fIQD(totalPaid));
+}
+
+function clrGlobalPay(){
+  ["gPayAmount","gPayNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  const r=document.getElementById("gPayResult");if(r)r.innerHTML="";
+  renderGlobalPayPreview();
+}
+
 /* v17.37 — ينتقل إلى تبويب «حساب النقال» ويملأ بحثه بنفس الاسم،
    فيرى كشفه الكامل مع أزرار الدفع بدل تجميع الأرقام يدوياً. */
 function openNaqlAcctFrom(q){
@@ -8768,7 +9031,9 @@ function sT(id,btn){
   document.getElementById("tc-"+id).classList.add("active");
   if(id==="recs")renderRecs();
   if(id==="buy-cust"){renderCustTab('buy');}
-  if(id==="buy-bulkpay"){renderBulkPayPreview();}
+  if(id==="buy-bulkpay"){renderBulkPayPreview("buy");}
+  if(id==="srf-bulkpay"){renderBulkPayPreview("srf");}
+  if(id==="wrk-bulkpay"){renderBulkPayPreview("wrk");}
   if(id==="st")renderStats();
   if(id==="wh")renderWH();
   if(id==="rpt")renderRpt();
@@ -10424,22 +10689,74 @@ function isFullyPaid(r){
   return getPaidTotal(r)>=tot;
 }
 
-/* ════════════════════════════════════════════
-   الدفع الجامع — توزيع مبلغ واحد على وصولات فلاح
-   من الأقدم إلى الأحدث حتى نفاد المبلغ
-════════════════════════════════════════════ */
-let _bulkPayName='';
+/* ══════════════════════════════════════════════════════
+   الدفع الجامع — محرّك واحد لكل الأقسام — v17.44
+   ──────────────────────────────────────────────────────
+   يوزّع مبلغاً واحداً على سجلات شخص واحد غير المسدَّدة،
+   من الأقدم إلى الأحدث حتى نفاد المبلغ.
+   كان مكتوباً للشراء وحده؛ صار مُعرَّفاً بجدول _BULK فيعمل
+   للشراء والصرفيات وأجور الأعمال بنفس السلوك والمنطق —
+   وإضافة قسم جديد لاحقاً تعني سطراً في الجدول لا نسخة
+   ثالثة من الدالة.
+   ⚠️ السلوك للشراء لم يتغيّر إطلاقاً: نفس الفلترة
+   (الموزونة فقط) ونفس الترتيب ونفس نص الدفعة.
+══════════════════════════════════════════════════════ */
+const _BULK={
+  buy:{
+    label:"الفلاح", ph:"مثال: علاء حسين", color:"var(--wheat)",
+    field:"driver",
+    recs:()=>S.recs||[],
+    filter:r=>r.status==="weighed",       // الشراء: الموزونة فقط
+    save:r=>saveRec(r),
+    tag:"(دفع جامع)",
+    rowLabel:r=>"🚛 "+(r.plate||"—"),
+    empty:"✅ لا توجد وصولات غير مسدَّدة لـ",
+    hint:"وصولاته",
+    after:()=>{try{renderRecs();renderStats();renderWH();}catch(e){}},
+  },
+  srf:{
+    label:"المستفيد", ph:"مثال: أبو محمد", color:"var(--pending)",
+    field:"recv",
+    recs:()=>SRF_RECS||[],
+    filter:()=>true,
+    save:r=>saveSrfRec(r),
+    tag:"(دفع جامع صرفيات)",
+    rowLabel:r=>"🧾 "+(r.purp||"—"),
+    empty:"✅ لا توجد صرفيات غير مسدَّدة لـ",
+    hint:"صرفياته",
+    after:()=>{try{renderSrfRecs();}catch(e){}},
+  },
+  wrk:{
+    label:"مقدّم الخدمة", ph:"مثال: ورشة الأمين", color:"var(--steel)",
+    field:"provider",
+    recs:()=>WRK_RECS||[],
+    filter:()=>true,
+    save:r=>saveWrkRec(r),
+    tag:"(دفع جامع أجور)",
+    rowLabel:r=>"🔧 "+(r.service||"—"),
+    empty:"✅ لا توجد أجور غير مسدَّدة لـ",
+    hint:"أجوره",
+    after:()=>{try{renderWrkRecs();}catch(e){}},
+  },
+};
+/* معرّفات الحقول في الصفحة — مشتقّة من اسم القسم */
+const _bulkId=(sec,part)=>(sec==="buy"?"bulkPay":sec+"BulkPay")+part;
+const _bulkName={buy:"",srf:"",wrk:""};
 
-function bulkPaySearch(){
-  _bulkPayName=(document.getElementById('bulkPayName')?.value||'').trim();
-  document.getElementById('bulkPayResult').innerHTML='';
-  renderBulkPayPreview();
+function bulkPaySearch(sec){
+  sec=sec||"buy";
+  _bulkName[sec]=(document.getElementById(_bulkId(sec,"Name"))?.value||"").trim();
+  const res=document.getElementById(_bulkId(sec,"Result"));
+  if(res)res.innerHTML="";
+  renderBulkPayPreview(sec);
 }
 
-/* وصولات الفلاح غير المسددة بالكامل، مرتبة من الأقدم إلى الأحدث */
-function _getBulkPayRecs(name){
-  if(!name)return[];
-  return (S.recs||[]).filter(r=>r.status==="weighed"&&smartMatch(r.driver,name)&&!isFullyPaid(r))
+/* سجلات الشخص غير المسدَّدة بالكامل، من الأقدم إلى الأحدث */
+function _getBulkPayRecs(name,sec){
+  sec=sec||"buy";
+  const C=_BULK[sec]; if(!C||!name)return[];
+  return C.recs()
+    .filter(r=>C.filter(r)&&smartMatch(r[C.field],name)&&!isFullyPaid(r)&&getRecTotal(r)>0)
     .sort((a,b)=>{
       const dkA=a.dk||"",dkB=b.dk||"";
       if(dkA!==dkB)return dkA.localeCompare(dkB);
@@ -10447,40 +10764,44 @@ function _getBulkPayRecs(name){
     });
 }
 
-function renderBulkPayPreview(){
-  const el=document.getElementById('bulkPayPreview');
+function renderBulkPayPreview(sec){
+  sec=sec||"buy";
+  const C=_BULK[sec]; if(!C)return;
+  const el=document.getElementById(_bulkId(sec,"Preview"));
   if(!el)return;
-  const name=_bulkPayName;
+  const name=_bulkName[sec];
   if(!name){
-    el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">🔍 اكتب اسم الفلاح لعرض وصولاته غير المسددة</div>`;
+    el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">🔍 اكتب اسم ${esc(C.label)} لعرض ${esc(C.hint)} غير المسدَّدة</div>`;
     return;
   }
-  const recs=_getBulkPayRecs(name);
+  const recs=_getBulkPayRecs(name,sec);
   if(!recs.length){
-    el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">✅ لا توجد وصولات غير مسددة لـ "${esc(name)}"</div>`;
+    el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">${esc(C.empty)} "${esc(name)}"</div>`;
     return;
   }
   const totalRem=recs.reduce((s,r)=>s+getRemaining(r),0);
   const rows=recs.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-bottom:1px solid var(--rule);font-size:11px">
-    <span style="color:var(--paper-2)">${AR(i+1)}. 📅 ${tAr(r.dk)} — 🚛 ${esc(r.plate)}${getPaidTotal(r)>0?' | 💰 جزئي':''}</span>
+    <span style="color:var(--paper-2)">${AR(i+1)}. 📅 ${tAr(r.dk)} — ${esc(C.rowLabel(r))}${getPaidTotal(r)>0?' | 💰 جزئي':''}</span>
     <span style="color:var(--wheat-hi);font-weight:700">${fIQD(getRemaining(r))}</span>
   </div>`).join("");
   el.innerHTML=`
     <div style="background:var(--ink-200);border-radius:9px;padding:9px 11px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12px">
-      <span style="color:var(--paper-2)">عدد الوصولات: <strong style="color:var(--wheat-hi)">${AR(recs.length)}</strong></span>
+      <span style="color:var(--paper-2)">عدد السجلات: <strong style="color:var(--wheat-hi)">${AR(recs.length)}</strong></span>
       <span style="color:var(--paper-2)">إجمالي المتبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
     </div>
     <div style="max-height:260px;overflow-y:auto;background:var(--ink-100);border-radius:9px;border:1px solid var(--rule)">${rows}</div>`;
 }
 
-function execBulkPay(){
-  const name=_bulkPayName||(document.getElementById('bulkPayName')?.value||'').trim();
-  const amount=payAmt("bulkPayAmount");
-  const note=(document.getElementById('bulkPayNote')?.value||'').trim();
-  if(!name){showToast('⚠ أدخل اسم الفلاح');return;}
-  if(!amount||amount<=0){showToast('⚠ أدخل مبلغاً صحيحاً');return;}
-  const recs=_getBulkPayRecs(name);
-  if(!recs.length){showToast('⚠ لا توجد وصولات غير مسددة لهذا الفلاح');return;}
+function execBulkPay(sec){
+  sec=sec||"buy";
+  const C=_BULK[sec]; if(!C)return;
+  const name=_bulkName[sec]||(document.getElementById(_bulkId(sec,"Name"))?.value||"").trim();
+  const amount=payAmt(_bulkId(sec,"Amount"));
+  const note=(document.getElementById(_bulkId(sec,"Note"))?.value||"").trim();
+  if(!name){showToast("⚠ أدخل اسم "+C.label);return;}
+  if(!amount||amount<=0){showToast("⚠ أدخل مبلغاً صحيحاً");return;}
+  const recs=_getBulkPayRecs(name,sec);
+  if(!recs.length){showToast("⚠ لا توجد سجلات غير مسدَّدة لهذا الاسم");return;}
   let pool=amount;
   const results=[];
   for(const r of recs){
@@ -10488,46 +10809,45 @@ function execBulkPay(){
     const rem=getRemaining(r);
     if(rem<=0)continue;
     const pay=Math.min(pool,rem);
-    const payments=[...(r.payments||[]),{amount:pay,at:nowStr(),by:S.cu.name+" (دفع جامع)",note:note||null}];
+    const payments=[...(r.payments||[]),{amount:pay,at:nowStr(),by:S.cu.name+" "+C.tag,note:note||null}];
     const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
     const tot=getRecTotal(r);
     const fullyPaid=paidTotal>=tot;
-    const upd={...r,payments,paidTotal,paid:fullyPaid,
+    C.save({...r,payments,paidTotal,paid:fullyPaid,
       paidAt:fullyPaid?(r.paidAt||nowStr()):null,
-      paidBy:fullyPaid?(r.paidBy||S.cu.name):null};
-    saveRec(upd);
-    results.push({plate:r.plate,dk:r.dk,paid:pay,fullyPaid});
+      paidBy:fullyPaid?(r.paidBy||S.cu.name):null});
+    results.push({label:C.rowLabel(r),dk:r.dk,paid:pay,fullyPaid});
     pool-=pay;
   }
   const totalPaid=amount-pool;
-  if(!results.length){showToast('⚠ لم يتم تسجيل أي دفعة');return;}
+  if(!results.length){showToast("⚠ لم يتم تسجيل أي دفعة");return;}
   const summary=`<div style="background:var(--settled-wash);border:1px solid var(--settled);border-radius:10px;padding:11px;margin-top:8px">
-    <div style="font-size:12px;color:var(--settled);font-weight:700;margin-bottom:7px">✅ تم توزيع الدفعة على ${AR(results.length)} وصل</div>
+    <div style="font-size:12px;color:var(--settled);font-weight:700;margin-bottom:7px">✅ تم توزيع الدفعة على ${AR(results.length)} سجل</div>
     <div style="max-height:200px;overflow-y:auto">
-    ${results.map(r=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px dashed var(--settled-wash)">
-      <span style="color:var(--paper-2)">📅 ${tAr(r.dk)} — 🚛 ${esc(r.plate)}</span>
+    ${results.map(r=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px dashed var(--settled-rule)">
+      <span style="color:var(--paper-2)">📅 ${tAr(r.dk)} — ${esc(r.label)}</span>
       <span style="color:var(--settled);font-weight:700">${fIQD(r.paid)}${r.fullyPaid?' ✅ مكتمل':' 💰 جزئي'}</span>
     </div>`).join("")}
     </div>
     <div style="margin-top:7px;font-size:13px;color:var(--wheat-hi);font-weight:700">إجمالي المدفوع: ${fIQD(totalPaid)}</div>
-    ${pool>0?`<div style="margin-top:4px;font-size:11px;color:var(--owing)">⚠ متبقي من المبلغ المُدخل لم يُستخدم (لا توجد وصولات أخرى لهذا الفلاح): ${fIQD(pool)}</div>`:""}
+    ${pool>0?`<div style="margin-top:4px;font-size:11px;color:var(--owing)">⚠ متبقٍّ من المبلغ المُدخل لم يُستعمل (لا توجد سجلات أخرى لهذا الاسم): ${fIQD(pool)}</div>`:""}
   </div>`;
-  document.getElementById('bulkPayResult').innerHTML=summary;
-  document.getElementById('bulkPayAmount').value="";
-  const noteEl=document.getElementById('bulkPayNote');if(noteEl)noteEl.value="";
-  renderBulkPayPreview();
-  renderRecs();renderStats();renderWH();
-  showToast('✅ تم الدفع الجامع — '+fIQD(totalPaid));
+  const res=document.getElementById(_bulkId(sec,"Result"));
+  if(res)res.innerHTML=summary;
+  const amtEl=document.getElementById(_bulkId(sec,"Amount"));if(amtEl)amtEl.value="";
+  const noteEl=document.getElementById(_bulkId(sec,"Note"));if(noteEl)noteEl.value="";
+  renderBulkPayPreview(sec);
+  C.after();
+  showToast("✅ تم الدفع الجامع — "+fIQD(totalPaid));
 }
 
-function clrBulkPay(){
-  const n=document.getElementById('bulkPayName');if(n)n.value="";
-  const a=document.getElementById('bulkPayAmount');if(a)a.value="";
-  const nt=document.getElementById('bulkPayNote');if(nt)nt.value="";
-  _bulkPayName="";
-  const p=document.getElementById('bulkPayPreview');if(p)p.innerHTML="";
-  const r=document.getElementById('bulkPayResult');if(r)r.innerHTML="";
+function clrBulkPay(sec){
+  sec=sec||"buy";
+  ["Name","Amount","Note"].forEach(k=>{const e=document.getElementById(_bulkId(sec,k));if(e)e.value="";});
+  ["Preview","Result"].forEach(k=>{const e=document.getElementById(_bulkId(sec,k));if(e)e.innerHTML="";});
+  _bulkName[sec]="";
 }
+
 
 /* ── قسم الدفعات في الوصل المطبوع ── */
 function buildPaymentsSection(r){
@@ -13352,10 +13672,12 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" id="srfRecsTabBtn" onclick="sT('srf-recs',this)">📋 سجل الصرفيات</button>
     <button class="tbb" onclick="sT('srf-coll',this)">💼 محصلة الصرفيات</button>
     <button class="tbb" onclick="sT('srf-cust',this)">🔍 زبون</button>
+    <button class="tbb" onclick="sT('srf-bulkpay',this)">💵 دفع جامع</button>
     <button class="tbb grp" onclick="sT('wrk-new',this)">🔧 أجر عمل جديد</button>
     <button class="tbb" id="wrkRecsTabBtn" onclick="sT('wrk-recs',this)">📋 سجل الأجور</button>
     <button class="tbb" onclick="sT('wrk-coll',this)">💼 محصلة الأجور</button>
     <button class="tbb" onclick="sT('wrk-cust',this)">🔍 زبون</button>
+    <button class="tbb" onclick="sT('wrk-bulkpay',this)">💵 دفع جامع</button>
     <button class="tbb grp" onclick="sT('sal-emps',this)">👷 العمال</button>
     <button class="tbb" onclick="sT('sal-recs',this)">📋 سجل الرواتب</button>
     <button class="tbb" onclick="sT('sal-coll',this)">💼 محصلة الرواتب</button>
@@ -14158,6 +14480,62 @@ document.addEventListener("keydown", function(e){
         <button class="btn bgh" onclick="clrBulkPay()">× مسح</button>
       </div>
       <div id="bulkPayResult"></div>
+    </div>
+  </div>
+
+  <!-- ══ الدفع الجامع — الصرفيات ══ -->
+  <div class="tc" id="tc-srf-bulkpay">
+    <div class="cd">
+      <div class="cdt" style="color:var(--pending)">🧾 الدفع الجامع — تسديد دفعة واحدة للمستفيد</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:12px">أدخل اسم المستفيد والمبلغ المدفوع، وسيتم توزيعه تلقائياً على صرفياته غير المسدَّدة بدءاً من <strong style="color:var(--wheat-hi)">الأقدم</strong> ثم الأحدث، حتى نفاد المبلغ.</p>
+      <div class="fg" style="margin-bottom:6px">
+        <div class="fi-g">
+          <label class="fl">اسم المستفيد *</label>
+          <input class="fi" id="srfBulkPayName" type="text" placeholder="مثال: أبو محمد" oninput="bulkPaySearch('srf')" style="border-color:var(--pending)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">المبلغ المدفوع (د.ع) *</label>
+          <input class="fi" id="srfBulkPayAmount" type="text" inputmode="numeric" autocomplete="off" placeholder="0" dir="ltr" style="text-align:right" oninput="fmtPayInput(this)" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">ملاحظة (اختياري)</label>
+          <input class="fi" id="srfBulkPayNote" type="text" placeholder="أي تفاصيل عن الدفعة" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+      </div>
+      <div id="srfBulkPayPreview" style="margin-bottom:11px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bfw" style="background:var(--pending);color:#fff;flex:1" onclick="execBulkPay('srf')">💵 تنفيذ الدفع الجامع</button>
+        <button class="btn bgh" onclick="clrBulkPay('srf')">× مسح</button>
+      </div>
+      <div id="srfBulkPayResult"></div>
+    </div>
+  </div>
+
+  <!-- ══ الدفع الجامع — أجور الأعمال ══ -->
+  <div class="tc" id="tc-wrk-bulkpay">
+    <div class="cd">
+      <div class="cdt" style="color:var(--steel)">🔧 الدفع الجامع — تسديد دفعة واحدة لمقدّم الخدمة</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:12px">أدخل اسم مقدّم الخدمة والمبلغ المدفوع، وسيتم توزيعه تلقائياً على أجوره غير المسدَّدة بدءاً من <strong style="color:var(--wheat-hi)">الأقدم</strong> ثم الأحدث، حتى نفاد المبلغ.</p>
+      <div class="fg" style="margin-bottom:6px">
+        <div class="fi-g">
+          <label class="fl">اسم مقدّم الخدمة *</label>
+          <input class="fi" id="wrkBulkPayName" type="text" placeholder="مثال: ورشة الأمين" oninput="bulkPaySearch('wrk')" style="border-color:var(--steel)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">المبلغ المدفوع (د.ع) *</label>
+          <input class="fi" id="wrkBulkPayAmount" type="text" inputmode="numeric" autocomplete="off" placeholder="0" dir="ltr" style="text-align:right" oninput="fmtPayInput(this)" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">ملاحظة (اختياري)</label>
+          <input class="fi" id="wrkBulkPayNote" type="text" placeholder="أي تفاصيل عن الدفعة" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+      </div>
+      <div id="wrkBulkPayPreview" style="margin-bottom:11px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bfw" style="background:var(--steel);color:#fff;flex:1" onclick="execBulkPay('wrk')">💵 تنفيذ الدفع الجامع</button>
+        <button class="btn bgh" onclick="clrBulkPay('wrk')">× مسح</button>
+      </div>
+      <div id="wrkBulkPayResult"></div>
     </div>
   </div>
 
@@ -15814,6 +16192,38 @@ document.addEventListener("keydown", function(e){
       <button class="btn bg" style="width:100%;justify-content:center;margin-bottom:9px"
         onclick="openToolsSearchPrint()">🖨️ طباعة نتائج البحث</button>
       <div id="toolsSearchRes"></div>
+
+      <!-- ══ الدفع الشامل — يسدّد ما ظهر في البحث أعلاه ══ -->
+      <div style="margin-top:12px;border-top:2px solid var(--rule);padding-top:11px">
+        <div style="font-size:13px;font-weight:700;color:var(--settled);margin-bottom:4px">💸 الدفع الشامل</div>
+        <p style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
+          يوزّع مبلغاً واحداً على <strong style="color:var(--paper-2)">كل ما ظهر في البحث أعلاه</strong>
+          عبر الأقسام كلها معاً، من <strong style="color:var(--wheat-hi)">الأقدم</strong> إلى الأحدث حتى نفاد المبلغ.
+          يحترم نصّ البحث ومدى التاريخ كما هما — ما لا يظهر لا يُدفع.
+        </p>
+        <div id="gPayPreview" style="margin-bottom:9px"></div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:7px">
+          <div style="flex:1;min-width:150px">
+            <label class="fl">المبلغ المدفوع (د.ع) *</label>
+            <input class="fi" id="gPayAmount" type="text" inputmode="numeric" placeholder="0" dir="ltr"
+              style="text-align:right" oninput="fmtPayInput(this)"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+          </div>
+          <div style="flex:1;min-width:150px">
+            <label class="fl">ملاحظة (اختياري)</label>
+            <input class="fi" id="gPayNote" type="text" placeholder="أي تفاصيل عن الدفعة"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn bsm bgh" style="font-size:11px" onclick="gPayFillAll()">💰 كامل المتبقي</button>
+          <button class="btn bfw" style="background:var(--settled);color:#fff;flex:1;min-width:150px;justify-content:center" onclick="execGlobalPay()">💸 تنفيذ الدفع الشامل</button>
+          <button class="btn bgh" onclick="clrGlobalPay()">× مسح</button>
+        </div>
+        <div id="gPayResult"></div>
+      </div>
     </div>
 
     <!-- فحص السلامة -->
