@@ -728,6 +728,24 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
       يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
       من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
+   ══ v17.48 — فحص شامل لكل قسم وخانة وعملية ══
+   ⚠️ الفائض الخفي: تخفيض مبلغ وصلٍ قُبض كاملاً كان يُظهر
+      «✅ مدفوع كامل» والمتبقي صفراً — والفارق مالٌ للساحة
+      عند الفلاح لا يظهر في أي شاشة. الآن يُحسب ويُعرض في
+      زرّ الدفع وفي مودال الدفع وفي الوصل المطبوع، ويُحذَّر
+      منه قبل الحفظ.
+   ⚠️ وصلٌ يناقض نفسه: تعديل الأوزان بقيمة غير صالحة (فارغ
+      ≥ كلي) كان يحفظ الأوزان الجديدة ويُبقي المبلغ محسوباً
+      على القديم. الآن يُرفض التعديل بلا حفظ. (شراء وبيع —
+      saveArbEdit كانت تفحصه منذ البداية فعُمِّم فحصها.)
+   ⚠️ تصدير Excel كان يتجاهل تاريخ الشاشة ويُصدّر «اليوم»
+      دائماً، ويستعمل أسبوعاً متدحرجاً بدل أسبوع الاثنين.
+      فمن يفتح محصلة أسبوع أو شهر ماضٍ ويضغط Excel كان
+      يحصل على بيانات الفترة الحالية — ملف لا يطابق الوصل
+      المطبوع أمامه. الآن نفس نافذة الشاشة وتاريخها بالضبط.
+   ⚠️ الدفع الزائد في وصل النقل اليدوي: آخر مسار دفع بقي
+      بلا حاجز. قِسناه: أجرة ٥٠,٠٠٠ قُبض عليها ١٢٠,٠٠٠.
+
    ══ v17.47 ══
    ⚠️ الأحد الضائع: العرض الأسبوعي في تبويب «زبون» كان
       يُسقط وصولات الأحد كلها — _filterByPeriod تقرأ تاريخ
@@ -1560,6 +1578,7 @@ function syncBar(on){
 
 let _currentRecId   = null;
 let _currentCollPeriod = null;
+let _currentCollBase   = null;   // v17.48 — تاريخ الأساس الذي فُتحت به شاشة المحصلة
 let _currentCollWH  = null;
 let _isCollScreen   = false;
 
@@ -2081,7 +2100,7 @@ function doShareXLFromPrint(){
 /* ── مشاركة Excel ────────────────────────────────────────── */
 async function doShareXL(period,wh){
   wh=wh||"all";
-  const data=getXLData(period||S.rptP,wh);
+  const data=getXLData(period||S.rptP,wh,_currentCollBase||toDay());
   if(!data.length){showToast("⚠ لا بيانات");return;}
   try{await _ensureLib("xlsx");}catch(e){return;}   // v17.10 — تُحمَّل عند الطلب
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
@@ -2532,7 +2551,10 @@ function saveSellEdit(){
   const r=SELL_RECS.find(x=>x.id===id);if(!r)return;
   const p=numIn("sePrc")||r.ppkg;
   const g=numIn("seGr")||r.gross;
-  const e=numIn("seEm")||r.empty;
+  const _eRaw=numIn("seEm");
+  const e=isNaN(_eRaw)?r.empty:_eRaw;
+  // v17.48 — نفس حارس الشراء: لا وصل يناقض نفسه
+  if(!_guardWeights(g,e,r.status==="weighed"))return;
   const wOn=document.getElementById("seWaslOn").checked;
   const wPrice=wOn?(numIn("seWasl")||0):0;
   const nOn=document.getElementById("seNaqlOn").checked;
@@ -2563,6 +2585,7 @@ function saveSellEdit(){
     const net=g-e;const wFee=net*p;const waslFee=wOn?wPrice:0;const final=wFee+waslFee+naqlFee;
     upd={...upd,gross:g,net,wFee,waslFee,naqlFee,final};
   }
+  if(!_guardOverpay(r,getRecTotal(upd)))return;      // v17.48
   saveSellRec(upd);closeM();showToast("✏️ تم تعديل وصل البيع — "+upd.plate);
 }
 function toggleSeWasl(){const on=document.getElementById("seWaslOn").checked;document.getElementById("seWaslSec").style.display=on?"block":"none";}
@@ -2590,7 +2613,7 @@ function confirmSellDel(){
 function openSellPrint(id){
   const r=SELL_RECS.find(x=>x.id===id);if(!r)return;
   _printHTML=buildSellReceipt(r);
-  _currentRecId=id;_isCollScreen=false;
+  _currentRecId=id;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`💰 ${esc(r.plate)} — ${tAr(r.dk||toDay())}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -2889,7 +2912,7 @@ function openSellColl(period){
   const data=getSellCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildSellCollHTML(data,period,"جميع الوجهات",tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="sell";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="sell";
   document.getElementById("pactTitle").textContent=`محصلة البيع ${PL[period]||period}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -2904,7 +2927,7 @@ function openSellHistColl(period){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const dl=tAr(base);
   _printHTML=buildSellCollHTML(data,period,"جميع الوجهات",dl);
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="sell";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="sell";
   document.getElementById("pactTitle").textContent=`محصلة البيع ${PL[period]} — ${dl}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -3258,7 +3281,7 @@ function confirmDamDel(){
 function openDamPrint(id){
   const r=DAM_RECS.find(x=>x.id===id);if(!r)return;
   _printHTML=buildDamReceipt(r);
-  _currentRecId=id;_isCollScreen=false;
+  _currentRecId=id;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`🤝 ${esc(r.damin)} ← ${esc(r.madmun)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -3361,7 +3384,7 @@ function openDamColl(period){
   const base=toDay();const data=getDamCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildDamCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="dam";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="dam";
   document.getElementById("pactTitle").textContent=`محصلة الضمانات ${PL[period]}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -3372,7 +3395,7 @@ function openDamHistColl(period){
   const base=_getDamHistBase(period);const data=getDamCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildDamCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="dam";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="dam";
   document.getElementById("pactTitle").textContent=`محصلة الضمانات ${PL[period]} — ${tAr(base)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -3697,7 +3720,7 @@ function openDamSubPrint(parentId,subId){
   const r=DAM_RECS.find(x=>x.id===parentId);if(!r)return;
   const sub=r.subRecs?.[subId];if(!sub)return;
   _printHTML=buildDamSubReceipt(r,sub);
-  _currentRecId=parentId;_isCollScreen=false;
+  _currentRecId=parentId;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`🤝 ${esc(r.damin)} ← ${esc(r.madmun)} | ${esc(sub.desc)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -3747,7 +3770,7 @@ function buildDamSubReceipt(r,sub){
 function openDamAllSubPrint(parentId){
   const r=DAM_RECS.find(x=>x.id===parentId);if(!r)return;
   _printHTML=buildDamAllSubsReceipt(r);
-  _currentRecId=parentId;_isCollScreen=false;
+  _currentRecId=parentId;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`🤝 كشف كامل: ${esc(r.damin)} ← ${esc(r.madmun)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4062,7 +4085,7 @@ function confirmSrfDel(){
 function openSrfPrint(id){
   const r=SRF_RECS.find(x=>x.id===id);if(!r)return;
   _printHTML=buildSrfReceipt(r);
-  _currentRecId=id;_isCollScreen=false;
+  _currentRecId=id;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`🧾 ${esc(r.purp)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4158,7 +4181,7 @@ function openSrfColl(period){
   const base=toDay();const data=getSrfCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildSrfCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="srf";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="srf";
   document.getElementById("pactTitle").textContent=`محصلة الصرفيات ${PL[period]}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4169,7 +4192,7 @@ function openSrfHistColl(period){
   const base=_getSrfHistBase(period);const data=getSrfCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildSrfCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="srf";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="srf";
   document.getElementById("pactTitle").textContent=`محصلة الصرفيات ${PL[period]} — ${tAr(base)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4373,7 +4396,7 @@ function confirmWrkDel(){
 function openWrkPrint(id){
   const r=WRK_RECS.find(x=>x.id===id);if(!r)return;
   _printHTML=buildWrkReceipt(r);
-  _currentRecId=id;_isCollScreen=false;
+  _currentRecId=id;_isCollScreen=false;_currentCollBase=null;
   document.getElementById("pactTitle").textContent=`🔧 ${esc(r.provider)} — ${esc(r.service)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4471,7 +4494,7 @@ function openWrkColl(period){
   const base=toDay();const data=getWrkCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildWrkCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="wrk";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="wrk";
   document.getElementById("pactTitle").textContent=`🔧 أجور العمل ${PL[period]}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4482,7 +4505,7 @@ function openWrkHistColl(period){
   const base=_getWrkHistBase(period);const data=getWrkCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildWrkCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="wrk";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="wrk";
   document.getElementById("pactTitle").textContent=`🔧 أجور العمل ${PL[period]} — ${tAr(base)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4787,7 +4810,7 @@ function openArbColl(period){
   const base=toDay();const data=getArbCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildArbCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="arb";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="arb";
   document.getElementById("pactTitle").textContent=`🏬 محصلة أربيل ${PL[period]}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4798,7 +4821,7 @@ function openArbHistColl(period){
   const base=_getArbHistBase(period);const data=getArbCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildArbCollHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="arb";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="arb";
   document.getElementById("pactTitle").textContent=`🏬 محصلة أربيل ${PL[period]} — ${tAr(base)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -4997,7 +5020,7 @@ function openArbJamiPrint(){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const period=_jamiPeriod.arb||"daily";
   _printHTML=buildArbJamiHTML(data,period,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="jami-arb";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="jami-arb";
   document.getElementById("pactTitle").textContent=`📒 سجل جامع أربيل ${PL[period]} — ${tAr(base)}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -7177,6 +7200,19 @@ function mnlPayFull(){
 }
 function _applyMnlPayment(amount,note){
   const r=MNL_RECS.find(x=>x.id===_mnlPayId);if(!r)return;
+  /* ══════════════════════════════════════════════════════
+     حاجز الدفع الزائد — v17.48
+     ──────────────────────────────────────────────────────
+     آخر مسار دفع بقي بلا حاجز. القصّ في الواجهة وحده لا
+     يكفي: المودال يبقى مفتوحاً بعد كل دفعة وقيمة الحدّ
+     المحقونة فيه تصير قديمة، فدفعتان متتاليتان تتجاوزان
+     الأجرة. قِسناه: أجرة ٥٠,٠٠٠ قُبض عليها ١٢٠,٠٠٠.
+     نقيس المتبقي لحظة التنفيذ من البيانات نفسها.
+  ══════════════════════════════════════════════════════ */
+  const fee=r.naqlFee||0;
+  const _rem=Math.max(0,fee-getNaqlPaidTotal_mnl(r));
+  if(_rem<=0){showToast("✅ أجور النقل مدفوعة بالكامل بالفعل");return;}
+  if(amount>_rem){showToast("⚠ المبلغ أكبر من المتبقي — تم ضبطه على "+fIQD(_rem));amount=_rem;}
   const payments=[...(r.naqlPayments||[]),{amount,at:nowStr(),by:S.cu.name,note:(note||"").trim()||null}];
   const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
   const full=paidTotal>=(r.naqlFee||0);
@@ -7421,7 +7457,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.47",
+    build:"17.48",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -10635,12 +10671,51 @@ function openEdit(id){
   document.getElementById("eNote").value=r.note||"";
   document.getElementById("mEdit").classList.add("active");
 }
+/* ══════════════════════════════════════════════════════
+   حارس التعديل — v17.48
+   ──────────────────────────────────────────────────────
+   ① الأوزان: كان الوصل يُحفظ حتى لو صار الفارغ أكبر من
+     الكلي — تُكتب الأوزان الجديدة ويبقى المبلغ محسوباً
+     على القديم، فيخرج وصلٌ يناقض نفسه: كلي ١٢٠٠٠ وصافي
+     ٦٠٠٠ ومبلغ لا يوافق أيّاً منهما. (saveArbEdit كانت
+     تفحص هذا منذ البداية؛ نُعمّم فحصها.)
+   ② الفائض: تخفيض مبلغ وصلٍ قُبض كاملاً يُنشئ فائضاً
+     للساحة عند صاحبه. لا نمنعه — قد يكون التصحيح صحيحاً —
+     لكن لا يمرّ صامتاً.
+══════════════════════════════════════════════════════ */
+function _guardWeights(g,e,required){
+  if(e==null||isNaN(e)){
+    if(required){showToast("⚠ أدخل الوزن الفارغ");return false;}
+    return true;                       // وصل لم يُوزن بعد — مسموح
+  }
+  if(e<=0){showToast("⚠ الوزن الفارغ يجب أن يكون أكبر من صفر");return false;}
+  if(!g||isNaN(g)){showToast("⚠ أدخل الوزن الكلي");return false;}
+  if(e>=g){showToast("⚠ الوزن الفارغ يجب أن يكون أصغر من الوزن الكلي");return false;}
+  return true;
+}
+function _guardOverpay(oldRec,newTotal){
+  const paid=getPaidTotal(oldRec);
+  if(!(newTotal>0)||paid<=newTotal)return true;
+  const n=x=>Math.round(x).toLocaleString("en");
+  return confirm(
+`المدفوع فعلاً ${n(paid)} د.ع
+والمبلغ بعد التعديل ${n(newTotal)} د.ع
+
+سينتج فائض ${n(paid-newTotal)} د.ع للساحة عند صاحب الوصل.
+سيظهر التنبيه في الوصل وفي زرّ الدفع.
+
+هل تريد المتابعة؟`);
+}
+
 function saveEdit(){
   const id=document.getElementById("eId").value;
   const r=S.recs.find(x=>x.id===id);if(!r)return;
   const p=numIn("ePrc")||r.ppkg;
   const g=numIn("eGr")||r.gross;
-  const e=numIn("eEm")||null;
+  const _eRaw=numIn("eEm");
+  const e=isNaN(_eRaw)?null:_eRaw;
+  // v17.48 — الوزن الفارغ مطلوب متى كان الوصل موزوناً أصلاً
+  if(!_guardWeights(g,e,r.status==="weighed"))return;
   const kC=parseFloat(document.getElementById("eKC").value)||0;
   const kP=numIn("eKP")||0;
   const kT=document.getElementById("eKT").value;
@@ -10694,6 +10769,7 @@ function saveEdit(){
     const c=calcFees(g,e,p,kOn,kC,kP,nOn,newNaqlList,wOn,wP,nDeduct);
     upd={...upd,empty:e,net:c.net,wFee:c.wFee,kabsFee:c.kabsFee,naqlFee:c.naqlFee,waslFee:c.waslFee,final:c.final};
   }
+  if(!_guardOverpay(r,getRecTotal(upd)))return;      // v17.48
   saveRec(upd);closeM();showToast("✏️ تم التعديل — "+upd.plate);
 }
 
@@ -10729,6 +10805,18 @@ function getPaidTotal(r){
   return r.payments.reduce((s,p)=>s+(p.amount||0),0);
 }
 function getRemaining(r){return Math.max(0,getRecTotal(r)-getPaidTotal(r));}
+/* ══════════════════════════════════════════════════════
+   الفائض — v17.48
+   ──────────────────────────────────────────────────────
+   getRemaining تقصّ عند الصفر، وهذا صحيح للعرض، لكنه كان
+   يُخفي حالةً خطيرة: أن يكون المدفوع أكبر من مبلغ الوصل.
+   تحدث حين يُعدَّل وصلٌ مدفوع فيُخفَّض مبلغه (سعر أقلّ أو
+   وزن أقلّ) بعد أن قُبض كاملاً. حينها يعرض التطبيق
+   «✅ مدفوع كامل» ويظهر المتبقي صفراً — والفارق مالٌ
+   للساحة عند الفلاح لا يظهر في أي شاشة.
+   getOverpay تُخرجه إلى السطح ليُطالَب به.
+══════════════════════════════════════════════════════ */
+function getOverpay(r){return Math.max(0,getPaidTotal(r)-getRecTotal(r));}
 function isFullyPaid(r){
   const tot=getRecTotal(r);
   if(!tot)return r.paid;
@@ -10930,7 +11018,8 @@ function buildPaymentsSection(r){
       <span style="color:var(--settled);font-weight:700">✅ مدفوع: ${fIQD(paidSoFar)}</span>
       <span style="color:var(--paper-3)">${pct}%</span>
       <span style="${remaining>0?"color:var(--owing)":"color:var(--settled)"};font-weight:700">${remaining>0?"⏳ متبقي: "+fIQD(remaining):"✅ مسدّد بالكامل"}</span>
-    </div>`;
+    </div>
+    ${getOverpay(r)>0?`<div style="margin-top:4px;font-size:10px;font-weight:700;color:#C6362E">⚠️ فائض: ${fIQD(getOverpay(r))}</div>`:""}`;
   return`<div style="background:var(--settled-wash);border:1.5px solid var(--settled);border-radius:7px;padding:8px 10px;margin:5px 0">
     <!-- v17.43 — كان اللون هنا var(--settled-wash) وهو نفسه لون خلفية
          الصندوق، فالعنوان كان غير مرئي تماماً في الوضعين الفاتح
@@ -10984,6 +11073,11 @@ function openPartialPay(id,type){
         <span style="color:var(--settled);font-weight:700">✅ مدفوع: ${fIQD(paidSoFar)}</span>
         <span style="${remaining>0?"color:var(--owing)":"color:var(--settled)"};font-weight:700">${remaining>0?"⏳ متبقي: "+fIQD(remaining):"✅ مسدّد كامل"}</span>
       </div>
+      ${(()=>{const ov=getOverpay(r);return ov>0?`
+      <div style="background:var(--owing-wash);border:1px solid var(--owing);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:var(--owing);line-height:1.7">
+        ⚠️ <strong>فائض قدره ${fIQD(ov)}</strong><br>
+        <span style="font-size:11px">المدفوع (${fIQD(paidSoFar)}) أكبر من مبلغ الوصل (${fIQD(tot)}) — غالباً لأن الوصل عُدِّل بعد الدفع. هذا المبلغ للساحة عند صاحب الوصل.</span>
+      </div>`:"";})()}
       ${histHTML}
     </div>
     ${remaining>0?`
@@ -11082,7 +11176,10 @@ function payBtnHTML(r,type){
   const paid=getPaidTotal(r);
   const pct=tot>0?Math.min(100,Math.round(paid/tot*100)):0;
   const full=isFullyPaid(r);
+  const over=getOverpay(r);
   const onclick=`openPartialPay('${r.id}','${type}')`;
+  // v17.48 — الفائض لا يُخفى خلف «مدفوع كامل»
+  if(over>0) return `<button class="btn bsm" style="background:rgba(198,54,46,.14);color:var(--owing);border:1px solid var(--owing)" onclick="${onclick}">⚠️ فائض ${fIQD(over)}</button>`;
   if(full) return `<button class="btn bsm" style="background:rgba(16,185,129,.15);color:var(--settled);border:1px solid var(--settled)" onclick="${onclick}">✅ مدفوع كامل</button>`;
   if(paid>0) return `<button class="btn bsm" style="background:rgba(251,191,36,.12);color:var(--wheat-hi);border:1px solid var(--wheat-hi)" onclick="${onclick}">💰 ${pct}% — جزئي</button>`;
   return `<button class="btn bsm" style="background:rgba(239,68,68,.12);color:var(--owing);border:1px solid var(--owing)" onclick="${onclick}">⏳ تسجيل دفع</button>`;
@@ -11294,18 +11391,37 @@ function renderRpt(){
 /* ════════════════════════════════════════════
    EXCEL
 ════════════════════════════════════════════ */
-function getXLData(period,wh){
+/* ══════════════════════════════════════════════════════
+   بيانات تصدير Excel — v17.48
+   ──────────────────────────────────────────────────────
+   كانت هذه الدالة تتجاهل تاريخ الأساس تماماً وتحسب من
+   «اليوم» دائماً، وتستعمل أسبوعاً متدحرجاً (آخر ٧ أيام)
+   بينما كل شاشات التطبيق تستعمل أسبوعاً يبدأ الاثنين.
+   فمن يفتح «محصلة أسبوع» لأسبوع ماضٍ أو «محصلة شهر»
+   لشهر ماضٍ ثم يضغط «📊 Excel» كان يحصل على بيانات
+   الأسبوع/الشهر الحالي بدلاً منها — ملفٌ لا يطابق الوصل
+   المطبوع أمامه، وهذا أخطر من خطأ ظاهر لأنه صامت.
+   الآن: نفس نافذة getCollData بالضبط، وبنفس تاريخ الأساس
+   الذي فُتحت به الشاشة.
+   ⚠️ أي تغيير في نافذة getCollData يجب أن يُتبع هنا.
+══════════════════════════════════════════════════════ */
+function _xlInPeriod(dk,period,base){
+  if(!dk)return false;
+  if(!period||period==="all")return true;
+  if(period==="daily")return dk===base;
+  if(period==="monthly")return dk.slice(0,7)===base.slice(0,7);
+  if(period==="weekly"){
+    const bd=_D(base), rd=_D(dk);
+    const sow=_D(bd); sow.setDate(bd.getDate()-((bd.getDay()+6)%7));
+    const eow=_D(sow); eow.setDate(sow.getDate()+6);
+    return rd>=sow&&rd<=eow;
+  }
+  return true;
+}
+function getXLData(period,wh,baseDate){
   wh=wh||"all";
-  const now2=new Date(),p=x=>String(x).padStart(2,"0");
-  const td=`${now2.getFullYear()}-${p(now2.getMonth()+1)}-${p(now2.getDate())}`;
-  const bd=new Date(td);
-  let data=S.recs.filter(r=>{
-    if(!r.dk)return false;
-    if(period==="daily")return r.dk===td;
-    if(period==="weekly"){const d=(bd-_D(r.dk))/(864e5);return d>=0&&d<7;}
-    if(period==="monthly")return r.dk.slice(0,7)===td.slice(0,7);
-    return true;
-  });
+  const base=baseDate||toDay();
+  let data=S.recs.filter(r=>_xlInPeriod(r.dk,period,base));
   if(wh!=="all")data=data.filter(r=>r.wh===wh);
   return data;
 }
@@ -11449,6 +11565,7 @@ function closePrint(){
   document.getElementById("PS").classList.remove("active");
   hideLoader();
   _isCollScreen=false;
+  _currentCollBase=null;      // v17.48 — لا يتسرّب تاريخ شاشة سابقة إلى تصدير لاحق
 }
 
 /* ══════════════════════════════════════════════════════
@@ -12008,7 +12125,7 @@ function openColl(period,wh){
   const data=wh==="all"?all:all.filter(r=>r.wh===wh);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   _printHTML=buildCollHTML(data,period,wh,tAr(base));
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH=wh;
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH=wh;
   document.getElementById("pactTitle").textContent=`💼 محصلة ${PL[period]||period} — ${wh==="all"?"الكل":wh}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -12163,7 +12280,7 @@ function openCollWH(period,wh){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const dl=tAr(base);
   _printHTML=buildCollHTML(data,period,wh,dl);
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH=wh;
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH=wh;
   document.getElementById("pactTitle").textContent=`💼 ${wh} — ${PL[period]} — ${dl}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
@@ -12332,7 +12449,7 @@ function openHistColl(period){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const dl=tAr(base);
   _printHTML=buildCollHTML(data,period,"all",dl);
-  _isCollScreen=true;_currentCollPeriod=period;_currentCollWH="all";
+  _isCollScreen=true;_currentCollBase=(typeof base!=="undefined"&&base)?base:toDay();_currentCollPeriod=period;_currentCollWH="all";
   document.getElementById("pactTitle").textContent=`💼 محصلة ${PL[period]} — ${dl}`;
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
