@@ -724,13 +724,16 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    جديد  : تنبيه قبل الإغلاق وعمليات لم تُزامَن بعد ·
            مهلة متصاعدة بعد ٥ محاولات دخول خاطئة.
 
-   ══ v17.44 — الدفع الشامل والجامع ══
+   ══ v17.44 · v17.45 — الدفع الشامل والجامع ══
    ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
       يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
       من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
-   ② 💵 الدفع الجامع للصرفيات ولأجور الأعمال — بنفس منطق
-      الشراء تماماً. محرّك الدفع الجامع صار واحداً للأقسام
-      الثلاثة بدل ثلاث نسخ متشابهة.
+   ② 💵 الدفع الجامع للبيع وللصرفيات ولأجور الأعمال — بنفس
+      منطق الشراء تماماً. محرّك الدفع الجامع صار جدولاً
+      واحداً (_BULK) يخدم الأقسام الأربعة بدل نسخ متشابهة.
+      البيع يُبحث فيه بالفلاح أو المستلم — نفس ما يفعله
+      سجلّ البيع وتبويب الزبون — ولا يشمل إلا الموزونة
+      لأن المبلغ النهائي لا يوجد قبل الوزن.
    ③ ⚠️ إصلاح إتلاف: الدفع الجامع لأجور النقل كان يمحو وصل
       الشراء القديم ذا الناقل الواحد — يذهب المبلغ النهائي
       والصافي والوزن والحالة وسجل دفعات الفلاح كلها.
@@ -7383,7 +7386,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.44",
+    build:"17.45",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -9032,6 +9035,7 @@ function sT(id,btn){
   if(id==="recs")renderRecs();
   if(id==="buy-cust"){renderCustTab('buy');}
   if(id==="buy-bulkpay"){renderBulkPayPreview("buy");}
+  if(id==="sell-bulkpay"){renderBulkPayPreview("sell");}
   if(id==="srf-bulkpay"){renderBulkPayPreview("srf");}
   if(id==="wrk-bulkpay"){renderBulkPayPreview("wrk");}
   if(id==="st")renderStats();
@@ -10704,7 +10708,7 @@ function isFullyPaid(r){
 const _BULK={
   buy:{
     label:"الفلاح", ph:"مثال: علاء حسين", color:"var(--wheat)",
-    field:"driver",
+    match:["driver"],
     recs:()=>S.recs||[],
     filter:r=>r.status==="weighed",       // الشراء: الموزونة فقط
     save:r=>saveRec(r),
@@ -10714,9 +10718,23 @@ const _BULK={
     hint:"وصولاته",
     after:()=>{try{renderRecs();renderStats();renderWH();}catch(e){}},
   },
+  sell:{
+    label:"الفلاح / المستلم", ph:"مثال: كريم الساعدي", color:"var(--settled)",
+    /* البيع يُبحث فيه بالفلاح أو المستلم — نفس ما يفعله سجلّ البيع
+       وتبويب الزبون، فلا يختلف مكانان في التطبيق عن بعضهما. */
+    match:["driver","receiver"],
+    recs:()=>SELL_RECS||[],
+    filter:r=>r.status==="weighed",       // المبلغ النهائي لا يوجد قبل الوزن
+    save:r=>saveSellRec(r),
+    tag:"(دفع جامع بيع)",
+    rowLabel:r=>"🚛 "+(r.plate||"—")+(r.dest?" · "+r.dest:""),
+    empty:"✅ لا توجد وصولات بيع غير مسدَّدة لـ",
+    hint:"وصولاته",
+    after:()=>{try{renderSellRecs();renderSellStats();}catch(e){}},
+  },
   srf:{
     label:"المستفيد", ph:"مثال: أبو محمد", color:"var(--pending)",
-    field:"recv",
+    match:["recv"],
     recs:()=>SRF_RECS||[],
     filter:()=>true,
     save:r=>saveSrfRec(r),
@@ -10728,7 +10746,7 @@ const _BULK={
   },
   wrk:{
     label:"مقدّم الخدمة", ph:"مثال: ورشة الأمين", color:"var(--steel)",
-    field:"provider",
+    match:["provider"],
     recs:()=>WRK_RECS||[],
     filter:()=>true,
     save:r=>saveWrkRec(r),
@@ -10756,7 +10774,7 @@ function _getBulkPayRecs(name,sec){
   sec=sec||"buy";
   const C=_BULK[sec]; if(!C||!name)return[];
   return C.recs()
-    .filter(r=>C.filter(r)&&smartMatch(r[C.field],name)&&!isFullyPaid(r)&&getRecTotal(r)>0)
+    .filter(r=>C.filter(r)&&C.match.some(f=>smartMatch(r[f],name))&&!isFullyPaid(r)&&getRecTotal(r)>0)
     .sort((a,b)=>{
       const dkA=a.dk||"",dkB=b.dk||"";
       if(dkA!==dkB)return dkA.localeCompare(dkB);
@@ -13662,6 +13680,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" onclick="sT('sell-coll',this)">💼 محصلة البيع</button>
     <button class="tbb" onclick="sT('sell-st',this)">📈 إحصائيات البيع</button>
     <button class="tbb" onclick="sT('sell-cust',this)">🔍 زبون</button>
+    <button class="tbb" onclick="sT('sell-bulkpay',this)">💵 دفع جامع</button>
     <button class="tbb grp" onclick="sT('jami-sell',this)">📒 سجل جامع</button>
     <button class="tbb grp" onclick="sT('dam-new',this)">🤝 ضمانة جديدة</button>
     <button class="tbb" id="damRecsTabBtn" onclick="sT('dam-recs',this)">📋 سجل الضمانات</button>
@@ -14480,6 +14499,34 @@ document.addEventListener("keydown", function(e){
         <button class="btn bgh" onclick="clrBulkPay()">× مسح</button>
       </div>
       <div id="bulkPayResult"></div>
+    </div>
+  </div>
+
+  <!-- ══ الدفع الجامع — البيع ══ -->
+  <div class="tc" id="tc-sell-bulkpay">
+    <div class="cd">
+      <div class="cdt" style="color:var(--settled)">💰 الدفع الجامع — تسديد دفعة واحدة لوصولات البيع</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:12px">أدخل اسم الفلاح أو المستلم والمبلغ المدفوع، وسيتم توزيعه تلقائياً على وصولات البيع <strong style="color:var(--paper-2)">الموزونة</strong> غير المسدَّدة بدءاً من <strong style="color:var(--wheat-hi)">الأقدم</strong> ثم الأحدث، حتى نفاد المبلغ.</p>
+      <div class="fg" style="margin-bottom:6px">
+        <div class="fi-g">
+          <label class="fl">اسم الفلاح / المستلم *</label>
+          <input class="fi" id="sellBulkPayName" type="text" placeholder="مثال: كريم الساعدي" oninput="bulkPaySearch('sell')" style="border-color:var(--settled)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">المبلغ المدفوع (د.ع) *</label>
+          <input class="fi" id="sellBulkPayAmount" type="text" inputmode="numeric" autocomplete="off" placeholder="0" dir="ltr" style="text-align:right" oninput="fmtPayInput(this)" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">ملاحظة (اختياري)</label>
+          <input class="fi" id="sellBulkPayNote" type="text" placeholder="أي تفاصيل عن الدفعة" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+      </div>
+      <div id="sellBulkPayPreview" style="margin-bottom:11px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bfw" style="background:var(--settled);color:#fff;flex:1" onclick="execBulkPay('sell')">💵 تنفيذ الدفع الجامع</button>
+        <button class="btn bgh" onclick="clrBulkPay('sell')">× مسح</button>
+      </div>
+      <div id="sellBulkPayResult"></div>
     </div>
   </div>
 
