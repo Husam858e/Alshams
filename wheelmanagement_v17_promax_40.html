@@ -728,6 +728,17 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
       يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
       من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
+   ══ v17.47 ══
+   ⚠️ الأحد الضائع: العرض الأسبوعي في تبويب «زبون» كان
+      يُسقط وصولات الأحد كلها — _filterByPeriod تقرأ تاريخ
+      الوصل بتوقيت عالمي وحدود الأسبوع بالتوقيت المحلي،
+      فيقع الأحد بعدها بثلاث ساعات في بغداد. رصيد الزبون
+      الأسبوعي كان يظهر أقلّ مما له. (نفس عطل v17.6 في
+      السجل الجامع، وبقيت هذه نسخته غير المُصلَحة.)
+      فُحصت كل حسابات الأسبوع في الملف — لا نسخة ثالثة.
+   · حماية كتابة مفتاح المساعد في التخزين المحلي: كانت
+     ترمي استثناءً في التصفّح الخاصّ فتُفجّر حلقة المساعد.
+
    ══ v17.46 ══
    ⚠️ إصلاح ارتداد: أيقونة المادة في الوصل المطبوع كانت
       تُطبع وسماً حرفياً «<img src="data:image/png;base64…»
@@ -7410,7 +7421,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.46",
+    build:"17.47",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -10155,12 +10166,19 @@ const _AI_PROVIDERS=[
    models:["meta-llama/llama-3.3-70b-instruct:free","deepseek/deepseek-chat:free"]},
 ];
 const _aiKeyOf=p=>(localStorage.getItem(p.ks)||"").trim();
-const _aiSetKey=(p,k)=>localStorage.setItem(p.ks,(k||"").trim());
+/* v17.47 — بقية كتابات التخزين في التطبيق محميّة، وهاتان لم تكونا.
+   في نافذة التصفّح الخاصّ أو حين يمنع المتصفح بيانات الموقع يرمي
+   setItem استثناءً: كان يقطع حفظ المفتاح قبل رسالة النجاح، وأسوأ
+   منه أنه يُفجّر حلقة المساعد من داخل معالج «مفتاح غير صحيح». */
+const _aiSetKey=(p,k)=>{
+  try{localStorage.setItem(p.ks,(k||"").trim());return true;}
+  catch(e){showToast("⚠ تعذّر حفظ المفتاح — التخزين المحلي ممنوع في هذا المتصفح");return false;}
+};
 /* المزوّدون الذين أدخل المستخدم مفاتيحهم فعلاً */
 const _aiActive=()=>_AI_PROVIDERS.filter(p=>_aiKeyOf(p));
 /* توافق مع النسخ السابقة: كان المفتاح يُقرأ من ai_key ويجب أن يبدأ بـ gsk_ */
 function _getGroqKey(){return (localStorage.getItem("ai_key")||"").trim();}
-function _setGroqKey(k){localStorage.setItem("ai_key",(k||"").trim());}
+function _setGroqKey(k){try{localStorage.setItem("ai_key",(k||"").trim());}catch(e){}}
 
 /* ذاكرة الحدود: مزوّد امتلأ سقفه يُستبعد ٦٠ ثانية بدل إعادة محاولته */
 const _aiCooldown={};
@@ -10358,7 +10376,7 @@ function _aiSaveKeyFor(id){
   if(p.pfx&&!k.startsWith(p.pfx)){
     showToast(`⚠️ مفتاح ${p.name} يبدأ بـ ${p.pfx}`);return;
   }
-  _aiSetKey(p,k);
+  if(!_aiSetKey(p,k))return;          // v17.47 — لا تُعلن النجاح إن لم يُحفظ
   delete _aiCooldown[p.id];
   showToast(`✅ حُفظ مفتاح ${p.name}`);
   _aiShowKeySetup();
@@ -12719,7 +12737,20 @@ function _filterByPeriod(recs,period,base){
     if(period==='daily')  return dk===base;
     if(period==='monthly')return dk.slice(0,7)===base.slice(0,7);
     if(period==='weekly'){
-      const rd=new Date(dk);
+      /* ══════════════════════════════════════════════════════
+         الأحد الضائع — v17.47
+         ──────────────────────────────────────────────────────
+         كان rd=new Date(dk) يُفسَّر توقيتاً عالمياً بينما sow
+         وeow مبنيّان محلياً عبر _D. في بغداد (UTC+3) يصير
+         تاريخ الوصل الساعةَ ٣ فجراً، فيقع الأحد — آخر أيام
+         الأسبوع — بعد eow بثلاث ساعات ويسقط من التصفية.
+         النتيجة: كل وصولات الأحد تختفي من العرض الأسبوعي في
+         تبويب «زبون»، فيظهر رصيد الزبون أقلّ مما له فعلاً.
+         (قِسناه: ٧ أيام تُدخل، ٦ تخرج.)
+         هذا نفس العطل الذي أُصلح في _jamiInPeriod بـ v17.6،
+         وبقيت هذه نسخته غير المُصلَحة. الحلّ ذاته: _D للطرفين.
+      ══════════════════════════════════════════════════════ */
+      const rd=_D(dk);
       const dow=bd.getDay();
       const sow=_D(bd);sow.setDate(bd.getDate()-((dow+6)%7));
       const eow=_D(sow);eow.setDate(sow.getDate()+6);
