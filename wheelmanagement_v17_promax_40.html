@@ -728,6 +728,21 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
       يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
       من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
+   ══ v17.55 — الدفع يُقاد بالهوية لا بالبحث ══
+   ⚠️ أخطر عطل في التطبيق كلّه: مالُ شخص يذهب لوصولات غيره.
+      الدفع الشامل كان يدفع كل ما يُرجعه البحث، والبحث يطابق
+      الملاحظة واللوحة واسم المخزن والناقل — لا اسم صاحب
+      الوصل وحده. فدفعةٌ لـ«عبد الرحمن واثق» ذهب جزء منها
+      إلى وصل «عبد الله احمد» لأن ملاحظته تذكر الاسم.
+      وأخطر: البحث باسم مخزن كان يلتقط وصولات كل من فيه.
+      الآن: ① لا يُدفع إلا ما طابق اسم صاحب الوصل، وما طابق
+      بالملاحظة أو اللوحة يُعرض منفصلاً ولا يُدفع.
+      ② وإن بقي أكثر من شخص، لا يُنفَّذ الدفع حتى يُختار
+      صاحب المال صراحةً، والتأكيد يذكر اسمه.
+      البحث يبقى واسعاً — وهذا صحيح. الدفع وحده ضاق.
+      وللدفع الجامع في الأقسام: تحذير وتأكيد يُسمّي كل
+      الأشخاص المطابقين قبل التوزيع عليهم.
+
    ══ v17.52 — الخزينة الكاملة ══
    ⚠️ خطّ الأساس: كان المتوقّع يُحسب من الرصيد الافتتاحي دائماً،
       فنقصٌ حدث قبل شهر يظلّ يلاحقك كل يوم ويختلط بنقص اليوم
@@ -7817,7 +7832,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.52",
+    build:"17.55",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -8072,11 +8087,16 @@ function toolsSrchSetRange(kind){
   toolsGlobalSearch();
 }
 
+let _gPayLastQ=null;
 function toolsGlobalSearch(){
   const box=document.getElementById("toolsSearchRes");
   if(!box)return;
   const R=_toolsSearchData();
   const q=R.q;
+  /* v17.55 — تغيّر البحث يُلغي اختيار الشخص السابق، فلا يُدفع
+     لشخصٍ اختير في بحثٍ آخر */
+  if(_gPayLastQ!==null&&_gPayLastQ!==q)_gPayOwner=null;
+  _gPayLastQ=q;
   if(!q){
     box.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:22px;font-size:12px">🔎 اكتب اسماً أو رقم لوحة أو ملاحظة للبحث في كل الأقسام</div>`;
     renderGlobalPayPreview();     // v17.44 — لوحة الدفع الشامل تتبع البحث دائماً
@@ -8196,9 +8216,37 @@ function _naqlEntryFromFee(f){
 }
 
 /* كل ما هو قابل للدفع ضمن نتائج البحث الحالية — من الأقدم للأحدث */
+/* ══════════════════════════════════════════════════════════════
+   الدفع يُقاد بالهوية لا بالبحث — v17.55
+   ──────────────────────────────────────────────────────────────
+   ⚠️ عطل بالغ الخطورة: كان الدفع الشامل يدفع كل ما يُرجعه
+   البحث. والبحث — بحكم وظيفته — يطابق حقولاً كثيرة: الملاحظة
+   واللوحة واسم المخزن والناقل، لا اسم صاحب الوصل وحده.
+
+   فحدث هذا فعلاً: دفعةٌ لـ«عبد الرحمن واثق» ذهب جزء منها إلى
+   وصل «عبد الله احمد» لأن ملاحظته كانت تذكر «عبد الرحمن واثق».
+   وأخطر منه: البحث باسم مخزن («ابراهيم») كان يلتقط وصولات
+   كل من في ذلك المخزن — أي مال الناس جميعاً.
+
+   الحلّ طبقتان لا واحدة:
+   ① لا يُدفع إلا ما طابق **اسم صاحب الوصل** نفسه. ما طابق
+     بالملاحظة أو اللوحة أو المخزن يُعرض منفصلاً ولا يُدفع.
+   ② وإن بقي أكثر من شخص (اسم قصير مثل «عبد» يطابق عدّة
+     أسماء)، لا يُنفَّذ الدفع حتى يُختار الشخص صراحةً.
+   البحث يبقى واسعاً كما هو — وهذا صحيح. الدفع وحده ضاق.
+══════════════════════════════════════════════════════════════ */
+let _gPayOwner=null;                    // مفتاح اسم الشخص المختار
+
+/* هل يخصّ هذا السجل الشخصَ المطلوب؟ — بالاسم وحده */
+function _ownerMatches(owner,q){
+  if(!q)return true;
+  if(!owner)return false;
+  return smartMatch(String(owner),q);
+}
+
 function _globalPayItems(){
   const R=_toolsSearchData();
-  const items=[];
+  const items=[],offName=[];
   R.groups.forEach(g=>{
     const d=g.d, G=_GPAY[d.k];
     if(!G)return;                                   // قسم غير قابل للدفع
@@ -8210,16 +8258,34 @@ function _globalPayItems(){
       if(rem<=0)return;
       const label=d.rowLabel?d.rowLabel(r)
                  :(d.fields||[]).map(f=>r[f]).filter(Boolean).slice(0,3).join(" · ");
-      items.push({k:d.k,icon:d.icon,section:d.label,rec:r,
-                  dk:r.dk||"",amt,paid,rem,label:label||r.id||"—"});
+      const owner=(d.who?d.who(r):"")||"";
+      const it={k:d.k,icon:d.icon,section:d.label,rec:r,owner,
+                ownerKey:nameKey(owner)||"—",
+                dk:r.dk||"",amt,paid,rem,label:label||r.id||"—"};
+      /* الطبقة ①: ما لم يطابق اسمُ صاحبه لا يدخل الدفع */
+      if(_ownerMatches(owner,R.q))items.push(it); else offName.push(it);
     });
   });
-  items.sort((a,b)=>{
+  const bySeq=(a,b)=>{
     const A=a.dk||"￿", B=b.dk||"￿";       // بلا تاريخ ← آخر الصف
     if(A!==B)return A.localeCompare(B);
     return (a.rec.seq||0)-(b.rec.seq||0);
+  };
+  items.sort(bySeq); offName.sort(bySeq);
+
+  /* الطبقة ②: تجميع بالأشخاص */
+  const owners=[];
+  items.forEach(it=>{
+    let o=owners.find(x=>x.key===it.ownerKey);
+    if(!o){o={key:it.ownerKey,name:it.owner,n:0,rem:0};owners.push(o);}
+    o.n++; o.rem+=it.rem;
   });
-  return{items,q:R.q};
+  owners.sort((a,b)=>b.rem-a.rem);
+  /* شخص واحد ⇒ يُختار تلقائياً. أكثر ⇒ يبقى الاختيار للمستخدم */
+  if(owners.length===1)_gPayOwner=owners[0].key;
+  else if(_gPayOwner&&!owners.some(o=>o.key===_gPayOwner))_gPayOwner=null;
+  const selected=_gPayOwner?items.filter(it=>it.ownerKey===_gPayOwner):[];
+  return{items:selected,all:items,owners,offName,q:R.q};
 }
 
 /* ══════════════════════════════════════════════════════
@@ -8253,7 +8319,7 @@ function _globalPayApply(item,budget,note){
   const pay=Math.min(budget,Math.max(0,G.total(r)-G.paid(r)));
   if(pay<=0)return 0;
   const payments=[...(r.payments||[]),
-    {amount:pay,at:nowStr(),by:S.cu.name+" (دفع شامل)",note:note||null}];
+    {amount:pay,at:nowStr(),by:S.cu.name+" (دفع شامل)",note:note||null,forName:item.owner||null}];
   const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
   const fullyPaid=paidTotal>=G.total(r);
   G.save({...r,payments,paidTotal,paid:fullyPaid,
@@ -8262,16 +8328,53 @@ function _globalPayApply(item,budget,note){
   return pay;
 }
 
+function gPayPickOwner(k){_gPayOwner=k||null;renderGlobalPayPreview();}
+
 function renderGlobalPayPreview(){
   const el=document.getElementById("gPayPreview");
   if(!el)return;
-  const {items,q}=_globalPayItems();
+  const {items,all,owners,offName,q}=_globalPayItems();
   if(!q){
     el.innerHTML=`<div style="text-align:center;color:var(--paper-4);padding:16px;font-size:12px">🔎 ابحث أولاً — ثم يظهر هنا ما يمكن تسديده</div>`;
     return;
   }
+  /* المستبعَد: طابق البحث بالملاحظة أو اللوحة أو المخزن لا بالاسم */
+  const offBox=offName.length?`
+    <div style="background:var(--pending-wash);border:1px solid var(--pending-rule);border-radius:9px;
+        padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--paper-2);line-height:1.7">
+      🛡️ <strong style="color:var(--pending)">استُبعد ${AR(offName.length)} سجل من الدفع</strong> —
+      ظهرت في البحث لأن الاسم ورد في ملاحظتها أو لوحتها أو مخزنها، لا لأنها تخصّ صاحبها.
+      <div style="margin-top:4px;color:var(--paper-3);font-size:10px">
+        ${offName.slice(0,4).map(x=>esc((x.owner||"—")+" · "+x.label)).join("<br>")}
+        ${offName.length>4?"<br>…و"+AR(offName.length-4)+" غيرها":""}</div>
+    </div>`:"";
+
+  if(!all.length){
+    el.innerHTML=offBox+`<div style="text-align:center;color:var(--settled);padding:16px;font-size:12px">✅ لا يوجد متبقٍّ باسم صاحب الوصل في هذا البحث</div>`;
+    return;
+  }
+  /* أكثر من شخص ⇒ اختيار صريح قبل أي دفع */
+  const ownerBox=owners.length>1?`
+    <div style="background:var(--owing-wash);border:1px solid var(--owing);border-radius:10px;
+        padding:9px 11px;margin-bottom:9px">
+      <div style="font-size:12px;font-weight:700;color:var(--owing);margin-bottom:3px">
+        ⚠️ البحث يطابق ${AR(owners.length)} أشخاص — اختر صاحب المال</div>
+      <div style="font-size:10px;color:var(--paper-2);line-height:1.6;margin-bottom:7px">
+        لن يُنفَّذ الدفع قبل الاختيار، كي لا يذهب مال شخص إلى وصولات غيره.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${owners.map(o=>`<button onclick="gPayPickOwner('${esc(o.key)}')"
+          style="padding:5px 9px;border-radius:8px;cursor:pointer;font-size:11px;
+            border:1px solid ${_gPayOwner===o.key?"var(--wheat)":"var(--rule)"};
+            background:${_gPayOwner===o.key?"var(--wheat-wash)":"var(--ink-100)"};
+            color:${_gPayOwner===o.key?"var(--wheat-hi)":"var(--paper-2)"};font-weight:700">
+          ${_gPayOwner===o.key?"✔ ":""}${esc(o.name||"—")}
+          <span style="color:var(--paper-3);font-weight:400"> · ${AR(o.n)} · ${fIQD(o.rem)}</span>
+        </button>`).join("")}
+      </div>
+    </div>`:"";
+
   if(!items.length){
-    el.innerHTML=`<div style="text-align:center;color:var(--settled);padding:16px;font-size:12px">✅ لا يوجد متبقٍّ في نتائج هذا البحث</div>`;
+    el.innerHTML=offBox+ownerBox+`<div style="text-align:center;color:var(--paper-4);padding:14px;font-size:12px">👆 اختر الشخص لعرض ما سيُسدَّد له</div>`;
     return;
   }
   const totalRem=items.reduce((s,x)=>s+x.rem,0);
@@ -8289,8 +8392,11 @@ function renderGlobalPayPreview(){
       <span style="color:var(--paper-2);flex:1;min-width:0">${AR(i+1)}. ${x.icon} 📅 ${tAr(x.dk||"—")} — ${esc(x.label)}${x.paid>0?' <span style="color:var(--wheat)">| جزئي</span>':''}</span>
       <span style="color:var(--wheat-hi);font-weight:700;white-space:nowrap">${fIQD(x.rem)}</span>
     </div>`).join("");
-  el.innerHTML=`
+  const who=(items[0]&&items[0].owner)||"";
+  el.innerHTML=offBox+ownerBox+`
     <div style="background:var(--ink-200);border-radius:9px;padding:9px 11px;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--paper-2);margin-bottom:5px">
+        💳 التسديد باسم: <strong style="color:var(--wheat-hi)">${esc(who||"—")}</strong></div>
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12px;margin-bottom:6px">
         <span style="color:var(--paper-2)">سجلات قابلة للتسديد: <strong style="color:var(--wheat-hi)">${AR(items.length)}</strong></span>
         <span style="color:var(--paper-2)">إجمالي المتبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
@@ -8304,7 +8410,8 @@ function renderGlobalPayPreview(){
 
 /* يملأ الحقل بكامل المتبقي — الحالة الأكثر استعمالاً */
 function gPayFillAll(){
-  const {items}=_globalPayItems();
+  const {items,owners}=_globalPayItems();
+  if(owners.length>1&&!_gPayOwner){showToast("⚠ اختر صاحب المال أولاً");return;}
   const totalRem=items.reduce((s,x)=>s+x.rem,0);
   if(totalRem<=0){showToast("✅ لا يوجد متبقٍّ لتسديده");return;}
   setPayAmt("gPayAmount",totalRem);
@@ -8314,13 +8421,24 @@ function gPayFillAll(){
 function execGlobalPay(){
   const amount=payAmt("gPayAmount");
   const note=(document.getElementById("gPayNote")?.value||"").trim();
-  const {items,q}=_globalPayItems();
+  const {items,owners,offName,q}=_globalPayItems();
   if(!q){showToast("⚠ ابحث أولاً");return;}
   if(!amount||amount<=0){showToast("⚠ أدخل مبلغاً صحيحاً");return;}
-  if(!items.length){showToast("⚠ لا يوجد متبقٍّ في نتائج هذا البحث");return;}
+  /* v17.55 — لا دفع قبل تحديد الشخص حين يطابق البحث أكثر من واحد */
+  if(owners.length>1&&!_gPayOwner){
+    showToast("⚠ البحث يطابق أكثر من شخص — اختر صاحب المال أولاً",3600);return;}
+  if(!items.length){showToast("⚠ لا يوجد متبقٍّ باسم هذا الشخص");return;}
+  const who=(items[0]&&items[0].owner)||"";
   const totalRem=items.reduce((s,x)=>s+x.rem,0);
-  if(!confirm(`سيوزَّع ${Math.round(amount).toLocaleString("en")} د.ع على ${items.length} سجلاً `
-    +`من الأقدم إلى الأحدث (إجمالي المتبقي ${Math.round(totalRem).toLocaleString("en")} د.ع).\n\nهل تريد المتابعة؟`))return;
+  /* التأكيد يذكر الاسم صراحةً — فمن يقرأه يكتشف الخطأ قبل وقوعه */
+  if(!confirm(
+`التسديد باسم: ${who||"—"}
+
+سيوزَّع ${Math.round(amount).toLocaleString("en")} د.ع على ${items.length} سجلاً من الأقدم إلى الأحدث.
+إجمالي المتبقي لهذا الشخص: ${Math.round(totalRem).toLocaleString("en")} د.ع.${
+offName.length?`\n\n🛡️ استُبعد ${offName.length} سجل ظهر في البحث لكنه يخصّ غيره.`:""}
+
+هل تريد المتابعة؟`))return;
 
   let pool=amount;
   const results=[],touched=new Set();
@@ -8337,7 +8455,7 @@ function execGlobalPay(){
 
   document.getElementById("gPayResult").innerHTML=`
     <div style="background:var(--settled-wash);border:1px solid var(--settled);border-radius:10px;padding:11px;margin-top:8px">
-      <div style="font-size:12px;color:var(--settled);font-weight:700;margin-bottom:7px">✅ تم التسديد على ${AR(results.length)} سجل في ${AR(touched.size)} قسم</div>
+      <div style="font-size:12px;color:var(--settled);font-weight:700;margin-bottom:7px">✅ تم التسديد باسم ${esc(who||"—")} — ${AR(results.length)} سجل في ${AR(touched.size)} قسم</div>
       <div style="max-height:220px;overflow-y:auto">
       ${results.map(r=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px dashed var(--settled-rule)">
         <span style="color:var(--paper-2);flex:1;min-width:0">${r.icon} 📅 ${tAr(r.dk||"—")} — ${esc(r.label)}</span>
@@ -8357,6 +8475,7 @@ function execGlobalPay(){
 }
 
 function clrGlobalPay(){
+  _gPayOwner=null;
   ["gPayAmount","gPayNote"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
   const r=document.getElementById("gPayResult");if(r)r.innerHTML="";
   renderGlobalPayPreview();
@@ -12139,6 +12258,18 @@ function _getBulkPayRecs(name,sec){
     });
 }
 
+/* الأسماء المتمايزة فعلاً ضمن مجموعة سجلات (بمفتاح الاسم القانوني) */
+function _bulkDistinctNames(recs,sec){
+  const C=_BULK[sec||"buy"]; if(!C)return[];
+  const seen={},out=[];
+  recs.forEach(r=>{
+    const nm=(C.match.map(f=>r[f]).find(v=>v&&String(v).trim())||"").trim();
+    const k=nameKey(nm)||nm;
+    if(k&&!seen[k]){seen[k]=1;out.push(nm);}
+  });
+  return out;
+}
+
 function renderBulkPayPreview(sec){
   sec=sec||"buy";
   const C=_BULK[sec]; if(!C)return;
@@ -12155,11 +12286,21 @@ function renderBulkPayPreview(sec){
     return;
   }
   const totalRem=recs.reduce((s,r)=>s+getRemaining(r),0);
+  /* v17.55 — الاسم القصير («عبد») يطابق أشخاصاً مختلفين. نُظهرهم
+     صراحةً قبل الدفع بدل أن يمرّ المال بينهم بلا أن ينتبه أحد. */
+  const names=_bulkDistinctNames(recs,sec);
+  const warn=names.length>1?`
+    <div style="background:var(--owing-wash);border:1px solid var(--owing);border-radius:9px;
+        padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--paper-2);line-height:1.7">
+      ⚠️ <strong style="color:var(--owing)">هذا البحث يطابق ${AR(names.length)} أسماء مختلفة</strong> —
+      سيوزَّع المبلغ عليها جميعاً. اكتب الاسم كاملاً إن أردت شخصاً بعينه.
+      <div style="margin-top:4px;color:var(--paper-3);font-size:10px">${names.map(n=>esc(n)).join(" · ")}</div>
+    </div>`:"";
   const rows=recs.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-bottom:1px solid var(--rule);font-size:11px">
     <span style="color:var(--paper-2)">${AR(i+1)}. 📅 ${tAr(r.dk)} — ${esc(C.rowLabel(r))}${getPaidTotal(r)>0?' | 💰 جزئي':''}</span>
     <span style="color:var(--wheat-hi);font-weight:700">${fIQD(getRemaining(r))}</span>
   </div>`).join("");
-  el.innerHTML=`
+  el.innerHTML=warn+`
     <div style="background:var(--ink-200);border-radius:9px;padding:9px 11px;margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12px">
       <span style="color:var(--paper-2)">عدد السجلات: <strong style="color:var(--wheat-hi)">${AR(recs.length)}</strong></span>
       <span style="color:var(--paper-2)">إجمالي المتبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
@@ -12177,6 +12318,16 @@ function execBulkPay(sec){
   if(!amount||amount<=0){showToast("⚠ أدخل مبلغاً صحيحاً");return;}
   const recs=_getBulkPayRecs(name,sec);
   if(!recs.length){showToast("⚠ لا توجد سجلات غير مسدَّدة لهذا الاسم");return;}
+  /* v17.55 — تأكيد صريح حين يشمل التوزيع أكثر من شخص */
+  const _names=_bulkDistinctNames(recs,sec);
+  if(_names.length>1&&!confirm(
+`تنبيه: هذا البحث يطابق ${_names.length} أسماء مختلفة، وسيوزَّع المبلغ عليها جميعاً:
+
+${_names.join("\n")}
+
+إن أردت شخصاً بعينه، أغلق هذه الرسالة واكتب اسمه كاملاً.
+
+هل تريد المتابعة؟`))return;
   let pool=amount;
   const results=[];
   for(const r of recs){
