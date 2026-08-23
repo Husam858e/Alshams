@@ -144,7 +144,7 @@ function _globalPayItems(){
    المرة الأولى فتضيع إحدى الدفعتين بلا أثر.
    ونُعيد حساب المتبقي هنا أيضاً للسبب نفسه.
 ══════════════════════════════════════════════════════ */
-function _globalPayApply(item,budget,note){
+function _globalPayApply(item,budget,note,bid){
   const G=_GPAY[item.k]; if(!G)return 0;
 
   if(G.naql){
@@ -155,7 +155,7 @@ function _globalPayApply(item,budget,note){
     const paid=isSub?getDamSubNaqlPaid(entry.rRef):getNaqlPaidTotal(entry.rRef);
     const pay=Math.min(budget,Math.max(0,fee-paid));
     if(pay<=0)return 0;
-    _applyBulkNaqlEntryPayment(entry,pay,note);
+    _applyBulkNaqlEntryPayment(entry,pay,note,bid);
     return pay;
   }
 
@@ -163,7 +163,7 @@ function _globalPayApply(item,budget,note){
   const pay=Math.min(budget,Math.max(0,G.total(r)-G.paid(r)));
   if(pay<=0)return 0;
   const payments=[...(r.payments||[]),
-    {amount:pay,at:nowStr(),by:S.cu.name+" (دفع شامل)",note:note||null,forName:item.owner||null}];
+    {amount:pay,at:nowStr(),by:S.cu.name+" (دفع شامل)",note:note||null,forName:item.owner||null,...(bid?{bid}:{})}];
   const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
   const fullyPaid=paidTotal>=G.total(r);
   G.save({...r,payments,paidTotal,paid:fullyPaid,
@@ -286,9 +286,10 @@ offName.length?`\n\n🛡️ استُبعد ${offName.length} سجل ظهر في 
 
   let pool=amount;
   const results=[],touched=new Set();
+  const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
   for(const it of items){
     if(pool<=0)break;
-    const paid=_globalPayApply(it,pool,note);
+    const paid=_globalPayApply(it,pool,note,bid);
     if(paid<=0)continue;
     results.push({...it,paidNow:paid,fullyPaid:paid>=it.rem});   // rem محسوب قبل التوزيع
     touched.add(it.k);
@@ -378,60 +379,65 @@ function collectAllPayments(){
     out.push({
       src, who:who||"—", ref:ref||"",
       amount:p.amount, at:p.at||"", by:p.by||"—", note:p.note||"",
+      bid:p.bid||"",                       // معرّف العملية الجامعة — v17.63
       dk:(p.at||"").slice(0,10),
       ...(extra||{})
     });
   };
 
+  /* v17.63 — `rdk` تاريخ الوصل نفسه (لا تاريخ الدفعة)، واللوحة في بيان النقل:
+     بهما يميّز المرء وصولات العملية الجامعة الواحدة بعضها عن بعض. */
+  const _pl=r=>r&&r.plate?" | "+r.plate:"";
+
   // ── الشراء ──
   (S.recs||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("buy",r.driver,r.plate,p,{recId:r.id,kind:"buy"}));
+    (r.payments||[]).forEach(p=>push("buy",r.driver,r.plate,p,{recId:r.id,kind:"buy",rdk:r.dk||""}));
   });
   // ── البيع ──
   (SELL_RECS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("sell",r.driver||r.receiver,r.plate,p,{recId:r.id,kind:"sell"}));
+    (r.payments||[]).forEach(p=>push("sell",r.driver||r.receiver,r.plate,p,{recId:r.id,kind:"sell",rdk:r.dk||""}));
   });
   // ── الضمانات: الأصلية والفرعية ──
   (DAM_RECS||[]).forEach(d=>{
-    (d.payments||[]).forEach(p=>push("dam",d.madmun,"ضامن: "+(d.damin||"—"),p,{recId:d.id,kind:"dam"}));
+    (d.payments||[]).forEach(p=>push("dam",d.madmun,"ضامن: "+(d.damin||"—"),p,{recId:d.id,kind:"dam",rdk:d.dk||""}));
     const subs=d.subRecs?Object.values(d.subRecs):[];
     subs.forEach(sub=>{
-      (sub.payments||[]).forEach(p=>push("dam",d.madmun,sub.desc||"وصل فرعي",p,{recId:d.id,kind:"dam"}));
-      (sub.naqlPayments||[]).forEach(p=>push("naql",sub.transporter,"ضمانة: "+(sub.desc||"—"),p,{recId:d.id,kind:"dam"}));
+      (sub.payments||[]).forEach(p=>push("dam",d.madmun,sub.desc||"وصل فرعي",p,{recId:d.id,kind:"dam",rdk:sub.dk||d.dk||""}));
+      (sub.naqlPayments||[]).forEach(p=>push("naql",sub.transporter,"ضمانة: "+(sub.desc||"—"),p,{recId:d.id,kind:"dam",rdk:sub.dk||d.dk||""}));
     });
   });
   // ── الصرفيات ──
   (SRF_RECS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("srf",r.recv,r.purp,p,{recId:r.id,kind:"srf"}));
+    (r.payments||[]).forEach(p=>push("srf",r.recv,r.purp,p,{recId:r.id,kind:"srf",rdk:r.dk||""}));
   });
   // ── أجور الأعمال ──
   (WRK_RECS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("wrk",r.provider,r.service,p,{recId:r.id,kind:"wrk"}));
+    (r.payments||[]).forEach(p=>push("wrk",r.provider,r.service,p,{recId:r.id,kind:"wrk",rdk:r.dk||""}));
   });
   // ── الرواتب والسلف وحركات العمال ──
   (SAL_RECS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("sal",r.empName,"راتب "+(r.month||""),p,{recId:r.id,kind:"sal"}));
+    (r.payments||[]).forEach(p=>push("sal",r.empName,"راتب "+(r.month||""),p,{recId:r.id,kind:"sal",rdk:r.dk||""}));
   });
   (ADV_RECS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("sal",r.empName,"سلفة",p,{recId:r.id,kind:"adv"}));
+    (r.payments||[]).forEach(p=>push("sal",r.empName,"سلفة",p,{recId:r.id,kind:"adv",rdk:r.dk||""}));
   });
   (EMP_TXNS||[]).forEach(r=>{
-    (r.payments||[]).forEach(p=>push("sal",r.empName,r.note||"حركة",p,{recId:r.id,kind:"etx"}));
+    (r.payments||[]).forEach(p=>push("sal",r.empName,r.note||"حركة",p,{recId:r.id,kind:"etx",rdk:r.dk||""}));
   });
   // ── أجور النقل: شراء (متعدد الناقلين) · بيع · يدوي ──
   (S.recs||[]).forEach(r=>{
     getNaqlEntries(r).forEach(en=>{
       (en.naqlPayments||[]).forEach(p=>
-        push("naql",en.transporter,"شراء: "+(r.driver||"—"),p,{recId:r.id,kind:"buy"}));
+        push("naql",en.transporter,"شراء: "+(r.driver||"—")+_pl(r),p,{recId:r.id,kind:"buy",rdk:r.dk||""}));
     });
   });
   (SELL_RECS||[]).forEach(r=>{
     (r.naqlPayments||[]).forEach(p=>
-      push("naql",r.transporter,"بيع: "+(r.driver||"—"),p,{recId:r.id,kind:"sell"}));
+      push("naql",r.transporter,"بيع: "+(r.driver||"—")+_pl(r),p,{recId:r.id,kind:"sell",rdk:r.dk||""}));
   });
   (MNL_RECS||[]).forEach(r=>{
     (r.naqlPayments||[]).forEach(p=>
-      push("naql",r.transporter,"نقل: "+(r.farmer||"—"),p,{recId:r.id,kind:"mnl"}));
+      push("naql",r.transporter,"نقل: "+(r.farmer||"—")+_pl(r),p,{recId:r.id,kind:"mnl",rdk:r.dk||""}));
   });
 
   out.sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
@@ -455,6 +461,64 @@ function _payLogFiltered(){
       smartMatch(_PAYSRC[x.src]?.label||"",q));
   }
   return {list,from,to,q};
+}
+
+/* ══════════════════════════════════════════════════════
+   تجميع العملية الجامعة في سطر واحد — v17.63
+   ──────────────────────────────────────────────────────
+   الدفعة الواحدة التي وُزّعت على عشرة وصولات كانت تظهر
+   عشرة أسطر متطابقة، فيضيع السؤال الأول: «كم دفعتُ له؟»
+   بين تفاصيل «على ماذا وُزّع؟». صارت سطراً واحداً بالمجموع،
+   يُفتح بالنقر على الوصولات التي تحته.
+
+   المفتاح `bid` يُكتب مع كل جزء من العملية منذ v17.63.
+   وللدفعات الأقدم — ومنها كل ما في قاعدة البيانات اليوم —
+   نستنتج المجموعة من (القسم · الوقت · المنفِّذ · الملاحظة):
+   ‏`nowStr()` بدقّة الدقيقة وحلقة التوزيع متزامنة، فكل أجزاء
+   العملية الواحدة تحمل الوقت نفسه حرفياً.
+
+   ⚠️ الدفعة المفردة لا تُجمَع أبداً — مفتاحها فريد بالفهرس.
+   جمع دفعتين منفصلتين في سطر واحد يُخفي عملية، وهذا أسوأ
+   من تكرار سطر.
+══════════════════════════════════════════════════════ */
+const _isBulkPay=by=>/\(دفع\s*(جامع|شامل)/.test(String(by||""));
+
+/* عدّ الوصولات بعربية سليمة — "٣ وصولات" لا "٣ وصلاً" */
+const _nRec=n=>n===1?"وصل واحد":n===2?"وصلين":(n>=3&&n<=10)?AR(n)+" وصولات":AR(n)+" وصلاً";
+
+function _payGroupKey(x,i){
+  if(x.bid)return "b:"+x.bid;                                  // العمليات الجديدة — دقيق
+  if(_isBulkPay(x.by))                                          // الأقدم — استنتاج
+    return "h:"+x.src+"|"+(x.at||"")+"|"+(x.by||"")+"|"+(x.note||"");
+  return "s:"+i;                                                // مفردة — لا تُجمَع
+}
+
+/* يحوّل قائمة الدفعات إلى عمليات. كل عملية تحتفظ بأجزائها. */
+function _payGroups(list){
+  const map=new Map();
+  list.forEach((x,i)=>{
+    const k=_payGroupKey(x,i);
+    let g=map.get(k);
+    if(!g){
+      g={key:k,items:[],amount:0,at:x.at,by:x.by,note:x.note,src:x.src,who:x.who,
+         bulk:!!(x.bid||_isBulkPay(x.by)),names:new Set()};
+      map.set(k,g);
+    }
+    g.items.push(x);
+    g.amount+=x.amount;
+    g.names.add(nameKey(x.who)||x.who||"—");
+    if(String(x.at||"")>String(g.at||""))g.at=x.at;
+  });
+  return [...map.values()].sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+}
+
+/* فتح/طيّ تفاصيل العملية */
+function payLogToggle(id){
+  const el=document.getElementById(id), c=document.getElementById(id+"c");
+  if(!el)return;
+  const open=el.style.display!=="none";
+  el.style.display=open?"none":"block";
+  if(c)c.textContent=open?"▾":"▴";
 }
 
 function payLogSetRange(kind){
@@ -498,36 +562,94 @@ function renderPayLog(){
   }).join("");
 
   // ملخّص حسب المستلم — الأهم للمحاسبة
+  const groups=_payGroups(list);
   const byWho={};
-  list.forEach(x=>{const k=nameKey(x.who)||x.who;(byWho[k]=byWho[k]||{name:x.who,amt:0,n:0});byWho[k].amt+=x.amount;byWho[k].n++;});
+  groups.forEach(g=>{
+    const k=nameKey(g.who)||g.who;
+    (byWho[k]=byWho[k]||{name:g.who,amt:0,n:0});
+    byWho[k].amt+=g.amount;byWho[k].n++;       // n = عدد العمليات لا عدد الأجزاء
+  });
   const topWho=Object.values(byWho).sort((a,b)=>b.amt-a.amt).slice(0,8);
 
-  const rows=list.slice(0,400).map(x=>{
-    const m=_PAYSRC[x.src]||{label:x.src,icon:"•",color:"var(--paper-2)"};
-    return`<div onclick="${x.recId?`gotoRecord('${x.kind}','${String(x.recId).replace(/'/g,"\\'")}')`:''}"
-      style="display:flex;justify-content:space-between;gap:8px;padding:9px 10px;
-             border-bottom:1px solid var(--rule);${x.recId?'cursor:pointer':''}">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;color:var(--paper);font-weight:700">
-          <span style="color:${m.color}">${m.icon}</span> ${esc(x.who)}
+  const _goto=x=>x.recId?`gotoRecord('${x.kind}','${String(x.recId).replace(/'/g,"\\'")}')`:"";
+
+  const rows=groups.slice(0,400).map((g,gi)=>{
+    const m=_PAYSRC[g.src]||{label:g.src,icon:"•",color:"var(--paper-2)"};
+    const n=g.items.length;
+    const one=g.items[0];
+
+    /* عملية من جزء واحد — كما كانت تماماً: نقرة واحدة تفتح الوصل */
+    if(n===1){
+      return`<div onclick="${_goto(one)}"
+        style="display:flex;justify-content:space-between;gap:8px;padding:9px 10px;
+               border-bottom:1px solid var(--rule);${one.recId?'cursor:pointer':''}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--paper);font-weight:700">
+            <span style="color:${m.color}">${m.icon}</span> ${esc(one.who)}
+          </div>
+          <div style="font-size:10px;color:var(--paper-3);margin-top:2px">
+            ${m.label}${one.ref?" · "+esc(one.ref):""}
+          </div>
+          <div style="font-size:10px;color:var(--paper-4);margin-top:2px">
+            🕐 ${tAr(one.at||"—")} · ${esc(one.by)}${one.note?" · 📝 "+esc(one.note):""}
+          </div>
         </div>
-        <div style="font-size:10px;color:var(--paper-3);margin-top:2px">
-          ${m.label}${x.ref?" · "+esc(x.ref):""}
+        <div style="text-align:left;white-space:nowrap">
+          <div style="font-size:14px;font-weight:800;color:var(--settled)">${fIQD(one.amount)}</div>
         </div>
-        <div style="font-size:10px;color:var(--paper-4);margin-top:2px">
-          🕐 ${tAr(x.at||"—")} · ${esc(x.by)}${x.note?" · 📝 "+esc(x.note):""}
+      </div>`;
+    }
+
+    /* عملية جامعة — سطر واحد بالمجموع، يُفتح على أجزائه */
+    const id="pgr"+gi;
+    /* أكثر من اسم في عملية واحدة: تحذير صريح — هذا بالضبط ما كلّف مالاً من قبل */
+    const multiName=g.names.size>1;
+    const kids=g.items.map(x=>`
+      <div onclick="event.stopPropagation();${_goto(x)}"
+        style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px 7px 22px;
+               border-bottom:1px solid var(--rule);${x.recId?'cursor:pointer':''}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:var(--paper-2)">
+            ↳ ${x.rdk?`📅 ${tAr(x.rdk)} — `:""}${esc(x.ref||"—")}${multiName?` · <span style="color:var(--owing)">${esc(x.who)}</span>`:""}
+          </div>
+          ${x.note?`<div style="font-size:10px;color:var(--paper-4);margin-top:1px">📝 ${esc(x.note)}</div>`:""}
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--settled);white-space:nowrap">${fIQD(x.amount)}</div>
+      </div>`).join("");
+
+    return`<div>
+      <div onclick="payLogToggle('${id}')"
+        style="display:flex;justify-content:space-between;gap:8px;padding:9px 10px;
+               border-bottom:1px solid var(--rule);cursor:pointer">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--paper);font-weight:700">
+            <span style="color:${m.color}">${m.icon}</span> ${esc(multiName?AR(g.names.size)+" أشخاص":g.who)}
+          </div>
+          <div style="font-size:10px;color:var(--paper-3);margin-top:2px">
+            ${m.label} · <span style="color:var(--wheat-hi);font-weight:700">دفعة واحدة على ${_nRec(n)}</span>
+            ${multiName?` · <span style="color:var(--owing);font-weight:700">⚠ عدّة أسماء</span>`:""}
+          </div>
+          <div style="font-size:10px;color:var(--paper-4);margin-top:2px">
+            🕐 ${tAr(g.at||"—")} · ${esc(g.by)}${g.note?" · 📝 "+esc(g.note):""}
+          </div>
+        </div>
+        <div style="text-align:left;white-space:nowrap">
+          <div style="font-size:14px;font-weight:800;color:var(--settled)">${fIQD(g.amount)}</div>
+          <div style="font-size:10px;color:var(--paper-3);margin-top:2px">
+            <span id="${id}c">▾</span> التفاصيل
+          </div>
         </div>
       </div>
-      <div style="text-align:left;white-space:nowrap">
-        <div style="font-size:14px;font-weight:800;color:var(--settled)">${fIQD(x.amount)}</div>
-      </div>
-    </div>`;}).join("");
+      <div id="${id}" style="display:none;background:var(--ink-200)">${kids}</div>
+    </div>`;
+  }).join("");
 
   el.innerHTML=`
     <div style="background:var(--ink-100);border:1px solid var(--rule);border-radius:var(--r-lg);
          padding:12px 14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--paper-3)">عدد الدفعات: <strong style="color:var(--paper)">${AR(list.length)}</strong></span>
+        <span style="font-size:12px;color:var(--paper-3)">عدد الدفعات: <strong style="color:var(--paper)">${AR(groups.length)}</strong>${
+          groups.length!==list.length?` <span style="color:var(--paper-4)">(${_nRec(list.length)})</span>`:""}</span>
         <span style="font-size:19px;font-weight:800;color:var(--settled)">${fIQD(total)}</span>
       </div>
       ${chips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">${chips}</div>`:""}
@@ -540,9 +662,9 @@ function renderPayLog(){
         <span style="color:var(--paper-2)">${esc(w.name)} <span style="color:var(--paper-4)">(${AR(w.n)})</span></span>
         <strong style="color:var(--paper)">${fIQD(w.amt)}</strong></div>`).join("")}
     </div>`:""}
-    ${list.length?`<div style="background:var(--ink-100);border:1px solid var(--rule);
+    ${groups.length?`<div style="background:var(--ink-100);border:1px solid var(--rule);
       border-radius:var(--r-lg);overflow:hidden">${rows}
-      ${list.length>400?`<div style="padding:8px;text-align:center;font-size:10px;color:var(--paper-3)">…و ${AR(list.length-400)} دفعة أخرى</div>`:""}
+      ${groups.length>400?`<div style="padding:8px;text-align:center;font-size:10px;color:var(--paper-3)">…و ${AR(groups.length-400)} دفعة أخرى</div>`:""}
       </div>`
      :`<div class="empty-state"><b>لا توجد دفعات</b>غيّر المدة أو القسم أو امسح البحث.</div>`}`;
 }
@@ -557,10 +679,20 @@ function buildPayLogHTML(){
   list.forEach(x=>{bySrc[x.src]=(bySrc[x.src]||0)+x.amount;});
   const srcRows=Object.entries(bySrc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
     `<tr><td>${(_PAYSRC[k]||{label:k}).label}</td><td>${fIQD(v)}</td></tr>`).join("");
+  const groups=_payGroups(list);
   const byWho={};
-  list.forEach(x=>{const k=nameKey(x.who)||x.who;(byWho[k]=byWho[k]||{name:x.who,amt:0,n:0});byWho[k].amt+=x.amount;byWho[k].n++;});
+  groups.forEach(g=>{const k=nameKey(g.who)||g.who;(byWho[k]=byWho[k]||{name:g.who,amt:0,n:0});byWho[k].amt+=g.amount;byWho[k].n++;});
   const whoRows=Object.values(byWho).sort((a,b)=>b.amt-a.amt).map(w=>
     `<tr><td>${esc(w.name)}</td><td>${AR(w.n)}</td><td>${fIQD(w.amt)}</td></tr>`).join("");
+  /* الدفعات الجامعة: المبلغ الواحد وما وُزّع عليه — v17.63 */
+  const bulk=groups.filter(g=>g.items.length>1);
+  const bulkRows=bulk.map((g,i)=>`<tr>
+    <td>${AR(i+1)}</td><td>${tAr(g.at||"—")}</td>
+    <td>${esc(g.names.size>1?AR(g.names.size)+" أشخاص":g.who)}</td>
+    <td>${(_PAYSRC[g.src]||{label:g.src}).label}</td>
+    <td>${AR(g.items.length)}</td><td>${fIQD(g.amount)}</td></tr>
+    ${g.items.map(x=>`<tr><td></td><td colspan="2" style="padding-right:14px">↳ ${x.rdk?tAr(x.rdk)+" — ":""}${esc(x.ref||"—")}${
+      g.names.size>1?" — "+esc(x.who):""}</td><td colspan="2"></td><td>${fIQD(x.amount)}</td></tr>`).join("")}`).join("");
   const rows=list.map((x,i)=>`<tr>
     <td>${AR(i+1)}</td><td>${tAr(x.at||"—")}</td>
     <td>${(_PAYSRC[x.src]||{label:x.src}).label}</td>
@@ -572,12 +704,17 @@ function buildPayLogHTML(){
     <div class="prhmt">${range}<br/>${tAr(toDay())} — ${p2(d.getHours())+":"+p2(d.getMinutes())}</div>
   </div>
   <div class="psec">ملخص${_payLogSrc!=="all"?` — ${(_PAYSRC[_payLogSrc]||{}).label}`:""}${q?` · بحث: ${esc(q)}`:""}</div>
-  <div class="prr"><span class="prk">عدد الدفعات</span><span class="prv">${AR(list.length)}</span></div>
+  <div class="prr"><span class="prk">عدد الدفعات</span><span class="prv">${AR(groups.length)}</span></div>
+  ${groups.length!==list.length?`<div class="prr"><span class="prk">عدد الوصولات المسدَّدة</span><span class="prv">${AR(list.length)}</span></div>`:""}
   <div class="prtot" style="background:#2B5334"><span class="pk">إجمالي المدفوع</span><span class="pv">${fIQD(total)}</span></div>
   ${srcRows?`<div class="col-wh-title">حسب القسم</div>
     <table class="coltbl"><thead><tr><th>القسم</th><th>المبلغ</th></tr></thead><tbody>${srcRows}</tbody></table>`:""}
   ${whoRows?`<div class="col-wh-title">حسب المستلم</div>
     <table class="coltbl"><thead><tr><th>المستلم</th><th>دفعات</th><th>المبلغ</th></tr></thead><tbody>${whoRows}</tbody></table>`:""}
+  ${bulkRows?`<div class="col-wh-title">الدفعات الجامعة — المبلغ الواحد وما وُزّع عليه</div>
+    <table class="coltbl"><thead><tr>
+      <th>#</th><th>التاريخ والوقت</th><th>المستلم</th><th>القسم</th><th>وصولات</th><th>المبلغ</th>
+    </tr></thead><tbody>${bulkRows}</tbody></table>`:""}
   ${rows?`<div class="col-wh-title">تفاصيل الدفعات</div>
     <table class="coltbl"><thead><tr>
       <th>#</th><th>التاريخ والوقت</th><th>القسم</th><th>المستلم</th><th>البيان</th><th>المبلغ</th><th>بواسطة</th>
@@ -588,12 +725,13 @@ function buildPayLogHTML(){
 }
 function openPayLogPrint(){
   const {list}=_payLogFiltered();
+  const nOps=_payGroups(list).length;
   if(!list.length){showToast("⚠ لا توجد دفعات لطباعتها");return;}
   _printHTML=buildPayLogHTML();_isCollScreen=true;
   document.getElementById("pactTitle").textContent="💵 سجل الدفعات";
   document.getElementById("PC").innerHTML=_printHTML;
   document.getElementById("PS").classList.add("active");
   try{history.pushState({page:"app"},"","");}catch(e){}
-  showToast("🖨️ "+AR(list.length)+" دفعة");
+  showToast("🖨️ "+AR(nOps)+" دفعة"+(nOps!==list.length?" · "+_nRec(list.length):""));
 }
 

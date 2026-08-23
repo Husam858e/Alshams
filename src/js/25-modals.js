@@ -486,12 +486,13 @@ ${_names.join("\n")}
 هل تريد المتابعة؟`))return;
   let pool=amount;
   const results=[];
+  const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
   for(const r of recs){
     if(pool<=0)break;
     const rem=getRemaining(r);
     if(rem<=0)continue;
     const pay=Math.min(pool,rem);
-    const payments=[...(r.payments||[]),{amount:pay,at:nowStr(),by:S.cu.name+" "+C.tag,note:note||null}];
+    const payments=[...(r.payments||[]),{amount:pay,at:nowStr(),by:S.cu.name+" "+C.tag,note:note||null,bid}];
     const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
     const tot=getRecTotal(r);
     const fullyPaid=paidTotal>=tot;

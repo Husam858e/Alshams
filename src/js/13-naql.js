@@ -302,11 +302,12 @@ function _getNaqlBulkEntries(name){
 }
 
 /* تطبيق دفعة على وصل نقل واحد ضمن عملية الدفع الجامع — مستقل عن حالة المودال الفردي */
-function _applyBulkNaqlEntryPayment(entry,payAmount,note){
+/* bid: معرّف العملية الجامعة — يوحّد كل أجزائها في سطر واحد بسجل الدفعات (v17.63) */
+function _applyBulkNaqlEntryPayment(entry,payAmount,note,bid){
   const type=entry.type;
   const rRef=entry.rRef;
   const fee=type==='dam-sub'?(rRef.trans||0):(rRef.naqlFee||0);
-  const payments=[...(rRef.naqlPayments||[]),{amount:payAmount,at:nowStr(),by:S.cu.name+" (دفع جامع نقل)",note:note||null}];
+  const payments=[...(rRef.naqlPayments||[]),{amount:payAmount,at:nowStr(),by:S.cu.name+" (دفع جامع نقل)",note:note||null,...(bid?{bid}:{})}];
   const paidTotal=payments.reduce((s,p)=>s+(p.amount||0),0);
   const fullyPaid=paidTotal>=fee;
   const upd={...rRef,naqlPayments:payments,naqlPaidTotal:paidTotal,naqlPaid:fullyPaid,naqlPaidAt:fullyPaid?(rRef.naqlPaidAt||nowStr()):null};
@@ -398,10 +399,11 @@ function execNaqlBulkPay(){
   if(!entries.length){showToast('⚠ لا توجد وصولات نقل غير مسددة لهذا الناقل');return;}
   let pool=amount;
   const results=[];
+  const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
   for(const e of entries){
     if(pool<=0)break;
     const pay=Math.min(pool,e.remaining);
-    _applyBulkNaqlEntryPayment(e,pay,note);
+    _applyBulkNaqlEntryPayment(e,pay,note,bid);
     results.push({label:e.label,dk:e.dk,paid:pay,fullyPaid:pay>=e.remaining});
     pool-=pay;
   }
