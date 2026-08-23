@@ -1,0 +1,12 @@
+{
+  "name": "alshams-wheel-management",
+  "version": "17.57.0",
+  "private": true,
+  "description": "ميزان الشمس — نظام إدارة وحسابات الساحة والمخازن (ملف HTML واحد)",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}
