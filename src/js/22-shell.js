@@ -376,6 +376,8 @@ function doLogin(){
         try{initFirebase();}catch(e){}
       }, 500);
     }
+    // v17.64 — البوابة تنتظر انتهاء شاشة الرمز كي لا تغطّي لوحة الأرقام
+    setTimeout(function(){try{_authGateMaybe();}catch(e){}},900);
   }else{
     const st=_lockNoteFail();
     const er=document.getElementById("pErr");

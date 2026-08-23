@@ -159,9 +159,19 @@ function _fbReportWriteError(err,node){
   const code=String((err&&(err.code||err.message))||"").toUpperCase();
   _fbLastErr={code,node,at:nowStr()};
   if(code.indexOf("PERMISSION_DENIED")>=0||code.indexOf("PERMISSION-DENIED")>=0){
-    showToast("🚫 رفض السيرفر الحفظ (صلاحيات) — افتح الأدوات ← فحص الاتصال والصلاحيات",6000);
     const d=document.getElementById("syncDot");
     if(d){d.style.background="var(--owing)";d.title="مرفوض: صلاحيات فايربيس";}
+    /* v17.64 — حين يشترط المشروع حسابات مختارة ولا حساب على هذا
+       الجهاز، نعرف السبب بالضبط فنقوله ونحلّه في مكانه.
+       ⚠️ الشرط ضيّق عمداً: الهوية المجهولة **هوية صحيحة**، ورفضها
+       مشكلة قواعد لا مشكلة ربط — وإرسال صاحبها إلى بوابة الحساب
+       يُضلّله عن السبب الحقيقي. */
+    if(_anonOff&&!_authIsNamed()){
+      showToast("🔐 هذا الجهاز غير مربوط بحساب — الحفظ متوقّف",5000);
+      try{_authGateOpen();}catch(e){}
+      return;
+    }
+    showToast("🚫 رفض السيرفر الحفظ (صلاحيات) — افتح الأدوات ← فحص الاتصال والصلاحيات",6000);
     return;
   }
   showToast("⚠ تعذّر الحفظ الآن — محفوظ محلياً وسيُرسل عند عودة الاتصال");
@@ -181,9 +191,14 @@ async function toolsConnCheck(){
 
   if(typeof firebase!=="undefined"&&firebase.auth){
     let u=null; try{u=firebase.auth().currentUser;}catch(e){}
+    /* v17.64 — النصيحة تتبع وضع المشروع: من أطفأ الدخول المجهول
+       عمداً لا يُقال له «فعّله»، بل «اربط هذا الجهاز بحساب». */
     add(!!u,"تسجيل الدخول (هوية الجلسة)",
-        u?("مجهول · "+String(u.uid).slice(0,10)+"…")
-         :"لا توجد هوية — فعّل Authentication ← Sign-in method ← Anonymous ← Enable");
+        u?((u.isAnonymous?"مجهول · ":"🔐 "+(u.email||"حساب")+" · ")+String(u.uid).slice(0,10)+"…")
+         :(_anonOff
+            ? "لا توجد هوية — هذا الجهاز غير مربوط بحساب. الأدوات ← 🔐 ربط الجهاز بحسابك"
+            : "لا توجد هوية — فعّل Authentication ← Sign-in method ← Anonymous ← Enable،"
+              +" أو اربط الجهاز بحساب من الأدوات"));
   } else add(false,"مكتبة المصادقة","لم تُحمَّل — القواعد التي تشترط auth ستَرفض كل شيء");
 
   if(db){

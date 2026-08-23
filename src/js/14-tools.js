@@ -136,7 +136,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.63",
+    build:"17.64",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},

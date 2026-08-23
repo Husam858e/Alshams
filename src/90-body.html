@@ -1654,6 +1654,12 @@
 </div>
 
 <!-- مودال الدفع الجزئي -->
+<!-- بوابة الدخول بالحساب — v17.64. لا تُغلق بالنقر خارجها ولا يمسحها closeM:
+     هي تقول إن الحفظ متوقّف، وإخفاؤها بالخطأ يُعيد المشكلة الصامتة نفسها. -->
+<div class="mo" id="mAuthGate">
+  <div class="mob" style="max-width:420px" id="mAuthGateBody"></div>
+</div>
+
 <div class="mov" id="mPartialPay-ov" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:none;align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeM()">
   <div style="background:var(--ink-100);border-radius:20px 20px 0 0;padding:18px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;animation:slideUp .3s ease" id="mPartialPay"></div>
 </div>

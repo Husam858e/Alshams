@@ -89,23 +89,69 @@ function _initConnMonitor(){
       لكل مستخدم) موصوفة في firebase-rules.md — بها وحدها تستطيع
       سحب صلاحية شخص بعينه.
 ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   بدء الجلسة — v17.64: وضع «الحسابات التي أختارها» فقط
+   ──────────────────────────────────────────────────────────────
+   الترتيب هنا مقصود، وكان معكوساً:
+
+   ١) ننتظر الجلسة المحفوظة أولاً. الجهاز المربوط بحساب يستعيد
+      هويته كما هي.
+      ⚠️ العطل السابق: كنّا ننادي signInAnonymously() فوراً وبلا
+      شرط. وهي تُنشئ هوية مجهولة جديدة **تحلّ محلّ** الجلسة
+      المستعادة — فينفكّ ربط الجهاز عند كل إعادة تحميل، بصمت.
+
+   ٢) إن لم توجد جلسة محفوظة: نجرّب المجهول — إلا إن عرفنا أنه
+      مُطفأ، فلا نضيّع ثانية على محاولة محكوم عليها بالفشل.
+
+   ٣) إن كان المجهول مُطفأً — وهو الاختيار الصحيح لمن يريد
+      «فقط الحسابات التي أختارها» — نفتح بوابة الدخول بالحساب
+      بدل أن نصمت وتُرفض كل كتابة بـ PERMISSION_DENIED.
+
+   الطفء يُكتشف تلقائياً من ردّ فايربيس ويُحفظ محلياً، فلا يُعاد
+   اكتشافه في كل إقلاع. ولا تُحفظ كلمة سرّ في أي حال.
+══════════════════════════════════════════════════════════════ */
+const _ANON_OFF_K="wShamsAnonOff";
+let _anonOff=false; try{_anonOff=localStorage.getItem(_ANON_OFF_K)==="1";}catch(e){}
+function _setAnonOff(v){
+  _anonOff=!!v;
+  try{ v?localStorage.setItem(_ANON_OFF_K,"1"):localStorage.removeItem(_ANON_OFF_K); }catch(e){}
+}
+/* ردود فايربيس حين يكون الدخول المجهول مُطفأً في المشروع */
+const _isAnonOffErr=c=>/operation-not-allowed|admin-restricted-operation|configuration-not-found/i.test(String(c||""));
+
 let _authReady=false;
 function _fbSignIn(app){
   return new Promise(resolve=>{
     if(typeof firebase==="undefined"||!firebase.auth){ resolve(false); return; }
-    let done=false;
+    let done=false, first=true;
     const finish=v=>{ if(!done){ done=true; _authReady=v; resolve(v);} };
     try{
       const auth=firebase.auth(app);
-      auth.onAuthStateChanged(u=>{ if(u)finish(true); });
-      auth.signInAnonymously().catch(err=>{
-        console.warn("anon auth failed:",err&&err.code);
-        // الدخول المجهول غير مُفعَّل في المشروع — التطبيق يعمل، لكن القواعد المشدّدة سترفضه
-        if(err&&String(err.code||"").indexOf("operation-not-allowed")>=0)
-          showToast("⚠ فعّل «Anonymous» في Firebase ← Authentication",4000);
-        finish(false);
+      try{auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);}catch(e){}
+      auth.onAuthStateChanged(u=>{
+        if(u){                                   // جلسة مستعادة أو دخول ناجح
+          _authReady=true; finish(true);
+          try{_authGateClose();}catch(e){}
+          try{renderAuthBox();}catch(e){}
+          try{ const d=document.getElementById("syncDot"); if(d)d.title="الهوية: "+_authLabel(); }catch(e){}
+          try{ if(_writeQueue&&_writeQueue.length)setTimeout(_flushQueue,700); }catch(e){}
+          return;
+        }
+        if(!first)return;         // خروج لاحق — لا نبدأ جلسة من تلقائنا
+        first=false;
+        if(_anonOff){ finish(false); _authGateOpen(); return; }
+        auth.signInAnonymously().catch(err=>{
+          const c=String((err&&(err.code||err.message))||err);
+          console.warn("anon auth failed:",c);
+          if(_isAnonOffErr(c)){
+            /* المشروع يسمح بالحسابات المختارة وحدها — وهذا تشديد لا عطل */
+            _setAnonOff(true);
+            _authGateOpen();
+          }else showToast("⚠ تعذّر بدء الجلسة: "+c,4500);
+          finish(false);
+        });
       });
-      setTimeout(()=>finish(false),4000);      // لا ننتظر إلى الأبد
+      setTimeout(()=>finish(false),8000);      // لا ننتظر إلى الأبد
     }catch(e){ finish(false); }
   });
 }
@@ -116,7 +162,9 @@ function _doInitFirebase(){
     db=firebase.database(app);
     _fbSignIn(app).then(ok=>{
       const dot=document.getElementById("syncDot");
-      if(dot&&!ok)dot.title="متصل بلا هوية — فعّل الدخول المجهول لتطبيق قواعد الأمان";
+      if(dot&&!ok)dot.title=_anonOff
+        ? "متصل بلا هوية — اربط هذا الجهاز بحسابك ليُسمح بالحفظ"
+        : "متصل بلا هوية — قواعد الأمان سترفض الحفظ";
     });
     _initConnMonitor();
     dbRef=db.ref("records");
