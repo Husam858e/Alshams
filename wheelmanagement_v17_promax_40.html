@@ -728,6 +728,21 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
    ① 💸 الدفع الشامل (الأدوات ← البحث الشامل): مبلغ واحد
       يُسدَّد على كل ما ظهر في البحث عبر الأقسام كلها معاً،
       من الأقدم إلى الأحدث، بحدود نصّ البحث ومدى التاريخ.
+   ══ v17.57 — سبب رفض الحفظ يظهر بدل أن يُخفى ══
+   ⚠️ خطأ في قواعد الأمان التي كُتبت في v17.50 (لا في التطبيق):
+      الشرط root.child('closures').child(newData.child('mk').val())
+      يصير child(null) حين لا يوجد الحقل mk — وذلك خطأٌ في لغة
+      قواعد فايربيس يرفض الكتابة كلّها. فكان يرفض كل حذف، وكل
+      سجل بلا تاريخ، وكل شيء إن كانت النسخة المنشورة أقدم من
+      v17.50. القواعد الجديدة لا تعتمد على mk إطلاقاً، وقفل
+      الفترات يبقى محروساً في التطبيق حيث جرى اختباره.
+   · وكان التطبيق يُخفي السبب: كل فشل يُعرض «محفوظ محلياً
+     وسيُرسل عند عودة الاتصال» — وهذا صحيح للانقطاع وخاطئ
+     تماماً للرفض، فالطابور يتضخّم بلا نهاية بلا تفسير،
+     والنقطة تبقى خضراء لأن ‎.info/connected لا يحتاج صلاحية.
+     الآن: رسالة صريحة، ونقطة حمراء، وأداة «📡 فحص الاتصال
+     والصلاحيات» تقول أين يقف الحفظ بالضبط.
+
    ══ v17.55 — الدفع يُقاد بالهوية لا بالبحث ══
    ⚠️ أخطر عطل في التطبيق كلّه: مالُ شخص يذهب لوصولات غيره.
       الدفع الشامل كان يدفع كل ما يُرجعه البحث، والبحث يطابق
@@ -1461,11 +1476,11 @@ function _fbWrite(node,id,data,onLocal){
   try{
     const ref=db.ref(node).child(id);
     const p=safe===null?ref.remove():ref.set(safe);
-    p.then(()=>{_dequeueWrite(node,id);syncBar(false);})
+    p.then(()=>{_dequeueWrite(node,id);syncBar(false);_fbLastErr=null;})
      .catch(err=>{
        syncBar(false);
        console.warn("fb write failed:",node,id,err);
-       showToast("⚠ تعذّر الحفظ الآن — محفوظ محلياً وسيُرسل عند عودة الاتصال");
+       _fbReportWriteError(err,node);
      });
   }catch(err){
     syncBar(false);
@@ -7832,7 +7847,7 @@ function toolsBackup(){
   const payload={
     app:"ميزان الشمس",
     version:17,
-    build:"17.55",
+    build:"17.57",
     createdAt:nowStr(),
     createdBy:S.cu?.name||"—",
     counts:{},
@@ -10022,6 +10037,96 @@ function restoreSnapshot(i){
     box.scrollIntoView({block:"center",behavior:"smooth"});
   }
   showToast("📸 جاهزة — اختر طريقة الاستعادة");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   الإبلاغ عن سبب فشل الكتابة — v17.57
+   ──────────────────────────────────────────────────────────────
+   كانت كل حالات الفشل تُعرض برسالة واحدة: «محفوظ محلياً وسيُرسل
+   عند عودة الاتصال». وهذا صحيح لانقطاع الشبكة، وخاطئ تماماً
+   لرفض الصلاحيات: هناك لا ينفع الانتظار — الطابور يتضخّم بلا
+   نهاية والمستخدم يظنّ أن الإنترنت ضعيف.
+   قِسناه فعلاً: بعد تطبيق قواعد الأمان بقيت النقطة خضراء
+   (لأن ‎.info/connected لا يحتاج صلاحية) والطابور لا يفرغ،
+   بلا أي أثر يدلّ على السبب.
+   الآن نُميّز الرفض عن الانقطاع، ونقول ما العمل بالضبط.
+══════════════════════════════════════════════════════════════ */
+let _fbLastErr=null;
+function _fbReportWriteError(err,node){
+  const code=String((err&&(err.code||err.message))||"").toUpperCase();
+  _fbLastErr={code,node,at:nowStr()};
+  if(code.indexOf("PERMISSION_DENIED")>=0||code.indexOf("PERMISSION-DENIED")>=0){
+    showToast("🚫 رفض السيرفر الحفظ (صلاحيات) — افتح الأدوات ← فحص الاتصال والصلاحيات",6000);
+    const d=document.getElementById("syncDot");
+    if(d){d.style.background="var(--owing)";d.title="مرفوض: صلاحيات فايربيس";}
+    return;
+  }
+  showToast("⚠ تعذّر الحفظ الآن — محفوظ محلياً وسيُرسل عند عودة الاتصال");
+}
+
+/* ══ فحص الاتصال والصلاحيات — يُجيب: أين تحديداً يقف الحفظ؟ ══ */
+async function toolsConnCheck(){
+  const box=document.getElementById("connCheckRes");
+  if(!box)return;
+  box.innerHTML=`<div style="font-size:12px;color:var(--paper-3);padding:10px">⏳ جارٍ الفحص…</div>`;
+  const rows=[];
+  const add=(ok,t,d)=>rows.push({ok,t,d:d||""});
+
+  add(typeof firebase!=="undefined","تحميل مكتبة فايربيس",
+      typeof firebase==="undefined"?"لم تُحمَّل — تحقّق من الإنترنت أو حاصرات الإعلانات":"");
+  add(!!db,"إنشاء الاتصال بقاعدة البيانات");
+
+  if(typeof firebase!=="undefined"&&firebase.auth){
+    let u=null; try{u=firebase.auth().currentUser;}catch(e){}
+    add(!!u,"تسجيل الدخول (هوية الجلسة)",
+        u?("مجهول · "+String(u.uid).slice(0,10)+"…")
+         :"لا توجد هوية — فعّل Authentication ← Sign-in method ← Anonymous ← Enable");
+  } else add(false,"مكتبة المصادقة","لم تُحمَّل — القواعد التي تشترط auth ستَرفض كل شيء");
+
+  if(db){
+    // قراءة
+    try{
+      await db.ref(".info/serverTimeOffset").once("value");
+      await db.ref("records").limitToFirst(1).once("value");
+      add(true,"قراءة البيانات");
+    }catch(e){
+      add(false,"قراءة البيانات",String(e&&e.code||e&&e.message||e).slice(0,90));
+    }
+    // كتابة تجريبية في عقدة مستقلة ثم حذفها
+    try{
+      const t="__conncheck__";
+      await db.ref(t).child("probe").set({at:nowStr(),by:(S.cu&&S.cu.name)||"—"});
+      await db.ref(t).child("probe").remove();
+      add(true,"الكتابة والحذف");
+    }catch(e){
+      const c=String(e&&e.code||e&&e.message||e);
+      add(false,"الكتابة والحذف",
+        /PERMISSION/i.test(c)
+          ? "رفض صلاحيات — القواعد تمنع الكتابة. راجع firebase-rules.json"
+          : c.slice(0,90));
+    }
+  }
+  add(_writeQueue.length===0,"طابور المزامنة",
+      _writeQueue.length?AR(_writeQueue.length)+" عملية معلّقة لم تصل السيرفر":"فارغ");
+  if(_fbLastErr)add(false,"آخر خطأ حفظ",_fbLastErr.code.slice(0,80)+" · "+_fbLastErr.node);
+
+  const bad=rows.filter(r=>!r.ok).length;
+  box.innerHTML=`
+    <div style="background:${bad?"var(--owing-wash)":"var(--settled-wash)"};
+        border:1px solid ${bad?"var(--owing)":"var(--settled)"};border-radius:9px;
+        padding:9px 11px;margin-bottom:8px;font-size:12px;font-weight:700;
+        color:${bad?"var(--owing)":"var(--settled)"}">
+      ${bad?"✗ "+AR(bad)+" مشكلة — التفصيل أدناه":"✓ كل شيء سليم — الحفظ يصل السيرفر"}
+    </div>
+    ${rows.map(r=>`<div style="display:flex;gap:7px;align-items:flex-start;padding:5px 2px;
+        border-bottom:1px solid var(--rule);font-size:11px">
+      <span style="color:${r.ok?"var(--settled)":"var(--owing)"};font-weight:800">${r.ok?"✓":"✗"}</span>
+      <div style="flex:1;min-width:0"><div style="color:var(--paper)">${esc(r.t)}</div>
+        ${r.d?`<div style="color:var(--paper-3);font-size:10px;line-height:1.6">${esc(r.d)}</div>`:""}</div>
+    </div>`).join("")}
+    ${_writeQueue.length?`<button class="btn bsm bgn" style="margin-top:8px"
+       onclick="_flushQueue();showToast('📡 جاري إعادة الإرسال…');setTimeout(toolsConnCheck,1500)">
+       📡 إعادة إرسال الطابور</button>`:""}`;
 }
 
 function renderToolsTab(){
@@ -18072,6 +18177,18 @@ document.addEventListener("keydown", function(e){
         </div>
         <div id="gPayResult"></div>
       </div>
+    </div>
+
+    <!-- فحص الاتصال والصلاحيات -->
+    <div class="cd">
+      <div class="cdt">📡 فحص الاتصال والصلاحيات</div>
+      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
+        إن بقي عدّاد ⏱ لا يفرغ رغم أن نقطة الاتصال خضراء، فالسيرفر يرفض الحفظ —
+        غالباً بسبب قواعد الأمان أو عدم تفعيل الدخول المجهول. هذا الفحص يقول أين يقف الحفظ بالضبط.
+      </div>
+      <button class="btn" style="width:100%;justify-content:center;background:var(--steel);color:#fff"
+        onclick="toolsConnCheck()">📡 ابدأ الفحص</button>
+      <div id="connCheckRes" style="margin-top:9px"></div>
     </div>
 
     <!-- فحص السلامة -->
