@@ -1,0 +1,174 @@
+/* ═══ الهيكل ═══ */
+#AS{display:none;min-height:100vh;flex-direction:column;}
+#AS.active{display:flex!important;}
+
+/* الترويسة */
+.tb{position:sticky;top:0;z-index:200;background:var(--ink-050);border-bottom:1px solid var(--rule);
+  padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.tbico{font-size:19px;filter:saturate(.85);}
+.tbn{font-size:15px;font-weight:700;color:var(--paper);letter-spacing:-.2px;}
+.tbr{display:flex;align-items:center;gap:9px;}
+.tbu{color:var(--paper-3);font-size:11px;letter-spacing:.3px;}
+.lgbtn{padding:6px 13px;border-radius:var(--r);border:1px solid var(--rule-hi);background:transparent;
+  color:var(--paper-3);cursor:pointer;font-size:11px;font-weight:600;transition:all .12s;}
+.lgbtn:active{border-color:var(--owing);color:var(--owing);}
+
+/* شريط التبويبات — تسطير سفلي، لا حبوب ملوّنة */
+.tabs{display:flex;gap:0;padding:0 8px;border-bottom:1px solid var(--rule);background:var(--ink-050);overflow-x:auto;}
+.tabs::-webkit-scrollbar{height:0;}
+.tbb{padding:13px 14px;border:none;background:transparent;color:var(--paper-3);cursor:pointer;
+  font-size:12.5px;font-weight:600;white-space:nowrap;border-bottom:2.5px solid transparent;
+  margin-bottom:-1px;transition:color .12s;border-radius:0;}
+.tbb:active{color:var(--paper-2);}
+.tbb.active{color:var(--wheat);border-bottom-color:var(--wheat);font-weight:700;}
+/* فاصل بين مجموعات الأقسام */
+.tbb.grp{border-right:1px solid var(--rule);margin-right:6px;padding-right:15px;}
+.tc{display:none;padding:14px 12px 40px;max-width:1060px;margin:0 auto;width:100%;}
+.tc.active{display:block;}
+
+/* ═══ البطاقة — عنوان بحاجب علوي ومسطرة ═══ */
+.cd{background:var(--ink-100);border:1px solid var(--rule);border-radius:var(--r-lg);padding:0 0 16px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.35);}
+.cdt{font-size:14px;font-weight:700;color:var(--paper);letter-spacing:-.2px;
+  padding:15px 16px 13px;margin-bottom:14px;border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:9px;}
+.cd>*:not(.cdt){margin-left:16px;margin-right:16px;}
+
+/* ═══ النماذج ═══ */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px;margin-bottom:12px;}
+.fi-g{display:flex;flex-direction:column;gap:5px;}
+.fl{color:var(--paper-3);font-size:10px;font-weight:600;letter-spacing:.7px;}
+.fi,.fs{padding:13px 14px;border-radius:var(--r);border:1px solid var(--rule);background:var(--ink-200);
+  color:var(--paper);font-size:14.5px;font-weight:600;outline:none;width:100%;transition:border-color .12s,background .12s;}
+.fi:focus,.fs:focus{border-color:var(--wheat);background:var(--ink-300);}
+.fi::placeholder{color:var(--paper-4);}
+.fi.err{border-color:var(--owing);}
+.em{color:var(--owing);font-size:11px;font-weight:600;}
+
+/* المفاتيح */
+.trow{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.tog{position:relative;width:40px;height:22px;background:var(--ink-300);border-radius:11px;cursor:pointer;
+  border:1px solid var(--rule-hi);transition:background .15s,border-color .15s;}
+.tog.on{background:var(--wheat-dim);border-color:var(--wheat);}
+.togk{position:absolute;top:3px;right:3px;width:14px;height:14px;border-radius:50%;background:var(--paper-2);transition:transform .15s,background .15s;}
+.tog.on .togk{transform:translateX(-18px);background:var(--wheat-hi);}
+.tlbl{color:var(--paper);font-size:13px;font-weight:600;}
+
+/* اختيار المادة */
+.mr{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px;}
+.mb{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 10px;border-radius:var(--r);
+  border:1px solid var(--rule);background:var(--ink-200);color:var(--paper-3);cursor:pointer;
+  font-size:12px;font-weight:600;transition:all .12s;}
+.mb .mi{font-size:26px;}
+.mb.active{border-color:var(--wheat);background:var(--wheat-wash);color:var(--wheat);box-shadow:0 0 0 1px var(--wheat) inset;}
+.mat-ico-jet,.mat-ico-gravel,.mat-ico-straw{width:26px;height:26px;object-fit:contain;vertical-align:-6px;display:inline-block;}
+.mb .mat-ico-jet,.mb .mat-ico-gravel,.mb .mat-ico-straw{width:34px;height:34px;vertical-align:-8px;}
+.mb-sm{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 3px;
+  border-radius:var(--r);border:1px solid var(--rule);background:var(--ink-200);color:var(--paper-3);
+  cursor:pointer;font-size:10px;font-weight:600;transition:all .12s;}
+.mb-sm.active{border-color:var(--wheat);background:var(--wheat-wash);color:var(--wheat);}
+.mb-sm .mi-sm{font-size:16px;line-height:1;}
+.mb-sm .mat-ico-jet,.mb-sm .mat-ico-gravel,.mb-sm .mat-ico-straw{width:19px;height:19px;vertical-align:-4px;}
+
+/* صناديق الخصومات — تُميَّز بمسطرة جانبية لا بلون خلفية صارخ */
+.fee-box{border-radius:var(--r);padding:13px;margin-bottom:12px;background:var(--ink-200);border:1px solid var(--rule);}
+.fee-box.kabs-b{border-right:3px solid var(--steel);}
+.fee-box.naql-b{border-right:3px solid var(--pending);}
+.fee-box.wasl-b{border-right:3px solid var(--paper-4);}
+.fbh{font-size:11px;font-weight:700;margin-bottom:10px;letter-spacing:.8px;}
+.kabs-b .fbh{color:var(--steel);}
+.naql-b .fbh{color:var(--pending);}
+.wasl-b .fbh{color:var(--paper-2);}
+.ktr{display:flex;gap:7px;margin-bottom:9px;}
+.ktb{flex:1;padding:9px;border-radius:var(--r);border:1px solid var(--rule);background:var(--ink-100);
+  color:var(--paper-3);cursor:pointer;font-size:13px;font-weight:600;text-align:center;transition:all .12s;}
+.ktb.active{border-color:var(--steel);background:var(--steel-wash);color:var(--steel);}
+
+/* شريط المراحل — عدّاد خطوات، ليس حبّة */
+.sbar{display:flex;margin-bottom:14px;background:var(--ink-200);border-radius:var(--r);padding:0;border:1px solid var(--rule);overflow:hidden;}
+.ss{flex:1;display:flex;align-items:center;justify-content:center;padding:9px 3px;font-size:11px;
+  font-weight:600;color:var(--paper-4);text-align:center;border-left:1px solid var(--rule);}
+.ss:first-child{border-left:none;}
+.ss.active{background:var(--wheat);color:var(--on-accent);font-weight:700;}
+.ss.done{background:var(--settled-wash);color:var(--settled);}
+
+/* ═══ الأزرار ═══ */
+.btn{padding:10px 16px;border-radius:var(--r);border:1px solid transparent;cursor:pointer;font-size:12.5px;
+  font-weight:700;display:inline-flex;align-items:center;gap:6px;letter-spacing:-.1px;
+  transition:transform .1s,filter .12s,background .12s;}
+.btn:active{transform:scale(.97);}
+.btn:active{filter:brightness(.86);}
+.bg{background:var(--wheat);color:var(--on-accent);font-weight:700;}
+.bgn{background:var(--settled-wash);border-color:transparent;color:var(--settled);}
+.bor{background:var(--pending-wash);border-color:transparent;color:var(--pending);}
+.bbl{background:var(--steel-wash);border-color:transparent;color:var(--steel);}
+.bgh{background:var(--ink-300);border-color:transparent;color:var(--paper-2);}
+.bfw{width:100%;justify-content:center;padding:14px;font-size:14px;}
+.bsm{padding:6px 11px;font-size:11px;}
+
+/* ═══ الوسوم — بطاقات دفتر صغيرة، لا حبوب ═══ */
+.badge{font-size:10px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-block;
+  background:var(--ink-300);color:var(--paper-2);border:none;letter-spacing:.1px;}
+.bj{background:var(--settled-wash);color:var(--settled);border-color:var(--settled-rule);}
+.bgr{background:var(--ink-300);color:var(--paper-2);border-color:var(--rule-hi);}
+.bc{background:var(--wheat-wash);color:var(--wheat);border-color:var(--wheat-dim);}
+.bd{background:var(--settled-wash);color:var(--settled);border-color:var(--settled-rule);}
+.bp{background:var(--steel-wash);color:var(--steel);border-color:var(--steel-rule);}
+.bw{background:var(--pending-wash);color:var(--pending);border-color:var(--pending-rule);animation:blink 2.2s ease-in-out infinite;}
+
+/* ═══ شريط الفلاتر ═══ */
+.fbar{display:flex;flex-wrap:wrap;align-items:center;gap:9px;background:var(--ink-100);border-radius:var(--r-lg);
+  border:1px solid var(--rule);padding:11px 13px;margin-bottom:11px;}
+.fg2{display:flex;align-items:center;gap:6px;}
+.fl2{color:var(--paper-3);font-size:10px;font-weight:600;letter-spacing:.5px;}
+.fs2{padding:7px 10px;border-radius:var(--r);border:1px solid var(--rule);background:var(--ink-200);
+  color:var(--paper);font-size:12px;outline:none;}
+.fs2:focus{border-color:var(--wheat);}
+.fac{margin-right:auto;display:flex;gap:6px;flex-wrap:wrap;}
+.fsum{width:100%;display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;padding-top:9px;border-top:1px solid var(--rule);}
+.fsum span{color:var(--paper-3);font-size:11px;}
+.fsum strong{color:var(--paper);font-weight:700;}
+
+/* ═══ بطاقة الوصل ═══ */
+.rc{background:var(--ink-100);border:1px solid var(--rule);border-radius:var(--r-lg);padding:14px;margin-bottom:10px;
+  border-right:3px solid var(--rule-hi);box-shadow:0 1px 2px rgba(0,0,0,.35);}
+.rc.done{border-right-color:var(--settled);}
+.rc.waiting{border-right-color:var(--pending);}
+.rt{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;flex-wrap:wrap;gap:5px;}
+.rtl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.rpl{color:var(--paper);font-weight:800;font-size:16px;letter-spacing:-.3px;}
+.rdr{color:var(--paper-2);font-size:13px;}
+.rmt{display:flex;flex-wrap:wrap;gap:10px;color:var(--paper-4);font-size:10px;margin-bottom:8px;
+  padding-top:8px;border-top:1px solid var(--rule);}
+.stl{display:flex;margin-bottom:9px;border-radius:var(--r);overflow:hidden;border:1px solid var(--rule);}
+.sts{flex:1;text-align:center;padding:5px 2px;font-size:10px;font-weight:600;color:var(--paper-4);
+  background:var(--ink-200);border-left:1px solid var(--rule);}
+.sts:first-child{border-left:none;}
+.sts.done{background:var(--settled-wash);color:var(--settled);}
+.sts.cur{background:var(--wheat-wash);color:var(--wheat);}
+
+/* ★ العنصر المميّز: شريط قراءة الميزان ★
+   خانات مفصولة بمساطر رأسية وأرقام جدولية — كما تُطبع على تذكرة الوزن */
+.rw{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;background:var(--ink-200);
+  border:none;border-radius:var(--r);padding:0;margin-bottom:10px;overflow:hidden;}
+.rwi{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:8px 11px;border-left:1px solid var(--rule);flex:1;min-width:66px;}
+.rwi:last-child{border-left:none;}
+.rwk{color:var(--paper-4);font-size:9px;font-weight:600;letter-spacing:.7px;text-transform:none;}
+.rwv{font-size:15px;font-weight:800;color:var(--paper);white-space:nowrap;letter-spacing:-.5px;}
+.rws{color:var(--paper-4);font-size:11px;display:flex;align-items:center;padding:0 3px;border-left:1px solid var(--rule);}
+.fa{background:var(--wheat-wash);border-right:none;padding:9px 14px;}
+.fa .rwk{color:var(--wheat-dim);}
+.fa .rwv{color:var(--wheat);font-size:17px;font-weight:800;}
+.rac{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:9px;border-top:1px solid var(--rule);}
+
+/* شريط الدفع */
+.pay-bar-wrap{background:var(--ink-200);border:1px solid var(--rule);border-radius:var(--r);padding:9px 11px;margin:5px 0}
+.pay-bar-track{background:var(--ink-000);border-radius:0;height:4px;margin:6px 0;overflow:hidden}
+.pay-bar-fill{height:100%;border-radius:0;background:var(--settled);transition:width .35s ease}
+.pay-bar-lbl{display:flex;justify-content:space-between;font-size:10px}
+.pay-hist{margin-top:8px;display:flex;flex-direction:column;gap:0}
+.pay-hist-row{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:5px 0;border-bottom:1px solid var(--rule)}
+.pay-hist-row:last-child{border-bottom:none}
+.srf-card{background:var(--ink-100);border:1px solid var(--rule);border-radius:var(--r-lg);margin-bottom:9px;
+  overflow:hidden;border-right:2px solid var(--pending);padding:12px 14px}
+

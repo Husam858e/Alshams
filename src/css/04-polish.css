@@ -1,0 +1,157 @@
+/* ══════════════════════════════════════════════════════
+   طبقة اللمسات الحديثة — v17.2
+   زجاج ضبابي · حركة دقيقة · عمق متدرّج · حواف الشاشة
+══════════════════════════════════════════════════════ */
+
+/* ١) الترويسة وشريط التبويبات: زجاج ضبابي شفاف بدل لون مصمت */
+.tb{
+  background:var(--glass);
+  backdrop-filter:saturate(180%) blur(18px);
+  -webkit-backdrop-filter:saturate(180%) blur(18px);
+  border-bottom:1px solid var(--rule);
+  padding-top:calc(11px + env(safe-area-inset-top));
+}
+.tabs{
+  position:sticky;top:var(--tb-h,52px);z-index:190;
+  background:var(--glass);
+  backdrop-filter:saturate(180%) blur(18px);
+  -webkit-backdrop-filter:saturate(180%) blur(18px);
+  border-bottom:1px solid var(--rule);
+}
+/* تلاشٍ عند حافة شريط التبويبات يوحي بوجود المزيد */
+.tabs{-webkit-mask-image:linear-gradient(to left,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%);
+      mask-image:linear-gradient(to left,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%);}
+
+/* ٢) عمق متدرّج حقيقي بدل حدود مسطّحة */
+.cd,.rc,.whc,.sc,.srf-card,.dam-parent{box-shadow:var(--shadow-1);border-color:var(--rule);}
+.mob,.lc{box-shadow:var(--shadow-2);}
+
+/* ٣) حركة دقيقة — البطاقات تدخل بانسياب لا بقفزة */
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.tc.active>*{animation:riseIn .34s cubic-bezier(.22,.8,.3,1) both;}
+.tc.active>*:nth-child(1){animation-delay:.01s}
+.tc.active>*:nth-child(2){animation-delay:.05s}
+.tc.active>*:nth-child(3){animation-delay:.09s}
+.tc.active>*:nth-child(n+4){animation-delay:.12s}
+
+/* ٤) استجابة لمس فورية على كل شيء قابل للنقر */
+.btn,.tbb,.ubtn,.nk,.mb,.mb-sm,.ktb,.ptb,.ai-chip,.lgbtn,.badge{
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .12s cubic-bezier(.22,.8,.3,1),background .16s,color .16s,border-color .16s,box-shadow .16s;
+}
+.btn:active,.mb:active,.mb-sm:active,.ktb:active,.ai-chip:active,.ubtn:active{transform:scale(.965);}
+.nk:active{transform:scale(.92);}
+
+/* ٥) الزر الأساسي: توهّج خفيف يعطيه ثقلاً بصرياً */
+.bg,.lbtn,.ss.active,.ptb.active{box-shadow:var(--shadow-1);}
+
+/* ٦) الحقول: حلقة تركيز حديثة بدل تغيّر لون الحد فقط */
+.fi:focus,.fs:focus,.fs2:focus{
+  border-color:var(--wheat);
+  box-shadow:0 0 0 3px var(--wheat-wash);
+  background:var(--ink-100);
+}
+
+/* ٧) شريط قراءة الميزان: تدرّج داخلي خفيف يعطي حسّ لوحة قياس */
+.rw{background:var(--ink-200);}
+.fa{background:var(--wheat-wash);}
+
+/* ٨) شريط الدفع: انسياب أنعم وحواف دائرية */
+.pay-bar-track{border-radius:999px;height:6px;background:var(--ink-300);}
+.pay-bar-fill{border-radius:999px;transition:width .6s cubic-bezier(.22,.8,.3,1);}
+
+/* ٩) المفاتيح: انتقال زنبركي */
+.tog{transition:background .22s cubic-bezier(.22,.8,.3,1);}
+.tog .togk{transition:transform .26s cubic-bezier(.34,1.4,.5,1),background .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,.45);}
+
+/* ١٠) شريط التمرير: نحيف وحديث */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--rule-hi);border-radius:999px;}
+
+/* ١١) احترام حواف الهواتف الحديثة (النوتش والشريط السفلي) */
+.tc{padding-bottom:calc(48px + env(safe-area-inset-bottom));}
+#aiBtn{bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--shadow-2);}
+#aiInputRow{padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+#toast{bottom:calc(18px + env(safe-area-inset-bottom));border-radius:10px;
+  background:var(--ink-300);border-color:var(--rule-hi);}
+
+/* ١٢) النوافذ: دخول بانسياب من الأسفل */
+@keyframes modalIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+.mo.active .mob{animation:modalIn .26s cubic-bezier(.22,.8,.3,1) both;}
+.mo{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:rgba(10,14,20,.55);}
+
+/* ١٣) الوسوم: نبض ألطف للحالة المنتظرة */
+@keyframes softPulse{0%,100%{opacity:1}50%{opacity:.55}}
+.bw{animation:softPulse 2.4s cubic-bezier(.4,0,.6,1) infinite;}
+
+/* ١٤) شريط المزامنة: مسح متدرّج */
+#syncBar{background:linear-gradient(90deg,var(--wheat-dim),var(--wheat),var(--wheat-hi));}
+
+/* ١٥) حالة فارغة أنيقة */
+.empty-state{padding:44px 20px;}
+.empty-state b{font-size:15px;font-weight:700;color:var(--paper);letter-spacing:-.3px;}
+
+@media (prefers-reduced-motion:reduce){
+  .tc.active>*,.mo.active .mob{animation:none!important}
+  *{transition-duration:.01ms!important}
+}
+
+/* إبراز السجل المُنتقَل إليه من نتائج الفحص */
+@keyframes recFlash{
+  0%{box-shadow:0 0 0 0 var(--wheat);}
+  35%{box-shadow:0 0 0 4px var(--wheat);}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}
+}
+.rec-flash{animation:recFlash 1.3s ease-out 2;border-color:var(--wheat)!important;}
+
+/* v17.21 — إخفاء بصري لحقل المفتاح بدل type="password":
+   وجود حقل password واحد يجعل كروم يعامل الصفحة كنموذج
+   تسجيل دخول، فيعرض شريط 🔑 فوق لوحة المفاتيح في كل حقل. */
+input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
+
+/* إبراز الحقل المقصود عند فتحه باختصار (مثل D للتاريخ) */
+@keyframes fieldFlash{
+  0%{box-shadow:0 0 0 0 var(--wheat);}
+  30%{box-shadow:0 0 0 4px var(--wheat);}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}
+}
+.field-flash{
+  animation:fieldFlash 1.4s ease-out 1;
+  border-color:var(--wheat)!important;
+  background:var(--wheat-wash)!important;
+}
+
+/* تقويم داخل الصفحة — يحاكي تقويم أندرويد */
+.dp-ov{display:none;position:fixed;inset:0;background:rgba(6,9,14,.72);z-index:1200;
+  align-items:center;justify-content:center;padding:16px;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+.dp-ov.on{display:flex;}
+.dp-box{background:var(--ink-100);border:1px solid var(--rule-hi);border-radius:16px;
+  width:100%;max-width:340px;overflow:hidden;box-shadow:var(--shadow-2);}
+.dp-hd{background:var(--ink-300);padding:16px 18px;}
+.dp-hy{font-size:13px;color:var(--paper-3);font-weight:600;}
+.dp-hd-main{font-size:22px;color:var(--paper);font-weight:800;margin-top:4px;letter-spacing:-.4px;}
+.dp-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;}
+.dp-mon{font-size:14px;font-weight:700;color:var(--paper);}
+.dp-arrow{background:transparent;border:none;color:var(--paper-2);font-size:24px;
+  cursor:pointer;padding:2px 12px;border-radius:8px;line-height:1;}
+.dp-arrow:active{background:var(--ink-300);}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 10px;}
+.dp-dow{padding-bottom:6px;}
+.dp-w{text-align:center;font-size:11px;color:var(--paper-3);font-weight:700;padding:4px 0;}
+.dp-c{text-align:center;font-size:14px;color:var(--paper);padding:9px 0;border-radius:50%;
+  cursor:pointer;font-weight:600;}
+.dp-c:active{background:var(--ink-300);}
+.dp-e{visibility:hidden;}
+.dp-today{color:var(--wheat);font-weight:800;}
+.dp-sel{background:var(--wheat);color:var(--on-accent);font-weight:800;}
+.dp-act{display:flex;justify-content:flex-start;gap:6px;padding:12px 14px 14px;}
+.dp-btn{background:transparent;border:none;color:var(--steel);font-size:14px;font-weight:700;
+  cursor:pointer;padding:8px 14px;border-radius:8px;font-family:inherit;}
+.dp-btn:active{background:var(--ink-200);}
+.dp-ok{color:var(--wheat);margin-inline-start:auto;}
+
+/* النوافذ المنزلقة */
+.mov.on{display:flex!important}
+#mPartialPay-ov.on{display:flex!important}

@@ -1,0 +1,161 @@
+/* ══════════════════════════════════════════════════════════════
+   ميزان الشمس — نظام التصميم "دفتر الميزان"
+   ──────────────────────────────────────────────────────────────
+   المرجع البصري: تذكرة الوزن المطبوعة ودفتر الحسابات.
+   حبر دافئ على ورق داكن · مساطر شعرية بدل الظلال · لون واحد
+   مُكتسَب (القمح/الشمس) · الألوان الأخرى للحالة فقط لا للزينة.
+   الأرقام جدولية دائماً — في دفتر حسابات يجب أن تتحاذى الخانات.
+══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   نظام «دفتر النهار» — Daylight Ledger
+   ──────────────────────────────────────────────────────────────
+   فاتح افتراضياً: بحث Nielsen Norman Group يثبت أفضلية القطبية
+   الموجبة للعين السليمة — والتطبيق يُستخدم في ساحة تحت الشمس.
+   الوضع الداكن متاح ويتبع إعداد الهاتف تلقائياً، ويمكن تثبيته يدوياً.
+   الهوية: أخضر (ازدهار ونماء) + ذهب (الشمس والجودة) — دلالات
+   موافقة للسياق العراقي والخليجي، ومطابقة لاسم «ميزان الشمس».
+══════════════════════════════════════════════════════════════ */
+:root{
+  /* ── الوضع الفاتح (الافتراضي) ── */
+  --ink-000:#F7F8FA;      /* الصفحة */
+  --ink-050:#FFFFFF;      /* الأشرطة الثابتة */
+  --ink-100:#FFFFFF;      /* البطاقات */
+  --ink-200:#F1F3F5;      /* الحقول والأشرطة الداخلية */
+  --ink-300:#E9ECEF;      /* مرتفع / تحويم */
+  --rule:#DDE1E6;
+  --rule-hi:#C3CAD1;
+
+  --paper:#16191D;        /* النص الأساسي */
+  --paper-2:#42474E;
+  --paper-3:#6C737D;
+  --paper-4:#9AA0A6;
+
+  /* اللون الأساسي: أخضر الازدهار */
+  --wheat:#0F7B4F;
+  --wheat-hi:#0B6440;
+  --wheat-dim:#8FBFA8;
+  --wheat-wash:#E7F3ED;
+  --on-accent:#FFFFFF;    /* النص فوق اللون الأساسي */
+
+  /* الحالة */
+  --settled:#1B8A5A;      --settled-wash:#E6F4EC;  --settled-rule:#A7D5BE;
+  --owing:#C6362E;        --owing-wash:#FCEBEA;    --owing-rule:#EDB6B2;
+  --pending:#B7791F;      --pending-wash:#FBF2E1;  --pending-rule:#E3C68C;
+  --steel:#2563EB;        --steel-wash:#E8EFFD;    --steel-rule:#B4CBF7;
+
+  --shadow-1:0 1px 2px rgba(16,25,40,.06),0 2px 8px rgba(16,25,40,.07);
+  --shadow-2:0 8px 28px -8px rgba(16,25,40,.18),0 2px 6px rgba(16,25,40,.07);
+  --glass:rgba(255,255,255,.82);
+
+  --r-sm:7px; --r:8px; --r-lg:10px;
+}
+
+/* ── الوضع الداكن: يتبع إعداد الهاتف ما لم يُثبَّت يدوياً ── */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink-000:#121417; --ink-050:#1A1D21; --ink-100:#1A1D21;
+    --ink-200:#22262B; --ink-300:#2B3036;
+    --rule:#343A40; --rule-hi:#464D55;
+    --paper:#E6E8EA; --paper-2:#AEB4BB; --paper-3:#7C848C; --paper-4:#646C75;
+    --wheat:#3CCB8E; --wheat-hi:#5FDCAB; --wheat-dim:#1F6B4C; --wheat-wash:#13251E;
+    --on-accent:#06120D;
+    --settled:#3CCB8E; --settled-wash:#12241C; --settled-rule:#255C43;
+    --owing:#F1746B;   --owing-wash:#2A1614;   --owing-rule:#6B322D;
+    --pending:#E0A94B; --pending-wash:#251C0E; --pending-rule:#6B5222;
+    --steel:#5B9CFF;   --steel-wash:#151D2B;   --steel-rule:#2E4570;
+    --shadow-1:0 1px 2px rgba(0,0,0,.4);
+    --shadow-2:0 12px 34px -10px rgba(0,0,0,.7);
+    --glass:rgba(26,29,33,.82);
+  }
+}
+/* ── تثبيت يدوي للوضع الداكن ── */
+:root[data-theme="dark"]{
+  --ink-000:#121417; --ink-050:#1A1D21; --ink-100:#1A1D21;
+  --ink-200:#22262B; --ink-300:#2B3036;
+  --rule:#343A40; --rule-hi:#464D55;
+  --paper:#E6E8EA; --paper-2:#AEB4BB; --paper-3:#7C848C; --paper-4:#646C75;
+  --wheat:#3CCB8E; --wheat-hi:#5FDCAB; --wheat-dim:#1F6B4C; --wheat-wash:#13251E;
+  --on-accent:#06120D;
+  --settled:#3CCB8E; --settled-wash:#12241C; --settled-rule:#255C43;
+  --owing:#F1746B;   --owing-wash:#2A1614;   --owing-rule:#6B322D;
+  --pending:#E0A94B; --pending-wash:#251C0E; --pending-rule:#6B5222;
+  --steel:#5B9CFF;   --steel-wash:#151D2B;   --steel-rule:#2E4570;
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 12px 34px -10px rgba(0,0,0,.7);
+  --glass:rgba(26,29,33,.82);
+}
+
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;width:100%;}
+body{
+  /* الترتيب مقصود: الخط المُحمَّل أولاً إن وصل، ثم خطوط النظام
+     العربية على iOS و Android و Windows — كلها تحوي الأرقام
+     العربية الشرقية ٠-٩ وتظهر فوراً دون إنترنت. */
+  font-family:"Readex Pro","IBM Plex Sans Arabic",
+              -apple-system,"SF Arabic","Geeza Pro",
+              "Noto Sans Arabic","Droid Arabic Naskh","Noto Kufi Arabic",
+              system-ui,"Segoe UI",Tahoma,Arial,sans-serif;
+  background:var(--ink-000);color:var(--paper);
+  min-height:100vh;direction:rtl;font-size:15px;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+input,select,button,textarea{
+  font-family:inherit;font-size:14px;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--rule-hi);border-radius:0;}
+::selection{background:var(--wheat-dim);color:var(--paper);}
+:focus-visible{outline:2px solid var(--wheat);outline-offset:1px;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* شريط الحفظ — مسح محدد، ليس وميضاً */
+#syncBar{position:fixed;top:0;left:0;right:0;height:2px;background:var(--wheat);z-index:9999;transform:scaleX(0);transform-origin:right;transition:transform .25s ease;}
+#syncBar.active{transform:scaleX(1);}
+
+/* التنبيه — بطاقة صغيرة بمسطرة، ليست فقاعة */
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(90px);
+  background:var(--ink-200);border:1px solid var(--rule-hi);border-right:3px solid var(--wheat);
+  border-radius:var(--r);padding:10px 16px;color:var(--paper);font-size:13px;font-weight:600;
+  z-index:9999;transition:transform .25s ease;max-width:88vw;text-align:center;
+  box-shadow:0 6px 20px rgba(0,0,0,.5);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ═══ شاشة الدخول — لوحة جهاز، لا بطاقة مستديرة ═══ */
+#LS{min-height:100%;min-height:100vh;width:100%;background:var(--ink-000);display:table;padding:16px;box-sizing:border-box;}
+.ls-inner{display:table-cell;vertical-align:middle;text-align:center;}
+.lc{background:var(--ink-100);border:1px solid var(--rule);
+  border-radius:20px;padding:30px 22px;width:100%;max-width:380px;margin:0 auto;text-align:right;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.lia{text-align:center;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid var(--rule);}
+.liico{display:block;margin-bottom:12px;}
+.litl{font-size:26px;font-weight:800;color:var(--paper);letter-spacing:-.8px;}
+.lisb{font-size:11px;color:var(--paper-3);margin-top:6px;line-height:1.7;letter-spacing:.3px;}
+.slbl{color:var(--paper-3);font-size:10px;font-weight:600;margin-bottom:10px;display:block;text-align:right;letter-spacing:1.2px;}
+.ugrid{display:block;margin-bottom:20px;overflow:hidden;}
+.ugrid:after{content:"";display:table;clear:both;}
+.ubtn{float:right;width:47%;margin:0 1.5% 8px 1.5%;padding:11px 6px;border-radius:var(--r);
+  border:1px solid var(--rule);background:var(--ink-200);color:var(--paper-3);cursor:pointer;
+  font-size:11px;font-weight:600;text-align:center;box-sizing:border-box;display:block;transition:all .12s;}
+.ubtn.active{border-color:var(--wheat);background:var(--wheat-wash);color:var(--wheat);}
+.av{width:34px;height:34px;border-radius:var(--r);background:var(--ink-300);border:1px solid var(--rule-hi);
+  font-size:15px;font-weight:700;color:var(--paper-2);margin:0 auto 6px;line-height:32px;text-align:center;}
+.ubtn.active .av{background:var(--wheat);border-color:var(--wheat);color:var(--on-accent);}
+.pdots{text-align:center;margin:14px 0;}
+.pdot{width:9px;height:9px;border-radius:50%;border:1px solid var(--rule-hi);background:transparent;display:inline-block;margin:0 7px;transition:all .12s;}
+.pdot.filled{background:var(--wheat);border-color:var(--wheat);}
+.npad{width:222px;margin:0 auto 14px;overflow:hidden;}
+.npad:after{content:"";display:table;clear:both;}
+.nk{float:right;width:30.33%;margin:0 1.5% 7px 1.5%;padding:15px 0;font-size:19px;font-weight:600;
+  border-radius:var(--r);border:1px solid var(--rule);background:var(--ink-200);color:var(--paper);
+  cursor:pointer;text-align:center;box-sizing:border-box;transition:all .1s;}
+.nk:active{background:var(--wheat);color:var(--on-accent);border-color:var(--wheat);}
+.nk.e{opacity:0;pointer-events:none;}
+.perr{color:var(--owing);font-size:12px;margin-bottom:10px;text-align:center;display:block;font-weight:600;}
+.lbtn{width:100%;padding:16px;border-radius:10px;border:none;background:var(--wheat);color:var(--on-accent);
+  font-size:16px;font-weight:800;cursor:pointer;display:block;box-sizing:border-box;letter-spacing:-.2px;}
+.lbtn:disabled{opacity:.28;}
+
