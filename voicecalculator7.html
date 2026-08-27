@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080c1a">
+<meta name="description" content="حاسبة صوتية عربية تفهم العمليات الحسابية المنطوقة فقط، مع سجل عمليات كامل.">
+<title>الحاسبة الصوتية الذكية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --plus:#4ade80; --minus:#fb923c; --mul:#a78bfa; --div:#f472b6;
+  --accent:#60a5fa; --ok:#4ade80; --err:#f87171; --txt:#e2e8f0;
+}
+html{background:#080c1a;}
+body{
+  background:radial-gradient(ellipse at 20% 10%,#0f1b35,#080c1a 55%,#0a0612);
+  background-repeat:no-repeat;
+  display:flex;align-items:flex-start;justify-content:center;
+  font-family:'Cairo','Segoe UI',Tahoma,sans-serif;direction:rtl;
+  padding:10px 10px 30px;min-height:100vh;color:var(--txt);
+}
+button{font-family:inherit;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+.card{
+  width:100%;max-width:430px;position:relative;
+  background:rgba(255,255,255,.04);
+  border-radius:26px;border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 24px 70px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.1) inset;
+  overflow:hidden;
+}
+
+/* ── Header ── */
+.hdr{
+  padding:12px 14px 10px;
+  background:linear-gradient(135deg,rgba(96,165,250,.13),rgba(167,139,250,.07));
+  border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:8px;
+}
+.hdr h1{
+  font-size:15px;font-weight:900;letter-spacing:.5px;flex:1;text-align:center;
+  background:linear-gradient(90deg,#90cdf4,#d6bcfa,#fbd38d,#90cdf4);
+  background-size:300% auto;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  animation:shimmer 5s linear infinite;
+}
+.icon-btn{
+  position:relative;flex-shrink:0;
+  width:36px;height:36px;border-radius:11px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.65);font-size:16px;
+  cursor:pointer;transition:all .18s;
+  display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{background:rgba(255,255,255,.1);color:#fff;}
+.icon-btn:active{transform:scale(.9);}
+.icon-btn.on{border-color:var(--accent);background:rgba(96,165,250,.16);color:#bfdbfe;}
+.badge{
+  position:absolute;top:-5px;left:-5px;min-width:17px;height:17px;
+  border-radius:9px;background:var(--div);color:#fff;
+  font-size:9px;font-weight:900;line-height:17px;text-align:center;
+  padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+.badge[hidden]{display:none;}
+
+/* ── Display ── */
+.display-wrap{
+  background:rgba(0,0,0,.32);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  position:relative;
+}
+#dArea{
+  max-height:250px;overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;
+  padding:12px 18px 10px;
+  scrollbar-width:none;
+}
+#dArea::-webkit-scrollbar{display:none;}
+
+.c-row{
+  display:flex;align-items:baseline;
+  direction:ltr;width:100%;padding:1px 0;
+  animation:rowIn .15s ease;
+}
+.c-op{
+  width:36px;text-align:center;flex-shrink:0;
+  font-size:23px;font-weight:900;line-height:1;
+}
+.c-num{
+  flex:1;min-width:0;text-align:right;
+  font-size:36px;font-weight:900;color:var(--txt);
+  line-height:1.15;padding-right:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:font-size .15s;
+}
+.c-num.s8 {font-size:28px;}
+.c-num.s10{font-size:22px;}
+.c-num.s12{font-size:18px;}
+.c-num.s16{font-size:14px;}
+.c-active .c-num{border-bottom:2px solid rgba(96,165,250,.55);min-width:48px;}
+.c-row.first .c-num{font-size:40px;}
+.c-row.first .c-num.s8{font-size:30px;}
+.c-row.first .c-num.s10{font-size:24px;}
+.c-sep{height:1.5px;background:rgba(255,255,255,.15);margin:6px 0 4px;width:100%;}
+.c-result .c-num{
+  font-size:46px;color:var(--ok);
+  text-shadow:0 0 28px rgba(74,222,128,.4);
+  cursor:pointer;white-space:normal;word-break:break-all;
+}
+.c-result .c-num.s8 {font-size:36px;}
+.c-result .c-num.s10{font-size:28px;}
+.c-result .c-num.s12{font-size:22px;}
+.c-result .c-num.s16{font-size:17px;}
+.c-result .c-op{color:var(--ok)!important;}
+.c-cur{color:var(--accent);animation:blink .85s infinite;font-weight:300;}
+.c-expr-row{
+  color:rgba(255,255,255,.42);font-size:13.5px;font-weight:700;
+  text-align:right;direction:ltr;padding:0 2px 3px;width:100%;
+  word-break:break-word;
+}
+.c-said{
+  color:rgba(255,255,255,.26);font-size:11px;font-weight:600;
+  text-align:right;padding:0 2px 4px;width:100%;
+}
+.d-hint{
+  color:rgba(255,255,255,.22);font-size:12.5px;font-weight:700;
+  text-align:center;padding:22px 0 18px;line-height:1.9;
+}
+.run-total{
+  direction:ltr;text-align:right;padding:2px 2px 0;
+  font-size:12px;font-weight:800;color:rgba(96,165,250,.65);
+}
+
+/* ── Voice section ── */
+.voice-sec{
+  border-bottom:1px solid rgba(255,255,255,.07);
+  background:rgba(96,165,250,.02);
+  padding:12px 13px 11px;
+}
+.mic-row{display:flex;align-items:center;gap:11px;margin-bottom:9px;}
+.mic-btn{
+  position:relative;flex-shrink:0;
+  width:62px;height:62px;border-radius:50%;
+  border:2px solid rgba(96,165,250,.35);
+  background:linear-gradient(145deg,rgba(96,165,250,.18),rgba(167,139,250,.1));
+  color:#dbeafe;font-size:26px;cursor:pointer;
+  transition:transform .15s,box-shadow .25s,border-color .25s;
+  display:flex;align-items:center;justify-content:center;
+}
+.mic-btn:active{transform:scale(.93);}
+.mic-btn:disabled{opacity:.35;cursor:not-allowed;}
+.mic-btn.live{
+  border-color:var(--err);
+  background:linear-gradient(145deg,rgba(248,113,113,.3),rgba(244,114,182,.16));
+  box-shadow:0 0 0 0 rgba(248,113,113,.5);
+  animation:pulse 1.5s infinite;
+}
+.mic-btn.live::after{
+  content:'';position:absolute;inset:-9px;border-radius:50%;
+  border:1.5px solid rgba(248,113,113,.35);animation:ring 1.5s infinite;
+}
+.mic-side{flex:1;min-width:0;}
+.mic-state{font-size:12.5px;font-weight:800;color:rgba(255,255,255,.72);margin-bottom:4px;}
+.mic-state.live{color:#fca5a5;}
+.mic-sub{font-size:10.5px;font-weight:600;color:rgba(255,255,255,.3);line-height:1.6;}
+#liveTx{
+  font-size:13px;font-weight:800;color:#bfdbfe;
+  min-height:18px;word-break:break-word;
+}
+.bars{display:flex;align-items:flex-end;gap:3px;height:16px;margin-top:5px;}
+.bars[hidden]{display:none;}
+.bars i{width:3px;background:linear-gradient(#f87171,#f472b6);border-radius:2px;animation:bar .9s ease-in-out infinite;}
+.bars i:nth-child(1){animation-delay:0s}   .bars i:nth-child(2){animation-delay:.1s}
+.bars i:nth-child(3){animation-delay:.2s}  .bars i:nth-child(4){animation-delay:.3s}
+.bars i:nth-child(5){animation-delay:.4s}  .bars i:nth-child(6){animation-delay:.5s}
+.bars i:nth-child(7){animation-delay:.6s}
+
+.inp-row{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(255,255,255,.06);
+  border:1.5px solid rgba(96,165,250,.3);
+  border-radius:14px;padding:0 10px;
+  transition:border-color .2s,box-shadow .2s;
+}
+.inp-row:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(96,165,250,.18);}
+#vInput{
+  flex:1;min-width:0;background:transparent;border:none;outline:none;
+  color:var(--txt);font-size:15px;font-weight:700;
+  font-family:inherit;direction:rtl;text-align:right;
+  padding:11px 0;caret-color:var(--accent);
+}
+#vInput::placeholder{color:rgba(255,255,255,.2);font-size:12px;}
+.btn-ok{
+  background:linear-gradient(135deg,#1d4ed8,#60a5fa);
+  border:none;border-radius:10px;color:#fff;
+  font-size:12px;font-weight:900;padding:7px 11px;
+  cursor:pointer;flex-shrink:0;transition:transform .15s;white-space:nowrap;
+}
+.btn-ok:active{transform:scale(.92);}
+
+.hints{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.hint{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:8px;padding:3px 8px;font-size:10px;font-weight:700;
+  color:rgba(255,255,255,.35);white-space:nowrap;cursor:pointer;
+  transition:all .16s;
+}
+.hint:hover{border-color:rgba(96,165,250,.4);color:rgba(255,255,255,.7);}
+.hint b{color:#a78bfa;}
+
+.st{
+  margin-top:8px;border-radius:10px;padding:7px 12px;
+  font-size:12px;font-weight:700;text-align:center;
+  display:none;animation:sUp .25s ease;word-break:break-word;
+}
+.st.ok {background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);color:var(--ok);}
+.st.err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:var(--err);}
+.st.inf{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:#90cdf4;}
+
+/* ── Op buttons ── */
+.ops-sec{padding:12px 13px 0;}
+.sec-lbl{color:rgba(255,255,255,.22);font-size:11px;text-align:center;font-weight:700;letter-spacing:1px;margin-bottom:9px;}
+.ops-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.op-btn{
+  padding:9px 0 7px;border-radius:13px;
+  border:1.5px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
+  font-size:19px;font-weight:900;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  transition:all .18s;
+}
+.op-btn .sub{font-size:9px;color:rgba(255,255,255,.3);font-weight:600;}
+.op-btn:active{transform:scale(.92);}
+.op-btn[data-op="+"]{color:var(--plus);}
+.op-btn[data-op="-"]{color:var(--minus);}
+.op-btn[data-op="×"]{color:var(--mul);}
+.op-btn[data-op="÷"]{color:var(--div);}
+.op-btn[data-op="+"].act{border-color:var(--plus);background:rgba(74,222,128,.12);box-shadow:0 3px 14px rgba(74,222,128,.3);transform:scale(1.05);}
+.op-btn[data-op="-"].act{border-color:var(--minus);background:rgba(251,146,60,.12);box-shadow:0 3px 14px rgba(251,146,60,.3);transform:scale(1.05);}
+.op-btn[data-op="×"].act{border-color:var(--mul);background:rgba(167,139,250,.12);box-shadow:0 3px 14px rgba(167,139,250,.3);transform:scale(1.05);}
+.op-btn[data-op="÷"].act{border-color:var(--div);background:rgba(244,114,182,.12);box-shadow:0 3px 14px rgba(244,114,182,.3);transform:scale(1.05);}
+.fn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:7px;}
+.fn-btn{
+  padding:9px 0;border-radius:12px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.6);font-size:14px;font-weight:800;
+  cursor:pointer;transition:all .16s;
+}
+.fn-btn:hover{background:rgba(255,255,255,.07);color:#fff;}
+.fn-btn:active{transform:scale(.92);}
+
+/* ── Toggle pad ── */
+.toggle-btn{
+  display:block;width:calc(100% - 26px);margin:10px 13px 0;
+  padding:9px;border-radius:11px;border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);color:rgba(255,255,255,.35);
+  font-size:12px;font-weight:800;cursor:pointer;transition:all .2s;text-align:center;
+}
+.toggle-btn:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);}
+.toggle-btn:active{transform:scale(.98);}
+
+/* ── Numpad ── */
+#padSec{
+  overflow:hidden;
+  transition:max-height .35s ease,opacity .3s ease,padding .3s ease;
+  max-height:340px;opacity:1;padding:10px 13px 0;
+}
+#padSec.hidden{max-height:0;opacity:0;padding:0 13px;}
+.num-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;direction:ltr;}
+.n-btn{
+  padding:13px 0;border-radius:12px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.05);
+  color:var(--txt);font-size:21px;font-weight:700;
+  cursor:pointer;transition:all .12s;
+}
+.n-btn:active{transform:scale(.91);filter:brightness(.8);}
+.n-btn.dot{font-size:25px;}
+.n-btn.bk{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.2);color:var(--err);font-size:18px;}
+
+/* ── Actions ── */
+.actions{padding:10px 13px 18px;display:grid;grid-template-columns:1fr 1.6fr;gap:9px;}
+.btn-clr{
+  padding:14px;border-radius:13px;
+  border:1.5px solid rgba(248,113,113,.3);
+  background:rgba(248,113,113,.08);color:var(--err);
+  font-size:13px;font-weight:800;cursor:pointer;transition:transform .15s;
+}
+.btn-clr:active{transform:scale(.95);}
+.btn-eq{
+  padding:14px;border-radius:13px;border:none;
+  background:rgba(255,255,255,.06);color:rgba(255,255,255,.2);
+  font-size:14px;font-weight:800;cursor:not-allowed;transition:all .3s;
+}
+.btn-eq.rdy{
+  background:linear-gradient(135deg,#16a34a,#4ade80);color:#fff;
+  cursor:pointer;box-shadow:0 5px 20px rgba(74,222,128,.35);
+}
+.btn-eq.rdy:active{transform:scale(.96);}
+
+/* ── History panel ── */
+.sheet{
+  position:absolute;inset:0;z-index:20;
+  background:rgba(8,12,26,.97);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);opacity:0;pointer-events:none;
+  transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .25s;
+}
+.sheet.open{transform:translateY(0);opacity:1;pointer-events:auto;}
+.sheet-hdr{
+  padding:13px 14px;display:flex;align-items:center;gap:9px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.sheet-hdr h2{font-size:14px;font-weight:900;flex:1;color:#dbeafe;}
+.sheet-body{flex:1;overflow-y:auto;padding:10px 12px 16px;}
+.h-empty{
+  text-align:center;color:rgba(255,255,255,.25);
+  font-size:12.5px;font-weight:700;padding:50px 20px;line-height:2;
+}
+.h-item{
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:13px;padding:9px 11px;margin-bottom:7px;
+  animation:sUp .2s ease;
+}
+.h-top{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.h-src{
+  font-size:9px;font-weight:800;border-radius:6px;padding:2px 6px;
+  background:rgba(96,165,250,.14);color:#93c5fd;flex-shrink:0;
+}
+.h-src.voice{background:rgba(244,114,182,.14);color:#f9a8d4;}
+.h-src.step{background:rgba(167,139,250,.14);color:#c4b5fd;}
+.h-time{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.25);flex:1;text-align:left;}
+.h-expr{
+  direction:ltr;text-align:right;font-size:13px;font-weight:700;
+  color:rgba(255,255,255,.55);word-break:break-word;line-height:1.5;
+}
+.h-res{
+  direction:ltr;text-align:right;font-size:22px;font-weight:900;color:var(--ok);
+  word-break:break-all;line-height:1.3;
+}
+.h-acts{display:flex;gap:6px;margin-top:7px;}
+.h-act{
+  flex:1;padding:6px 0;border-radius:9px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.5);font-size:10.5px;font-weight:800;
+  cursor:pointer;transition:all .15s;
+}
+.h-act:hover{background:rgba(255,255,255,.08);color:#fff;}
+.h-act:active{transform:scale(.94);}
+.h-act.del{color:#fca5a5;border-color:rgba(248,113,113,.2);}
+.sheet-foot{
+  padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+}
+.sf-btn{
+  padding:11px;border-radius:11px;
+  border:1px solid rgba(255,255,255,.09);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.55);font-size:12px;font-weight:800;
+  cursor:pointer;transition:all .16s;
+}
+.sf-btn:hover{background:rgba(255,255,255,.08);color:#fff;}
+.sf-btn.danger{color:#fca5a5;border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.07);}
+.h-stats{
+  font-size:10.5px;font-weight:700;color:rgba(255,255,255,.3);
+  text-align:center;padding:0 0 9px;
+}
+
+/* ── Toast ── */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translate(-50%,26px);
+  background:rgba(15,23,42,.96);border:1px solid rgba(255,255,255,.14);
+  color:#e2e8f0;font-size:12.5px;font-weight:800;
+  padding:10px 18px;border-radius:12px;
+  box-shadow:0 12px 34px rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;transition:all .25s;z-index:99;
+  max-width:88vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translate(-50%,0);}
+
+/* ── Animations ── */
+@keyframes shimmer{0%{background-position:0% center}100%{background-position:300% center}}
+@keyframes sUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes rowIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}70%{box-shadow:0 0 0 16px rgba(248,113,113,0)}100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}}
+@keyframes ring{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+@keyframes bar{0%,100%{height:4px}50%{height:16px}}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important;}
+}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Header -->
+  <div class="hdr">
+    <button class="icon-btn" id="histBtn" onclick="openHist()" title="سجل العمليات" aria-label="سجل العمليات">
+      🕘<span class="badge" id="histBadge" hidden>0</span>
+    </button>
+    <h1>🎙️ الحاسبة الصوتية الذكية</h1>
+    <button class="icon-btn" id="ttsBtn" onclick="toggleTts()" title="نطق النتيجة" aria-label="نطق النتيجة">🔊</button>
+  </div>
+
+  <!-- Display -->
+  <div class="display-wrap">
+    <div id="dArea" role="region" aria-label="شاشة الحاسبة"></div>
+    <div class="sr-only" id="srLive" aria-live="polite"></div>
+  </div>
+
+  <!-- Voice -->
+  <div class="voice-sec">
+    <div class="mic-row">
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="ابدأ الاستماع">🎙️</button>
+      <div class="mic-side">
+        <div class="mic-state" id="micState">اضغط الميكروفون وانطق العملية</div>
+        <div id="liveTx"></div>
+        <div class="mic-sub" id="micSub">مثال: «خمسة وعشرين زائد مئة وخمسة في اثنين»</div>
+        <div class="bars" id="bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <button class="icon-btn" id="contBtn" onclick="toggleCont()" title="استماع مستمر" aria-label="استماع مستمر">♾️</button>
+    </div>
+
+    <div class="inp-row">
+      <span aria-hidden="true" style="font-size:17px;opacity:.5">⌨️</span>
+      <input id="vInput" type="text" inputmode="text"
+        placeholder='اكتب أو انطق: "خمسة زائد عشرة في ثلاثة"'
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        aria-label="العملية الحسابية">
+      <button class="btn-ok" onclick="submitExpr('text')">حساب ✓</button>
+    </div>
+
+    <div class="hints" id="hints">
+      <div class="hint" data-fill="زائد">‏<b>زائد</b> → +</div>
+      <div class="hint" data-fill="ناقص">‏<b>ناقص</b> → −</div>
+      <div class="hint" data-fill="في">‏<b>في / ضرب</b> → ×</div>
+      <div class="hint" data-fill="على">‏<b>على / قسمة</b> → ÷</div>
+      <div class="hint" data-fill="فاصلة">‏<b>فاصلة</b> → .</div>
+      <div class="hint" data-fill="بالمئة">‏<b>بالمئة</b> → %</div>
+      <div class="hint" data-fill="جذر">‏<b>جذر</b> → √</div>
+      <div class="hint" data-fill="أس">‏<b>أس</b> → ^</div>
+    </div>
+    <div class="st" id="stBox" role="status"></div>
+  </div>
+
+  <!-- Ops -->
+  <div class="ops-sec">
+    <p class="sec-lbl">◆ خطوة بخطوة — اختر العملية ◆</p>
+    <div class="ops-grid">
+      <button class="op-btn" data-op="+" onclick="chooseOp('+')"><span aria-hidden="true">+</span><span class="sub">جمع</span></button>
+      <button class="op-btn" data-op="-" onclick="chooseOp('-')"><span aria-hidden="true">−</span><span class="sub">طرح</span></button>
+      <button class="op-btn" data-op="×" onclick="chooseOp('×')"><span aria-hidden="true">×</span><span class="sub">ضرب</span></button>
+      <button class="op-btn" data-op="÷" onclick="chooseOp('÷')"><span aria-hidden="true">÷</span><span class="sub">قسمة</span></button>
+    </div>
+    <div class="fn-grid">
+      <button class="fn-btn" onclick="signFlip()" title="عكس الإشارة">±</button>
+      <button class="fn-btn" onclick="percentCur()" title="نسبة مئوية">%</button>
+      <button class="fn-btn" onclick="sqrtCur()" title="الجذر التربيعي">√</button>
+      <button class="fn-btn" onclick="copyResult()" title="نسخ النتيجة">⧉ نسخ</button>
+    </div>
+  </div>
+
+  <button class="toggle-btn" id="toggleBtn" onclick="togglePad()">▲ إخفاء لوحة الأرقام</button>
+
+  <!-- Numpad -->
+  <div id="padSec">
+    <div class="num-grid">
+      <button class="n-btn" onclick="digit('7')">7</button>
+      <button class="n-btn" onclick="digit('8')">8</button>
+      <button class="n-btn" onclick="digit('9')">9</button>
+      <button class="n-btn" onclick="digit('4')">4</button>
+      <button class="n-btn" onclick="digit('5')">5</button>
+      <button class="n-btn" onclick="digit('6')">6</button>
+      <button class="n-btn" onclick="digit('1')">1</button>
+      <button class="n-btn" onclick="digit('2')">2</button>
+      <button class="n-btn" onclick="digit('3')">3</button>
+      <button class="n-btn" onclick="digit('0')">0</button>
+      <button class="n-btn dot" onclick="digit('.')">·</button>
+      <button class="n-btn bk" onclick="bksp()" aria-label="حذف">⌫</button>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn-clr" onclick="clearAll()">مسح ✕</button>
+    <button class="btn-eq" id="eqBtn" onclick="stepCalc()">= يساوي</button>
+  </div>
+
+  <!-- History sheet -->
+  <div class="sheet" id="histSheet" role="dialog" aria-modal="true" aria-label="سجل العمليات">
+    <div class="sheet-hdr">
+      <button class="icon-btn" onclick="closeHist()" aria-label="إغلاق">✕</button>
+      <h2>🕘 سجل العمليات الحسابية</h2>
+    </div>
+    <div class="sheet-body">
+      <div class="h-stats" id="hStats"></div>
+      <div id="hList"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="sf-btn" onclick="copyHist()">⧉ نسخ السجل</button>
+      <button class="sf-btn danger" onclick="clearHist()">🗑️ حذف الكل</button>
+    </div>
+  </div>
+
+</div><!-- /card -->
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════
+   1) تطبيع النص العربي  (Arabic text normalization)
+   يوحّد الهمزات/التاء المربوطة/الأرقام العربية والفارسية
+   ويحذف التشكيل — حتى يعمل القاموس بمفتاح واحد لكل كلمة.
+══════════════════════════════════════════════════════════════ */
+function normDigits(s){
+  return s.replace(/[٠-٩۰-۹]/g, ch => {
+    const c = ch.charCodeAt(0);
+    return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660);
+  });
+}
+function norm(s){
+  return normDigits(String(s == null ? '' : s))
+    .replace(/[ً-ْٰـ]/g,'')      // تشكيل + تطويل
+    .replace(/[أإآٱٲٵ]/g,'ا')
+    .replace(/ى/g,'ي').replace(/ئ/g,'ي').replace(/ؤ/g,'و')
+    .replace(/ة/g,'ه')
+    .replace(/٫/g,'.')                           // الفاصلة العشرية ٫
+    .replace(/[\u00A0\u2000-\u200A\u202F\u205F]/g,' ')  // مسافات خاصة ⟶ مسافة عادية
+    .replace(/[\u066C\u2019']/g,'')                  // فاصل الآلاف
+    .replace(/[؟?!"'“”‘’]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   2) قواميس الأعداد والعمليات
+══════════════════════════════════════════════════════════════ */
+const NUM_WORDS = Object.create(null);
+function addNum(words, v, kind){
+  words.split('|').forEach(w => { NUM_WORDS[norm(w)] = {v:v, kind:kind||'add'}; });
+}
+/* آحاد */
+addNum('صفر|زيرو',0);
+addNum('واحد|واحدة|واحده|وحدة|أحد|احد|إحدى|واحدا',1);
+addNum('اثنان|اثنين|إثنين|اتنين|ثنين|اثنا|اثني|إثنا',2);
+addNum('ثلاثة|ثلاثه|ثلاث|تلاتة|تلاته|تلات',3);
+addNum('أربعة|اربعة|أربعه|اربعه|أربع|اربع',4);
+addNum('خمسة|خمسه|خمس',5);
+addNum('ستة|سته|ست',6);
+addNum('سبعة|سبعه|سبع',7);
+addNum('ثمانية|ثمانيه|ثماني|ثمان|تمانية|تمانيه|تمانه|تمان',8);
+addNum('تسعة|تسعه|تسع',9);
+addNum('عشرة|عشره|عشر',10);
+/* كسور شائعة */
+addNum('نصف|نص',0.5);
+addNum('ربع|الربع',0.25);
+addNum('ثلث|تلت',1/3);
+addNum('ثلاثة أرباع|ثلاثة ارباع',0.75);
+/* عشرات */
+addNum('عشرون|عشرين',20);
+addNum('ثلاثون|ثلاثين|تلاتين',30);
+addNum('أربعون|اربعون|أربعين|اربعين',40);
+addNum('خمسون|خمسين',50);
+addNum('ستون|ستين',60);
+addNum('سبعون|سبعين',70);
+addNum('ثمانون|ثمانين|تمانين',80);
+addNum('تسعون|تسعين',90);
+/* المئة كمُضاعِف: «ثلاث مئة» = 300 */
+addNum('مئة|مائة|مية|ميه|مئه|الميه|المئة',100,'hundred');
+addNum('مئتان|مئتين|مائتان|مائتين|ميتين',200);
+addNum('ثلاثمئة|ثلاثمائة|تلتمية|ثلثمائة',300);
+addNum('أربعمئة|اربعمئة|أربعمائة|اربعمائة',400);
+addNum('خمسمئة|خمسمائة|خمسميه',500);
+addNum('ستمئة|ستمائة',600);
+addNum('سبعمئة|سبعمائة',700);
+addNum('ثمانمئة|ثمانمائة|تمنمية',800);
+addNum('تسعمئة|تسعمائة',900);
+/* الآلاف والمضاعفات الكبرى */
+addNum('ألف|الف|آلاف|الاف|ألفا',1000,'scale');
+addNum('ألفان|ألفين|الفين|الفان',2000);
+addNum('مليون|ملايين|مليونا',1e6,'scale');
+addNum('مليونان|مليونين',2e6);
+addNum('مليار|بليون|مليارات',1e9,'scale');
+addNum('تريليون',1e12,'scale');
+
+/* علامات الفاصلة العشرية */
+const DEC_WORDS = new Set(['فاصله','فاصل','نقطه','نقطة','فاصلا','كوما'].map(norm));
+/* واو العطف داخل الأعداد */
+const WAW = new Set(['و','وا'].map(norm));
+
+/* عمليات من كلمة واحدة */
+const OP_WORDS = Object.create(null);
+function addOp(words, sym){ words.split('|').forEach(w => { OP_WORDS[norm(w)] = sym; }); }
+addOp('زائد|زايد|زاد|زائدا|جمع|اجمع|أجمع|بلس|موجب|إضافة|اضافة|وزيادة', '+');
+addOp('ناقص|ناقس|نقص|انقص|طرح|اطرح|أطرح|ماينس|منقوص|إلا', '-');
+addOp('في|ضرب|اضرب|أضرب|مضروب|ضربها|اكس|إكس|مضروبا', '×');
+addOp('على|قسمة|قسمه|تقسيم|اقسم|أقسم|مقسوم|قسم|مقسوما', '÷');
+addOp('بالمئة|بالمائة|بالميه|بالمية|نسبة|بالنسبة|المائة|بيرسنت', '%');
+addOp('جذر|الجذر|جزر', '√');
+addOp('أس|اس|قوة|القوة|مرفوع|أُس|باور', '^');
+addOp('قوس|فتح|أقواس', '(');
+addOp('اغلاق|إغلاق|اقفال|نهاية', ')');
+/* تربيع/تكعيب: تُترجم إلى «^ 2» و«^ 3» */
+const SUFFIX_POW = Object.create(null);
+'تربيع|مربع|التربيع|المربع'.split('|').forEach(w => { SUFFIX_POW[norm(w)] = 2; });
+'تكعيب|مكعب|التكعيب|المكعب'.split('|').forEach(w => { SUFFIX_POW[norm(w)] = 3; });
+/* سالب أحادي */
+const NEG_WORDS = new Set(['سالب','ناقصا','منفي','مينس'].map(norm));
+
+/* عبارات من كلمتين أو أكثر (تُفحص أولاً) */
+const OP_PHRASES = [
+  ['مضروب في','×'], ['مضروبا في','×'], ['ضرب في','×'], ['اضرب في','×'], ['في مقدار','×'],
+  ['مقسوم على','÷'], ['مقسوما على','÷'], ['قسمة على','÷'], ['قسمه على','÷'],
+  ['تقسيم على','÷'], ['اقسم على','÷'], ['على مقدار','÷'],
+  ['في المئة','%'], ['في المائة','%'], ['من مئة','%'], ['بال مئة','%'],
+  ['الجذر التربيعي','√'], ['جذر تربيعي','√'], ['الجذر التربيعي لـ','√'],
+  ['مرفوع الى','^'], ['مرفوع إلى','^'], ['مرفوعا الى','^'], ['أس القوة','^'],
+  ['فتح قوس','('], ['قوس مفتوح','('],
+  ['اغلاق قوس',')'], ['قوس مغلق',')'], ['نهاية القوس',')']
+].map(function(p){ return {seq: norm(p[0]).split(' '), sym: p[1]}; })
+ .sort(function(a,b){ return b.seq.length - a.seq.length; });
+
+/* كلمات محشوّة مسموحة (تُتجاهل بلا خطأ) */
+const FILLER = new Set([
+  'يساوي','تساوي','كم','بكم','كام','احسب','أحسب','اوجد','أوجد','حل','ناتج','نتيجة',
+  'النتيجة','ما','هو','هي','من','فضلك','لو','سمحت','ارجوك','أرجوك','رجاء','يا','حاسبة',
+  'الحاسبة','عملية','العملية','قيمة','القيمة','ثم','التالي','اريد','أريد','عايز','ابغى',
+  'أبغى','بليز','مقدار','عدد','رقم','الرقم','اذا','إذا','هذا','ذلك','كده','بس','طيب','ال',
+  'لي','لك','لنا','له','الجواب','جواب','ناتجها','الناتج','تكون','يكون','كانت','كان','بالضبط',
+  'الان','الآن','عملياتي','فقط','تمام','اوك','شكرا','شكراً'
+].map(norm));
+
+/* تصحيح أخطاء التعرّف الصوتي الشائعة (قبل التحليل) */
+const ASR_FIX = [
+  [/\bزاي?د(ا|ة|ه)?\b/g,'زائد'], [/\bزاد\b/g,'زائد'],
+  [/\bناق(س|ص)(ا|ه)?\b/g,'ناقص'],
+  [/\bعل?ا\b/g,'على'], [/\bعليه\b/g,'على'], [/\bعلي\b/g,'على'],
+  [/\bفيه?\b/g,'في'], [/\bفى\b/g,'في'],
+  [/\bدرب\b/g,'ضرب'], [/\bجزر\b/g,'جذر'],
+  [/\bتقسم\b/g,'تقسيم'], [/\bقسمه?\b/g,'قسمة'],
+  [/\bمئتا\b/g,'مئتين'], [/\bالفا\b/g,'ألف'],
+  [/\bاثنا?ن?\b/g,'اثنين'],
+  [/\bخمسه?\b/g,'خمسة'], [/\bستا?\b/g,'ستة']
+];
+function applyAsrFix(text){
+  let t = ' ' + text + ' ';
+  for (const [re, rep] of ASR_FIX) t = t.replace(re, rep);
+  return t.trim();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   3) المُحلِّل المُعجمي (Lexer)
+   يحوّل النص إلى قائمة رموز — ويرفض أي كلمة غير حسابية.
+══════════════════════════════════════════════════════════════ */
+const SYMBOL_MAP = {
+  '+':'+', '-':'-', '−':'-', '–':'-', '*':'×', '×':'×', 'x':'×', 'X':'×',
+  '/':'÷', '÷':'÷', '%':'%', '^':'^', '**':'^', '(':'(', ')':')',
+  '√':'√', '=':'=' , '[':'(', ']':')'
+};
+
+function preTokenize(text){
+  let t = norm(applyAsrFix(norm(text)));
+  t = t.replace(/(\d)[,](\d{3})(?!\d)/g, '$1$2');   // 1,234 → 1234
+  t = t.replace(/[,،؛;:]/g, ' ');
+  t = t.replace(/\*\*/g, '^');
+  t = t.replace(/([+\-−–*×xX\/÷%^()\[\]√=])/g, ' $1 ');
+  t = t.replace(/(\d)\s*\.\s*(\d)/g, '$1.$2');      // أعِد لصق العدد العشري
+  t = t.replace(/\bلـ?\b/g, ' ');
+
+  /* فصل واو العطف الملتصقة: «وعشرين» ⟶ «و عشرين» (وهي أكثر ما يخرج من التعرّف الصوتي) */
+  const out = [];
+  for (const tok of t.split(/\s+/)){
+    if (!tok) continue;
+    if (tok.length > 1 && tok[0] === 'و' &&
+        NUM_WORDS[tok] === undefined && OP_WORDS[tok] === undefined && !isNumLit(tok)){
+      const rest = tok.slice(1);
+      if (NUM_WORDS[rest] !== undefined || OP_WORDS[rest] !== undefined ||
+          SUFFIX_POW[rest] !== undefined || isNumLit(rest)){
+        out.push('و', rest); continue;
+      }
+    }
+    out.push(tok);
+  }
+  return out;
+}
+
+const isNumLit = t => /^\d+(?:\.\d+)?$/.test(t);
+function isNumberish(t){
+  return isNumLit(t) || NUM_WORDS[t] !== undefined || DEC_WORDS.has(t) || WAW.has(t);
+}
+
+/* يحوّل سلسلة كلمات عددية إلى قيمة رقمية */
+function intWordsToNum(list){
+  let total = 0, cur = 0, any = false;
+  let prevSmall = false, prevLit = false, sawWaw = false;
+
+  for (const t of list){
+    if (WAW.has(t)){ sawWaw = true; continue; }
+
+    if (isNumLit(t)){
+      if (prevLit && !sawWaw) return null;      // «12 34» غامض ⟶ ارفضه بدل جمعه خطأً
+      cur += parseFloat(t); any = true;
+      prevLit = true; prevSmall = parseFloat(t) < 10; sawWaw = false;
+      continue;
+    }
+
+    const w = NUM_WORDS[t];
+    if (!w) return null;
+    any = true;
+
+    if (w.kind === 'hundred'){
+      cur = (cur || 1) * 100;
+      prevSmall = false;
+    } else if (w.kind === 'scale'){
+      if (cur === 0 && total > 0) total *= w.v;          // «ألف ألف» = مليون
+      else { total += (cur || 1) * w.v; cur = 0; }
+      prevSmall = false;
+    } else {
+      // آحاد متلاصقة بلا واو («اثنين اثنين») غامضة — لا نخمّن
+      if (prevSmall && w.v < 10 && !sawWaw) return null;
+      cur += w.v;
+      prevSmall = w.v < 10;
+    }
+    prevLit = false; sawWaw = false;
+  }
+  return any ? total + cur : null;
+}
+
+/* يحوّل مقطعاً عددياً كاملاً (بما فيه الجزء العشري) إلى رقم */
+function runToNumber(run){
+  const decIdx = run.findIndex(t => DEC_WORDS.has(t));
+  const intPart  = decIdx >= 0 ? run.slice(0, decIdx) : run;
+  const fracPart = decIdx >= 0 ? run.slice(decIdx + 1).filter(t => !WAW.has(t)) : null;
+
+  const iv = intPart.length ? intWordsToNum(intPart) : 0;
+  if (iv === null) return null;
+  if (!fracPart || !fracPart.length) return iv;
+
+  // «ثلاثة فاصلة واحد أربعة» → 3.14   |   «ثلاثة فاصلة خمسة وعشرين» → 3.25
+  const allSingle = fracPart.every(t =>
+    /^\d$/.test(t) || (NUM_WORDS[t] && NUM_WORDS[t].v < 10 && Number.isInteger(NUM_WORDS[t].v)));
+  let fs;
+  if (allSingle){
+    fs = fracPart.map(t => /^\d$/.test(t) ? t : String(NUM_WORDS[t].v)).join('');
+  } else {
+    const fv = intWordsToNum(fracPart);
+    if (fv === null) return null;
+    fs = String(fv).replace('.', '');
+  }
+  const sign = iv < 0 ? -1 : 1;
+  return sign * parseFloat(Math.abs(iv) + '.' + fs);
+}
+
+/* النتيجة: {toks} أو {error, word} */
+function lex(text){
+  const raw = preTokenize(text);
+  const toks = [];
+  let i = 0;
+
+  outer:
+  while (i < raw.length){
+    const t = raw[i];
+
+    /* رموز مباشرة */
+    if (SYMBOL_MAP[t] !== undefined){
+      const s = SYMBOL_MAP[t];
+      if (s !== '=') toks.push(s);
+      i++; continue;
+    }
+
+    /* عبارات مركبة */
+    for (const ph of OP_PHRASES){
+      if (ph.seq.every((w, k) => raw[i + k] === w)){
+        toks.push(ph.sym);
+        i += ph.seq.length;
+        continue outer;
+      }
+    }
+
+    /* مقطع عددي */
+    if (isNumberish(t) && !WAW.has(t) && !DEC_WORDS.has(t)){
+      const run = [];
+      while (i < raw.length && isNumberish(raw[i])){
+        if (WAW.has(raw[i])){
+          // الواو تُقبل فقط بين جزأين عدديين: «خمسة وعشرين»
+          if (run.length && i + 1 < raw.length && isNumberish(raw[i + 1]) && !WAW.has(raw[i + 1])){
+            run.push(raw[i]); i++; continue;
+          }
+          break;
+        }
+        run.push(raw[i]); i++;
+      }
+      const v = runToNumber(run);
+      if (v === null) return {error:'unknown', word: run.join(' ')};
+      toks.push(v);
+      continue;
+    }
+
+    /* تربيع / تكعيب */
+    if (SUFFIX_POW[t] !== undefined){
+      toks.push('^', SUFFIX_POW[t]); i++; continue;
+    }
+    /* سالب أحادي */
+    if (NEG_WORDS.has(t)){ toks.push('-'); i++; continue; }
+    /* عملية من كلمة */
+    if (OP_WORDS[t] !== undefined){ toks.push(OP_WORDS[t]); i++; continue; }
+    /* حشو مسموح */
+    if (FILLER.has(t) || WAW.has(t) || DEC_WORDS.has(t)){ i++; continue; }
+
+    /* أي شيء آخر ⇒ ليست عملية حسابية */
+    return {error:'unknown', word: t};
+  }
+
+  /* تنظيف العمليات المتكرّرة أو الزائدة:
+     «قسمة عشرة على اثنين» ⟶ 10 ÷ 2   |   «خمسة ضرب في ثلاثة» ⟶ 5 × 3 */
+  const BIN = new Set(['×','÷','^','%']);
+  const clean = [];
+  for (const tk of toks){
+    if (typeof tk === 'number'){ clean.push(tk); continue; }
+    const prev = clean[clean.length - 1];
+    const atStart = prev === undefined || prev === '(';
+    // '%' لاحقة صالحة بعد عدد، فلا تُعامل كعملية معلّقة
+    const prevIsOp = typeof prev === 'string' && prev !== '(' && prev !== ')' && prev !== '%';
+
+    if (atStart && (BIN.has(tk) || tk === ')')) continue;   // عملية بلا طرف أيسر
+    if (tk === '%' && prevIsOp) continue;                   // «زائد بالمئة» بلا عدد
+    if (prevIsOp && BIN.has(tk) && tk !== '%'){
+      clean[clean.length - 1] = tk;                         // «ضرب في» ⟶ ×
+      continue;
+    }
+    clean.push(tk);
+  }
+
+  if (!clean.length) return {error:'empty'};
+  return {toks: clean};
+}
+
+/* ══════════════════════════════════════════════════════════════
+   4) المُقيِّم (Parser/Evaluator)
+   أسبقية صحيحة: () ثم √ و ^ ثم × ÷ ثم + −  مع دعم % و السالب.
+══════════════════════════════════════════════════════════════ */
+function CalcErr(code, extra){ this.code = code; this.extra = extra; }
+
+function evaluate(toks){
+  let i = 0;
+  const peek = () => toks[i];
+  const isOp = t => typeof t === 'string';
+
+  function parseExpr(){
+    let node = parseTerm();
+    while (peek() === '+' || peek() === '-'){
+      const op = toks[i++];
+      const rhs = parseTerm();
+      // اصطلاح الحاسبات: 200 + 10% = 220
+      const rv = rhs.pct ? node.v * rhs.v : rhs.v;
+      node = {v: op === '+' ? node.v + rv : node.v - rv, pct:false};
+    }
+    return node;
+  }
+  function parseTerm(){
+    let node = parseUnary();
+    while (peek() === '×' || peek() === '÷' || peek() === '('){
+      let op = peek();
+      if (op === '('){ op = '×'; }           // ضرب ضمني: 2(3+4)
+      else i++;
+      const rhs = parseUnary();
+      if (op === '×') node = {v: node.v * rhs.v, pct:false};
+      else {
+        if (rhs.v === 0) throw new CalcErr('div0');
+        node = {v: node.v / rhs.v, pct:false};
+      }
+    }
+    return node;
+  }
+  function parseUnary(){
+    if (peek() === '-'){ i++; const n = parseUnary(); return {v:-n.v, pct:n.pct}; }
+    if (peek() === '+'){ i++; return parseUnary(); }
+    if (peek() === '√'){
+      i++; const n = parseUnary();
+      if (n.v < 0) throw new CalcErr('negsqrt');
+      return {v: Math.sqrt(n.v), pct:false};
+    }
+    return parsePower();
+  }
+  function parsePower(){
+    const base = parsePostfix();
+    if (peek() === '^'){
+      i++;
+      const exp = parseUnary();               // يمين-تجميعي
+      const r = Math.pow(base.v, exp.v);
+      if (!isFinite(r)) throw new CalcErr(base.v === 0 ? 'div0' : 'overflow');
+      return {v: r, pct:false};
+    }
+    return base;
+  }
+  function parsePostfix(){
+    let node = parsePrimary();
+    while (peek() === '%'){ i++; node = {v: node.v / 100, pct:true}; }
+    return node;
+  }
+  function parsePrimary(){
+    const t = peek();
+    if (typeof t === 'number'){ i++; return {v:t, pct:false}; }
+    if (t === '('){
+      i++;
+      const n = parseExpr();
+      if (peek() !== ')') throw new CalcErr('paren');
+      i++;
+      return {v:n.v, pct:false};
+    }
+    throw new CalcErr(t === undefined ? 'incomplete' : 'syntax', t);
+  }
+
+  const out = parseExpr();
+  if (i !== toks.length) throw new CalcErr('syntax', toks[i]);
+  if (!isFinite(out.v)) throw new CalcErr('overflow');
+  return out.v;
+}
+
+/* نص العملية بشكل رياضي للعرض */
+function toksToStr(toks){
+  // هل الرمز في الموضع j إشارة أحادية (سالب/موجب) لا عملية ثنائية؟
+  const unaryAt = j => (j === 0) ||
+    (typeof toks[j-1] === 'string' && toks[j-1] !== ')' && toks[j-1] !== '%');
+
+  let s = '';
+  toks.forEach((t, k) => {
+    const prev = toks[k - 1];
+    const glue = (k === 0 || t === ')' || t === '%' || t === '^' ||
+                  prev === '(' || prev === '√' || prev === '^' ||
+                  ((prev === '-' || prev === '+') && unaryAt(k - 1))) ? '' : ' ';
+    s += glue + (typeof t === 'number' ? fmtRaw(t) : t);
+  });
+  return s.trim();
+}
+
+const ERR_MSG = {
+  empty:      '⚠️ لم أسمع أي عملية حسابية',
+  unknown:    '⚠️ أستقبل العمليات الحسابية فقط',
+  syntax:     '⚠️ صيغة العملية غير صحيحة',
+  incomplete: '⚠️ العملية غير مكتملة',
+  paren:      '⚠️ قوس غير مغلق',
+  div0:       '⚠️ لا يمكن القسمة على صفر',
+  negsqrt:    '⚠️ لا جذر تربيعي لعدد سالب',
+  overflow:   '⚠️ الناتج أكبر من قدرة الحاسبة'
+};
+
+/* الواجهة الموحّدة: نص ⟶ {expr, result} أو {error, msg} */
+function parseExpression(text){
+  const lx = lex(text);
+  if (lx.error){
+    const msg = lx.error === 'unknown' && lx.word
+      ? ERR_MSG.unknown + ' — لم أفهم: «' + lx.word + '»'
+      : ERR_MSG[lx.error] || ERR_MSG.syntax;
+    return {error: lx.error, msg: msg};
+  }
+  try {
+    const v = evaluate(lx.toks);
+    return {expr: toksToStr(lx.toks), result: round12(v), toks: lx.toks};
+  } catch (e){
+    if (e instanceof CalcErr) return {error: e.code, msg: ERR_MSG[e.code] || ERR_MSG.syntax};
+    return {error:'syntax', msg: ERR_MSG.syntax};
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   5) تنسيق الأرقام
+══════════════════════════════════════════════════════════════ */
+function round12(n){
+  if (!isFinite(n)) return n;
+  const r = parseFloat(n.toPrecision(12));
+  return Object.is(r, -0) ? 0 : r;
+}
+function fmtRaw(n){
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  if (!isFinite(n)) return n > 0 ? '∞' : '-∞';
+  const a = Math.abs(n);
+  if (a !== 0 && (a >= 1e15 || a < 1e-9)) return n.toExponential(6).replace(/\.?0+e/, 'e');
+  return String(round12(n));
+}
+function fmtGrouped(n){
+  const s = fmtRaw(n);
+  const m = /^(-?)(\d+)(\.\d+)?$/.exec(s);
+  if (!m) return s;
+  return m[1] + m[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (m[3] || '');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   6) الحالة والعرض
+══════════════════════════════════════════════════════════════ */
+let terms     = [];     // [{op, val}]
+let current   = '';
+let pendingOp = null;
+let total     = null;
+let isDone    = false;
+let padVis    = true;
+let voiceExpr = null;   // نص العملية عند الحساب الكامل
+let voiceSaid = null;   // ما نطقه المستخدم فعلاً
+let lastResult= null;
+
+const OP_COLORS = {'+':'#4ade80','-':'#fb923c','×':'#a78bfa','÷':'#f472b6','=':'#4ade80'};
+const $ = id => document.getElementById(id);
+
+function sizeClass(str){
+  const l = String(str || '').length;
+  if (l > 15) return 's16';
+  if (l > 11) return 's12';
+  if (l > 9)  return 's10';
+  if (l > 7)  return 's8';
+  return '';
+}
+function buildRow(op, val, active, isFirst){
+  const row = document.createElement('div');
+  row.className = 'c-row' + (active ? ' c-active' : '') + (isFirst ? ' first' : '');
+  row.dir = 'ltr';
+
+  const opEl = document.createElement('span');
+  opEl.className = 'c-op';
+  opEl.style.color = OP_COLORS[op] || 'transparent';
+  opEl.textContent = op || '';
+  row.appendChild(opEl);
+
+  const numEl = document.createElement('span');
+  numEl.className = 'c-num ' + sizeClass(val);
+  if (active && val === ''){
+    numEl.innerHTML = '<span class="c-cur">|</span>';
+  } else {
+    numEl.textContent = val || '';
+  }
+  row.appendChild(numEl);
+  return row;
+}
+
+function renderDisplay(){
+  const area = $('dArea');
+  area.innerHTML = '';
+
+  const blank = !isDone && !voiceExpr && terms.length === 0 && current === '' && pendingOp === null;
+  if (blank){
+    const h = document.createElement('div');
+    h.className = 'd-hint';
+    h.innerHTML = '🎙️ انطق العملية أو استخدم لوحة الأرقام<br><span style="font-size:11px">«ثمانية عشر ناقص خمسة في اثنين»</span>';
+    area.appendChild(h);
+  } else if (voiceExpr && isDone){
+    if (voiceSaid){
+      const sd = document.createElement('div');
+      sd.className = 'c-said';
+      sd.textContent = '🎤 ' + voiceSaid;
+      area.appendChild(sd);
+    }
+    const ex = document.createElement('div');
+    ex.className = 'c-expr-row';
+    ex.textContent = voiceExpr + '  =';
+    area.appendChild(ex);
+    const res = buildRow('=', fmtGrouped(total), false, false);
+    res.classList.add('c-result');
+    res.querySelector('.c-num').onclick = copyResult;
+    area.appendChild(res);
+  } else {
+    terms.forEach((t, idx) => {
+      area.appendChild(buildRow(t.op, fmtGrouped(t.val), false, idx === 0 && t.op === null));
+    });
+
+    if (isDone){
+      const sep = document.createElement('div');
+      sep.className = 'c-sep';
+      area.appendChild(sep);
+      const res = buildRow('=', fmtGrouped(total), false, false);
+      res.classList.add('c-result');
+      res.querySelector('.c-num').onclick = copyResult;
+      area.appendChild(res);
+    } else {
+      const actOp   = terms.length > 0 ? pendingOp : null;
+      const showCur = current === '' && pendingOp !== null;
+      const actRow  = buildRow(actOp, current === '' ? '' : fmtGrouped(parseFloat(current)) + (current.endsWith('.') ? '.' : ''), showCur, terms.length === 0 && !actOp);
+      actRow.classList.add('c-active');
+      area.appendChild(actRow);
+
+      if (total !== null && pendingOp !== null && current !== ''){
+        const prev = applyOp(total, pendingOp, parseFloat(current));
+        if (prev !== null && isFinite(prev)){
+          const rt = document.createElement('div');
+          rt.className = 'run-total';
+          rt.textContent = '= ' + fmtGrouped(round12(prev));
+          area.appendChild(rt);
+        }
+      }
+    }
+  }
+
+  area.scrollTop = area.scrollHeight;
+
+  const canCalc = !isDone && pendingOp !== null && current !== '';
+  const eqBtn = $('eqBtn');
+  eqBtn.classList.toggle('rdy', canCalc);
+  eqBtn.textContent = canCalc ? '= النتيجة' : '= يساوي';
+
+  document.querySelectorAll('.op-btn').forEach(b =>
+    b.classList.toggle('act', !isDone && b.dataset.op === pendingOp && current === ''));
+
+  if (isDone && total !== null) $('srLive').textContent = 'النتيجة ' + fmtRaw(total);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7) الحساب خطوة بخطوة
+══════════════════════════════════════════════════════════════ */
+function applyOp(a, op, b){
+  switch (op){
+    case '+': return a + b;
+    case '-': return a - b;
+    case '×': return a * b;
+    case '÷': return b === 0 ? null : a / b;
+    default : return null;
+  }
+}
+function resetState(){
+  terms = []; current = ''; pendingOp = null; total = null;
+  isDone = false; voiceExpr = null; voiceSaid = null;
+}
+function buzz(ms){ if (navigator.vibrate) { try { navigator.vibrate(ms || 8); } catch(e){} } }
+
+function digit(d){
+  if (isDone || voiceExpr) resetState();
+  if (d === '.' && current.includes('.')) return;
+  if (current.replace(/[.-]/g,'').length >= 14) return;
+  if (current === '0' && d !== '.') current = d;
+  else if ((current === '' || current === '-') && d === '.') current += '0.';
+  else current += d;
+  buzz(6);
+  renderDisplay();
+}
+function bksp(){
+  if (isDone || voiceExpr){
+    // ارجع لحالة قابلة للتعديل بدل التجمّد
+    const t = total;
+    resetState();
+    if (t !== null){ current = fmtRaw(t); }
+    renderDisplay(); return;
+  }
+  current = current.length > 1 ? current.slice(0, -1) : '';
+  renderDisplay();
+}
+function signFlip(){
+  if (isDone || voiceExpr){
+    const t = total; resetState();
+    current = t === null ? '' : fmtRaw(-t);
+    renderDisplay(); return;
+  }
+  if (current === '' || current === '-') return;
+  current = current.startsWith('-') ? current.slice(1) : '-' + current;
+  renderDisplay();
+}
+function percentCur(){
+  if (isDone || voiceExpr){
+    const t = total; resetState();
+    if (t !== null) current = fmtRaw(round12(t / 100));
+    renderDisplay(); return;
+  }
+  if (current === '' || current === '-') return;
+  const n = parseFloat(current);
+  if (Number.isNaN(n)) return;
+  // 200 + 10% ⇒ 10% من 200
+  const base = (total !== null && (pendingOp === '+' || pendingOp === '-')) ? total : 1;
+  current = fmtRaw(round12(n / 100 * base));
+  renderDisplay();
+}
+function sqrtCur(){
+  const src = (isDone || voiceExpr) ? total : (current === '' ? null : parseFloat(current));
+  if (src === null || Number.isNaN(src)) return;
+  if (src < 0){ showSt(ERR_MSG.negsqrt, 'err', 3000); return; }
+  if (isDone || voiceExpr) resetState();
+  current = fmtRaw(round12(Math.sqrt(src)));
+  renderDisplay();
+}
+
+function chooseOp(newOp){
+  if (isDone){
+    // تابع من النتيجة
+    const t = total;
+    resetState();
+    terms = [{op:null, val:t}];
+    total = t; pendingOp = newOp;
+    renderDisplay(); return;
+  }
+  voiceExpr = null; voiceSaid = null;
+
+  if (current === '' && pendingOp !== null){
+    pendingOp = newOp;                       // تبديل العملية فقط
+    renderDisplay(); return;
+  }
+
+  const num = parseFloat(current === '' ? '0' : current);
+  if (Number.isNaN(num)) return;
+
+  if (total === null){
+    total = num;
+    terms.push({op:null, val:num});
+  } else if (pendingOp){
+    const res = applyOp(total, pendingOp, num);
+    if (res === null){ showSt(ERR_MSG.div0, 'err', 3000); current = ''; renderDisplay(); return; }
+    terms.push({op:pendingOp, val:num});
+    total = round12(res);
+  }
+  pendingOp = newOp;
+  current = '';
+  buzz(8);
+  renderDisplay();
+}
+
+function stepCalc(){
+  if (isDone || pendingOp === null || current === '') return;
+  const num = parseFloat(current);
+  if (Number.isNaN(num)) return;
+  const res = applyOp(total, pendingOp, num);
+  if (res === null){ showSt(ERR_MSG.div0, 'err', 3000); return; }
+  if (!isFinite(res)){ showSt(ERR_MSG.overflow, 'err', 3000); return; }
+
+  terms.push({op:pendingOp, val:num});
+  total = round12(res);
+  pendingOp = null; current = ''; isDone = true;
+  lastResult = total;
+
+  const expr = terms.map((t, k) => (k ? ' ' + t.op + ' ' : '') + fmtRaw(t.val)).join('');
+  addHist(expr, total, 'step');
+  speak(total);
+  buzz(14);
+  renderDisplay();
+}
+
+function clearAll(){
+  resetState();
+  $('vInput').value = '';
+  $('stBox').style.display = 'none';
+  $('liveTx').textContent = '';
+  renderDisplay();
+}
+
+function togglePad(){
+  padVis = !padVis;
+  $('padSec').classList.toggle('hidden', !padVis);
+  $('toggleBtn').textContent = padVis ? '▲ إخفاء لوحة الأرقام' : '▼ إظهار لوحة الأرقام';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   8) الحالة النصية والتنبيهات
+══════════════════════════════════════════════════════════════ */
+let stTm;
+/* math: جزء رياضي يُعزل باتجاه LTR حتى لا تعكسه واجهة الـRTL */
+function showSt(msg, cls, dur, math){
+  clearTimeout(stTm);
+  const b = $('stBox');
+  b.textContent = msg;
+  if (math){
+    const sp = document.createElement('span');
+    sp.dir = 'ltr';
+    sp.style.unicodeBidi = 'isolate';
+    sp.style.display = 'inline-block';
+    sp.textContent = math;
+    b.appendChild(document.createTextNode(' '));
+    b.appendChild(sp);
+  }
+  b.className = 'st ' + cls;
+  b.style.display = 'block';
+  if (dur) stTm = setTimeout(() => { b.style.display = 'none'; }, dur);
+}
+let toastTm;
+function toast(msg){
+  clearTimeout(toastTm);
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  toastTm = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   9) تنفيذ عملية كاملة (نص أو صوت)
+══════════════════════════════════════════════════════════════ */
+function previewExpr(){
+  const v = $('vInput').value.trim();
+  if (!v){ $('stBox').style.display = 'none'; return; }
+  const r = parseExpression(v);
+  if (r.error) showSt(r.msg, r.error === 'incomplete' ? 'inf' : 'err');
+  else showSt('⟹', 'ok', 0, r.expr + '  =  ' + fmtGrouped(r.result));
+}
+
+function submitExpr(src, textOverride){
+  const raw = (textOverride !== undefined ? textOverride : $('vInput').value).trim();
+  if (!raw){ showSt('⚠️ لا يوجد نص لحسابه', 'err', 2000); return false; }
+
+  const r = parseExpression(raw);
+  if (r.error){ showSt(r.msg, 'err', 4000); buzz(40); return false; }
+
+  resetState();
+  isDone    = true;
+  voiceExpr = r.expr;
+  voiceSaid = src === 'voice' ? raw : null;
+  total     = r.result;
+  lastResult= r.result;
+
+  addHist(r.expr, r.result, src === 'voice' ? 'voice' : 'text');
+  renderDisplay();
+  showSt('✅', 'ok', 4000, r.expr + ' = ' + fmtGrouped(r.result));
+  speak(r.result);
+  buzz(14);
+  if (textOverride === undefined) $('vInput').value = '';
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   10) سجل العمليات الحسابية
+══════════════════════════════════════════════════════════════ */
+const HIST_KEY = 'vcalc.history.v1';
+const HIST_MAX = 200;
+let history = [];
+
+function loadHist(){
+  try {
+    const raw = localStorage.getItem(HIST_KEY);
+    history = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(history)) history = [];
+  } catch(e){ history = []; }
+}
+function saveHist(){
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(0, HIST_MAX))); } catch(e){}
+}
+function addHist(expr, result, src){
+  if (expr === undefined || result === null || result === undefined) return;
+  const last = history[0];
+  if (last && last.expr === expr && last.result === result && Date.now() - last.ts < 1500) return;
+  history.unshift({expr: expr, result: result, ts: Date.now(), src: src || 'text'});
+  if (history.length > HIST_MAX) history.length = HIST_MAX;
+  saveHist();
+  renderHist();
+}
+function delHist(ts){
+  history = history.filter(h => h.ts !== ts);
+  saveHist(); renderHist();
+  toast('🗑️ حُذف السطر');
+}
+function clearHist(){
+  if (!history.length){ toast('السجل فارغ بالفعل'); return; }
+  if (!confirm('حذف كل سجل العمليات (' + history.length + ' عملية)؟')) return;
+  history = []; saveHist(); renderHist();
+  toast('🗑️ تم حذف السجل');
+}
+function reuseHist(ts){
+  const h = history.find(x => x.ts === ts);
+  if (!h) return;
+  resetState();
+  current = fmtRaw(h.result);
+  closeHist(); renderDisplay();
+  toast('↩️ أُدخلت النتيجة ' + fmtGrouped(h.result));
+}
+function replayHist(ts){
+  const h = history.find(x => x.ts === ts);
+  if (!h) return;
+  $('vInput').value = h.expr;
+  closeHist();
+  previewExpr();
+  $('vInput').focus();
+}
+const SRC_LBL = {voice:'🎤 صوت', text:'⌨️ كتابة', step:'🔢 خطوة'};
+
+function renderHist(){
+  const badge = $('histBadge');
+  badge.hidden = history.length === 0;
+  badge.textContent = history.length > 99 ? '99+' : String(history.length);
+
+  const list = $('hList');
+  const stats = $('hStats');
+  list.innerHTML = '';
+
+  if (!history.length){
+    stats.textContent = '';
+    const e = document.createElement('div');
+    e.className = 'h-empty';
+    e.innerHTML = 'لا توجد عمليات بعد 📭<br><span style="font-size:11px">كل عملية تحسبها ستُسجَّل هنا تلقائياً وتبقى محفوظة بعد إغلاق الصفحة</span>';
+    list.appendChild(e);
+    return;
+  }
+
+  const sum = history.reduce((a, h) => a + (isFinite(h.result) ? h.result : 0), 0);
+  stats.textContent = history.length + ' عملية · مجموع النتائج ' + fmtGrouped(round12(sum));
+
+  const frag = document.createDocumentFragment();
+  history.forEach(h => {
+    const it = document.createElement('div');
+    it.className = 'h-item';
+
+    const top = document.createElement('div');
+    top.className = 'h-top';
+    const src = document.createElement('span');
+    src.className = 'h-src ' + h.src;
+    src.textContent = SRC_LBL[h.src] || h.src;
+    const tm = document.createElement('span');
+    tm.className = 'h-time';
+    tm.textContent = fmtTime(h.ts);
+    top.appendChild(src); top.appendChild(tm);
+
+    const ex = document.createElement('div');
+    ex.className = 'h-expr';
+    ex.textContent = h.expr + ' =';
+
+    const rs = document.createElement('div');
+    rs.className = 'h-res';
+    rs.textContent = fmtGrouped(h.result);
+
+    const acts = document.createElement('div');
+    acts.className = 'h-acts';
+    acts.appendChild(mkAct('⧉ نسخ', () => { copyText(fmtRaw(h.result)); }));
+    acts.appendChild(mkAct('↩️ استخدام', () => reuseHist(h.ts)));
+    acts.appendChild(mkAct('✎ تعديل', () => replayHist(h.ts)));
+    acts.appendChild(mkAct('🗑️', () => delHist(h.ts), 'del'));
+
+    it.appendChild(top); it.appendChild(ex); it.appendChild(rs); it.appendChild(acts);
+    frag.appendChild(it);
+  });
+  list.appendChild(frag);
+}
+function mkAct(label, fn, cls){
+  const b = document.createElement('button');
+  b.className = 'h-act' + (cls ? ' ' + cls : '');
+  b.textContent = label;
+  b.onclick = fn;
+  return b;
+}
+function fmtTime(ts){
+  const d = new Date(ts);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  try {
+    const t = d.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+    return sameDay ? t : d.toLocaleDateString('ar-EG', {day:'2-digit', month:'2-digit'}) + ' · ' + t;
+  } catch(e){
+    return d.toLocaleString();
+  }
+}
+function openHist(){ renderHist(); $('histSheet').classList.add('open'); }
+function closeHist(){ $('histSheet').classList.remove('open'); }
+
+function copyText(txt, label){
+  const short = label || (txt.length > 32 ? txt.slice(0, 32) + '…' : txt);
+  const done = () => toast('⧉ تم النسخ: ' + short);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(() => fallbackCopy(txt, done));
+  } else fallbackCopy(txt, done);
+}
+function fallbackCopy(txt, done){
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch(e){ toast('تعذّر النسخ'); }
+  document.body.removeChild(ta);
+}
+function copyResult(){
+  const v = isDone ? total : (current !== '' ? parseFloat(current) : lastResult);
+  if (v === null || v === undefined || Number.isNaN(v)){ toast('لا توجد نتيجة للنسخ'); return; }
+  copyText(fmtRaw(v));
+}
+function copyHist(){
+  if (!history.length){ toast('السجل فارغ'); return; }
+  const txt = history.map(h => fmtTime(h.ts) + '  |  ' + h.expr + ' = ' + fmtRaw(h.result)).join('\n');
+  copyText('سجل العمليات (' + history.length + ')\n' + txt,
+           history.length + ' عملية من السجل');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   11) نطق النتيجة (TTS)
+══════════════════════════════════════════════════════════════ */
+let ttsOn = false;
+try { ttsOn = localStorage.getItem('vcalc.tts') === '1'; } catch(e){}
+function toggleTts(){
+  ttsOn = !ttsOn;
+  try { localStorage.setItem('vcalc.tts', ttsOn ? '1' : '0'); } catch(e){}
+  $('ttsBtn').classList.toggle('on', ttsOn);
+  $('ttsBtn').textContent = ttsOn ? '🔊' : '🔇';
+  toast(ttsOn ? '🔊 نطق النتيجة مُفعّل' : '🔇 نطق النتيجة متوقف');
+}
+let ttsPause = false, ttsGuard = null;
+function speak(v){
+  if (!ttsOn || !('speechSynthesis' in window) || v === null || v === undefined) return;
+  try {
+    // لا نترك الميكروفون يسمع صوت الحاسبة نفسها في الوضع المستمر
+    const resume = contMode;
+    if (listening){ ttsPause = true; try { rec.stop(); } catch(e){} }
+
+    const release = () => {
+      clearTimeout(ttsGuard);
+      if (!ttsPause) return;
+      ttsPause = false;
+      if (resume && contMode && !manualStop) startMic();
+    };
+
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('النتيجة ' + fmtRaw(v));
+    u.lang = 'ar-SA'; u.rate = 0.95;
+    u.onend = release;
+    u.onerror = release;
+    ttsGuard = setTimeout(release, 6000);   // شبكة أمان لو لم يصل حدث الانتهاء
+    speechSynthesis.speak(u);
+  } catch(e){ ttsPause = false; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   12) الاستقبال الصوتي — عمليات حسابية فقط
+══════════════════════════════════════════════════════════════ */
+const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, contMode = false, manualStop = false;
+let restartTm = null;
+
+function setMicUI(state, text, sub){
+  const btn = $('micBtn'), st = $('micState'), bars = $('bars');
+  btn.classList.toggle('live', state === 'live');
+  btn.textContent = state === 'live' ? '⏹️' : '🎙️';
+  btn.setAttribute('aria-label', state === 'live' ? 'إيقاف الاستماع' : 'ابدأ الاستماع');
+  st.classList.toggle('live', state === 'live');
+  if (text !== undefined) st.textContent = text;
+  if (sub !== undefined) $('micSub').textContent = sub;
+  bars.hidden = state !== 'live';
+}
+
+function initRec(){
+  if (!SRClass) return null;
+  const r = new SRClass();
+  r.lang = 'ar-SA';
+  r.interimResults = true;
+  r.maxAlternatives = 6;       // ← نفحص كل البدائل ونختار الحسابي منها
+  r.continuous = false;
+
+  r.onstart = () => {
+    listening = true;
+    setMicUI('live', '🔴 أسمعك… انطق العملية', contMode ? 'وضع الاستماع المستمر مُفعّل' : 'سيتوقف تلقائياً بعد انتهاء كلامك');
+    $('liveTx').textContent = '';
+  };
+
+  r.onresult = ev => {
+    let interim = '';
+    for (let k = ev.resultIndex; k < ev.results.length; k++){
+      const res = ev.results[k];
+      if (res.isFinal) handleFinal(res);
+      else interim += res[0].transcript;
+    }
+    if (interim){
+      $('liveTx').textContent = '… ' + interim.trim();
+      // معاينة فورية إن كان الكلام المؤقت عملية صالحة
+      const pv = parseExpression(interim);
+      if (!pv.error) showSt('⟹', 'inf', 0, pv.expr + '  =  ' + fmtGrouped(pv.result));
+    }
+  };
+
+  r.onerror = ev => {
+    const map = {
+      'not-allowed'  : '🚫 صلاحية الميكروفون مرفوضة — فعّلها من إعدادات المتصفح',
+      'service-not-allowed': '🚫 خدمة التعرّف الصوتي محجوبة في هذا المتصفح',
+      'audio-capture': '🎤 لم أجد ميكروفوناً متصلاً',
+      'network'      : '📡 التعرّف الصوتي يحتاج اتصالاً بالإنترنت',
+      'no-speech'    : '🤫 لم أسمع صوتاً — حاول مرة أخرى',
+      'aborted'      : ''
+    };
+    const msg = map[ev.error] !== undefined ? map[ev.error] : '⚠️ تعذّر التعرّف الصوتي (' + ev.error + ')';
+    if (msg) showSt(msg, 'err', 4500);
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture'){
+      contMode = false;
+      $('contBtn').classList.remove('on');
+      manualStop = true;
+    }
+  };
+
+  r.onend = () => {
+    listening = false;
+    $('liveTx').textContent = '';
+    if (contMode && !manualStop && !ttsPause){
+      setMicUI('idle', '♾️ إعادة الاستماع…', 'الوضع المستمر مُفعّل');
+      clearTimeout(restartTm);
+      restartTm = setTimeout(() => { if (contMode && !manualStop && !ttsPause) startMic(); }, 350);
+    } else if (ttsPause){
+      setMicUI('idle', '🔊 أنطق النتيجة…', 'سيُعاد الاستماع بعد انتهاء النطق');
+    } else {
+      setMicUI('idle', 'اضغط الميكروفون وانطق العملية',
+        'مثال: «خمسة وعشرين زائد مئة وخمسة في اثنين»');
+    }
+  };
+  return r;
+}
+
+/* اختيار أفضل بديل: أول بديل يُقرأ كعملية حسابية صحيحة */
+function pickBest(result){
+  const alts = [];
+  for (let i = 0; i < result.length; i++){
+    const t = (result[i].transcript || '').trim();
+    if (t) alts.push({text: t, conf: result[i].confidence || 0});
+  }
+  if (!alts.length) return null;
+
+  let firstErr = null;
+  for (const a of alts){
+    const p = parseExpression(a.text);
+    if (!p.error) return {text: a.text, parsed: p};
+    if (!firstErr) firstErr = {text: a.text, parsed: p};
+  }
+  return firstErr;
+}
+
+function handleFinal(result){
+  const best = pickBest(result);
+  if (!best){ showSt('⚠️ لم أسمع أي عملية حسابية', 'err', 3000); return; }
+  $('liveTx').textContent = '🎤 ' + best.text;
+
+  if (best.parsed.error){
+    showSt(best.parsed.msg + '  ·  سمعت: «' + best.text + '»', 'err', 5000);
+    buzz(50);
+    return;
+  }
+  submitExpr('voice', best.text);
+}
+
+function startMic(){
+  if (!SRClass){
+    showSt('⚠️ متصفحك لا يدعم التعرّف الصوتي — استخدم Chrome أو Edge، أو اكتب العملية بالأسفل', 'err', 6000);
+    return;
+  }
+  if (listening) return;
+  manualStop = false;
+  if (!rec) rec = initRec();
+  try { rec.start(); }
+  catch(e){
+    // start() أثناء تشغيل سابق
+    try { rec.stop(); } catch(_){}
+    setTimeout(() => { try { rec.start(); } catch(__){} }, 250);
+  }
+}
+function stopMic(){
+  manualStop = true;
+  clearTimeout(restartTm);
+  if (rec && listening){ try { rec.stop(); } catch(e){} }
+  setMicUI('idle', 'توقّف الاستماع', 'اضغط الميكروفون للمتابعة');
+}
+function toggleMic(){ listening ? stopMic() : startMic(); }
+function toggleCont(){
+  contMode = !contMode;
+  $('contBtn').classList.toggle('on', contMode);
+  toast(contMode ? '♾️ الاستماع المستمر مُفعّل' : '⏸️ الاستماع المستمر متوقف');
+  if (contMode && !listening) startMic();
+  if (!contMode && listening) stopMic();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   13) الأحداث والتهيئة
+══════════════════════════════════════════════════════════════ */
+$('vInput').addEventListener('input', previewExpr);
+$('vInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); submitExpr('text'); }
+});
+document.querySelectorAll('.hint').forEach(h => {
+  h.addEventListener('click', () => {
+    const inp = $('vInput');
+    inp.value = (inp.value.trim() + ' ' + h.dataset.fill + ' ').replace(/\s+/g,' ');
+    inp.focus(); previewExpr();
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if ($('histSheet').classList.contains('open') && e.key === 'Escape'){ closeHist(); return; }
+  if (e.target === $('vInput')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  if ('0123456789'.includes(e.key)) digit(e.key);
+  else if (e.key === '.' || e.key === ',') digit('.');
+  else if (e.key === 'Backspace'){ e.preventDefault(); bksp(); }
+  else if (e.key === '+') chooseOp('+');
+  else if (e.key === '-') chooseOp('-');
+  else if (e.key === '*') chooseOp('×');
+  else if (e.key === '/'){ e.preventDefault(); chooseOp('÷'); }
+  else if (e.key === '%') percentCur();
+  else if (e.key === 'Enter' || e.key === '='){
+    e.preventDefault();
+    if ($('vInput').value.trim()) submitExpr('text'); else stepCalc();
+  }
+  else if (e.key === 'Escape') clearAll();
+  else if (e.key === 'Delete') clearAll();
+});
+
+/* شرط الأصل الآمن للتعرّف الصوتي */
+(function boot(){
+  loadHist();
+  renderHist();
+  renderDisplay();
+  $('ttsBtn').classList.toggle('on', ttsOn);
+  $('ttsBtn').textContent = ttsOn ? '🔊' : '🔇';
+
+  if (!SRClass){
+    $('micBtn').disabled = true;
+    setMicUI('idle', '🎙️ التعرّف الصوتي غير مدعوم',
+      'استخدم Chrome أو Edge — أو اكتب العملية في الحقل بالأسفل');
+  } else if (location.protocol === 'file:'){
+    setMicUI('idle', 'اضغط الميكروفون وانطق العملية',
+      '⚠️ بعض المتصفحات تمنع الميكروفون على ملفات file:// — افتح الصفحة عبر https');
+  }
+})();
+</script>
+</body>
+</html>
