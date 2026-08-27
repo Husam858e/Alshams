@@ -192,7 +192,9 @@ button{font-family:inherit;}
 #vInput{
   flex:1;min-width:0;background:transparent;border:none;outline:none;
   color:var(--txt);font-size:15px;font-weight:700;
-  font-family:inherit;direction:rtl;text-align:right;
+  font-family:inherit;
+  /* العملية تُقرأ يساراً⟶يميناً حتى داخل واجهة RTL */
+  direction:ltr;text-align:right;unicode-bidi:plaintext;
   padding:11px 0;caret-color:var(--accent);
 }
 #vInput::placeholder{color:rgba(255,255,255,.2);font-size:12px;}
@@ -204,6 +206,27 @@ button{font-family:inherit;}
 }
 .btn-ok:active{transform:scale(.92);}
 
+.btn-ok.hot{
+  background:linear-gradient(135deg,#15803d,#4ade80);
+  box-shadow:0 3px 14px rgba(74,222,128,.4);
+}
+.rec-note{
+  margin-top:8px;font-size:10.5px;font-weight:700;line-height:1.7;
+  color:rgba(255,255,255,.32);text-align:center;
+}
+.rec-note b{color:#86efac;}
+.dict-lbl{
+  font-size:11px;font-weight:800;text-align:center;
+  color:rgba(255,255,255,.4);padding:2px 0 7px;letter-spacing:.3px;
+}
+.dict-lbl.rec{color:#fca5a5;}
+.dict-expr{font-size:16px!important;color:rgba(255,255,255,.62)!important;}
+.c-preview .c-num{opacity:.6;text-shadow:none;}
+.dict-err{
+  font-size:11.5px;font-weight:700;text-align:center;
+  color:#f87171;padding-top:5px;
+}
+.dict-err.soft{color:rgba(144,205,244,.7);}
 .hints{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
 .hint{
   background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
@@ -422,25 +445,26 @@ button{font-family:inherit;}
   <!-- Voice -->
   <div class="voice-sec">
     <div class="mic-row">
-      <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="ابدأ الاستماع">🎙️</button>
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()" aria-label="ابدأ التسجيل">🎙️</button>
       <div class="mic-side">
-        <div class="mic-state" id="micState">اضغط الميكروفون وانطق العملية</div>
+        <div class="mic-state" id="micState">اضغط الميكروفون لبدء التسجيل</div>
         <div id="liveTx"></div>
-        <div class="mic-sub" id="micSub">مثال: «خمسة وعشرين زائد مئة وخمسة في اثنين»</div>
+        <div class="mic-sub" id="micSub">يسجّل بلا توقف — و«حساب» هو ما يُنهي التسجيل</div>
         <div class="bars" id="bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       </div>
-      <button class="icon-btn" id="contBtn" onclick="toggleCont()" title="استماع مستمر" aria-label="استماع مستمر">♾️</button>
+      <button class="icon-btn" id="undoBtn" onclick="undoVoice()" title="تراجع عن آخر مقطع منطوق" aria-label="تراجع عن آخر مقطع منطوق">🔙</button>
     </div>
 
     <div class="inp-row">
       <span aria-hidden="true" style="font-size:17px;opacity:.5">⌨️</span>
       <input id="vInput" type="text" inputmode="text"
-        placeholder='اكتب أو انطق: "خمسة زائد عشرة في ثلاثة"'
+        placeholder='ما تنطقه يتجمّع هنا — ويمكنك تعديله'
         autocomplete="off" autocorrect="off" spellcheck="false"
-        aria-label="العملية الحسابية">
-      <button class="btn-ok" onclick="submitExpr('text')">حساب ✓</button>
+        aria-label="العملية الحسابية المتجمّعة">
+      <button class="btn-ok" id="btnOk" onclick="calcNow()">حساب ✓</button>
     </div>
 
+    <p class="rec-note">🔴 التسجيل لا يتوقف حتى تضغط <b>حساب ✓</b> — انطق العملية على دفعات إن أردت، و<b>🔙</b> يحذف آخر مقطع</p>
     <div class="hints" id="hints">
       <div class="hint" data-fill="زائد">‏<b>زائد</b> → +</div>
       <div class="hint" data-fill="ناقص">‏<b>ناقص</b> → −</div>
@@ -763,10 +787,14 @@ function runToNumber(run){
   return sign * parseFloat(Math.abs(iv) + '.' + fs);
 }
 
-/* النتيجة: {toks} أو {error, word} */
-function lex(text){
+/* النتيجة الصارمة: {toks} أو {error, word}
+   الوضع المتساهل (opts.lenient) لا يفشل: يعيد {toks, unknown} ويُسقط
+   ما ليس حسابياً — وهو ما نستخدمه أثناء التسجيل الصوتي المتواصل. */
+function lex(text, opts){
+  const lenient = !!(opts && opts.lenient);
   const raw = preTokenize(text);
   const toks = [];
+  const unknown = [];
   let i = 0;
 
   outer:
@@ -803,7 +831,16 @@ function lex(text){
         run.push(raw[i]); i++;
       }
       const v = runToNumber(run);
-      if (v === null) return {error:'unknown', word: run.join(' ')};
+      if (v === null){
+        if (!lenient) return {error:'unknown', word: run.join(' ')};
+        // مقطع غامض: خُذ أطول بادئة صالحة وأعِد الباقي للتحليل
+        let k = run.length - 1, pv = null;
+        while (k > 0 && pv === null){ pv = runToNumber(run.slice(0, k)); if (pv === null) k--; }
+        if (pv === null){ unknown.push(run.join(' ')); continue; }
+        toks.push(pv);
+        i -= (run.length - k);
+        continue;
+      }
       toks.push(v);
       continue;
     }
@@ -820,8 +857,13 @@ function lex(text){
     if (FILLER.has(t) || WAW.has(t) || DEC_WORDS.has(t)){ i++; continue; }
 
     /* أي شيء آخر ⇒ ليست عملية حسابية */
+    if (lenient){ unknown.push(t); i++; continue; }
     return {error:'unknown', word: t};
   }
+
+  /* في الوضع المتساهل نُعيد الرموز كما هي: التنظيف يجري على العملية
+     الكاملة عند الحساب، وإلا لضاعت عملية نُطقت وحدها مثل «في». */
+  if (lenient) return {toks: toks, unknown: unknown};
 
   /* تنظيف العمليات المتكرّرة أو الزائدة:
      «قسمة عشرة على اثنين» ⟶ 10 ÷ 2   |   «خمسة ضرب في ثلاثة» ⟶ 5 × 3 */
@@ -975,6 +1017,13 @@ function parseExpression(text){
   }
 }
 
+/* مقطع منطوق ⟶ نص رياضي مختصر («خمسة وعشرين زائد» ⟶ «25 +»).
+   يُسقط كل ما ليس حسابياً ويُخبرنا بما أسقطه. */
+function fragmentToMath(text){
+  const r = lex(text, {lenient:true});
+  return {str: toksToStr(r.toks), count: r.toks.length, unknown: r.unknown};
+}
+
 /* ══════════════════════════════════════════════════════════════
    5) تنسيق الأرقام
 ══════════════════════════════════════════════════════════════ */
@@ -1009,6 +1058,10 @@ let padVis    = true;
 let voiceExpr = null;   // نص العملية عند الحساب الكامل
 let voiceSaid = null;   // ما نطقه المستخدم فعلاً
 let lastResult= null;
+
+/* الإدخال الصوتي المتجمّع: يبقى ينمو حتى يُضغط زر «حساب» */
+let voiceSegs = [];     // المقاطع الرياضية:  ['25 +', '105', '× 2']
+let saidSegs  = [];     // ما نُطق فعلاً لكل مقطع
 
 const OP_COLORS = {'+':'#4ade80','-':'#fb923c','×':'#a78bfa','÷':'#f472b6','=':'#4ade80'};
 const $ = id => document.getElementById(id);
@@ -1046,6 +1099,50 @@ function buildRow(op, val, active, isFirst){
 function renderDisplay(){
   const area = $('dArea');
   area.innerHTML = '';
+
+  /* أثناء التسجيل (أو ما دام هناك نص صوتي متجمّع) تُعرض العملية الجارية
+     ونتيجتها المبدئية — ولا يُحسب شيء إلا بزر «حساب». */
+  const dictText = $('vInput').value.trim();
+  const dictActive = dictText !== '' &&
+        (recording || saidSegs.length > 0 || document.activeElement === $('vInput'));
+
+  if (dictActive){
+    const lbl = document.createElement('div');
+    lbl.className = 'dict-lbl' + (recording ? ' rec' : '');
+    lbl.textContent = recording
+      ? '🔴 التسجيل مستمر… اضغط «حساب» للإيقاف والحساب'
+      : '✎ جاهز — اضغط «حساب»';
+    area.appendChild(lbl);
+
+    if (saidSegs.length){
+      const said = saidSegs.join(' · ');
+      const sd = document.createElement('div');
+      sd.className = 'c-said';
+      sd.textContent = '🎤 ' + (said.length > 130 ? '…' + said.slice(-130) : said);
+      area.appendChild(sd);
+    }
+
+    const pr = parseExpression(dictText);
+    const ex = document.createElement('div');
+    ex.className = 'c-expr-row dict-expr';
+    ex.textContent = pr.error ? dictText : pr.expr + '  =';
+    area.appendChild(ex);
+
+    if (!pr.error){
+      const row = buildRow('=', fmtGrouped(pr.result), false, false);
+      row.classList.add('c-result', 'c-preview');
+      area.appendChild(row);
+    } else {
+      const er = document.createElement('div');
+      er.className = 'dict-err' + (pr.error === 'incomplete' ? ' soft' : '');
+      er.textContent = pr.msg;
+      area.appendChild(er);
+    }
+
+    area.scrollTop = area.scrollHeight;
+    syncButtons();
+    return;
+  }
 
   const blank = !isDone && !voiceExpr && terms.length === 0 && current === '' && pendingOp === null;
   if (blank){
@@ -1102,6 +1199,12 @@ function renderDisplay(){
 
   area.scrollTop = area.scrollHeight;
 
+  syncButtons();
+
+  if (isDone && total !== null) $('srLive').textContent = 'النتيجة ' + fmtRaw(total);
+}
+
+function syncButtons(){
   const canCalc = !isDone && pendingOp !== null && current !== '';
   const eqBtn = $('eqBtn');
   eqBtn.classList.toggle('rdy', canCalc);
@@ -1110,7 +1213,13 @@ function renderDisplay(){
   document.querySelectorAll('.op-btn').forEach(b =>
     b.classList.toggle('act', !isDone && b.dataset.op === pendingOp && current === ''));
 
-  if (isDone && total !== null) $('srLive').textContent = 'النتيجة ' + fmtRaw(total);
+  // زر «حساب»: يوقف التسجيل ويحسب ما تجمّع
+  const ok = $('btnOk');
+  if (ok){
+    const has = $('vInput').value.trim() !== '';
+    ok.classList.toggle('hot', has);
+    ok.textContent = recording ? 'إيقاف وحساب ✓' : 'حساب ✓';
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1241,9 +1350,11 @@ function stepCalc(){
 
 function clearAll(){
   resetState();
+  voiceSegs = []; saidSegs = []; lastAutoValue = '';
   $('vInput').value = '';
   $('stBox').style.display = 'none';
   $('liveTx').textContent = '';
+  if (recording) $('micSub').textContent = 'التسجيل مستمر — ابدأ من جديد';
   renderDisplay();
 }
 
@@ -1287,34 +1398,44 @@ function toast(msg){
 /* ══════════════════════════════════════════════════════════════
    9) تنفيذ عملية كاملة (نص أو صوت)
 ══════════════════════════════════════════════════════════════ */
+/* معاينة حيّة لما تجمّع — بلا حساب نهائي */
 function previewExpr(){
   const v = $('vInput').value.trim();
-  if (!v){ $('stBox').style.display = 'none'; return; }
-  const r = parseExpression(v);
-  if (r.error) showSt(r.msg, r.error === 'incomplete' ? 'inf' : 'err');
-  else showSt('⟹', 'ok', 0, r.expr + '  =  ' + fmtGrouped(r.result));
+  if (!v){
+    $('stBox').style.display = 'none';
+  } else {
+    const r = parseExpression(v);
+    if (r.error) showSt(r.msg, r.error === 'incomplete' ? 'inf' : 'err');
+    else showSt('⟹', 'ok', 0, r.expr + '  =  ' + fmtGrouped(r.result));
+  }
+  renderDisplay();
 }
 
-function submitExpr(src, textOverride){
-  const raw = (textOverride !== undefined ? textOverride : $('vInput').value).trim();
+/* الحساب النهائي — لا يقع إلا بضغط «حساب» (أو Enter) */
+function submitExpr(){
+  const raw = $('vInput').value.trim();
   if (!raw){ showSt('⚠️ لا يوجد نص لحسابه', 'err', 2000); return false; }
 
   const r = parseExpression(raw);
-  if (r.error){ showSt(r.msg, 'err', 4000); buzz(40); return false; }
+  if (r.error){ showSt(r.msg, 'err', 4500); buzz(40); return false; }
+
+  const said = saidSegs.length && segsInSync() ? saidSegs.join(' · ') : null;
 
   resetState();
   isDone    = true;
   voiceExpr = r.expr;
-  voiceSaid = src === 'voice' ? raw : null;
+  voiceSaid = said;
   total     = r.result;
   lastResult= r.result;
 
-  addHist(r.expr, r.result, src === 'voice' ? 'voice' : 'text');
+  voiceSegs = []; saidSegs = []; lastAutoValue = '';
+  $('vInput').value = '';
+
+  addHist(r.expr, r.result, said ? 'voice' : 'text');
   renderDisplay();
   showSt('✅', 'ok', 4000, r.expr + ' = ' + fmtGrouped(r.result));
   speak(r.result);
   buzz(14);
-  if (textOverride === undefined) $('vInput').value = '';
   return true;
 }
 
@@ -1493,14 +1614,14 @@ function speak(v){
   if (!ttsOn || !('speechSynthesis' in window) || v === null || v === undefined) return;
   try {
     // لا نترك الميكروفون يسمع صوت الحاسبة نفسها في الوضع المستمر
-    const resume = contMode;
+    const resume = recording;
     if (listening){ ttsPause = true; try { rec.stop(); } catch(e){} }
 
     const release = () => {
       clearTimeout(ttsGuard);
       if (!ttsPause) return;
       ttsPause = false;
-      if (resume && contMode && !manualStop) startMic();
+      if (resume && recording) rawStart();
     };
 
     speechSynthesis.cancel();
@@ -1517,33 +1638,85 @@ function speak(v){
    12) الاستقبال الصوتي — عمليات حسابية فقط
 ══════════════════════════════════════════════════════════════ */
 const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, listening = false, contMode = false, manualStop = false;
+let rec = null;
+let listening = false;    // هل محرّك التعرّف يعمل في هذه اللحظة
+let recording = false;    // نية المستخدم: التسجيل مستمر حتى «حساب»
 let restartTm = null;
+let restartLog = [];      // لكبح حلقات إعادة التشغيل الفاشلة
 
 function setMicUI(state, text, sub){
   const btn = $('micBtn'), st = $('micState'), bars = $('bars');
-  btn.classList.toggle('live', state === 'live');
-  btn.textContent = state === 'live' ? '⏹️' : '🎙️';
-  btn.setAttribute('aria-label', state === 'live' ? 'إيقاف الاستماع' : 'ابدأ الاستماع');
-  st.classList.toggle('live', state === 'live');
+  const live = state === 'live';
+  btn.classList.toggle('live', live);
+  btn.textContent = live ? '⏹️' : '🎙️';
+  btn.setAttribute('aria-label', live ? 'إيقاف التسجيل' : 'ابدأ التسجيل');
+  st.classList.toggle('live', live);
   if (text !== undefined) st.textContent = text;
   if (sub !== undefined) $('micSub').textContent = sub;
-  bars.hidden = state !== 'live';
+  bars.hidden = !live;
+}
+function micIdleUI(){
+  setMicUI('idle', 'اضغط الميكروفون لبدء التسجيل',
+    'يسجّل بلا توقف — و«حساب» هو ما يُنهي التسجيل');
+}
+function micLiveUI(){
+  setMicUI('live', '🔴 يسجّل… تحدّث على راحتك',
+    'لن يتوقف حتى تضغط «حساب» — كل ما تنطقه يتجمّع بالأسفل');
 }
 
+/* ── تجميع ما يُنطق ───────────────────────────────────────────── */
+let lastAutoValue = '';        // آخر نص كتبناه نحن في الحقل
+
+/* يُعيد بناء الحقل من المقاطع، بصيغة رياضية مرتّبة إن أمكن:
+   «32 × × 4» ⟶ «32 × 4»  |  «5 +6» ⟶ «5 + 6» */
+function renderSegs(){
+  let txt = voiceSegs.join(' ').replace(/\s+/g, ' ').trim();
+  if (txt){
+    const lx = lex(txt);
+    if (!lx.error && lx.toks && lx.toks.length) txt = toksToStr(lx.toks);
+  }
+  $('vInput').value = txt;
+  lastAutoValue = txt;
+}
+function segsInSync(){ return $('vInput').value.trim() === lastAutoValue; }
+
+/* إن عدّل المستخدم النص يدوياً نعتبره مقطعاً واحداً ونُسقط ربطه بالصوت */
+function adoptManualEdit(){
+  if (segsInSync()) return;
+  const v = $('vInput').value.trim();
+  voiceSegs = v ? [v] : [];
+  saidSegs  = [];
+  lastAutoValue = v;
+}
+
+function appendVoice(mathStr, saidStr){
+  adoptManualEdit();
+  voiceSegs.push(mathStr);
+  saidSegs.push(saidStr);
+  renderSegs();
+  previewExpr();
+  buzz(6);
+}
+function undoVoice(){
+  adoptManualEdit();
+  if (!voiceSegs.length){ toast('لا يوجد ما يمكن التراجع عنه'); return; }
+  const gone = voiceSegs.pop();
+  saidSegs.pop();
+  renderSegs();
+  toast('🔙 حُذف آخر مقطع: ' + gone);
+  previewExpr();
+}
+
+/* ── محرّك التعرّف ─────────────────────────────────────────────── */
 function initRec(){
   if (!SRClass) return null;
   const r = new SRClass();
   r.lang = 'ar-SA';
   r.interimResults = true;
-  r.maxAlternatives = 6;       // ← نفحص كل البدائل ونختار الحسابي منها
-  r.continuous = false;
+  r.maxAlternatives = 6;     // نفحص كل البدائل ونختار أغزرها محتوى حسابياً
+  r.continuous = true;       // جلسة طويلة بدل جملة واحدة
 
-  r.onstart = () => {
-    listening = true;
-    setMicUI('live', '🔴 أسمعك… انطق العملية', contMode ? 'وضع الاستماع المستمر مُفعّل' : 'سيتوقف تلقائياً بعد انتهاء كلامك');
-    $('liveTx').textContent = '';
-  };
+  r.onstart = () => { listening = true; micLiveUI(); $('liveTx').textContent = ''; syncButtons(); };
 
   r.onresult = ev => {
     let interim = '';
@@ -1552,117 +1725,136 @@ function initRec(){
       if (res.isFinal) handleFinal(res);
       else interim += res[0].transcript;
     }
-    if (interim){
-      $('liveTx').textContent = '… ' + interim.trim();
-      // معاينة فورية إن كان الكلام المؤقت عملية صالحة
-      const pv = parseExpression(interim);
-      if (!pv.error) showSt('⟹', 'inf', 0, pv.expr + '  =  ' + fmtGrouped(pv.result));
-    }
+    $('liveTx').textContent = interim.trim() ? '… ' + interim.trim() : '';
   };
 
   r.onerror = ev => {
-    const map = {
-      'not-allowed'  : '🚫 صلاحية الميكروفون مرفوضة — فعّلها من إعدادات المتصفح',
+    const fatal = {
+      'not-allowed'        : '🚫 صلاحية الميكروفون مرفوضة — فعّلها من إعدادات المتصفح',
       'service-not-allowed': '🚫 خدمة التعرّف الصوتي محجوبة في هذا المتصفح',
-      'audio-capture': '🎤 لم أجد ميكروفوناً متصلاً',
-      'network'      : '📡 التعرّف الصوتي يحتاج اتصالاً بالإنترنت',
-      'no-speech'    : '🤫 لم أسمع صوتاً — حاول مرة أخرى',
-      'aborted'      : ''
+      'audio-capture'      : '🎤 لم أجد ميكروفوناً متصلاً'
     };
-    const msg = map[ev.error] !== undefined ? map[ev.error] : '⚠️ تعذّر التعرّف الصوتي (' + ev.error + ')';
-    if (msg) showSt(msg, 'err', 4500);
-    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture'){
-      contMode = false;
-      $('contBtn').classList.remove('on');
-      manualStop = true;
+    if (fatal[ev.error]){
+      recording = false;
+      showSt(fatal[ev.error], 'err', 6000);
+      return;
     }
+    // «لا صوت» أمر طبيعي أثناء تسجيل طويل: تجاهله وواصل
+    if (ev.error === 'no-speech' || ev.error === 'aborted') return;
+    if (ev.error === 'network'){ showSt('📡 التعرّف الصوتي يحتاج اتصالاً بالإنترنت', 'err', 5000); return; }
+    showSt('⚠️ تعذّر التعرّف الصوتي (' + ev.error + ')', 'err', 4000);
   };
 
   r.onend = () => {
     listening = false;
     $('liveTx').textContent = '';
-    if (contMode && !manualStop && !ttsPause){
-      setMicUI('idle', '♾️ إعادة الاستماع…', 'الوضع المستمر مُفعّل');
-      clearTimeout(restartTm);
-      restartTm = setTimeout(() => { if (contMode && !manualStop && !ttsPause) startMic(); }, 350);
-    } else if (ttsPause){
-      setMicUI('idle', '🔊 أنطق النتيجة…', 'سيُعاد الاستماع بعد انتهاء النطق');
-    } else {
-      setMicUI('idle', 'اضغط الميكروفون وانطق العملية',
-        'مثال: «خمسة وعشرين زائد مئة وخمسة في اثنين»');
+
+    if (ttsPause){
+      setMicUI('idle', '🔊 أنطق النتيجة…', 'سيُستأنف التسجيل بعد انتهاء النطق');
+      syncButtons(); return;
     }
+    if (!recording){ micIdleUI(); syncButtons(); return; }
+
+    // المتصفح ينهي الجلسة دورياً — نعيد فتحها فوراً ليبقى التسجيل متواصلاً
+    const now = Date.now();
+    restartLog = restartLog.filter(t => now - t < 60000);
+    restartLog.push(now);
+    if (restartLog.length > 25){
+      recording = false; restartLog = [];
+      showSt('⚠️ تعذّر إبقاء التسجيل مفتوحاً — أعد المحاولة', 'err', 5000);
+      micIdleUI(); syncButtons(); return;
+    }
+    setMicUI('live', '🔴 يسجّل… (إعادة اتصال)', 'التسجيل مستمر — اضغط «حساب» للإنهاء');
+    clearTimeout(restartTm);
+    restartTm = setTimeout(() => { if (recording && !ttsPause) rawStart(); }, 250);
   };
   return r;
 }
 
-/* اختيار أفضل بديل: أول بديل يُقرأ كعملية حسابية صحيحة */
-function pickBest(result){
-  const alts = [];
+/* أفضل بديل لمقطع منطوق: الأغزر محتوى حسابياً والأقل كلاماً مهملاً */
+function pickBestFragment(result){
+  let best = null;
   for (let i = 0; i < result.length; i++){
-    const t = (result[i].transcript || '').trim();
-    if (t) alts.push({text: t, conf: result[i].confidence || 0});
+    const text = (result[i].transcript || '').trim();
+    if (!text) continue;
+    const frag  = fragmentToMath(text);
+    const score = frag.count * 10 - frag.unknown.length * 3 + (result[i].confidence || 0) - i * 0.01;
+    if (!best || score > best.score) best = {score: score, text: text, frag: frag};
   }
-  if (!alts.length) return null;
-
-  let firstErr = null;
-  for (const a of alts){
-    const p = parseExpression(a.text);
-    if (!p.error) return {text: a.text, parsed: p};
-    if (!firstErr) firstErr = {text: a.text, parsed: p};
-  }
-  return firstErr;
+  return best;
 }
 
 function handleFinal(result){
-  const best = pickBest(result);
-  if (!best){ showSt('⚠️ لم أسمع أي عملية حسابية', 'err', 3000); return; }
+  const best = pickBestFragment(result);
+  if (!best) return;
   $('liveTx').textContent = '🎤 ' + best.text;
 
-  if (best.parsed.error){
-    showSt(best.parsed.msg + '  ·  سمعت: «' + best.text + '»', 'err', 5000);
-    buzz(50);
+  if (!best.frag.count){
+    // لا شيء حسابي في هذا المقطع ⟶ يُتجاهل ولا يوقف التسجيل
+    $('micSub').textContent = '🚫 تجاهلت كلاماً غير حسابي: «' + best.text + '»';
     return;
   }
-  submitExpr('voice', best.text);
+  if (best.frag.unknown.length){
+    $('micSub').textContent = '🚫 تجاهلت: ' + best.frag.unknown.join('، ');
+  } else {
+    $('micSub').textContent = 'التسجيل مستمر — اضغط «حساب» عند الانتهاء';
+  }
+  appendVoice(best.frag.str, best.text);
 }
 
+/* ── التحكّم ───────────────────────────────────────────────────── */
+function rawStart(){
+  if (!rec) rec = initRec();
+  if (!rec || listening) return;
+  try { rec.start(); }
+  catch(e){
+    try { rec.abort(); } catch(_){}
+    setTimeout(() => { if (recording){ try { rec.start(); } catch(__){} } }, 300);
+  }
+}
 function startMic(){
   if (!SRClass){
     showSt('⚠️ متصفحك لا يدعم التعرّف الصوتي — استخدم Chrome أو Edge، أو اكتب العملية بالأسفل', 'err', 6000);
     return;
   }
-  if (listening) return;
-  manualStop = false;
-  if (!rec) rec = initRec();
-  try { rec.start(); }
-  catch(e){
-    // start() أثناء تشغيل سابق
-    try { rec.stop(); } catch(_){}
-    setTimeout(() => { try { rec.start(); } catch(__){} }, 250);
-  }
+  if (recording) return;
+  recording = true;
+  restartLog = [];
+  micLiveUI();
+  rawStart();
+  syncButtons();
+  renderDisplay();
 }
 function stopMic(){
-  manualStop = true;
+  recording = false;
   clearTimeout(restartTm);
   if (rec && listening){ try { rec.stop(); } catch(e){} }
-  setMicUI('idle', 'توقّف الاستماع', 'اضغط الميكروفون للمتابعة');
+  micIdleUI();
+  syncButtons();
 }
-function toggleMic(){ listening ? stopMic() : startMic(); }
-function toggleCont(){
-  contMode = !contMode;
-  $('contBtn').classList.toggle('on', contMode);
-  toast(contMode ? '♾️ الاستماع المستمر مُفعّل' : '⏸️ الاستماع المستمر متوقف');
-  if (contMode && !listening) startMic();
-  if (!contMode && listening) stopMic();
+function toggleMic(){ recording ? stopMic() : startMic(); }
+
+/* زر «حساب»: هو وحده ما يُنهي التسجيل ويحسب ما تجمّع */
+function calcNow(){
+  const had = recording;
+  if (had) stopMic();
+  const ok = submitExpr();
+  if (!ok && had){
+    // لم تنجح العملية ⟶ أعِد فتح التسجيل ليكمل المستخدم
+    startMic();
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
    13) الأحداث والتهيئة
 ══════════════════════════════════════════════════════════════ */
-$('vInput').addEventListener('input', previewExpr);
+/* الكتابة اليدوية تُبطل ربط المقاطع الصوتية بالنص */
+$('vInput').addEventListener('input', () => { adoptManualEdit(); previewExpr(); });
 $('vInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter'){ e.preventDefault(); submitExpr('text'); }
+  if (e.key === 'Enter'){ e.preventDefault(); calcNow(); }
 });
+$('vInput').addEventListener('focus', renderDisplay);
+$('vInput').addEventListener('blur',  () => setTimeout(renderDisplay, 80));
 document.querySelectorAll('.hint').forEach(h => {
   h.addEventListener('click', () => {
     const inp = $('vInput');
@@ -1686,10 +1878,14 @@ document.addEventListener('keydown', e => {
   else if (e.key === '%') percentCur();
   else if (e.key === 'Enter' || e.key === '='){
     e.preventDefault();
-    if ($('vInput').value.trim()) submitExpr('text'); else stepCalc();
+    if ($('vInput').value.trim() || recording) calcNow(); else stepCalc();
   }
   else if (e.key === 'Escape') clearAll();
   else if (e.key === 'Delete') clearAll();
+  else if (e.key === ' '){                                      // مسافة = تسجيل/إيقاف
+    if (document.activeElement && document.activeElement.tagName === 'BUTTON') return;
+    e.preventDefault(); toggleMic();
+  }
 });
 
 /* شرط الأصل الآمن للتعرّف الصوتي */
@@ -1705,9 +1901,19 @@ document.addEventListener('keydown', e => {
     setMicUI('idle', '🎙️ التعرّف الصوتي غير مدعوم',
       'استخدم Chrome أو Edge — أو اكتب العملية في الحقل بالأسفل');
   } else if (location.protocol === 'file:'){
-    setMicUI('idle', 'اضغط الميكروفون وانطق العملية',
+    setMicUI('idle', 'اضغط الميكروفون لبدء التسجيل',
       '⚠️ بعض المتصفحات تمنع الميكروفون على ملفات file:// — افتح الصفحة عبر https');
   }
+
+  // تحذير قبل مغادرة الصفحة أثناء تسجيل لم يُحسب بعد
+  window.addEventListener('beforeunload', e => {
+    if (recording && $('vInput').value.trim()){ e.preventDefault(); e.returnValue = ''; }
+  });
+  // إيقاف التسجيل إذا أُخفيت الصفحة طويلاً (يوفّر البطارية ويمنع حلقات إعادة التشغيل)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && recording) { clearTimeout(restartTm); }
+    else if (!document.hidden && recording && !listening) rawStart();
+  });
 })();
 </script>
 </body>
