@@ -15927,15 +15927,7 @@ document.addEventListener("keydown", function(e){
   const tcNew = document.getElementById("tc-new");
   if(tcNew && tcNew.contains(el)){
     e.preventDefault();
-    const seq = [];
-    if(S.kOn){ seq.push("kC","kP"); }
-    if(S.nOn){
-      document.querySelectorAll(".naql-row-name, .naql-row-kabs, .naql-row-price").forEach(f=>seq.push(f));
-    }
-    if(S.wOn){ seq.push("wP"); }
-    seq.push("fDrv","fPlt","fGrs","fNote");
-
-    const resolved = seq.map(x=> typeof x==="string" ? document.getElementById(x) : x).filter(f=>f);
+    const resolved = _tcNewFieldSeq();
     const idx = resolved.indexOf(el);
     const next = idx>=0 && idx<resolved.length-1 ? resolved[idx+1] : null;
     if(next){
@@ -15971,6 +15963,92 @@ document.addEventListener("keydown", function(e){
   if(btn)btn.click();
 });
 
+
+/* ══════════════════════════════════════════════════════
+   ترتيب حقول «وصل جديد» — مرجع واحد
+   ──────────────────────────────────────────────────────
+   أقسام الكبس والنقل والوصل تظهر وتختفي بمفاتيحها، فترتيب
+   الحقول ليس ترتيب الصفحة بل يُبنى من المفعَّل منها فقط.
+   كان هذا الترتيب مكتوباً داخل معالج Enter وحده؛ أُخرِج هنا
+   ليقرأه Enter وأسهم التنقل من مصدر واحد، فلا يفترق مسار
+   المفتاحين في النموذج نفسه.
+══════════════════════════════════════════════════════ */
+function _tcNewFieldSeq(){
+  const seq=[];
+  if(S.kOn){ seq.push("kC","kP"); }
+  if(S.nOn){
+    document.querySelectorAll(".naql-row-name, .naql-row-kabs, .naql-row-price")
+      .forEach(f=>seq.push(f));
+  }
+  if(S.wOn){ seq.push("wP"); }
+  seq.push("fDrv","fPlt","fGrs","fNote");
+  return seq.map(x=> typeof x==="string" ? document.getElementById(x) : x).filter(f=>f);
+}
+
+/* ══════════════════════════════════════════════════════
+   التنقل بين الحقول بالأسهم — → للأمام و← للخلف
+   ──────────────────────────────────────────────────────
+   إدخال الأوزان عمل سريع بيد واحدة، والوصول إلى Tab في لوحة
+   مفاتيح الهاتف أو الجهاز اللوحي متعب. السهمان يقومان مقامه:
+   → ينتقل للحقل التالي و← للسابق، بنفس ترتيب Enter تماماً.
+
+   ما يبقى على حاله عمداً:
+   ① حقول التاريخ — الأسهم فيها تنقل بين اليوم والشهر والسنة،
+     وهي الطريقة الوحيدة لضبط التاريخ بلوحة المفاتيح.
+   ② مربعات النص متعدد السطور (محادثة المساعد) — الأسهم فيها
+     تنقل بين الأسطر.
+   ③ Ctrl/Alt/Shift + سهم — تبقى لتحريك المؤشر داخل النص
+     وتحديده، فيمكن تصحيح حرف في وسط الاسم بلا فأرة.
+   ④ التقويم المفتوح — يأخذ الأسهم لنفسه حتى يُغلق.
+   ولا ينتقل التركيز خارج النموذج أو المودال الذي أنت فيه،
+   ولا يُنفّذ الحفظ عند آخر حقل: الأسهم للتنقل لا للتنفيذ.
+══════════════════════════════════════════════════════ */
+const _ARROW_NAV_CONTAINERS=".mob, .cd, #mPartialPay, .fbar";
+/* أنواع تستهلك الأسهم بنفسها فلا تُخطف منها */
+const _ARROW_NATIVE_TYPES=["date","time","datetime-local","month","week","range","color"];
+
+function _navFieldsOf(el){
+  const tcNew=document.getElementById("tc-new");
+  if(tcNew&&tcNew.contains(el)){
+    const seq=_tcNewFieldSeq();
+    const i=seq.indexOf(el);
+    if(i>=0)return{fields:seq,idx:i};
+    // حقل داخل النموذج خارج الترتيب الصريح (مثل «الموقع») — رتّب بالصفحة
+  }
+  const box=el.closest(_ARROW_NAV_CONTAINERS);
+  if(!box)return{fields:[],idx:-1};
+  const fields=Array.from(box.querySelectorAll("input, select")).filter(f=>{
+    if(f.disabled)return false;
+    if(f.type==="hidden")return false;
+    if(f.type==="checkbox"||f.type==="radio")return false;
+    if(f.offsetParent===null)return false;   // قسم مطوي أو مودال مغلق
+    return true;
+  });
+  return{fields,idx:fields.indexOf(el)};
+}
+
+document.addEventListener("keydown",function(e){
+  if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft")return;
+  if(e.ctrlKey||e.altKey||e.metaKey||e.shiftKey)return;   // تحريك المؤشر داخل النص
+  if(!S.cu||_loginVisible())return;
+  if(_pickerOpen)return;                                   // التقويم يحتجز الأسهم
+
+  const el=e.target;
+  if(!el||!el.tagName)return;
+  const tag=el.tagName.toLowerCase();
+  if(tag!=="input"&&tag!=="select")return;
+  if(tag==="input"&&_ARROW_NATIVE_TYPES.includes((el.type||"text").toLowerCase()))return;
+
+  const{fields,idx}=_navFieldsOf(el);
+  if(idx===-1)return;
+
+  const next=idx+(e.key==="ArrowRight"?1:-1);
+  if(next<0||next>=fields.length)return;   // طرف النموذج — لا لفّ ولا حفظ
+  e.preventDefault();
+  e.stopPropagation();
+  _focusReveal(fields[next], fields[next].tagName.toLowerCase()==="input");
+},true);
+
 /* ════════════════════════════════════════════
    اختصارات لوحة المفاتيح
    ─────────────────────────────────────────
@@ -15984,6 +16062,7 @@ document.addEventListener("keydown", function(e){
    ★ كل اختصار يعمل بالتبديل: الضغطة الثانية تُلغي ما فعلته الأولى
      (k/t/c تُطفئ القسم · m/e/d تُغلق المودال · s/r تُعيدك للتبويب السابق)
    Shift+Enter: إكمال الوصل مباشرة — يقفز لآخر خطوة (حفظ/تأكيد)
+   → : الحقل التالي · ← : الحقل السابق (Ctrl+سهم يحرّك المؤشر داخل النص)
    F11: ملء الشاشة (أو زر ⛶ في الترويسة)
 ════════════════════════════════════════════ */
 const _ARABIC_KEY_EQUIV={ s:"س", k:"ن", t:"ف", r:"ق", m:"ة", e:"ث", c:"ؤ", d:"ي" };
