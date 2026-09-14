@@ -1,0 +1,9 @@
+# نواتج البناء ومخلفاته
+node_modules/
+desktop/electron/dist/
+desktop/electron/app.html
+desktop/electron/icon.ico
+desktop/electron/icon.png
+desktop/launcher/app.html
+desktop/launcher/*.res
+desktop/launcher/*.exe

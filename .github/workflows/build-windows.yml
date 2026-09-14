@@ -1,0 +1,59 @@
+name: بناء نسخة ويندوز
+
+# النسخة الكاملة (Electron) حجمها ١٣٠ ميغا تقريباً، أكبر من أن تُحفظ
+# في المستودع، فتُبنى هنا على ويندوز حقيقي وتُرفَع كملف جاهز للتنزيل.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'wheelmanagement_v17_promax_43.html'
+      - 'desktop/**'
+      - '.github/workflows/build-windows.yml'
+
+jobs:
+  electron:
+    name: تطبيق Electron المستقل
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: تثبيت الاعتماديات
+        working-directory: desktop/electron
+        run: npm install --no-audit --no-fund
+
+      - name: البناء
+        working-directory: desktop/electron
+        run: node build.js
+
+      - name: رفع الناتج
+        uses: actions/upload-artifact@v4
+        with:
+          name: MizanAlShams-windows-x64
+          path: desktop/electron/dist/MizanAlShams-win32-x64/
+          retention-days: 90
+
+  launcher:
+    name: المشغّل الصغير
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تثبيت أدوات البناء
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends mingw-w64
+          pip install --quiet pillow
+
+      - name: البناء
+        run: ./desktop/launcher/build.sh
+
+      - name: رفع الناتج
+        uses: actions/upload-artifact@v4
+        with:
+          name: MizanAlShams-launcher
+          path: desktop/launcher/MizanAlShams.exe
+          retention-days: 90

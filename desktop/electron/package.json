@@ -1,0 +1,17 @@
+{
+  "name": "mizan-al-shams",
+  "productName": "MizanAlShams",
+  "version": "17.43.0",
+  "description": "Mizan Al-Shams — Weighbridge Management",
+  "main": "main.js",
+  "author": "Mizan Al-Shams",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "package:win": "node build.js"
+  },
+  "devDependencies": {
+    "@electron/packager": "^18.3.6",
+    "electron": "^38.2.0"
+  }
+}
