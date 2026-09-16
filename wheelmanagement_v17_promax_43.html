@@ -10695,13 +10695,49 @@ function restoreSnapshot(i){
    الآن نُميّز الرفض عن الانقطاع، ونقول ما العمل بالضبط.
 ══════════════════════════════════════════════════════════════ */
 let _fbLastErr=null;
+
+/* ══════════════════════════════════════════════════════════════
+   العقد التي يرفضها السيرفر — v17.61
+   ──────────────────────────────────────────────────────────────
+   كل قسم في التطبيق يكتب في عقدة فايربيس خاصة به، وقواعد الأمان
+   قائمة بيضاء: ما لم تُذكر فيه العقدة صراحةً يُرفض كل ما يُكتب
+   فيها. وهذا يقع حتماً عند إضافة قسم جديد إن نُسي تحديث القواعد.
+
+   ما كان يحدث حينها: الحفظ ينجح محلياً على الشاشة (فالكتابة
+   متفائلة)، ثم يرفضه السيرفر، وعند أول تحديث يعود المستمع
+   بالبيانات القديمة فتختفي التعديلات — ويبدو أن «التعديل لا
+   يعمل» بلا سبب ظاهر. والرسالة كانت عامة لا تُسمّي القسم ولا
+   العقدة، فلا تدلّ على ما يُضاف إلى القواعد.
+
+   الآن: تُجمع كل عقدة مرفوضة باسم قسمها العربي وعدد محاولاتها،
+   وتُسمّى في الرسالة وفي «فحص الاتصال والصلاحيات» — فيُعرف
+   بالضبط أي سطر ينقص القواعد.
+══════════════════════════════════════════════════════════════ */
+const _fbDenied=new Map();
+
+/* أسماء العقد التي ليست أقسام بيانات */
+const _NODE_LABELS={
+  closures:"🔒 الفترات المغلقة", audit_log:"📜 سجلّ التدقيق",
+  cashbox:"💰 الصندوق", cash_boxes:"💰 صناديق الصندوق",
+  cash_counts:"💰 جرد الصندوق", cash_moves:"💰 حركات الصندوق",
+};
+function _nodeLabel(node){
+  const d=_auditDs(node);
+  if(d)return d.icon+" "+d.label;
+  return _NODE_LABELS[node]||node;
+}
+
 function _fbReportWriteError(err,node){
   const code=String((err&&(err.code||err.message))||"").toUpperCase();
   _fbLastErr={code,node,at:nowStr()};
   if(code.indexOf("PERMISSION_DENIED")>=0||code.indexOf("PERMISSION-DENIED")>=0){
-    showToast("🚫 رفض السيرفر الحفظ (صلاحيات) — افتح الأدوات ← فحص الاتصال والصلاحيات",6000);
+    const label=_nodeLabel(node);
+    const prev=_fbDenied.get(node);
+    _fbDenied.set(node,{label,node,count:((prev&&prev.count)||0)+1,at:nowStr()});
+    showToast(`🚫 رفض السيرفر حفظ «${label}» — أضف "${node}" إلى قواعد فايربيس `+
+              `(الأدوات ← فحص الاتصال والصلاحيات)`,7000);
     const d=document.getElementById("syncDot");
-    if(d){d.style.background="var(--owing)";d.title="مرفوض: صلاحيات فايربيس";}
+    if(d){d.style.background="var(--owing)";d.title="مرفوض: صلاحيات فايربيس — "+node;}
     return;
   }
   showToast("⚠ تعذّر الحفظ الآن — محفوظ محلياً وسيُرسل عند عودة الاتصال");
@@ -10749,9 +10785,25 @@ async function toolsConnCheck(){
           : c.slice(0,90));
     }
   }
-  add(_writeQueue.length===0,"طابور المزامنة",
-      _writeQueue.length?AR(_writeQueue.length)+" عملية معلّقة لم تصل السيرفر":"فارغ");
-  if(_fbLastErr)add(false,"آخر خطأ حفظ",_fbLastErr.code.slice(0,80)+" · "+_fbLastErr.node);
+  /* الطابور مفصَّلاً بالأقسام: «٣ معلّقة» لا تدلّ على شيء،
+     أمّا «مخرجات المخازن: ٣» فتدلّ على العقدة المرفوضة */
+  if(_writeQueue.length){
+    const byNode={};
+    _writeQueue.forEach(w=>{byNode[w.node]=(byNode[w.node]||0)+1;});
+    add(false,"طابور المزامنة",
+        Object.keys(byNode).map(n=>_nodeLabel(n)+": "+AR(byNode[n])).join(" · ")+
+        " — لم تصل السيرفر");
+  } else add(true,"طابور المزامنة","فارغ");
+
+  /* كل قسم رفضه السيرفر يُسمّى باسمه وباسم عقدته */
+  if(_fbDenied.size){
+    _fbDenied.forEach(function(v){
+      add(false,"مرفوض: "+v.label,
+          `العقدة "${v.node}" غير مسموحة في قواعد فايربيس — أضفها إلى firebase-rules.json `+
+          `(أسهل طريقة: انسخ كتلة "arb_records" وسمِّ النسخة "${v.node}") · `+
+          AR(v.count)+" محاولة");
+    });
+  } else if(_fbLastErr)add(false,"آخر خطأ حفظ",_fbLastErr.code.slice(0,80)+" · "+_fbLastErr.node);
 
   const bad=rows.filter(r=>!r.ok).length;
   box.innerHTML=`
