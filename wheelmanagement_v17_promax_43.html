@@ -13787,10 +13787,21 @@ function confirmDel(){
 }
 
 function closeM(){
-  S.cId=null;S.wId=null;_delId=null;_dlRecId=null;_sellConfId=null;_sellWeighId=null;_sellDelId=null;_damDelId=null;_ppId=null;_srfDelId=null;_wrkDelId=null;_delEmpId=null;_delSalId=null;_dupPendingFn=null;_arbDelId=null;
-  ["mConf","mWeigh","mEdit","mDel","mDownload","mSellConf","mSellWeigh","mSellEdit","mSellDel","mDamEdit","mDamDel","mDamSub","mDamSubDel","mSrfEdit","mSrfDel","mWrkEdit","mWrkDel","mEmp","mAddSal","mAddAdv","mDelEmp","mDelSal","mAddBonus","mAddDeduct","mAddAbsent","mMnlEdit","mMnlDel","mDupWarn","mArbEdit","mArbDel"].forEach(function(id){
-    const el=document.getElementById(id);
-    if(el) el.classList.remove("active");
+  S.cId=null;S.wId=null;_delId=null;_dlRecId=null;_sellConfId=null;_sellWeighId=null;_sellDelId=null;_damDelId=null;_ppId=null;_srfDelId=null;_wrkDelId=null;_delEmpId=null;_delSalId=null;_dupPendingFn=null;_arbDelId=null;_outDelId=null;
+  /* ══════════════════════════════════════════════════════
+     إغلاق كل المودالات — v17.61
+     ──────────────────────────────────────────────────────
+     كانت هنا قائمة يدوية بمعرّفات المودالات. وأي قسم يُضاف
+     ولا يُسجَّل فيها يبقى مودالُه مفتوحاً بعد الحفظ: تظهر
+     رسالة «تم الحفظ» والشاشة عالقة كما هي — وهذا ما وقع
+     لمودالي قسم المخرجات.
+     الآن نغلق كل عنصر يحمل الصنف mo مهما كان معرّفه، فلا
+     يحتاج القسم الجديد تسجيلاً. (شاشة الطباعة PS ومودال
+     الدفع الجزئي mPartialPay ليسا من هذا الصنف ولهما
+     معالجتهما الخاصة.)
+  ══════════════════════════════════════════════════════ */
+  document.querySelectorAll(".mo").forEach(function(el){
+    el.classList.remove("active");
   });
   const ppov=document.getElementById("mPartialPay-ov");
   if(ppov)ppov.classList.remove("on");
