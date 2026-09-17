@@ -2272,27 +2272,50 @@ async function doMakePDF(action){
 }
 
 // توليد PDF حقيقي باستخدام iframe مخفي + html2canvas + jsPDF
+/* مقاس بكرة الطابعة الحرارية — ٣ بوصة = ٨٠ملم */
+const _PDF_W_MM = 80;
+const _PDF_W_PX = Math.round(_PDF_W_MM * 96 / 25.4);   // ≈ ٣٠٢ بكسل
+
 async function _generatePDFBlob(fullHTML, fname){
   return new Promise((resolve)=>{
     try{
       // إنشاء iframe مخفي لعرض المحتوى
+      /* ══════════════════════════════════════════════════════
+         عرض البكرة لا A4 — v17.64
+         ──────────────────────────────────────────────────────
+         كان الوصل يُرسم بعرض ٧٩٤ بكسل (A4) ثم يُقطَّع صفحات A4.
+         والطابعة بكرة حرارية بعرض ٣ بوصة، فيخرج الوصل بمقاس
+         ورقة مكتب مقطَّعاً — لا وصلاً متصلاً.
+         الآن يُرسم بعرض البكرة نفسه ويخرج صفحة واحدة بطوله.
+      ══════════════════════════════════════════════════════ */
       const fr = document.createElement("iframe");
-      fr.style.cssText="position:fixed;top:0;left:-9999px;width:794px;height:1123px;border:none;opacity:0;z-index:-1;";
+      fr.style.cssText=`position:fixed;top:0;left:-9999px;width:${_PDF_W_PX}px;height:1200px;border:none;opacity:0;z-index:-1;`;
       document.body.appendChild(fr);
       const doc = fr.contentDocument || fr.contentWindow.document;
-      doc.open(); doc.write(fullHTML); doc.close();
+      /* ══════════════════════════════════════════════════════
+         مظهر الطباعة لا مظهر الشاشة — v17.64
+         ──────────────────────────────────────────────────────
+         html2canvas تُصوّر ما تراه الشاشة ولا تُطبّق @media print
+         إطلاقاً، فكان الـPDF يخرج بالمظهر الداكن: أشرطة سوداء
+         عريضة في الترويسة والمجموع والتذييل. وعلى الورق الحراري
+         تُحرق سوداء صلبة — تستهلك الرأس وتُتعب القراءة.
+         نحوّل نطاق ورقة أنماط الطباعة إلى all قبل التصوير، فيخرج
+         الـPDF بمظهر الوصل: أبيض بخطّ أسود وبعرض ٧٤ملم.
+      ══════════════════════════════════════════════════════ */
+      const printLike = fullHTML.replace("@media print{", "@media all{");
+      doc.open(); doc.write(printLike); doc.close();
 
       // انتظر تحميل كامل
       setTimeout(async ()=>{
         try{
           await _ensurePdfLibs();   // v17.10 — تُحمَّل عند الطلب
           const body = doc.body;
-          const totalH = Math.max(body.scrollHeight, body.offsetHeight, 1123);
-          const totalW = 794;
+          const totalW = _PDF_W_PX;
+          const totalH = Math.max(body.scrollHeight, body.offsetHeight, 200);
 
           // html2canvas
           const canvas = await html2canvas(body,{
-            scale:2,
+            scale:3,
             useCORS:true,
             allowTaint:true,
             backgroundColor:"#ffffff",
@@ -2304,22 +2327,33 @@ async function _generatePDFBlob(fullHTML, fname){
             logging:false,
           });
 
-          // jsPDF — A4
+          /* ══════════════════════════════════════════════════════
+             صفحة واحدة بطول الوصل — v17.64
+             ──────────────────────────────────────────────────────
+             نافذة طباعة أندرويد لا تعرض «رول» لهذه الطابعة، بل
+             مقاسات ثابتة أطولها ١٨٠ملم — فيُقسَّم الوصل الطويل
+             ويخرج بين أقسامه ورق أبيض مهما فعلنا في CSS (صفّ
+             الجدول لا يُشطر بين صفحتين).
+             وهذا المسار يتجاوزها: نُخرج PDF صفحةً واحدة بعرض
+             البكرة وبطول الوصل كاملاً، فيطبعه تطبيق الطابعة
+             بإعداد «رول بعرض ٣ بوصة» متصلاً بلا فراغ واحد.
+             (السقف ٥٠٠٠ملم حدُّ ما تقرأه قارئات PDF؛ ما زاد
+             يُقسَّم بطوله لا بطول A4.)
+          ══════════════════════════════════════════════════════ */
           const { jsPDF } = window.jspdf;
-          const pageW=210, pageH=297; // mm
           const canvW=canvas.width, canvH=canvas.height;
-          const ratio=pageW/canvW * (canvas.width/canvas.width);
-          const imgH=(canvH/canvW)*pageW;
-          const pdf = new jsPDF({orientation:imgH>pageH?"portrait":"portrait",unit:"mm",format:"a4"});
+          const imgH=(canvH/canvW)*_PDF_W_MM;          // طول الوصل بالملم
           const imgData = canvas.toDataURL("image/jpeg",0.92);
+          const MAXH=5000;                              // ملم
 
-          if(imgH <= pageH){
-            // صفحة واحدة
-            pdf.addImage(imgData,"JPEG",0,0,pageW,imgH);
+          let pdf;
+          if(imgH <= MAXH){
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_PDF_W_MM,imgH]});
+            pdf.addImage(imgData,"JPEG",0,0,_PDF_W_MM,imgH);
           } else {
-            // صفحات متعددة
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_PDF_W_MM,MAXH]});
             let yOffset=0;
-            const pageHpx=(canvH/imgH)*pageH;
+            const pageHpx=(canvH/imgH)*MAXH;
             while(yOffset < canvH){
               const sliceH=Math.min(pageHpx, canvH-yOffset);
               const pageCanvas=document.createElement("canvas");
@@ -2328,9 +2362,9 @@ async function _generatePDFBlob(fullHTML, fname){
               ctx.drawImage(canvas, 0, yOffset, canvW, sliceH, 0, 0, canvW, sliceH);
               const pageImg=pageCanvas.toDataURL("image/jpeg",0.92);
               const sliceHmm=(sliceH/canvH)*imgH;
-              pdf.addImage(pageImg,"JPEG",0,0,pageW,sliceHmm);
+              pdf.addImage(pageImg,"JPEG",0,0,_PDF_W_MM,sliceHmm);
               yOffset+=sliceH;
-              if(yOffset<canvH) pdf.addPage();
+              if(yOffset<canvH) pdf.addPage([_PDF_W_MM,sliceHmm]);
             }
           }
 
