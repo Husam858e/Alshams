@@ -15699,7 +15699,10 @@ function _tonPrice(r){
   return Math.round(ppkg*1000);
 }
 function _buildCustPrintHTML(type,name,period,base,recs){
-  const PL={daily:'اليومية',weekly:'الأسبوعية',monthly:'الشهرية'};
+  /* 'range' يأتي من طباعة النطاق المخصص، ولم يكن له اسم هنا
+     فكانت الترويسة تطبع «محصلة undefined» على ورق الزبون. */
+  const PL={daily:'اليومية',weekly:'الأسبوعية',monthly:'الشهرية',
+            range:'بنطاق مخصص',all:'الكاملة'};
   const col=_custColor(type);
   const d=new Date();const p2=x=>String(x).padStart(2,'0');
   const sec=t=>`<div class="psec">${t}</div>`;
@@ -15915,7 +15918,7 @@ function _buildCustPrintHTML(type,name,period,base,recs){
   return`${COHEAD}
     <div class="prh" style="background:${col}">
       <div class="prhtl">${titles[type]} — ${esc(name)}</div>
-      <div class="prhmt">محصلة ${PL[period]}: ${tAr(base)}<br/>${p2(d.getHours())+':'+p2(d.getMinutes())}</div>
+      <div class="prhmt">محصلة ${PL[period]||period}: ${tAr(base)}<br/>${p2(d.getHours())+':'+p2(d.getMinutes())}</div>
     </div>
     <div class="prb">${body}</div>
     ${summaryBar}${COFTR}`;
