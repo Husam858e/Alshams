@@ -82,10 +82,14 @@ async function printToPdf(htmlFile) {
 
   const b = out['قبل'], a = out['بعد'];
   console.log('');
-  results.push(['مقاس الورق ٨٠ملم كما هو', Math.abs(a.w - 80) < 2]);
+  // ⛔ لا يُفرض مقاس صفحة: أندرويد يُصغّر الوصل ليُلائم ورق الطابعة
+  results.push(['مقاس الصفحة متروك للطابعة (بلا size مفروض)',
+                a.w === b.w && a.h === b.h]);
   results.push(['قواعد منع الكسر أُزيلت كلها', a.avoidRules === 0 && b.avoidRules > 0]);
   results.push(['الكسر الإجباري قبل المجاميع أُزيل', a.forcedBreaks === 0 && b.forcedBreaks > 0]);
   results.push(['نفس المحتوى في صفحات أقل أو مساوية', a.pages <= b.pages]);
+  results.push(['لا كسر إجباري ولا منع كسر في الناتج',
+                a.avoidRules === 0 && a.forcedBreaks === 0]);
 
   results.forEach(([t, ok]) => console.log(` ${ok ? 'PASS' : 'FAIL'} ${t}`));
   const failed = results.filter(([, ok]) => !ok);

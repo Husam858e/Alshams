@@ -2054,16 +2054,25 @@ function getPDFCss(){
 
 @media print{
   /* ══════════════════════════════════════════════════════
-     مقاس الورق — v17.62
+     مقاس الورق: يُترك للطابعة — v17.63
      ──────────────────────────────────────────────────────
-     كان المكتوب ‎size:80mm auto‎ وهو غير صالح في CSS: الخاصية
-     تقبل مقاسين أو كلمة auto وحدها، لا خلطاً بينهما. فكان
-     المتصفح يُسقط السطر كلّه بصمت ويطبع الوصل على ورقة Letter
-     (‎216×279ملم‎) — أي أن عرض الـ‎80ملم‎ لم يُطبَّق يوماً.
-     قِسناه: ‎80mm auto‎ ← ‎216×279‎ · ‎80mm 297mm‎ ← ‎80×297‎.
-     الآن مقاسان صريحان، فالصفحة ٨٠ملم فعلاً.
+     ⛔ لا تكتب هنا ‎size‎ بمقاس صريح.
+
+     جُرِّب ‎size:80mm 297mm‎ فخرج الوصل مصغَّراً وسط بياض: نظام
+     الطباعة في أندرويد يُقيس الصفحة المطلوبة على الورق المختار
+     في تطبيق الطابعة (‎3×4‎ بوصة مثلاً)، فإن اختلفا صغّر المحتوى
+     ليُلائمه. والورق يختلف من طابعة لأخرى ومن إعداد لآخر، فأي
+     مقاس نكتبه هنا يكون خاطئاً عند أحدهم.
+
+     وما كان مكتوباً قبلاً ‎size:80mm auto‎ غير صالح أصلاً (الخاصية
+     تقبل مقاسين أو ‎auto‎ وحدها لا خلطاً بينهما) فكان المتصفح
+     يُسقطه بصمت — ولهذا كانت الطباعة سليمة: الحكم لمقاس الورق
+     في الطابعة. نُبقي ذلك صراحةً لا مصادفةً.
+
+     أما الفراغات البيضاء بين الصفحات فسببها قواعد منع كسر
+     العناصر لا مقاس الصفحة، وهي مُزالة أدناه.
   ══════════════════════════════════════════════════════ */
-  @page{size:80mm 297mm;margin:2mm;}
+  @page{margin:2mm;}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:74mm;margin:0 auto;padding:0;background:#fff!important;color:#000!important;font-size:16px!important;font-family:Arial,Helvetica,sans-serif!important;font-weight:700!important;direction:rtl!important;}
   *{max-width:74mm !important;box-sizing:border-box !important;font-family:Arial,Helvetica,sans-serif !important;background:transparent !important;color:#000 !important;border-color:#000 !important;text-shadow:none !important;box-shadow:none !important;}
   #aiBtn,#aiPanel,#aiPanelHd,#aiMsgs,#aiInputRow,#syncBar,#toast,#pdfLoader,.pact,.pbk-btn,.pshare-btn,button,input,select,textarea{display:none !important;visibility:hidden !important;}
