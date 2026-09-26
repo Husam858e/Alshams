@@ -32,8 +32,8 @@ jobs:
       - name: رفع الناتج
         uses: actions/upload-artifact@v5
         with:
-          name: MizanAlShams-windows-x64
-          path: desktop/electron/dist/MizanAlShams-win32-x64/
+          name: NasaemAlKhair-windows-x64
+          path: desktop/electron/dist/NasaemAlKhair-win32-x64/
           retention-days: 90
 
   launcher:
@@ -54,6 +54,6 @@ jobs:
       - name: رفع الناتج
         uses: actions/upload-artifact@v5
         with:
-          name: MizanAlShams-launcher
-          path: desktop/launcher/MizanAlShams.exe
+          name: NasaemAlKhair-launcher
+          path: desktop/launcher/NasaemAlKhair.exe
           retention-days: 90

@@ -39,7 +39,7 @@ app.whenReady().then(async () => {
   }))()`);
 
   for (const [k, v] of Object.entries(checks)) {
-    const ok = k === 'title' ? v === 'ميزان الشمس' : (k === 'tabs' ? v > 40 : v === true);
+    const ok = k === 'title' ? v === 'نسائم الخير' : (k === 'tabs' ? v > 40 : v === true);
     say(`${ok ? 'PASS' : 'FAIL'} ${k} = ${v}`);
     if (!ok) problems.push(k);
   }

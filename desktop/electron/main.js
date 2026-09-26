@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════
-   ميزان الشمس — غلاف Electron
+   نسائم الخير — غلاف Electron
    ──────────────────────────────────────────────────────
    نسخة سطح مكتب مستقلة تماماً: تحمل متصفحها بداخلها فلا
    تعتمد على أي برنامج في الجهاز. التطبيق نفسه (app.html)
@@ -20,7 +20,7 @@ function createWindow() {
     height: 900,
     minWidth: 380,
     backgroundColor: '#1A1714',
-    title: 'ميزان الشمس',
+    title: 'نسائم الخير',
     icon: path.join(__dirname, 'icon.png'),
     show: false,
     webPreferences: {
@@ -109,6 +109,6 @@ if (!app.requestSingleInstanceLock()) {
 
   // فشل التحميل يجب أن يُقال بوضوح لا أن يترك نافذة بيضاء
   app.on('render-process-gone', (_e, _wc, details) => {
-    dialog.showErrorBox('ميزان الشمس', 'توقّف التطبيق: ' + details.reason);
+    dialog.showErrorBox('نسائم الخير', 'توقّف التطبيق: ' + details.reason);
   });
 }

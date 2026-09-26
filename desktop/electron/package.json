@@ -1,10 +1,10 @@
 {
   "name": "mizan-al-shams",
-  "productName": "MizanAlShams",
+  "productName": "NasaemAlKhair",
   "version": "17.43.0",
-  "description": "Mizan Al-Shams — Weighbridge Management",
+  "description": "Nasaem Al-Khair — Weighbridge Management",
   "main": "main.js",
-  "author": "Mizan Al-Shams",
+  "author": "Nasaem Al-Khair",
   "license": "UNLICENSED",
   "scripts": {
     "start": "electron .",

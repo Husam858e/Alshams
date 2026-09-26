@@ -3,7 +3,7 @@
  *   npm install
  *   npm run package:win
  *
- * الناتج: dist/MizanAlShams-win32-x64/MizanAlShams.exe
+ * الناتج: dist/NasaemAlKhair-win32-x64/NasaemAlKhair.exe
  *
  * ملاحظة للبناء من لينكس: ثنائيات Electron تُجلب من GitHub افتراضياً،
  * وإن كان محجوباً تُضبط ELECTRON_MIRROR على مرآة. ضبط أيقونة الـ exe
@@ -32,17 +32,17 @@ packager({
   out: path.join(HERE, 'dist'),
   platform: 'win32',
   arch: 'x64',
-  name: 'MizanAlShams',
+  name: 'NasaemAlKhair',
   icon: path.join(HERE, 'icon.ico'),
   overwrite: true,
   asar: true,
   prune: true,
   ignore: [/^\/dist($|\/)/, /^\/build\.js$/, /^\/node_modules($|\/)/],
   win32metadata: {
-    CompanyName: 'Mizan Al-Shams',
-    ProductName: 'Mizan Al-Shams',
-    FileDescription: 'Mizan Al-Shams — Weighbridge Management',
-    OriginalFilename: 'MizanAlShams.exe',
+    CompanyName: 'Nasaem Al-Khair',
+    ProductName: 'Nasaem Al-Khair',
+    FileDescription: 'Nasaem Al-Khair — Weighbridge Management',
+    OriginalFilename: 'NasaemAlKhair.exe',
   },
 }).then(paths => {
   console.log('✅ تم البناء:', paths.join(', '));

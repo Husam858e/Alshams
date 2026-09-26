@@ -14,12 +14,12 @@ BEGIN
     /* 0409 = الإنجليزية (أمريكا)، 04B0 = Unicode — الترميز القياسي */
     BLOCK "040904B0"
     BEGIN
-      VALUE "CompanyName",      "Mizan Al-Shams"
-      VALUE "FileDescription",  "Mizan Al-Shams \x2014 Weighbridge Management"
+      VALUE "CompanyName",      "Nasaem Al-Khair"
+      VALUE "FileDescription",  "Nasaem Al-Khair \x2014 Weighbridge Management"
       VALUE "FileVersion",      "17.43.0.0"
-      VALUE "InternalName",     "MizanAlShams"
-      VALUE "OriginalFilename", "MizanAlShams.exe"
-      VALUE "ProductName",      "Mizan Al-Shams"
+      VALUE "InternalName",     "NasaemAlKhair"
+      VALUE "OriginalFilename", "NasaemAlKhair.exe"
+      VALUE "ProductName",      "Nasaem Al-Khair"
       VALUE "ProductVersion",   "17.43.0.0"
     END
   END

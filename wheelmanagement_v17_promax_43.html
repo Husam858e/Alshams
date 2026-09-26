@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>ميزان الشمس</title>
+<title>نسائم الخير</title>
 <!-- ══════════════════════════════════════════════════════════════
      المكتبات الخارجية — v17.10
      ──────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ميزان الشمس">
+<meta name="apple-mobile-web-app-title" content="نسائم الخير">
 <!-- ══════════════════════════════════════════════════════════════
      الخطوط — v17.10
      ──────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@
 <!-- الخط يُحقن بعد أول رسم (انظر _loadWebFont) فلا يؤخّر ظهور الشاشة -->
 <style>
 /* ══════════════════════════════════════════════════════════════
-   ميزان الشمس — نظام التصميم "دفتر الميزان"
+   نسائم الخير — نظام التصميم "دفتر الميزان"
    ──────────────────────────────────────────────────────────────
    المرجع البصري: تذكرة الوزن المطبوعة ودفتر الحسابات.
    حبر دافئ على ورق داكن · مساطر شعرية بدل الظلال · لون واحد
@@ -51,7 +51,7 @@
    الموجبة للعين السليمة — والتطبيق يُستخدم في ساحة تحت الشمس.
    الوضع الداكن متاح ويتبع إعداد الهاتف تلقائياً، ويمكن تثبيته يدوياً.
    الهوية: أخضر (ازدهار ونماء) + ذهب (الشمس والجودة) — دلالات
-   موافقة للسياق العراقي والخليجي، ومطابقة لاسم «ميزان الشمس».
+   موافقة للسياق العراقي والخليجي، ومطابقة لاسم «نسائم الخير».
 ══════════════════════════════════════════════════════════════ */
 :root{
   /* ── الوضع الفاتح (الافتراضي) ── */
@@ -697,7 +697,7 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
 // يُنفَّذ فور تحميل السكريبتات الخارجية
 // الدوال ستكون متاحة لأي onclick في الـ body
 /* ══════════════════════════════════════════════════════════════
-   ميزان الشمس — v17 PRO MAX
+   نسائم الخير — v17 PRO MAX
    ──────────────────────────────────────────────────────────────
    إصلاحات: مستمعات فايربيس · حذف العامل · الترقيم · الدفع الزائد
             تهريب HTML · التواريخ المحلية · الكود المكرر/الميت
@@ -2175,13 +2175,13 @@ function shareViaIntent(text, title){
   const br=getBridge();
   if(br){
     try{
-      if(br.shareText)  { br.shareText(text,title||"ميزان الشمس"); return true; }
-      if(br.share)      { br.share(title||"ميزان الشمس",text);     return true; }
+      if(br.shareText)  { br.shareText(text,title||"نسائم الخير"); return true; }
+      if(br.share)      { br.share(title||"نسائم الخير",text);     return true; }
     }catch(e){}
   }
   // fallback: Web Share API
   if(navigator.share){
-    navigator.share({title:title||"ميزان الشمس",text:text}).catch(()=>{});
+    navigator.share({title:title||"نسائم الخير",text:text}).catch(()=>{});
     return true;
   }
   return false;
@@ -2192,7 +2192,7 @@ async function doMakePDF(action){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const fname = _isCollScreen
     ? `محصلة_${PL[_currentCollPeriod]||_currentCollPeriod}_${_currentCollWH==="all"?"الكل":_currentCollWH}_${toDay()}`
-    : `وصل_ميزان_الشمس_${toDay()}`;
+    : `وصل_نسائم_الخير_${toDay()}`;
 
   const fullHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -2211,7 +2211,7 @@ async function doMakePDF(action){
           if(navigator.share && navigator.canShare){
             const file = new File([pdfBlob], fname+".pdf", {type:"application/pdf"});
             if(navigator.canShare({files:[file]})){
-              await navigator.share({files:[file], title:"ميزان الشمس", text:fname});
+              await navigator.share({files:[file], title:"نسائم الخير", text:fname});
               showToast("✅ تم إرسال PDF");
               return;
             }
@@ -2238,12 +2238,12 @@ async function doMakePDF(action){
         const blob = new Blob([fullHTML],{type:"text/html;charset=utf-8"});
         const file = new File([blob], fname+".html", {type:"text/html"});
         if(navigator.canShare && navigator.canShare({files:[file]})){
-          await navigator.share({files:[file], title:"ميزان الشمس"});
+          await navigator.share({files:[file], title:"نسائم الخير"});
           showToast("✅ تم الإرسال (HTML)");
           return;
         }
         const url = URL.createObjectURL(blob);
-        await navigator.share({title:"ميزان الشمس", text:fname, url});
+        await navigator.share({title:"نسائم الخير", text:fname, url});
         URL.revokeObjectURL(url);
       }
     }catch(e){ if(e && e.name==="AbortError") return; }
@@ -2505,7 +2505,7 @@ function doPrint(){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const fname = _isCollScreen
     ? `محصلة_${PL[_currentCollPeriod]||_currentCollPeriod}_${_currentCollWH==="all"?"الكل":_currentCollWH}_${toDay()}`
-    : `وصل_ميزان_الشمس_${toDay()}`;
+    : `وصل_نسائم_الخير_${toDay()}`;
   const fullHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${fname}</title><style>${getPDFCss()}</style></head>
@@ -2526,7 +2526,7 @@ async function doShareXL(period,wh){
   if(!data.length){showToast("⚠ لا بيانات");return;}
   try{await _ensureLib("xlsx");}catch(e){return;}   // v17.10 — تُحمَّل عند الطلب
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
-  const fname=`ميزان_الشمس_${PL[period||S.rptP]||period}${wh==="all"?"":"_"+wh}_${toDay()}.xlsx`;
+  const fname=`نسائم_الخير_${PL[period||S.rptP]||period}${wh==="all"?"":"_"+wh}_${toDay()}.xlsx`;
   try{
     const arr = makeXLBlob(data, wh==="all"?"وصلات":whTitle(wh).replace(/ /g,"_"));
 
@@ -2545,7 +2545,7 @@ async function doShareXL(period,wh){
       const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
       const file=new File([blob],fname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
       if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:"ميزان الشمس",text:"تقرير Excel"})
+        navigator.share({files:[file],title:"نسائم الخير",text:"تقرير Excel"})
           .then(function(){showToast("✅ تم إرسال Excel");})
           .catch(function(e){if(e.name!=="AbortError")_xlSave(arr,fname);});
         return;
@@ -8420,7 +8420,7 @@ const _UNIQ_DATASETS=()=>_DATASETS.filter(d=>!d.dupIn);
 ───────────────────────────────────────── */
 function toolsBackup(){
   const payload={
-    app:"ميزان الشمس",
+    app:"نسائم الخير",
     version:17,
     build:"17.63",
     createdAt:nowStr(),
@@ -8436,7 +8436,7 @@ function toolsBackup(){
   const total=Object.values(payload.counts).reduce((a,b)=>a+b,0);
   const json=JSON.stringify(payload,null,1);
   const blob=new Blob([json],{type:"application/json;charset=utf-8"});
-  const fname=`نسخة_احتياطية_ميزان_الشمس_${toDay()}.json`;
+  const fname=`نسخة_احتياطية_نسائم_الخير_${toDay()}.json`;
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
   a.download=fname;
@@ -8602,7 +8602,7 @@ async function toolsExportXL(){
       sheets++;
     });
     if(!sheets){showToast("⚠ لا توجد بيانات للتصدير");return;}
-    XLSX.writeFile(wb,`ميزان_الشمس_كل_البيانات_${toDay()}.xlsx`);
+    XLSX.writeFile(wb,`نسائم_الخير_كل_البيانات_${toDay()}.xlsx`);
     showToast("📊 تم تصدير "+AR(sheets)+" ورقة");
   }catch(e){showToast("⚠ فشل التصدير: "+(e.message||""));}
 }
@@ -10723,7 +10723,7 @@ function renderSnapshots(){
 function restoreSnapshot(i){
   const sn=_snapshots()[i];
   if(!sn){showToast("⚠ اللقطة غير موجودة");return;}
-  _restorePayload={app:"ميزان الشمس",version:17,createdAt:sn.at,
+  _restorePayload={app:"نسائم الخير",version:17,createdAt:sn.at,
                    createdBy:(sn.by||"—")+" (لقطة تلقائية)",counts:sn.counts,data:sn.data};
   const rows=(_DATASETS||[]).filter(d=>!d.virtual).map(d=>{
     const inc=Array.isArray(sn.data[d.k])?sn.data[d.k].length:0;
@@ -12663,7 +12663,7 @@ function _aiWelcome(){
   const n=_aiActive().length;
   const total=Object.values(_AI_SOURCES).reduce((a,v)=>{try{return a+v.get().length;}catch(e){return a;}},0);
   _aiAppend("a",`مرحباً ${user}! 👋
-أنا <strong>مساعد ميزان الشمس</strong> — أقرأ <strong>${AR(total)}</strong> سجلاً كاملة، وأحسب الأرقام داخل جهازك فلا تُقتطع ولا تُقرَّب.
+أنا <strong>مساعد نسائم الخير</strong> — أقرأ <strong>${AR(total)}</strong> سجلاً كاملة، وأحسب الأرقام داخل جهازك فلا تُقتطع ولا تُقرَّب.
 
 <strong>أسألني:</strong>
 • شكد يستحق فلان؟ · منو عليه أكبر مبلغ؟
@@ -12708,7 +12708,7 @@ function _aiContext(userMsg){
   const emps=(EMP_LIST||[]).map(e=>e.name).filter(Boolean).join(' · ')||'لا يوجد';
   const user=S.cu?.name||'';
 
-  return `أنت «مساعد ميزان الشمس» — مساعد محاسبي محترف لمكتب تجارة زراعية عراقي.
+  return `أنت «مساعد نسائم الخير» — مساعد محاسبي محترف لمكتب تجارة زراعية عراقي.
 تتحدث مع: ${user}. أجب بالعربية دائماً، بإيجاز ووضوح، بلا حشو.
 اليوم: ${today} (السنة ${yr}).
 
@@ -14115,7 +14115,7 @@ const COHEAD=`
         </svg>
       </td>
       <td style="padding:0;vertical-align:middle;direction:rtl">
-        <span style="font-size:26px;font-weight:900;color:var(--ink-050);font-family:Arial,Helvetica,sans-serif;white-space:nowrap">ميزان الشمس</span>
+        <span style="font-size:26px;font-weight:900;color:var(--ink-050);font-family:Arial,Helvetica,sans-serif;white-space:nowrap">نسائم الخير</span>
       </td>
     </tr>
   </table>
@@ -14126,7 +14126,7 @@ const COHEAD=`
 
 const COFTR=`
 <div style="background:var(--paper);border-top:1px solid var(--paper);padding:3px 12px;text-align:center;font-family:Arial,Helvetica,sans-serif;direction:rtl">
-  <div style="font-size:11px;font-weight:700;color:var(--ink-050);margin-bottom:1px;font-family:Tahoma,Arial,sans-serif">بإدارة أبو إبراهيم &mdash; ميزان الشمس</div>
+  <div style="font-size:11px;font-weight:700;color:var(--ink-050);margin-bottom:1px;font-family:Tahoma,Arial,sans-serif">بإدارة أبو إبراهيم &mdash; نسائم الخير</div>
   <div style="font-size:10px;color:var(--paper-4);line-height:1.4;font-family:Tahoma,Arial,sans-serif">
     بغداد &mdash; أبي غريب &mdash; منطقة الزيدان<br/>
     أبو إبراهيم: ٠٧٥٠٢٨٣١٢٠٠ &mdash; ٠٧٧٢٤٢٥٦٦٣٢<br/>
@@ -14807,13 +14807,13 @@ function doMakePDF_single(id){
   if(br){
     try{
       if(br.shareHtml){ br.shareHtml(fullHTML,fname); showToast("📤 جاري المشاركة..."); return; }
-      if(br.shareText){ br.shareText(html,"ميزان الشمس - "+r.plate); showToast("📤 جاري المشاركة..."); return; }
+      if(br.shareText){ br.shareText(html,"نسائم الخير - "+r.plate); showToast("📤 جاري المشاركة..."); return; }
     }catch(e){}
   }
   // محاولة Web Share
   try{
     if(navigator.share){
-      navigator.share({title:"ميزان الشمس",text:"وصل "+r.plate+" — "+tAr(r.dk||toDay())})
+      navigator.share({title:"نسائم الخير",text:"وصل "+r.plate+" — "+tAr(r.dk||toDay())})
         .then(function(){showToast("✅ تم الإرسال");})
         .catch(function(){_downloadHTML(fullHTML,fname);});
       return;
@@ -16522,7 +16522,7 @@ document.addEventListener("keydown", function(e){
 <div class="lc">
   <div class="lia">
     <span class="liico"><svg class="mark" viewBox="0 0 48 46" width="46" height="44" fill="none" aria-hidden="true"><circle cx="24" cy="8" r="3.8" fill="currentColor"/><path d="M24 1.4v1.9M24 12.7v1.9M30.6 8h-1.9M19.3 8h-1.9M28.7 3.3l-1.4 1.4M20.7 11.3l-1.4 1.4M28.7 12.7l-1.4-1.4M20.7 4.7l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M24 15.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20h32M24 20v18M16.5 38h15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M11 20.5l-4 6.5M11 20.5l4 6.5M37 20.5l-4 6.5M37 20.5l4 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 27h11M31.5 27h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
-    <div class="litl">ميزان الشمس</div>
+    <div class="litl">نسائم الخير</div>
     <div class="lisb">وزن الشاحنات بدقة كيلوغرام واحد</div>
   </div>
   <span class="slbl">اختر المستخدم</span>
@@ -16570,7 +16570,7 @@ document.addEventListener("keydown", function(e){
 <!-- APP -->
 <div id="AS">
   <div class="tb">
-    <div class="tbr"><span class="tbico"><svg class="mark" viewBox="0 0 48 46" width="21" height="20" fill="none" aria-hidden="true"><circle cx="24" cy="8" r="3.8" fill="currentColor"/><path d="M24 1.4v1.9M24 12.7v1.9M30.6 8h-1.9M19.3 8h-1.9M28.7 3.3l-1.4 1.4M20.7 11.3l-1.4 1.4M28.7 12.7l-1.4-1.4M20.7 4.7l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M24 15.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20h32M24 20v18M16.5 38h15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M11 20.5l-4 6.5M11 20.5l4 6.5M37 20.5l-4 6.5M37 20.5l4 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 27h11M31.5 27h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="tbn">ميزان الشمس</span></div>
+    <div class="tbr"><span class="tbico"><svg class="mark" viewBox="0 0 48 46" width="21" height="20" fill="none" aria-hidden="true"><circle cx="24" cy="8" r="3.8" fill="currentColor"/><path d="M24 1.4v1.9M24 12.7v1.9M30.6 8h-1.9M19.3 8h-1.9M28.7 3.3l-1.4 1.4M20.7 11.3l-1.4 1.4M28.7 12.7l-1.4-1.4M20.7 4.7l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M24 15.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20h32M24 20v18M16.5 38h15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M11 20.5l-4 6.5M11 20.5l4 6.5M37 20.5l-4 6.5M37 20.5l4 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 27h11M31.5 27h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="tbn">نسائم الخير</span></div>
     <div class="tbr">
       <span class="tbu" id="TU"></span>
       <button id="fsBtn" onclick="toggleFullscreen()" title="ملء الشاشة (F11)" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--rule);background:var(--ink-200);color:var(--paper-2);font-size:14px;cursor:pointer;line-height:1;padding:0">⛶</button>
@@ -19837,7 +19837,7 @@ document.addEventListener("keydown", function(e){
 </div>
 
 <!-- ══ زر المساعد ══ -->
-<button id="aiBtn" onclick="toggleAI()" title="مساعد ميزان الشمس">🤖</button>
+<button id="aiBtn" onclick="toggleAI()" title="مساعد نسائم الخير">🤖</button>
 
 <!-- ══ لوحة المساعد ══ -->
 <div id="aiPanel">
@@ -19845,7 +19845,7 @@ document.addEventListener("keydown", function(e){
     <div style="display:flex;align-items:center;gap:10px">
       <div style="width:36px;height:36px;border-radius:50%;background:var(--ink-200);display:flex;align-items:center;justify-content:center;font-size:18px">🤖</div>
       <div>
-        <div style="font-size:14px;font-weight:700;color:var(--paper)">مساعد ميزان الشمس</div>
+        <div style="font-size:14px;font-weight:700;color:var(--paper)">مساعد نسائم الخير</div>
         <div style="font-size:10px;color:var(--settled)">● <span id="aiProvBar">جاهز — وصول كامل للسجلات</span></div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# يبني MizanAlShams.exe — مشغّل ويندوز صغير يحمل التطبيق بداخله.
+# يبني NasaemAlKhair.exe — مشغّل ويندوز صغير يحمل التطبيق بداخله.
 #
 # المتطلبات (لينكس):  apt-get install mingw-w64 && pip install pillow
 # التشغيل:            ./build.sh
@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 APP_HTML="../../wheelmanagement_v17_promax_43.html"
-OUT="MizanAlShams.exe"
+OUT="NasaemAlKhair.exe"
 
 [ -f "$APP_HTML" ] || { echo "لم يُعثر على ملف التطبيق: $APP_HTML" >&2; exit 1; }
 

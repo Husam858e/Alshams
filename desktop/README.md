@@ -1,4 +1,4 @@
-# نسخ سطح المكتب — ميزان الشمس
+# نسخ سطح المكتب — نسائم الخير
 
 التطبيق ملف HTML واحد يعمل في أي متصفح. هنا طريقتان لتشغيله كبرنامج
 ويندوز (`.exe`) بأيقونة على سطح المكتب ونافذة مستقلة بلا شريط متصفح.
@@ -18,6 +18,7 @@
 
 ملف `.exe` واحد يحمل التطبيق بداخله كمورد. عند التشغيل يفكّه إلى
 `%LOCALAPPDATA%\MizanAlShams\app.html` ثم يفتحه بنافذة مستقلة
+(اسم المجلد لم يتغيّر مع تغيير اسم التطبيق حفاظاً على البيانات المحلية)
 (`--app`) مستعملاً Edge أو Chrome الموجود في الجهاز.
 
 يستعمل **مجلد بيانات متصفح مستقلاً** للتطبيق، فبيانات
@@ -29,7 +30,7 @@
 ```bash
 sudo apt-get install -y mingw-w64
 pip install pillow
-./launcher/build.sh          # ← MizanAlShams.exe
+./launcher/build.sh          # ← NasaemAlKhair.exe
 ```
 
 ### الاختبارات
@@ -54,7 +55,7 @@ sudo apt-get install -y wine64
 ```bash
 cd electron
 npm install
-npm run package:win          # ← dist/MizanAlShams-win32-x64/
+npm run package:win          # ← dist/NasaemAlKhair-win32-x64/
 ```
 
 من لينكس: ثنائيات Electron تُجلب من GitHub افتراضياً؛ إن كان محجوباً
@@ -92,5 +93,5 @@ xvfb-run -a ./node_modules/.bin/electron --no-sandbox test_main.js
 ## الأيقونة
 
 `launcher/icon.ico` تُولَّد من `launcher/make_icon.py` — شمس
-«ميزان الشمس» الذهبية (نفس شعار ترويسة التطبيق) على أرضية داكنة،
+«نسائم الخير» الذهبية (نفس شعار ترويسة التطبيق) على أرضية داكنة،
 بسبعة أحجام من ١٦ إلى ٢٥٦ بكسل.
