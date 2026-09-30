@@ -1426,16 +1426,78 @@ function _updQueueBadge(){
   b.textContent="⏱ "+AR(n);
   b.title=n+" عملية بانتظار المزامنة";
 }
+/* ══════════════════════════════════════════════════════════════
+   تسوية الطابور — v17.67
+   ──────────────────────────────────────────────────────────────
+   عطلٌ حقيقي وقع: ١٣١ قيد تدقيق عالقة في الطابور بلا سبب ظاهر.
+
+   السبب تفاعلٌ بين طرفين كلٌّ منهما سليم وحده:
+     ① سجلّ التدقيق «للإضافة فقط» في قواعد الأمان — لا يُعدَّل
+       قيدٌ كُتب ولا يُحذف، وهذا هو المقصود منه.
+     ② الطابور يُعيد إرسال ما لم يُؤكَّد وصوله.
+   فإذا وصل القيد السيرفر ثم انقطع الاتصال قبل أن يصل التأكيد
+   إلى الجهاز، بقي في الطابور. وعند إعادة الإرسال تجد القاعدةُ
+   القيدَ موجوداً فترفض — وهي محقّة — فيعلق إلى الأبد. والقيد
+   في الحقيقة محفوظ، والطابور يكذب.
+
+   والذي أخفى العطل حتى بلغ ١٣١: ‎.catch(()=>{})‎ — ابتلاع صامت
+   لكل خطأ. فلا رسالة ولا أثر.
+
+   العلاج: عند فشل أي إرسال نسأل السيرفر: هل عندك هذه القيمة
+   أصلاً؟ فإن كانت مطابقة أزلناها من الطابور — العمل تمّ. وإلّا
+   أعلنّا الخطأ مرة واحدة لا مرة لكل عملية.
+══════════════════════════════════════════════════════════════ */
+
+/* تمثيل قانوني للمقارنة: ترتيب المفاتيح لا يُعوَّل عليه، فالسيرفر
+   قد يُعيدها بترتيب غير الذي أُرسلت به. */
+function _canonJSON(v){
+  if(v===null||v===undefined)return "null";
+  if(typeof v!=="object")return JSON.stringify(v);
+  if(Array.isArray(v))return "["+v.map(_canonJSON).join(",")+"]";
+  return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+_canonJSON(v[k])).join(",")+"}";
+}
+
+/* هل هذه العملية تمّت فعلاً على السيرفر؟ */
+function _reconcileQueued(w){
+  if(!db)return Promise.resolve(false);
+  return db.ref(w.node).child(w.id).once("value").then(sn=>{
+    const done = w.op==="del" ? !sn.exists()
+               : (sn.exists() && _canonJSON(sn.val())===_canonJSON(w.data));
+    if(done)_dequeueWrite(w.node,w.id);
+    return done;
+  }).catch(()=>false);
+}
+
 function _flushQueue(){
   if(!db||!_writeQueue.length)return;
   const batch=[..._writeQueue];
+  let reported=false;          // خطأ واحد يكفي — لا رسالة لكل عملية
   batch.forEach(w=>{
     try{
       const ref=db.ref(w.node).child(w.id);
       const p=w.op==="del"?ref.remove():ref.set(w.data);
-      p.then(()=>_dequeueWrite(w.node,w.id)).catch(()=>{});
+      p.then(()=>_dequeueWrite(w.node,w.id))
+       .catch(err=>{
+         _reconcileQueued(w).then(done=>{
+           if(!done&&!reported){reported=true;_fbReportWriteError(err,w.node);}
+         });
+       });
     }catch(e){}
   });
+}
+
+/* تسوية يدوية من «فحص الاتصال والصلاحيات» */
+async function toolsReconcileQueue(){
+  if(!db){showToast("⚠ لا اتصال بقاعدة البيانات");return;}
+  const batch=[..._writeQueue];
+  if(!batch.length){showToast("✅ الطابور فارغ أصلاً");return;}
+  showToast("⏳ جاري مطابقة "+AR(batch.length)+" عملية مع السيرفر…");
+  let cleared=0;
+  for(const w of batch){ if(await _reconcileQueued(w))cleared++; }
+  showToast(cleared
+    ? `✅ ${AR(cleared)} عملية كانت واصلة فعلاً وأُزيلت — بقي ${AR(_writeQueue.length)}`
+    : `⚠ لم تصل أي عملية بعد — بقي ${AR(_writeQueue.length)}`, 6000);
+  try{toolsConnCheck();}catch(e){}
 }
 window.addEventListener("online",()=>{_flushQueue();});
 
@@ -11320,7 +11382,8 @@ async function toolsConnCheck(){
     _writeQueue.forEach(w=>{byNode[w.node]=(byNode[w.node]||0)+1;});
     add(false,"طابور المزامنة",
         Object.keys(byNode).map(n=>_nodeLabel(n)+": "+AR(byNode[n])).join(" · ")+
-        " — لم تصل السيرفر");
+        " — لم يصل تأكيدها. اضغط «تسوية الطابور» أدناه: نسأل السيرفر عن كل"+
+        " عملية، فما وصل فعلاً يُزال وما بقي يُعاد إرساله.");
   } else add(true,"طابور المزامنة","فارغ");
 
   /* كل قسم رفضه السيرفر يُسمّى باسمه وباسم عقدته */
@@ -11347,9 +11410,13 @@ async function toolsConnCheck(){
       <div style="flex:1;min-width:0"><div style="color:var(--paper)">${esc(r.t)}</div>
         ${r.d?`<div style="color:var(--paper-3);font-size:10px;line-height:1.6">${esc(r.d)}</div>`:""}</div>
     </div>`).join("")}
-    ${_writeQueue.length?`<button class="btn bsm bgn" style="margin-top:8px"
-       onclick="_flushQueue();showToast('📡 جاري إعادة الإرسال…');setTimeout(toolsConnCheck,1500)">
-       📡 إعادة إرسال الطابور</button>`:""}`;
+    ${_writeQueue.length?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
+       <button class="btn bsm bgn" style="flex:1;justify-content:center"
+         onclick="toolsReconcileQueue()">🧹 تسوية الطابور</button>
+       <button class="btn bsm bgh" style="flex:1;justify-content:center"
+         onclick="_flushQueue();showToast('📡 جاري إعادة الإرسال…');setTimeout(toolsConnCheck,1500)">
+         📡 إعادة الإرسال</button>
+     </div>`:""}`;
 }
 
 
