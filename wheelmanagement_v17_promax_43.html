@@ -6186,6 +6186,229 @@ function openStockPrint(){
   try{history.pushState({page:"app"},"","");}catch(e){}
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   أعمار الديون — v17.66
+   ──────────────────────────────────────────────────────────────
+   المحصلات تُجيب «كم على فلان»، ولا تُجيب «منذ متى». والفرق
+   بينهما هو الفرق بين دفترٍ يَعرض وآخر يُنذر: مبلغ عمره ثلاثة
+   أشهر ليس كمبلغ عمره ثلاثة أيام، وإن تساويا في الرقم.
+
+   الاتجاه: البيع مالٌ لنا عند الزبون، وما عداه مالٌ علينا
+   للفلاح والناقل والعامل ومقدّم الخدمة. فنفصل الجهتين لأن
+   جمعهما في رقم واحد يُخفي الحقيقتين معاً.
+
+   العمر يُحسب من تاريخ الوصل (dk) لا من تاريخ كتابته، فالوصل
+   المؤجَّل تسجيله لا يبدو أحدث ممّا هو.
+
+   المبالغ تُقرأ من سجل المجموعات نفسه (_DATASETS) لا من حساب
+   مستقلّ، فيبقى رقم أعمار الديون مطابقاً لرقم المحصلة دائماً،
+   وأي قسم يُضاف مستقبلاً يدخل هنا بسطر واحد.
+══════════════════════════════════════════════════════════════ */
+
+/* الأقسام ذات الذمم واتجاه كل منها */
+const _AGING_SRC=[
+  {k:"sell", dir:"in"},    // لنا — على الزبون
+  {k:"buy",  dir:"out"},   // علينا — للفلاح
+  {k:"naql", dir:"out"},   // للناقل
+  {k:"dam",  dir:"out"},   // للضمانات
+  {k:"srf",  dir:"out"},   // للمستفيد
+  {k:"wrk",  dir:"out"},   // لمقدّم الخدمة
+  {k:"sal",  dir:"out"},   // للعامل
+];
+
+/* شرائح العمر بالأيام */
+/* ⚠️ التدرّج يجب أن يُقرأ خطراً متصاعداً: أخضر ← ذهبي ← برتقالي ← أحمر.
+   و‎--wheat‎ في هذا التطبيق أخضرٌ لا ذهبي رغم اسمه (#0F7B4F)، فلو
+   استُعمل للشريحة الثانية لبدت كالأولى تماماً ولم يُفرّق بينهما نظر.
+   والبرتقالي مكتوب صريحاً لأن لا متغيّر له، وهو مقروء على الفاتح
+   والداكن معاً. */
+const _AGE_BUCKETS=[
+  {max:30,       label:"جارٍ ٠–٣٠",  color:"var(--settled)"},
+  {max:60,       label:"٣١–٦٠",      color:"var(--pending)"},
+  {max:90,       label:"٦١–٩٠",      color:"#D9730D"},
+  {max:Infinity, label:"٩١+",        color:"var(--owing)"},
+];
+const _ageBucket=d=>_AGE_BUCKETS.findIndex(b=>d<=b.max);
+
+/* المدفوع: النقل له سجل دفعات خاص، والباقي يمرّ بالدالة الموحّدة */
+function _agingPaid(k,r){
+  if(k==="naql")return r.naqlPaid||0;
+  const d=_DS(k);
+  if(d&&typeof d.paid==="function")return d.paid(r);
+  return getPaidTotal(r);
+}
+
+/* كل ذمّة مفتوحة مع عمرها */
+function _agingRows(){
+  const today=_D(toDay());
+  const rows=[];
+  _AGING_SRC.forEach(({k,dir})=>{
+    const d=_DS(k); if(!d)return;
+    (d.get()||[]).forEach(r=>{
+      // وصولات الشراء والبيع غير المكتملة لا مبلغ لها بعد
+      if((k==="buy"||k==="sell")&&r.status&&r.status!=="weighed")return;
+      const total=d.amount?d.amount(r):0;
+      if(!total||total<=0)return;
+      const rem=total-_agingPaid(k,r);
+      if(rem<=0.5)return;                       // مسدَّد (نتسامح مع كسور التقريب)
+      const dk=r.dk||String(r.createdAt||"").slice(0,10);
+      if(!dk)return;
+      const age=Math.max(0,Math.round((today-_D(dk))/86400000));
+      rows.push({k,dir,label:d.label,icon:d.icon,
+                 who:(d.who?d.who(r):"")||"(بدون اسم)",
+                 dk,age,rem,bucket:_ageBucket(age),id:r.id});
+    });
+  });
+  return rows;
+}
+
+/* تجميع بالشخص — الاسم القانوني كي لا يُقسَّم رصيد الواحد بين إملاءين */
+function computeAging(){
+  const rows=_agingRows();
+  const byDir={in:{},out:{}};
+  const totals={in:[0,0,0,0],out:[0,0,0,0]};
+
+  rows.forEach(r=>{
+    const key=nameKey(r.who)||"_بلا_اسم_";
+    const box=byDir[r.dir];
+    if(!box[key])box[key]={names:{},secs:{},buckets:[0,0,0,0],total:0,oldest:0};
+    const p=box[key];
+    p.names[r.who]=(p.names[r.who]||0)+1;
+    p.secs[r.label]=(p.secs[r.label]||0)+r.rem;
+    p.buckets[r.bucket]+=r.rem;
+    p.total+=r.rem;
+    if(r.age>p.oldest)p.oldest=r.age;
+    totals[r.dir][r.bucket]+=r.rem;
+  });
+
+  const shape=box=>Object.values(box).map(p=>{
+    let best="",n=-1;
+    Object.entries(p.names).forEach(([nm,c])=>{if(c>n){n=c;best=nm;}});
+    const secs=Object.entries(p.secs).sort((a,b)=>b[1]-a[1]).map(([s])=>s);
+    return{name:best||"(بدون اسم)",secs,buckets:p.buckets,total:p.total,oldest:p.oldest};
+  }).sort((a,b)=>b.oldest-a.oldest||b.total-a.total);   // الأقدم أولاً — هو الخطر
+
+  return{in:shape(byDir.in),out:shape(byDir.out),totals,rows};
+}
+
+/* ── التبويب ── */
+let _agingDir="out";
+function sAgingDir(d,btn){
+  _agingDir=d;
+  document.querySelectorAll("#tc-aging .ptb").forEach(b=>b.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+  renderAging();
+}
+
+function _agingStrip(tot,title,color){
+  const sum=tot.reduce((s,x)=>s+x,0);
+  return`<div style="background:var(--ink-100);border:1px solid var(--rule);border-radius:12px;padding:10px 11px;margin-bottom:9px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:${color}">${title}</span>
+      <span style="font-size:15px;font-weight:900;color:${color}">${fIQD(sum)}</span>
+    </div>
+    <div style="display:flex;gap:0;flex-wrap:wrap">
+      ${_AGE_BUCKETS.map((b,i)=>`<div style="flex:1;min-width:70px;text-align:center;border-left:1px solid var(--rule);padding:5px 3px">
+        <div style="font-size:9px;color:var(--paper-3);font-weight:700;margin-bottom:3px">${b.label}</div>
+        <div style="font-size:12px;font-weight:800;color:${tot[i]>0?b.color:'var(--paper-4)'}">${fIQD(tot[i])}</div>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderAging(){
+  if(!S.cu)return;
+  const A=computeAging();
+  const srch=(document.getElementById("agSearch")?.value||"").trim();
+
+  const head=document.getElementById("agStrips");
+  if(head)head.innerHTML=
+    _agingStrip(A.totals.out,"⬅ علينا — للفلاحين والناقلين والعمال","var(--owing)")+
+    _agingStrip(A.totals.in ,"➡ لنا — على الزبائن","var(--settled)");
+
+  let list=A[_agingDir==="in"?"in":"out"];
+  if(srch)list=list.filter(x=>smartMatch(x.name,srch));
+
+  const box=document.getElementById("agTable");
+  if(!box)return;
+  if(!list.length){
+    box.innerHTML=`<div style="text-align:center;color:var(--paper-3);padding:26px;font-size:13px">
+      ✅ لا توجد ذمم مفتوحة${srch?" بهذا الاسم":""}</div>`;
+    return;
+  }
+  const tot=[0,0,0,0];
+  list.forEach(x=>x.buckets.forEach((v,i)=>tot[i]+=v));
+  const gtot=tot.reduce((s,x)=>s+x,0);
+
+  box.innerHTML=`<table class="rtbl"><thead><tr>
+      <th>الاسم</th><th>الإجمالي</th><th>أقدم دين</th>
+      ${_AGE_BUCKETS.map(b=>`<th>${b.label}</th>`).join("")}
+      <th>الأقسام</th>
+    </tr></thead><tbody>
+    ${list.map(x=>{
+      const bi=_ageBucket(x.oldest);
+      return`<tr>
+        <td style="font-weight:700">${esc(x.name)}</td>
+        <td style="font-weight:900">${fIQD(x.total)}</td>
+        <td style="font-weight:700;color:${_AGE_BUCKETS[bi].color}">${AR(x.oldest)} يوم</td>
+        ${x.buckets.map((v,i)=>`<td style="color:${v>0?_AGE_BUCKETS[i].color:'var(--paper-4)'}">${v>0?fIQD(v):"—"}</td>`).join("")}
+        <td style="font-size:10px;color:var(--paper-3)">${esc(x.secs.join(" · "))}</td>
+      </tr>`;}).join("")}
+    </tbody>
+    <tfoot><tr class="tot">
+      <td>الإجمالي (${AR(list.length)})</td>
+      <td>${fIQD(gtot)}</td><td></td>
+      ${tot.map(v=>`<td>${fIQD(v)}</td>`).join("")}<td></td>
+    </tr></tfoot></table>`;
+}
+
+function clrAgingF(){
+  const e=document.getElementById("agSearch"); if(e)e.value="";
+  renderAging();
+}
+
+/* ── طباعة ── */
+function openAgingPrint(){
+  const A=computeAging();
+  const d=new Date();const p2=x=>String(x).padStart(2,"0");
+  const sec=(list,tot,title,col)=>{
+    if(!list.length)return `<div class="psec">${title}</div>
+      <div style="padding:8px;text-align:center;font-size:10px;color:#6B6151">لا توجد ذمم مفتوحة</div>`;
+    const g=tot.reduce((s,x)=>s+x,0);
+    return`<div class="psec">${title} — ${fIQD(g)}</div>
+      <table class="coltbl" style="width:100%;font-size:9px">
+        <thead><tr><th>الاسم</th><th>الإجمالي</th><th>أقدم</th>
+          ${_AGE_BUCKETS.map(b=>`<th>${b.label}</th>`).join("")}</tr></thead>
+        <tbody>${list.map(x=>`<tr>
+          <td style="font-weight:700">${esc(x.name)}</td>
+          <td style="text-align:center;font-weight:700">${fIQD(x.total)}</td>
+          <td style="text-align:center">${AR(x.oldest)}ي</td>
+          ${x.buckets.map(v=>`<td style="text-align:center">${v>0?fIQD(v):"—"}</td>`).join("")}
+        </tr>`).join("")}</tbody>
+        <tfoot><tr class="ctot"><td style="font-weight:700;padding:5px 4px">المجموع</td>
+          <td style="text-align:center;font-weight:700">${fIQD(g)}</td><td></td>
+          ${tot.map(v=>`<td style="text-align:center">${fIQD(v)}</td>`).join("")}
+        </tr></tfoot>
+      </table>`;
+  };
+  const html=`${COHEAD}
+    <div class="prh" style="background:#8A4A31">
+      <div class="prhtl">⏳ أعمار الديون</div>
+      <div class="prhmt">${tAr(toDay())}<br/>${p2(d.getHours())+":"+p2(d.getMinutes())}</div>
+    </div>
+    <div class="prb">
+      ${sec(A.out,A.totals.out,"⬅ علينا","#943A31")}
+      ${sec(A.in ,A.totals.in ,"➡ لنا","#3F7A4C")}
+    </div>
+    ${COFTR}`;
+  _printHTML=html;_isCollScreen=false;
+  document.getElementById("pactTitle").textContent="⏳ أعمار الديون";
+  document.getElementById("PC").innerHTML=html;
+  document.getElementById("PS").classList.add("active");
+  try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
 /* ══════════════════════════════════════════════════════
    نظام رواتب العمال — الأكثر شمولاً
 ══════════════════════════════════════════════════════ */
@@ -11945,6 +12168,7 @@ function sT(id,btn){
   if(id==="st")renderStats();
   if(id==="wh")renderWH();
   if(id==="stock")renderStockVal();
+  if(id==="aging")renderAging();
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
   if(id==="sell-recs"){renderSellRecs();}
@@ -16864,6 +17088,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" onclick="sT('arb-cust',this)">🔍 زبون</button>
     <button class="tbb" onclick="sT('jami-arb',this)">📒 سجل جامع</button>
     <button class="tbb grp" onclick="sT('paylog',this)">💵 سجل الدفعات</button>
+    <button class="tbb" onclick="sT('aging',this)">⏳ أعمار الديون</button>
     <button class="tbb" onclick="sT('tools',this)">⚙️ الأدوات</button>
     <button class="tbb" onclick="sT('perf',this)">📈 الأداء</button>
     <button class="tbb" onclick="sT('cash',this)">💰 الصندوق</button>
@@ -17150,6 +17375,29 @@ document.addEventListener("keydown", function(e){
     <div class="cd">
       <div class="cdt" style="color:var(--settled)">💹 ربحية المبيعات — الإيراد ناقص تكلفة المبيع</div>
       <div class="rtwrap" id="stkSells"></div>
+    </div>
+  </div>
+
+  <!-- ══ أعمار الديون ══ -->
+  <div class="tc" id="tc-aging">
+    <div class="cd">
+      <div class="cdt" style="color:var(--owing)">⏳ أعمار الديون</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:11px">
+        المحصلة تقول «كم على فلان»، وهذه تقول «منذ متى». العمر يُحسب من تاريخ
+        الوصل لا من تاريخ كتابته. والمبالغ مقروءة من نفس مصدر المحصلات فالرقمان
+        متطابقان دائماً.
+      </p>
+      <div id="agStrips"></div>
+      <div class="ptbs" style="margin-bottom:10px">
+        <button class="ptb active" onclick="sAgingDir('out',this)">⬅ علينا</button>
+        <button class="ptb" onclick="sAgingDir('in',this)">➡ لنا</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input class="fs2" id="agSearch" type="text" placeholder="🔍 بحث بالاسم..." oninput="renderAging()" style="flex:1;min-width:150px" autocomplete="off" data-lpignore="true">
+        <button class="btn bgh bsm" onclick="clrAgingF()">× مسح</button>
+        <button class="btn bg bsm" onclick="openAgingPrint()">🖨️ طباعة</button>
+      </div>
+      <div class="rtwrap" id="agTable"></div>
     </div>
   </div>
 
