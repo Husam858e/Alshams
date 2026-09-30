@@ -1525,6 +1525,41 @@ document.addEventListener("visibilitychange",function(){
   if(document.visibilityState==="visible"&&_writeQueue.length)_flushQueue();
 });
 
+/* ══════════════════════════════════════════════════════════════
+   الترقيم التسلسلي — v17.68
+   ──────────────────────────────────────────────────────────────
+   المعرّف (genId) ثمانية أحرف عشوائية: يصلح مفتاحاً للحاسوب ولا
+   يصلح رقماً للدفتر. والمدقّق يسأل سؤالاً واحداً: أرِني الوصولات
+   بالتسلسل — فإن نقص رقم فأين ذهب وصله؟ ورقمٌ عشوائي لا يُجيب.
+
+   الرقم يُسند هنا في _fbWrite وحدها، لا في نماذج الإدخال، لأن
+   السجلات تُنشأ من مواضع متفرّقة (النماذج · المساعد الذكي · أي
+   قسم يُضاف لاحقاً)، وهذه هي البوابة الوحيدة لكل كتابة. نفس
+   مبدأ سجلّ التدقيق في هذا التطبيق تماماً.
+
+   ⚠️ يُسند للسجل الجديد فقط: وجود _before يعني أن السجل قائم،
+      فلا يُمسّ رقمه مهما عُدِّل. الرقم المطبوع على ورق الفلاح
+      لا يتغيّر بعد طبعه.
+
+   ⚠️ والرقم محليّ الحساب (أكبر رقم + ١) كي يعمل بلا إنترنت —
+      وهذا ضروري في الساحة. وثمنه: لو أُنشئ وصلان على جهازين
+      مقطوعَين في اللحظة نفسها لتكرّر الرقم. لذلك في «فحص
+      السلامة» فحصٌ للتكرار والفجوات يكشفه.
+══════════════════════════════════════════════════════════════ */
+const _NUMBERED_NODES=new Set(["records","sell_records","dam_records",
+  "srf_records","wrk_records","mnl_records","arb_records","out_records"]);
+
+function _nextNo(node){
+  const d=_auditDs(node);
+  if(!d)return null;
+  let mx=0;
+  (d.get()||[]).forEach(r=>{const n=Number(r&&r.no); if(n>mx)mx=n;});
+  return mx+1;
+}
+
+/* رقم الوصل للعرض: #٠٠١٢ */
+const fNo=n=>n?("#"+AR(String(n).padStart(4,"0"))):"—";
+
 /* ── ٦) الكتابة الموحّدة لفايربيس: طابور + كاش محلي + مؤشر حفظ ── */
 function _fbWrite(node,id,data,onLocal){
   syncBar(true);
@@ -1551,6 +1586,15 @@ function _fbWrite(node,id,data,onLocal){
       _before=_cur?JSON.parse(JSON.stringify(_cur)):null;
     }catch(e){}
   }
+  /* v17.68 — رقم تسلسلي للسجل الجديد وحده. السجل القائم (له
+     _before) يحتفظ برقمه مهما عُدِّل، والمستورد من نسخة احتياطية
+     أو من السلة يحتفظ برقمه الأصلي لأنه يحمله معه. */
+  if(safe&&typeof safe==="object"&&_NUMBERED_NODES.has(node)
+     &&safe.no==null&&!_before){
+    const n=_nextNo(node);
+    if(n)safe.no=n;
+  }
+
   /* v17.50 — حارس الفترات المغلقة: يُرفض قبل أي تغيير محلي */
   try{
     const _m=_blockedByClosure(node,_before,safe);
@@ -1610,6 +1654,7 @@ const _AUDIT_SKIP=new Set(["mk","edited","editAt","editBy","seq","paidTotal",
 const _AUDIT_FIELD={
   driver:"الفلاح",plate:"رقم العجلة",wh:"الموقع",mat:"نوع الحمولة",
   dk:"التاريخ",note:"الملاحظة",gross:"الوزن الكلي",empty:"الوزن الفارغ",
+  no:"رقم الوصل",
   net:"الوزن الصافي",ppkg:"سعر الكغم",final:"المبلغ النهائي",
   price:"المبلغ",amount:"المبلغ",finalNet:"صافي الراتب",status:"الحالة",
   paid:"حالة الدفع",paidAt:"وقت السداد",paidBy:"سدَّده",
@@ -3183,6 +3228,7 @@ function buildSellReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const matInfo=MAT[r.mat]||{label:r.mat||"—",icon:"📦"};
   let b=sec("معلومات وصل البيع");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الحالة",{waiting:"🟠 انتظار تأكيد",confirmed:"🟡 انتظار وزن كلي",weighed:"✅ مكتمل"}[r.status]||r.status);
   if(r.paid)b+=row("حالة الدفع","✅ مدفوع كامل");
@@ -3312,7 +3358,7 @@ function renderSellRecs(){
         <div class="rtl">
           <span class="rpl">🚛 ${esc(r.plate)}</span>
           <span class="rdr">${esc(r.driver)}</span>
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           <span class="badge" style="background:var(--pending-rule);color:var(--wheat)">${matInfo.icon} ${matInfo.label}</span>
           <span class="badge" style="background:var(--ink-300);color:var(--steel)">📍 ${esc(r.dest)}</span>
           ${r.receiver?`<span class="badge" style="background:var(--settled-wash);color:var(--settled)">👤 ${esc(r.receiver)}</span>`:""}
@@ -3718,7 +3764,7 @@ function renderDamRecs(){
         <div class="dam-parent-names">
           <span class="rpl" style="color:var(--steel)">🤝 ${esc(r.damin)}</span>
           <span class="rdr" style="color:var(--steel)">← ${esc(r.madmun)}</span>
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           ${r.edited?`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--wheat)">✏️ معدّل</span>`:""}
           ${allPaid
             ?`<span class="badge" style="background:rgba(16,185,129,.15);color:var(--settled)">✅ مدفوع</span>`
@@ -3850,6 +3896,7 @@ function buildDamReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const d=new Date();const p2=x=>String(x).padStart(2,"0");
   let b=sec("بيانات الضمانة");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الضامن",r.damin);
   b+=row("المضمون",r.madmun);
@@ -4654,6 +4701,7 @@ function buildSrfReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const d=new Date();const p2=x=>String(x).padStart(2,"0");
   let b=sec("بيانات الصرفية");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("المستفيد",r.recv);
   b+=row("السبب",r.purp);
@@ -4879,7 +4927,7 @@ function renderWrkRecs(){
         <div class="rtl">
           <span class="rpl" style="color:var(--steel)">🔧 ${esc(r.provider)}</span>
           <span class="rdr" style="color:var(--steel)">${esc(r.service)}</span>
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           ${r.edited?`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--wheat)">✏️ معدّل</span>`:""}
         </div>
         <span style="font-size:18px;font-weight:700;color:var(--steel)">${fIQD(r.amount)}</span>
@@ -4965,6 +5013,7 @@ function buildWrkReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const d=new Date();const p2=x=>String(x).padStart(2,"0");
   let b=sec("بيانات أجر العمل");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("مقدم الخدمة",r.provider);
   b+=row("الخدمة",r.service);
@@ -5197,7 +5246,7 @@ function renderArbRecs(){
       <div class="rt">
         <div class="rtl">
           <span class="rpl" style="color:var(--steel)">👤 ${esc(r.farmer)}</span>
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           ${r.edited?`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--wheat)">✏️ معدّل</span>`:""}
         </div>
       </div>
@@ -5280,6 +5329,7 @@ function buildArbReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const d=new Date();const p2=x=>String(x).padStart(2,"0");
   let b=sec("بيانات الوزن — مخزن أربيل");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الفلاح",r.farmer);
   if(r.note)b+=row("📝 ملاحظة",r.note);
@@ -5738,7 +5788,7 @@ function renderOutRecs(){
           ${r.plate?`<span class="badge" style="background:var(--ink-200);color:var(--paper-2)">🚛 ${esc(r.plate)}</span>`:""}
           <span class="badge" style="background:var(--pending-wash);color:var(--pending);border:1px solid var(--pending-rule)">${whFull(r.wh)}</span>
           <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">${MAT[r.mat]?.label||"—"}</span>
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           ${r.edited?`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--wheat)">✏️ معدّل</span>`:""}
         </div>
       </div>
@@ -5826,6 +5876,7 @@ function buildOutReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const d=new Date();const p2=x=>String(x).padStart(2,"0");
   let b=sec("بيانات المخرج");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الفلاح",r.farmer);
   if(r.plate)b+=row("رقم العجلة",r.plate);
@@ -8554,7 +8605,7 @@ function renderMnlRecs(){
         <div class="rtl">
           <span class="rpl" style="color:var(--wheat)">🚚 ${esc(r.transporter)}</span>
           ${r.farmer?`<span class="rdr">👤 ${esc(r.farmer)}</span>`:""}
-          <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+          <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
           ${r.plate?`<span class="badge" style="background:rgba(251,146,60,.15);color:var(--wheat)">${esc(r.plate)}</span>`:""}
           ${r.edited?`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--wheat)">✏️ معدّل</span>`:""}
         </div>
@@ -8772,6 +8823,7 @@ function buildMnlReceipt(r){
   const paid=getNaqlPaidTotal_mnl(r);
   const rem=Math.max(0,(r.naqlFee||0)-paid);
   let b=sec("بيانات وصل النقل");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الناقل",r.transporter);
   if(r.farmer)b+=row("الفلاح",r.farmer);
@@ -10202,6 +10254,17 @@ function toolsHealthCheck(){
     if(neg.length)push("bad",`${d.icon} ${d.label}: وزن صافي سالب أو صفر`,`${AR(neg.length)} وصل — الوزن الفارغ ≥ الوزن الكلي`,mk(d,neg));
   });
 
+  // ترقيم مكرّر أو ناقص — يسأل عنه المدقّق أول ما يسأل
+  try{
+    const nb=_numberingScan();
+    nb.sections.forEach(x=>{
+      if(x.dup.length)push("bad",`${x.icon} ${x.label}: أرقام وصولات مكرّرة`,
+        `${AR(x.dup.length)} رقم مكرّر (${x.dup.slice(0,5).map(n=>AR(n)).join("، ")}) — افتح الأدوات ← الترقيم التسلسلي`);
+      if(x.miss)push("warn",`${x.icon} ${x.label}: سجلات بلا رقم`,
+        `${AR(x.miss)} سجل — رقّمها من الأدوات ← الترقيم التسلسلي`);
+    });
+  }catch(e){}
+
   // وصولات شراء عالقة أكثر من ٧ أيام
   const stuck=(S.recs||[]).filter(r=>r.status!=="weighed"&&r.dk&&((_D(today)-_D(r.dk))/86400000)>7);
   if(stuck.length)push("warn","🛒 وصولات شراء عالقة",`${AR(stuck.length)} وصل لم يكتمل منذ أكثر من ٧ أيام`,mk(_DS("buy"),stuck));
@@ -11333,6 +11396,107 @@ function _fbReportWriteError(err,node){
   showToast("⚠ تعذّر الحفظ الآن — محفوظ محلياً وسيُرسل عند عودة الاتصال");
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ترقيم السجلات القديمة — عملية تُجرى مرة
+   ──────────────────────────────────────────────────────────────
+   السجلات المكتوبة قبل استحداث الترقيم لا تحمل رقماً. تُرقَّم
+   هنا بترتيب تاريخها ثم لحظة كتابتها — وهو الترتيب الذي يراه
+   المدقّق طبيعياً.
+
+   ⚠️ الشهور المغلقة تُتخطّى: قواعد الخادم ترفض الكتابة فيها
+      وهي محقّة. تُحصى وتُقال، ولا تُحاوَل فتُغرق الشاشة برفض.
+══════════════════════════════════════════════════════════════ */
+function _numberingScan(){
+  const out={sections:[],missing:0,dupes:0,closed:0};
+  _NUMBERED_NODES.forEach(node=>{
+    const d=_auditDs(node); if(!d)return;
+    const recs=(d.get()||[]).slice();
+    const seen={},dup=[];
+    let miss=0,closed=0;
+    recs.forEach(r=>{
+      const n=Number(r&&r.no);
+      if(!n){
+        miss++;
+        const mk=r.mk||String(r.dk||"").slice(0,7);
+        if(mk&&isMonthClosed(mk))closed++;
+      } else {
+        if(seen[n])dup.push(n); else seen[n]=1;
+      }
+    });
+    // فجوات: أرقام ناقصة بين ١ وأكبر رقم
+    const nums=Object.keys(seen).map(Number).sort((a,b)=>a-b);
+    const gaps=[];
+    if(nums.length){
+      for(let i=1;i<=nums[nums.length-1];i++) if(!seen[i])gaps.push(i);
+    }
+    out.sections.push({node,label:d.label,icon:d.icon,total:recs.length,
+                       miss,dup:[...new Set(dup)],gaps,closed});
+    out.missing+=miss; out.dupes+=dup.length; out.closed+=closed;
+  });
+  return out;
+}
+
+async function toolsBackfillNumbers(){
+  const scan=_numberingScan();
+  if(!scan.missing){showToast("✅ كل السجلات مرقّمة");renderNumbering();return;}
+  const doable=scan.missing-scan.closed;
+  if(!confirm(
+`ترقيم ${scan.missing} سجلاً بترتيب تاريخها.
+
+${scan.closed?`منها ${scan.closed} في شهور مغلقة ستُتخطّى — افتح الشهر أولاً إن أردت ترقيمها.\n\n`:""}سيُرقَّم الآن: ${doable}
+
+يُسجَّل كل ترقيم في سجلّ التدقيق. هل تريد المتابعة؟`))return;
+
+  showToast("⏳ جاري الترقيم…");
+  let done=0,skipped=0;
+  for(const node of _NUMBERED_NODES){
+    const d=_auditDs(node); if(!d)continue;
+    const recs=(d.get()||[]).slice()
+      .sort((a,b)=>String(a.dk||"").localeCompare(String(b.dk||""))||((a.seq||0)-(b.seq||0)));
+    let n=0;
+    for(const r of recs){
+      n++;
+      if(Number(r.no)===n)continue;           // رقمه صحيح أصلاً
+      const mk=r.mk||String(r.dk||"").slice(0,7);
+      if(mk&&isMonthClosed(mk)){skipped++;continue;}
+      d.save({...r,no:n});
+      done++;
+      if(done%25===0)await new Promise(r2=>setTimeout(r2,60));   // لا نُجمّد الواجهة
+    }
+  }
+  showToast(`✅ رُقّم ${AR(done)} سجلاً${skipped?` · تُخطّي ${AR(skipped)} في شهور مغلقة`:""}`,6000);
+  renderNumbering();
+}
+
+function renderNumbering(){
+  const box=document.getElementById("numberingRes");
+  if(!box)return;
+  const scan=_numberingScan();
+  const bad=scan.missing+scan.dupes;
+  box.innerHTML=`
+    <div style="background:${bad?"var(--owing-wash)":"var(--settled-wash)"};
+        border:1px solid ${bad?"var(--owing)":"var(--settled)"};border-radius:9px;
+        padding:9px 11px;margin-bottom:8px;font-size:12px;font-weight:700;
+        color:${bad?"var(--owing)":"var(--settled)"}">
+      ${bad?`✗ ${AR(scan.missing)} بلا رقم${scan.dupes?` · ${AR(scan.dupes)} رقم مكرّر`:""}`
+           :"✓ كل السجلات مرقّمة بلا تكرار"}
+    </div>
+    ${scan.sections.filter(x=>x.total).map(x=>`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+          padding:6px 2px;border-bottom:1px solid var(--rule);font-size:11px">
+        <span style="color:var(--paper-2)">${x.icon} ${esc(x.label)}</span>
+        <span style="text-align:left">
+          <span style="color:var(--paper-3)">${AR(x.total)} سجل</span>
+          ${x.miss?` · <strong style="color:var(--owing)">${AR(x.miss)} بلا رقم</strong>`:""}
+          ${x.dup.length?` · <strong style="color:var(--owing)">تكرار: ${x.dup.map(n=>AR(n)).join("، ")}</strong>`:""}
+          ${x.gaps.length?` · <span style="color:var(--pending)">فجوات: ${x.gaps.slice(0,8).map(n=>AR(n)).join("، ")}${x.gaps.length>8?"…":""}</span>`:""}
+          ${(!x.miss&&!x.dup.length&&!x.gaps.length)?` · <span style="color:var(--settled)">✓</span>`:""}
+        </span>
+      </div>`).join("")}
+    ${scan.missing?`<button class="btn bsm bgn" style="margin-top:9px;width:100%;justify-content:center"
+        onclick="toolsBackfillNumbers()">🔢 ترقيم السجلات القديمة (${AR(scan.missing)})</button>`:""}`;
+}
+
 /* ══ فحص الاتصال والصلاحيات — يُجيب: أين تحديداً يقف الحفظ؟ ══ */
 async function toolsConnCheck(){
   const box=document.getElementById("connCheckRes");
@@ -12236,6 +12400,7 @@ function sT(id,btn){
   if(id==="wh")renderWH();
   if(id==="stock")renderStockVal();
   if(id==="aging")renderAging();
+  if(id==="tools"){try{renderNumbering();}catch(e){}}
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
   if(id==="sell-recs"){renderSellRecs();}
@@ -12557,7 +12722,7 @@ function _buildRecCard(r){
       <div class="rtl">
         <span class="rpl">🚛 ${esc(r.plate)}</span>
         <span class="rdr">${esc(r.driver)}</span>
-        <span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
+        <span class="badge" style="background:var(--ink-300);color:var(--paper);font-weight:800;letter-spacing:.5px">${fNo(r.no)}</span><span class="badge" style="background:var(--ink-200);color:var(--paper-2)">📅 ${tAr(r.dk)}</span>
         <span class="badge ${matBadgeClass}">${matInfo.icon} ${matInfo.label}</span>
         <span class="badge bp">${whIcon(r.wh)} ${esc(whName(r.wh))}</span>
         ${r.kOn?`<span class="badge bp">🔧 ${AR(r.kC)} ${esc(r.kType||"")}</span>`:""}
@@ -14668,6 +14833,7 @@ function buildReceipt(r){
   const row=(k,v)=>`<div class="prr"><span class="prk">${k}</span><span class="prv">${esc(v)}</span></div>`;
   const matInfo=MAT[r.mat]||{label:r.mat||"—",icon:"📦"};
   let b=sec("معلومات الوصل");
+  b+=row("🔢 رقم الوصل",fNo(r.no));
   b+=row("📅 التاريخ",tAr(r.dk));
   b+=row("الحالة",SL[r.status]||r.status);
   if(r.paid) b+=row("حالة الدفع","✅ مدفوع كامل");
@@ -20234,6 +20400,16 @@ document.addEventListener("keydown", function(e){
       <div id="authBox"></div>
     </div>
 
+    <!-- الترقيم التسلسلي -->
+    <div class="cd">
+      <div class="cdt" style="color:var(--wheat-hi)">🔢 الترقيم التسلسلي</div>
+      <p style="font-size:11px;color:var(--paper-3);line-height:1.9;margin-bottom:9px">
+        المعرّف العشوائي يصلح مفتاحاً للحاسوب ولا يصلح رقماً للدفتر. المدقّق يسأل:
+        أرِني الوصولات بالتسلسل — فإن نقص رقم فأين ذهب وصله؟ الرقم يُسند للوصل
+        الجديد ولا يتغيّر بعد طبعه أبداً.
+      </p>
+      <div id="numberingRes"></div>
+    </div>
     <!-- فحص الاتصال والصلاحيات -->
     <div class="cd">
       <div class="cdt">📡 فحص الاتصال والصلاحيات</div>
