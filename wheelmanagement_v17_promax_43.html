@@ -5952,6 +5952,240 @@ function openOutJamiRange(){
   if(r)r.textContent=`✅ ${AR(data.length)} فلاح في هذه الفترة`;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   تقييم المخزون بالمتوسط المرجّح — v17.65
+   ──────────────────────────────────────────────────────────────
+   التطبيق كان يعرف وزن ما في المخزن، لا قيمته. فلا يُجاب عن
+   سؤالين يقررهما صاحب العمل كل شهر:
+     ① كم تساوي بضاعتي في المخزن الآن بالدينار؟
+     ② كم ربحت على هذه الحمولة تحديداً بعد تكلفتها؟
+
+   ══ نموذج التكلفة — مكتوب صراحةً كي لا يُساء فهم الرقم ══
+   تكلفة البضاعة الداخلة = wFee = الصافي × سعر الكغم.
+   وهي قيمة البضاعة بسعر شرائها. أما أجور الكبس وسعر الوصل
+   فتُطرح من الفلاح لا تُدفع له، فهي إيراد خدمة للساحة لا
+   جزء من كلفة البضاعة. وأجور النقل تُطرح من الفلاح وتُدفع
+   للناقل، فتمرّ مروراً ولا تُحمّل على المخزون.
+
+   ══ المتوسط المرجّح ══
+   عند كل إدخال: القيمة += تكلفة الداخل، الكمية += وزنه،
+                 والمتوسط = القيمة ÷ الكمية.
+   وعند كل إخراج: تكلفة المُخرَج = وزنه × المتوسط وقتها.
+   فترتيب الأحداث بالتاريخ شرطٌ لصحة الرقم، لا تفصيل.
+
+   ⚠️ وصل البيع لا يحمل مخزناً (فيه المادة والوزن والسعر فقط)،
+      فالتقييم بالمادة على مستوى المكتب كاملٌ وصحيح، أما توزيعه
+      على المخازن فيحتاج إضافة حقل المخزن لوصل البيع.
+
+   ⚠️ رصيد افتتاحي: ما كان في المخزن قبل أول وصل مسجَّل لا
+      يعرفه النظام. فإن خرج أكثر ممّا دخل ظهر رصيد سالب،
+      ونُعلنه تحذيراً بدل أن نُخفيه بصفر كاذب.
+══════════════════════════════════════════════════════════════ */
+
+/* حركة واحدة على المخزون */
+function _stockMoves(){
+  const mv=[];
+  const key=r=>r.mat||"jet";
+
+  // ① الداخل: وصولات الشراء المكتملة
+  (S.recs||[]).forEach(r=>{
+    if(r.status!=="weighed")return;
+    const qty=r.net||0;
+    if(qty<=0)return;
+    const cost=(r.net||0)*(r.ppkg||0);      // wFee — قيمة البضاعة
+    mv.push({dk:r.dk||"",seq:r.seq||0,mat:key(r),dir:1,qty,cost,
+             kind:"buy",id:r.id,who:r.driver||"",wh:r.wh||""});
+  });
+
+  // ② الخارج: وصولات البيع المكتملة
+  (SELL_RECS||[]).forEach(r=>{
+    if(r.status!=="weighed")return;
+    const qty=r.net||0;
+    if(qty<=0)return;
+    mv.push({dk:r.dk||"",seq:r.seq||0,mat:key(r),dir:-1,qty,
+             revenue:r.final||0,kind:"sell",id:r.id,who:r.driver||""});
+  });
+
+  // ③ الخارج: مخرجات المخازن (أوزان بلا سعر)
+  (OUT_RECS||[]).forEach(r=>{
+    const qty=r.net||0;
+    if(qty<=0)return;
+    mv.push({dk:r.dk||"",seq:r.seq||0,mat:key(r),dir:-1,qty,
+             revenue:0,kind:"out",id:r.id,who:r.farmer||"",wh:r.wh||""});
+  });
+
+  // الترتيب الزمني شرط صحة المتوسط
+  mv.sort((a,b)=>(a.dk||"").localeCompare(b.dk||"")||((a.seq||0)-(b.seq||0)));
+  return mv;
+}
+
+/* يمرّ على الحركات زمنياً ويحسب المتوسط والتكلفة لحظةَ كل حركة.
+   يُعيد: لكل مادة {qty,value,avg}، ولكل حركة تكلفتها ومجمل ربحها. */
+function computeStock(upToDk){
+  const state={};                // mat → {qty,value}
+  const priced=[];               // كل حركة ومعها تكلفتها
+  const warn=[];                 // رصيد سالب
+  const st=m=>(state[m]||(state[m]={qty:0,value:0}));
+
+  _stockMoves().forEach(m=>{
+    if(upToDk&&m.dk&&m.dk>upToDk)return;
+    const s=st(m.mat);
+    const avgBefore=s.qty>0?(s.value/s.qty):0;
+
+    if(m.dir>0){
+      s.qty+=m.qty; s.value+=m.cost;
+      priced.push({...m,unit:m.qty?m.cost/m.qty:0,total:m.cost,avgAfter:s.qty?s.value/s.qty:0});
+    } else {
+      const cogs=m.qty*avgBefore;
+      s.qty-=m.qty; s.value-=cogs;
+      if(s.qty<-0.001){
+        warn.push({...m,short:-s.qty});
+        s.qty=0; s.value=0;      // لا معنى لقيمة سالبة — نُصفّرها ونُعلن
+      }
+      if(s.qty<=0.001)s.value=0; // نفد المخزون: القيمة صفر لا كسور عالقة
+      priced.push({...m,cogs,unit:avgBefore,
+                   profit:(m.revenue||0)-cogs,avgAfter:s.qty>0?s.value/s.qty:0});
+    }
+  });
+
+  const mats=Object.keys(state).map(k=>({
+    mat:k, label:(MAT[k]&&MAT[k].label)||k,
+    qty:state[k].qty, value:state[k].value,
+    avg:state[k].qty>0?state[k].value/state[k].qty:0,
+  })).filter(x=>Math.abs(x.qty)>0.001||Math.abs(x.value)>0.001);
+
+  mats.sort((a,b)=>b.value-a.value);
+  return{mats,priced,warn,
+         totalQty:mats.reduce((s,x)=>s+x.qty,0),
+         totalValue:mats.reduce((s,x)=>s+x.value,0)};
+}
+
+/* ── التبويب ── */
+function renderStockVal(){
+  if(!S.cu)return;
+  const upTo=document.getElementById("stkDt")?.value||"";
+  const R=computeStock(upTo||null);
+
+  // بطاقات المواد
+  const cards=document.getElementById("stkCards");
+  if(cards){
+    cards.innerHTML=!R.mats.length
+      ?`<div class="empty-state"><b>لا توجد حركة مخزون</b>سجّل وصل شراء أولاً.</div>`
+      :R.mats.map(m=>`
+        <div class="whc">
+          <div class="whn">${(MAT[m.mat]&&MAT[m.mat].icon)||"📦"} ${esc(m.label)}</div>
+          <div class="whst">
+            <div class="whs"><span class="whsk">الكمية</span><span class="whsv">${fKG(m.qty)}</span></div>
+            <div class="whs"><span class="whsk">متوسط التكلفة</span><span class="whsv">${fIQD(m.avg)}<span style="font-size:9px">/كغم</span></span></div>
+            <div class="whs"><span class="whsk">قيمة المخزون</span><span class="whsv" style="color:var(--wheat-hi)">${fIQD(m.value)}</span></div>
+          </div>
+        </div>`).join("");
+  }
+
+  const tot=document.getElementById("stkTotal");
+  if(tot)tot.innerHTML=
+    `<span>المواد: <strong>${AR(R.mats.length)}</strong></span>
+     <span>الكمية الكلية: <strong>${fKG(R.totalQty)}</strong></span>
+     <span>قيمة المخزون: <strong style="color:var(--wheat-hi)">${fIQD(R.totalValue)}</strong></span>`;
+
+  // تحذير الرصيد السالب — رصيد افتتاحي غير مسجَّل غالباً
+  const wbox=document.getElementById("stkWarn");
+  if(wbox){
+    wbox.innerHTML=!R.warn.length?"":
+      `<div style="background:var(--owing-wash);border:1px solid var(--owing);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--owing);margin-bottom:6px">
+          ⚠ خرج أكثر ممّا دخل في ${AR(R.warn.length)} حركة</div>
+        <div style="font-size:11px;color:var(--paper-2);line-height:1.8">
+          غالباً لأن المخزون الافتتاحي (ما كان موجوداً قبل أول وصل مسجَّل) غير مسجَّل في النظام.
+          التكلفة المحسوبة لهذه الحركات ناقصة.
+        </div>
+        <div style="margin-top:7px;max-height:120px;overflow-y:auto">
+        ${R.warn.slice(0,20).map(w=>`<div style="font-size:11px;color:var(--paper-3);padding:2px 0">
+          📅 ${tAr(w.dk)} — ${esc((MAT[w.mat]&&MAT[w.mat].label)||w.mat)} — نقص ${fKG(w.short)}</div>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  // ربحية المبيعات: الإيراد − تكلفة المبيع
+  const sells=R.priced.filter(p=>p.kind==="sell").slice(-200).reverse();
+  const tRev=sells.reduce((s,x)=>s+(x.revenue||0),0);
+  const tCogs=sells.reduce((s,x)=>s+(x.cogs||0),0);
+  const tbl=document.getElementById("stkSells");
+  if(tbl){
+    tbl.innerHTML=!sells.length
+      ?`<div style="text-align:center;color:var(--paper-3);padding:22px;font-size:12px">لا توجد مبيعات مكتملة</div>`
+      /* مجمل الربح والهامش هما سبب هذا الجدول، فيسبقان الأوزان
+         والأسعار كي يظهرا بلا تمرير أفقي على شاشة الهاتف */
+      :`<table class="rtbl"><thead><tr>
+          <th>التاريخ</th><th>الزبون</th><th>مجمل الربح</th><th>الهامش</th>
+          <th>الإيراد</th><th>تكلفة المبيع</th><th>المادة</th><th>الوزن</th>
+        </tr></thead><tbody>
+        ${sells.map(x=>{
+          const pr=x.profit||0, mg=x.revenue?(pr/x.revenue*100):0;
+          const c=pr>=0?"var(--settled)":"var(--owing)";
+          return `<tr>
+            <td>${tAr(x.dk)}</td><td style="font-weight:700">${esc(x.who||"—")}</td>
+            <td style="font-weight:900;color:${c}">${fIQD(pr)}</td>
+            <td style="color:${c}">${AR(mg.toFixed(1))}٪</td>
+            <td>${fIQD(x.revenue)}</td>
+            <td>${fIQD(x.cogs)}</td>
+            <td>${esc((MAT[x.mat]&&MAT[x.mat].label)||x.mat)}</td>
+            <td>${fKG(x.qty)}</td>
+          </tr>`;}).join("")}
+        </tbody>
+        <tfoot><tr class="tot">
+          <td colspan="2">الإجمالي (${AR(sells.length)} وصل)</td>
+          <td style="color:${tRev-tCogs>=0?'var(--settled)':'var(--owing)'}">${fIQD(tRev-tCogs)}</td>
+          <td>${AR(tRev?((tRev-tCogs)/tRev*100).toFixed(1):"0")}٪</td>
+          <td>${fIQD(tRev)}</td><td>${fIQD(tCogs)}</td><td></td><td>${fKG(sells.reduce((s,x)=>s+x.qty,0))}</td>
+        </tr></tfoot></table>`;
+  }
+}
+
+function clrStkF(){
+  const d=document.getElementById("stkDt"); if(d)d.value="";
+  renderStockVal();
+}
+
+/* ── طباعة تقييم المخزون ── */
+function openStockPrint(){
+  const upTo=document.getElementById("stkDt")?.value||"";
+  const R=computeStock(upTo||null);
+  const d=new Date();const p2=x=>String(x).padStart(2,"0");
+  const rows=R.mats.map((m,i)=>`<tr>
+    <td style="text-align:center">${AR(i+1)}</td>
+    <td style="font-weight:700">${esc(m.label)}</td>
+    <td style="text-align:center">${fKG(m.qty)}</td>
+    <td style="text-align:center">${fIQD(m.avg)}</td>
+    <td style="text-align:center;font-weight:700">${fIQD(m.value)}</td>
+  </tr>`).join("");
+  const html=`${COHEAD}
+    <div class="prh" style="background:#7A5C12">
+      <div class="prhtl">📦 تقييم المخزون — المتوسط المرجّح</div>
+      <div class="prhmt">${upTo?("حتى "+tAr(upTo)):tAr(toDay())}<br/>${p2(d.getHours())+":"+p2(d.getMinutes())}</div>
+    </div>
+    <div class="prb">
+      <div class="psec">المخزون بالمادة</div>
+      <table class="coltbl" style="width:100%;font-size:9px">
+        <thead><tr><th>#</th><th>المادة</th><th>الكمية</th><th>متوسط التكلفة</th><th>القيمة</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr class="ctot">
+          <td colspan="2" style="font-weight:700;padding:5px 4px">المجموع</td>
+          <td style="text-align:center">${fKG(R.totalQty)}</td><td></td>
+          <td style="text-align:center;font-weight:700">${fIQD(R.totalValue)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="prtot"><span class="pk">قيمة المخزون</span><span class="pv">${fIQD(R.totalValue)}</span></div>
+    ${COFTR}`;
+  _printHTML=html;_isCollScreen=false;
+  document.getElementById("pactTitle").textContent="📦 تقييم المخزون";
+  document.getElementById("PC").innerHTML=html;
+  document.getElementById("PS").classList.add("active");
+  try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
 /* ══════════════════════════════════════════════════════
    نظام رواتب العمال — الأكثر شمولاً
 ══════════════════════════════════════════════════════ */
@@ -11710,6 +11944,7 @@ function sT(id,btn){
   if(id==="wrk-bulkpay"){renderBulkPayPreview("wrk");}
   if(id==="st")renderStats();
   if(id==="wh")renderWH();
+  if(id==="stock")renderStockVal();
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
   if(id==="sell-recs"){renderSellRecs();}
@@ -16584,6 +16819,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb grp active" onclick="sT('new',this)">🛒 شراء</button>
     <button class="tbb" onclick="sT('recs',this)">📋 السجلات</button>
     <button class="tbb" onclick="sT('wh',this)">🏟️ الساحة والمخازن</button>
+    <button class="tbb" onclick="sT('stock',this)">📦 تقييم المخزون</button>
     <button class="tbb" onclick="sT('rpt',this)">📊 تقارير</button>
     <button class="tbb" onclick="sT('coll',this)">💼 محصلة</button>
     <button class="tbb" onclick="sT('st',this)">📈 إحصائيات</button>
@@ -16890,6 +17126,31 @@ document.addEventListener("keydown", function(e){
   <div class="tc" id="tc-wh">
     <div class="cd"><div class="cdt">🏟️ الساحة</div><div class="whg" id="YRDG"></div></div>
     <div class="cd"><div class="cdt">🏭 المخازن</div><div class="whg" id="WHG"></div></div>
+  </div>
+
+  <!-- ══ تقييم المخزون ══ -->
+  <div class="tc" id="tc-stock">
+    <div class="cd">
+      <div class="cdt" style="color:var(--wheat-hi)">📦 تقييم المخزون — المتوسط المرجّح</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:11px">
+        تكلفة البضاعة الداخلة = الصافي × سعر الكغم. وأجور الكبس وسعر الوصل تُطرح من الفلاح
+        فهي إيراد خدمة لا كلفة بضاعة، وأجور النقل تمرّ إلى الناقل. الخارج يُحمّل بمتوسط
+        التكلفة لحظة خروجه.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:11px">
+        <span class="fl2">حتى تاريخ:</span>
+        <input class="fs2" id="stkDt" type="date" onchange="renderStockVal()" style="min-width:140px" autocomplete="off" data-lpignore="true">
+        <button class="btn bgh bsm" onclick="clrStkF()">× الكل</button>
+        <button class="btn bg bsm" onclick="openStockPrint()">🖨️ طباعة</button>
+      </div>
+      <div class="fsum" id="stkTotal" style="margin-bottom:10px"></div>
+      <div id="stkWarn"></div>
+      <div class="whg" id="stkCards"></div>
+    </div>
+    <div class="cd">
+      <div class="cdt" style="color:var(--settled)">💹 ربحية المبيعات — الإيراد ناقص تكلفة المبيع</div>
+      <div class="rtwrap" id="stkSells"></div>
+    </div>
   </div>
 
   <!-- التقارير -->
