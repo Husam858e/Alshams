@@ -6159,12 +6159,17 @@ function computeStock(upToDk){
     } else {
       const cogs=m.qty*avgBefore;
       s.qty-=m.qty; s.value-=cogs;
+      /* adj: ما أضافه التصفير إلى قيمة المخزون (سالبٌ إن حذف منها).
+         يحتاجه دفتر اليومية كي يساوي حساب المخزون فيه قيمةَ هذه
+         الشاشة بالضبط — فالتصفير حدثٌ مالي يُقيَّد لا يُبتلع. */
+      let adj=0;
       if(s.qty<-0.001){
         warn.push({...m,short:-s.qty});
+        adj+=0-s.value;
         s.qty=0; s.value=0;      // لا معنى لقيمة سالبة — نُصفّرها ونُعلن
       }
-      if(s.qty<=0.001)s.value=0; // نفد المخزون: القيمة صفر لا كسور عالقة
-      priced.push({...m,cogs,unit:avgBefore,
+      if(s.qty<=0.001){adj+=0-s.value;s.value=0;} // نفد المخزون: القيمة صفر لا كسور عالقة
+      priced.push({...m,cogs,unit:avgBefore,adj,
                    profit:(m.revenue||0)-cogs,avgAfter:s.qty>0?s.value/s.qty:0});
     }
   });
@@ -6527,6 +6532,413 @@ function openAgingPrint(){
   document.getElementById("PC").innerHTML=html;
   document.getElementById("PS").classList.add("active");
   try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   طبقة القيود المحاسبية — v17.68
+   ──────────────────────────────────────────────────────────────
+   التطبيق يعرف كل رقم على حدة: كم على فلان، وكم في المخزن،
+   وكم في الصندوق. ولا يعرف السؤال الذي يجمعها: هل يتّزن
+   الدفتر؟ وكم ربحت الساحة هذا الشهر بعد كل شيء؟
+
+   ══ المبدأ: القيد مشتقّ لا مُدخَل ══
+   لا عقدة جديدة في فايربيس، ولا شاشة إدخال قيود. كل قيد
+   يُحسب من الوصولات الموجودة أصلاً. فلا طريق ثانياً للبيانات
+   كي تنحرف عن الأول، ولا حقلاً يُنسى ملؤه، ولا قيداً يناقض
+   الوصل الذي وُلد منه. تُصحَّح الوصولات فتُصحَّح الحسابات
+   معها في اللحظة نفسها.
+
+   ══ كيف يُضمن الاتزان ══
+   كل عملية تُنتج قيداً واحداً مجموع مدينه = مجموع دائنه
+   بحكم معادلة الوصل نفسها. مثال الشراء:
+     أجور الوزن = المستحق للفلاح + الكبس + الوصل + النقل المخصوم
+   وهذه هي معادلة calcFees حرفياً. فالاتزان ليس أملاً يُراجع،
+   بل نتيجةٌ لازمة. وما تبقّى من كسور التقريب يُجمَّع في حساب
+   «فروق التقريب» ظاهرٍ في الميزان بدل أن يُبتلع صامتاً.
+
+   ══ من أين يأتي النقد ══
+   من المصدر الذي يحسب به التطبيق صندوقه أصلاً: الرصيد
+   الافتتاحي + دفعات الوصولات (collectAllPayments) + الحركات
+   اليدوية. فرقم النقد في الميزان هو رقم شاشة الصندوق نفسه،
+   لا رقم ثانٍ يُقارَن به.
+
+   ══ ما هو موضوعٌ على حدة ══
+   الضمانات: بضاعتها لا تدخل محرّك تقييم المخزون (وصولاتها
+   الفرعية ليست وصولات شراء)، فلو حُمّلت على حساب المخزون
+   لاختلف رقمُه عن شاشة التقييم. لذلك تُجمَّع في حساب
+   «الضمانات» باسمه الصريح: مالٌ خرج فعلاً ويظهر في قائمة
+   الدخل، لكنه غير موزَّع بين كلفةِ بضاعةٍ وأجرِ خدمة.
+   وإن كانت بضاعة الضمانات تُباع كغيرها فأخبرني لأُدخلها
+   المخزون — وحينها يتغيّر توزيع الربح لا مجموعه.
+══════════════════════════════════════════════════════════════ */
+
+/* ── دليل الحسابات ── */
+const _ACCTS=[
+  {k:"cash",    label:"النقد والصناديق",        t:"asset"},
+  {k:"ar",      label:"ذمم الزبائن — البيع",     t:"asset"},
+  {k:"inv",     label:"المخزون — البضاعة",       t:"asset"},
+  {k:"advEmp",  label:"سلف العمال",              t:"asset"},
+
+  {k:"apFarm",  label:"مستحقات الفلاحين",        t:"liab"},
+  {k:"apTrans", label:"مستحقات الناقلين",        t:"liab"},
+  {k:"apSrf",   label:"مستحقات الصرفيات",        t:"liab"},
+  {k:"apWrk",   label:"مستحقات أجور الأعمال",    t:"liab"},
+  {k:"apSal",   label:"رواتب مستحقة",            t:"liab"},
+  {k:"apEmp",   label:"مستحقات العمال — حوافز وخصوم", t:"liab"},
+  {k:"apDam",   label:"مستحقات الضمانات",        t:"liab"},
+
+  {k:"cap",     label:"رأس المال",               t:"eq"},
+  {k:"draw",    label:"سحب المالك",              t:"eq"},
+
+  {k:"revSale", label:"مبيعات البضاعة",          t:"rev"},
+  {k:"revWasl", label:"أجور الوصل",              t:"rev"},
+  {k:"revKabs", label:"أجور الكبس",              t:"rev"},
+  {k:"revNaql", label:"أجور نقل محصَّلة",        t:"rev"},
+  {k:"revOth",  label:"واردات أخرى",             t:"rev"},
+
+  {k:"cogs",    label:"كلفة البضاعة المباعة",    t:"exp"},
+  {k:"expOut",  label:"كلفة مخرجات المخازن",     t:"exp"},
+  {k:"expNaql", label:"أجور النقل المدفوعة",     t:"exp"},
+  {k:"expSrf",  label:"الصرفيات",                t:"exp"},
+  {k:"expWrk",  label:"أجور الأعمال",            t:"exp"},
+  {k:"expSal",  label:"الرواتب والأجور",         t:"exp"},
+  {k:"expDam",  label:"الضمانات — بضاعةً وأجوراً", t:"exp"},
+  {k:"expPetty",label:"مصاريف نثرية",            t:"exp"},
+  {k:"adjInv",  label:"تسوية المخزون",           t:"exp"},
+  {k:"adjCash", label:"تسوية الصندوق",           t:"exp"},
+  {k:"round",   label:"فروق التقريب",            t:"exp"},
+];
+const _ACC=k=>_ACCTS.find(a=>a.k===k)||{k,label:k,t:"exp"};
+const _ACCT_GROUPS=[
+  {t:"asset",label:"الأصول",       sign: 1},
+  {t:"liab", label:"الخصوم",       sign:-1},
+  {t:"eq",   label:"حقوق الملكية", sign:-1},
+  {t:"rev",  label:"الإيرادات",    sign:-1},
+  {t:"exp",  label:"المصروفات",    sign: 1},
+];
+
+/* ── بنّاء القيود ──
+   D/C يبنيان سطراً، و_post يُغلق القيد بعد التحقق من اتزانه. */
+function _journal(){
+  const J=[];
+  const D=(a,v)=>({a,d:+v||0,c:0});
+  const C=(a,v)=>({a,d:0,c:+v||0});
+
+  function post(dk,kind,ref,who,lines,src){
+    const ls=(lines||[]).filter(l=>l&&(Math.abs(l.d)>0.004||Math.abs(l.c)>0.004));
+    if(!ls.length)return;
+    const dr=ls.reduce((s,l)=>s+l.d,0), cr=ls.reduce((s,l)=>s+l.c,0);
+    const gap=dr-cr;
+    /* لا يمرّ قيدٌ غير متّزن: الفارق يُقيَّد باسمه فيُرى */
+    if(Math.abs(gap)>0.004)ls.push(gap>0?C("round",gap):D("round",-gap));
+    J.push({dk:dk||"",kind,ref:ref||"",who:who||"—",src:src||"",lines:ls,
+            total:ls.reduce((s,l)=>s+l.d,0)});
+  }
+
+  /* ① الشراء — أجور الوزن تتوزّع: مستحق الفلاح + خدمات الساحة + نقل مخصوم */
+  (S.recs||[]).forEach(r=>{
+    if(r.status!=="weighed")return;
+    const ents=getNaqlEntries(r);
+    const naql=r.nOn?ents.reduce((s,e)=>s+(e.naqlFee||0),0):0;
+    const ded=(r.nOn&&r.nDeduct!==false)?naql:0;   // مخصومٌ من الفلاح ومستحقٌّ للناقل
+    post(r.dk,"buy",fNo(r.no)||r.plate,r.driver,[
+      D("inv",    r.wFee||0),
+      C("apFarm", r.final||0),
+      C("revKabs",r.kabsFee||0),
+      C("revWasl",r.waslFee||0),
+      C("apTrans",ded),
+    ],"شراء");
+    /* نقلٌ لا يُخصم من الفلاح: تتحمّله الساحة مصروفاً */
+    if(naql-ded>0.004)post(r.dk,"buy-naql",fNo(r.no)||r.plate,r.driver,
+      [D("expNaql",naql-ded),C("apTrans",naql-ded)],"نقل الشراء");
+  });
+
+  /* ② البيع — الزبون يدفع البضاعة والوصل والنقل، والنقل يُدفع للناقل */
+  (SELL_RECS||[]).forEach(r=>{
+    if(r.status!=="weighed")return;
+    post(r.dk,"sell",fNo(r.no)||r.plate,r.driver||r.receiver,[
+      D("ar",      r.final||0),
+      C("revSale", r.wFee||0),
+      C("revWasl", r.waslFee||0),
+      C("revNaql", r.nOn?(r.naqlFee||0):0),
+    ],"بيع");
+    if(r.nOn&&(r.naqlFee||0)>0)
+      post(r.dk,"sell-naql",fNo(r.no)||r.plate,r.transporter,
+        [D("expNaql",r.naqlFee),C("apTrans",r.naqlFee)],"نقل البيع");
+  });
+
+  /* ③ كلفة الخارج من المخزون — بالمتوسط المرجّح لحظة الخروج،
+        مقروءةً من محرّك التقييم نفسه فلا يختلف الرقمان أبداً */
+  computeStock(null).priced.forEach(m=>{
+    if(m.dir>0)return;
+    const acc=m.kind==="sell"?"cogs":"expOut";
+    post(m.dk,m.kind==="sell"?"cogs":"out",m.id,m.who,
+      [D(acc,m.cogs||0),C("inv",m.cogs||0)],"المخزون");
+    /* تصفير رصيدٍ سالب أو كسرٍ عالق — حدثٌ يُقيَّد باسمه */
+    if(Math.abs(m.adj||0)>0.004)
+      post(m.dk,"inv-adj",m.id,m.who,
+        m.adj>0?[D("inv",m.adj),C("adjInv",m.adj)]
+               :[D("adjInv",-m.adj),C("inv",-m.adj)],"تسوية المخزون");
+  });
+
+  /* ④ وصولات النقل اليدوية */
+  (MNL_RECS||[]).forEach(r=>{
+    post(r.dk||String(r.createdAt||"").slice(0,10),"mnl",fNo(r.no)||r.plate,r.transporter,
+      [D("expNaql",r.naqlFee||0),C("apTrans",r.naqlFee||0)],"نقل يدوي");
+  });
+
+  /* ⑤ الصرفيات وأجور الأعمال */
+  (SRF_RECS||[]).forEach(r=>post(r.dk,"srf",fNo(r.no)||r.purp,r.recv,
+    [D("expSrf",r.amount||0),C("apSrf",r.amount||0)],"صرفية"));
+  (WRK_RECS||[]).forEach(r=>post(r.dk,"wrk",fNo(r.no)||r.service,r.provider,
+    [D("expWrk",r.amount||0),C("apWrk",r.amount||0)],"أجر عمل"));
+
+  /* ⑥ العمال
+     حركات العمال المعلَّقة وحدها تُقيَّد — فالتي دخلت راتباً
+     تُحذف من EMP_TXNS ويحملها صافي الراتب، فلا ازدواج.
+     والسلفة مالٌ سُلّم نقداً، ويسترجعه الراتب باستقطاعه:
+        سلفة:  سلف العمال ← النقد
+        راتب:  مصروف الرواتب ← (رواتب مستحقة + سلف العمال)
+     فيصير مجموع ما خرج للعامل = صافي راتبه المستحقّ قبل
+     الاستقطاع، وهو الصحيح. */
+  (EMP_TXNS||[]).forEach(r=>{
+    const a=r.amount||0;
+    if(r.type==="bonus")post(r.dk,"etx",r.note||"حافز",r.empName,
+      [D("expSal",a),C("apEmp",a)],"حافز");
+    else post(r.dk,"etx",r.note||(r.type==="absent"?"غياب":"خصم"),r.empName,
+      [D("apEmp",a),C("expSal",a)],r.type==="absent"?"غياب":"خصم");
+  });
+  (ADV_RECS||[]).forEach(r=>post(r.dk,"adv",fNo(r.no)||"سلفة",r.empName,
+    [D("advEmp",r.amount||0),C("cash",r.amount||0)],"سلفة"));
+  (SAL_RECS||[]).forEach(r=>post(r.dk,"sal",fNo(r.no)||("راتب "+(r.month||"")),r.empName,[
+      D("expSal", r.net||0),
+      C("apSal",  r.finalNet||0),
+      C("advEmp", r.pendingAdv||0),
+    ],"راتب"));
+
+  /* ⑦ الضمانات — خارج النمذجة عمداً (انظر رأس الوحدة) */
+  (DAM_RECS||[]).forEach(r=>{
+    const subs=r.subRecs?Object.values(r.subRecs):[];
+    if(!subs.length){
+      post(r.dk,"dam",r.damin||"ضمانة",r.madmun,
+        [D("expDam",r.price||0),C("apDam",r.price||0)],"ضمانة");
+      return;
+    }
+    subs.forEach(s=>post(s.dk||r.dk,"dam-sub",s.desc||s.driver||"وصل ضمانة",r.madmun,[
+      D("expDam", s.weightFee||s.amount||0),
+      C("apDam",  s.amount||0),
+      C("revWasl",s.wasl||0),
+      C("revKabs",s.press||0),
+      C("apTrans",s.trans||0),
+    ],"وصل ضمانة"));
+  });
+
+  /* ⑧ الدفعات — تصفية الذمم مقابل النقد، من مصدر الصندوق نفسه.
+     يُستثنى استقطاع السلفة من الراتب: التطبيق يُسجّله «دفعة»
+     على السلفة ليعلّمها مسدَّدة، وهو ليس نقداً خارجاً — النقد
+     خرج يوم السلفة نفسها. وحسابه صادراً يُنقص الصندوق مرتين. */
+  const PAY_ACC={buy:"apFarm",sell:"ar",naql:"apTrans",srf:"apSrf",
+                 wrk:"apWrk",dam:"apDam"};
+  (collectAllPayments()||[]).forEach(p=>{
+    if(p.kind==="adv"&&String(p.by||"").indexOf("استقطاع راتب")!==-1)return;
+    const dk=p.dk||String(p.at||"").slice(0,10);
+    const amt=p.amount||0;
+    let acc=PAY_ACC[p.src];
+    if(p.src==="sal")acc=(p.kind==="adv"||p.kind==="etx")?"apEmp":"apSal";
+    if(!acc)acc="apSal";
+    if(p.src==="sell")post(dk,"pay-in",p.ref,p.who,        // قبضٌ من الزبون
+      [D("cash",amt),C("ar",amt)],"قبض");
+    else post(dk,"pay-out",p.ref,p.who,                    // دفعٌ للغير
+      [D(acc,amt),C("cash",amt)],"دفع");
+  });
+
+  /* ⑨ الصندوق — الرصيد الافتتاحي والحركات اليدوية */
+  const MV_ACC={cap_in:"cap",other_in:"revOth",owner_out:"draw",
+                petty:"expPetty",other_out:"expPetty",adjust:"adjCash"};
+  (CASH_BOXES||[]).forEach(b=>{
+    if((b.opening||0)!==0)post(b.openingDk||"","cash-open",b.name,"—",
+      (b.opening>0?[D("cash",b.opening),C("cap",b.opening)]
+                  :[D("cap",-b.opening),C("cash",-b.opening)]),"رصيد افتتاحي");
+  });
+  (CASH_MOVES||[]).forEach(m=>{
+    const amt=m.amount||0, T=_CASH_TYPES[m.type]||{};
+    if(m.type==="xfer_in"||m.type==="xfer_out")return;    // نقل بين صندوقين — لا أثر خارجي
+    const acc=MV_ACC[m.type]||"adjCash";
+    const dir=m.dir!==undefined?m.dir:(T.dir||0);
+    if(!dir)return;
+    post(m.dk,"cash-mv",T.label||m.type,(_box(m.boxId)||{}).name||"—",
+      dir>0?[D("cash",amt),C(acc,amt)]:[D(acc,amt),C("cash",amt)],T.label||"صندوق");
+  });
+
+  J.sort((a,b)=>String(a.dk||"").localeCompare(String(b.dk||"")));
+  return J;
+}
+
+/* ── الأستاذ: أرصدة الحسابات قبل الفترة وخلالها ── */
+function _ledger(from,to){
+  const acc={};
+  const A=k=>(acc[k]||(acc[k]={k,label:_ACC(k).label,t:_ACC(k).t,
+                                od:0,oc:0,d:0,c:0}));
+  let entries=0;
+  _journal().forEach(e=>{
+    const before = from && (!e.dk || e.dk<from);
+    const after  = to   && e.dk   && e.dk>to;
+    if(after)return;
+    if(!before)entries++;
+    e.lines.forEach(l=>{
+      const a=A(l.a);
+      if(before){a.od+=l.d;a.oc+=l.c;} else {a.d+=l.d;a.c+=l.c;}
+    });
+  });
+  const rows=_ACCTS.map(x=>acc[x.k]).filter(Boolean)
+    .filter(a=>Math.abs(a.od-a.oc)>0.5||Math.abs(a.d)>0.5||Math.abs(a.c)>0.5)
+    .map(a=>{
+      const open=a.od-a.oc, close=open+a.d-a.c;
+      return{...a,open,close,net:a.d-a.c};
+    });
+  const sum=f=>rows.reduce((s,r)=>s+f(r),0);
+  return{rows,entries,
+         dr:sum(r=>r.d), cr:sum(r=>r.c),
+         gap:sum(r=>r.close)};              // يجب أن يكون صفراً دائماً
+}
+
+/* مجموع أرصدة نوع حسابات واحد بإشارته الطبيعية */
+function _accSum(rows,t,pick){
+  const g=_ACCT_GROUPS.find(x=>x.t===t)||{sign:1};
+  return rows.filter(r=>r.t===t)
+             .reduce((s,r)=>s+g.sign*(pick?pick(r):r.close),0);
+}
+
+/* ══ الفترة المشتركة بين الدفاتر الثلاثة ══
+   يوم · شهر · سنة · نطاق حرّ. والمرساة تاريخٌ واحد فتتبدّل
+   الفترات حوله بلا إعادة إدخال. */
+let _acctPeriod="month";
+let _acctView="journal";
+
+function _acctAnchor(){
+  const v=(document.getElementById("acctDt")||{}).value||"";
+  return v||toDay();
+}
+function _acctRange(){
+  const a=_acctAnchor();
+  if(_acctPeriod==="day")  return{from:a,to:a,label:tAr(a)};
+  if(_acctPeriod==="month"){
+    const m=a.slice(0,7);
+    const last=new Date(+m.slice(0,4),+m.slice(5,7),0);
+    return{from:m+"-01",to:m+"-"+String(last.getDate()).padStart(2,"0"),
+           label:_closureLabel(m)};
+  }
+  if(_acctPeriod==="year"){
+    const y=a.slice(0,4);
+    return{from:y+"-01-01",to:y+"-12-31",label:"سنة "+AR(y)};
+  }
+  const f=(document.getElementById("acctFrom")||{}).value||"";
+  const t=(document.getElementById("acctTo")||{}).value||"";
+  return{from:f,to:t,
+         label:(f?tAr(f):"البداية")+" → "+(t?tAr(t):"النهاية")};
+}
+/* الفترة السابقة بنفس الطول — للمقارنة */
+function _acctPrev(){
+  const R=_acctRange();
+  if(!R.from||!R.to)return null;
+  const a=_acctAnchor();
+  if(_acctPeriod==="day"){const p=_ds(_addDays(a,-1));return{from:p,to:p,label:tAr(p)};}
+  if(_acctPeriod==="month"){
+    const y=+a.slice(0,4),m=+a.slice(5,7);
+    const py=m===1?y-1:y, pm=m===1?12:m-1;
+    const key=py+"-"+String(pm).padStart(2,"0");
+    const last=new Date(py,pm,0).getDate();
+    return{from:key+"-01",to:key+"-"+String(last).padStart(2,"0"),label:_closureLabel(key)};
+  }
+  if(_acctPeriod==="year"){const y=+a.slice(0,4)-1;return{from:y+"-01-01",to:y+"-12-31",label:"سنة "+AR(y)};}
+  const days=Math.round((_D(R.to)-_D(R.from))/86400000)+1;
+  return{from:_ds(_addDays(R.from,-days)),to:_ds(_addDays(R.from,-1)),
+         label:"الفترة السابقة ("+AR(days)+" يوم)"};
+}
+
+function sAcctPeriod(p,btn){
+  _acctPeriod=p;
+  document.querySelectorAll("#acctPer .ptb").forEach(b=>b.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+  const box=document.getElementById("acctRangeBox");
+  if(box)box.style.display=p==="range"?"flex":"none";
+  const one=document.getElementById("acctOneBox");
+  if(one)one.style.display=p==="range"?"none":"flex";
+  renderAcct();
+}
+function sAcctView(v,btn){
+  _acctView=v;
+  document.querySelectorAll("#acctViews .ptb").forEach(b=>b.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+  renderAcct();
+}
+
+/* ── الواجهة ── */
+function renderAcct(){
+  if(!S.cu)return;
+  const dt=document.getElementById("acctDt");
+  if(dt&&!dt.value)dt.value=toDay();
+  const R=_acctRange();
+  const L=_ledger(R.from,R.to);
+  const hd=document.getElementById("acctHead");
+  if(hd)hd.innerHTML=_acctHeadHTML(R,L);
+  const body=document.getElementById("acctBody");
+  if(!body)return;
+  body.innerHTML=_journalHTML(R);
+}
+
+/* شريط الحالة: عدد القيود والاتزان ومقارنة النقد بشاشة الصندوق */
+function _acctHeadHTML(R,L){
+  const bal=Math.abs(L.gap)<0.5;
+  const cashAcc=L.rows.find(r=>r.k==="cash");
+  const jCash=cashAcc?cashAcc.close:0;
+  let boxCash=0;
+  try{boxCash=(CASH_BOXES||[]).reduce((s,b)=>s+cashExpected(R.to||"",b.id),0);}catch(e){}
+  const diff=Math.round(jCash-boxCash);
+  return`<div class="fsum" style="margin-bottom:9px">
+      <span>الفترة: <strong>${esc(R.label)}</strong></span>
+      <span>القيود: <strong>${AR(L.entries)}</strong></span>
+      <span>مدين: <strong>${fIQD(L.dr)}</strong></span>
+      <span>دائن: <strong>${fIQD(L.cr)}</strong></span>
+      <span style="color:${bal?"var(--settled)":"var(--owing)"}">
+        ${bal?"⚖️ متّزن":"⚠ فارق "+fIQD(L.gap)}</span>
+    </div>
+    ${Math.abs(diff)>0.5?`<div style="background:var(--pending-wash,var(--ink-100));border:1px solid var(--pending);border-radius:10px;padding:9px 11px;margin-bottom:9px;font-size:11px;color:var(--paper-2);line-height:1.7">
+      <strong style="color:var(--pending)">النقد هنا ${fIQD(jCash)} وفي شاشة الصندوق ${fIQD(boxCash)} — الفارق ${fIQD(diff)}.</strong><br/>
+      سببان معروفان: استقطاع السلف من الرواتب تحسبه شاشة الصندوق صادراً نقدياً وهو ليس كذلك،
+      وجردُ الصندوق المعتمد يجعل الشاشة تبدأ منه فتُهمل ما قبله. والدفتر هنا يحسب من أوّل حركة.
+    </div>`:""}`;
+}
+
+/* ── دفتر اليومية ── */
+function clrAcctF(){
+  const e=document.getElementById("acctSrch"); if(e)e.value="";
+  renderAcct();
+}
+
+function _journalHTML(R){
+  let J=_journal();
+  if(R.from)J=J.filter(e=>e.dk&&e.dk>=R.from);
+  if(R.to)  J=J.filter(e=>e.dk&&e.dk<=R.to);
+  const q=(document.getElementById("acctSrch")?.value||"").trim();
+  if(q)J=J.filter(e=>smartMatch(e.who,q)||smartMatch(e.src,q)||smartMatch(e.ref,q));
+  if(!J.length)return`<div class="empty-state"><b>لا قيود في هذه الفترة</b>غيّر الفترة أو البحث.</div>`;
+  const cap=800;
+  const shown=J.slice(0,cap);
+  return`${J.length>cap?`<div style="font-size:11px;color:var(--pending);margin-bottom:7px">معروض ${AR(cap)} من ${AR(J.length)} قيداً — ضيّق الفترة لرؤية الباقي.</div>`:""}
+  <table class="rtbl"><thead><tr>
+      <th>التاريخ</th><th>العملية</th><th>الحساب</th><th>مدين</th><th>دائن</th>
+    </tr></thead><tbody>
+    ${shown.map(e=>e.lines.map((l,i)=>`<tr${i===0?' style="border-top:2px solid var(--rule)"':""}>
+        ${i===0?`<td rowspan="${e.lines.length}" style="font-weight:700;white-space:nowrap;font-size:10px">${tAr(e.dk)}</td>
+                 <td rowspan="${e.lines.length}" style="font-size:11px">${esc(e.src)}
+                   <div style="font-size:10px;font-weight:700;color:var(--paper-2)">${esc(e.who)}</div>
+                   ${e.ref?`<div style="font-size:9px;color:var(--paper-3)">${esc(e.ref)}</div>`:""}</td>`:""}
+        <td style="font-size:11px">${esc(_ACC(l.a).label)}</td>
+        <td style="color:${l.d?"var(--settled)":"var(--paper-4)"}">${l.d?fIQD(l.d):"—"}</td>
+        <td style="color:${l.c?"var(--owing)":"var(--paper-4)"}">${l.c?fIQD(l.c):"—"}</td>
+      </tr>`).join("")).join("")}
+    </tbody></table>`;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -12491,6 +12903,7 @@ function sT(id,btn){
   if(id==="wh")renderWH();
   if(id==="stock")renderStockVal();
   if(id==="aging")renderAging();
+  if(id==="acct")renderAcct();
   if(id==="tools"){try{renderNumbering();}catch(e){}}
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
@@ -17413,6 +17826,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" onclick="sT('jami-arb',this)">📒 سجل جامع</button>
     <button class="tbb grp" onclick="sT('paylog',this)">💵 سجل الدفعات</button>
     <button class="tbb" onclick="sT('aging',this)">⏳ أعمار الديون</button>
+    <button class="tbb" onclick="sT('acct',this)">📒 الدفاتر المحاسبية</button>
     <button class="tbb" onclick="sT('tools',this)">⚙️ الأدوات</button>
     <button class="tbb" onclick="sT('perf',this)">📈 الأداء</button>
     <button class="tbb" onclick="sT('cash',this)">💰 الصندوق</button>
@@ -17722,6 +18136,43 @@ document.addEventListener("keydown", function(e){
         <button class="btn bg bsm" onclick="openAgingPrint()">🖨️ طباعة</button>
       </div>
       <div class="rtwrap" id="agTable"></div>
+    </div>
+  </div>
+
+  <!-- ══ الدفاتر المحاسبية ══ -->
+  <div class="tc" id="tc-acct">
+    <div class="cd">
+      <div class="cdt" style="color:var(--steel)">📒 الدفاتر المحاسبية</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:11px">
+        كل قيد هنا محسوبٌ من وصولاتك لا مُدخَلٌ بيدك: لا شاشة قيود ولا عقدة جديدة
+        في قاعدة البيانات، فلا طريق ثانياً للأرقام كي تنحرف عن الأول. صحِّح الوصل
+        فتُصحَّح الحسابات معه في اللحظة نفسها.
+      </p>
+      <div class="ptbs" id="acctViews" style="margin-bottom:10px">
+        <button class="ptb active" onclick="sAcctView('journal',this)">📖 دفتر اليومية</button>
+      </div>
+      <div class="ptbs" id="acctPer" style="margin-bottom:10px">
+        <button class="ptb" onclick="sAcctPeriod('day',this)">يومي</button>
+        <button class="ptb active" onclick="sAcctPeriod('month',this)">شهري</button>
+        <button class="ptb" onclick="sAcctPeriod('year',this)">سنوي</button>
+        <button class="ptb" onclick="sAcctPeriod('range',this)">نطاق</button>
+      </div>
+      <div id="acctOneBox" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <span class="fl2">التاريخ المرجع:</span>
+        <input class="fs2" id="acctDt" type="date" onchange="renderAcct()" style="min-width:140px" autocomplete="off" data-lpignore="true">
+      </div>
+      <div id="acctRangeBox" style="display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <span class="fl2">من:</span>
+        <input class="fs2" id="acctFrom" type="date" onchange="renderAcct()" style="min-width:130px" autocomplete="off" data-lpignore="true">
+        <span class="fl2">إلى:</span>
+        <input class="fs2" id="acctTo" type="date" onchange="renderAcct()" style="min-width:130px" autocomplete="off" data-lpignore="true">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <input class="fs2" id="acctSrch" type="text" placeholder="🔍 بحث بالطرف أو العملية..." oninput="renderAcct()" style="flex:1;min-width:160px" autocomplete="off" data-lpignore="true">
+        <button class="btn bgh bsm" onclick="clrAcctF()">× مسح</button>
+      </div>
+      <div id="acctHead"></div>
+      <div class="rtwrap" id="acctBody"></div>
     </div>
   </div>
 
