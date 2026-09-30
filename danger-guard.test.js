@@ -19,7 +19,21 @@ const { chromium } = require('playwright-core');
   const hit   = ()=>p.evaluate(()=>_confirmDanger());
 
   /* ══ سلة المحذوفات ══ */
-  await p.evaluate(()=>{ db=null; TRASH=[{id:'t1'},{id:'t2'},{id:'t3'}]; clearTrash(); });
+  /* انتظر تسجيل مستمعي فايربيس قبل فصلها: التهيئة غير متزامنة،
+     وفصلٌ قبل التسجيل لا يمنع لقطةً تصل بعده فتمحو بيانات الاختبار. */
+  await p.waitForFunction(()=>dbRefClosures!==null,null,{timeout:15000}).catch(()=>{});
+  await p.evaluate(()=>{
+    /* فصل مستمعي فايربيس أولاً: لقطةٌ متأخرة تستبدل المصفوفات
+       التي يبنيها الاختبار فتفشل الفحوص عشوائياً — لا لخللٍ في
+       التطبيق. ويُنتظر تسجيل المستمعين أولاً، فالتهيئة غير
+       متزامنة وقد تسجّلهم بعد الفصل فيعودون. */
+    [dbRef,dbRefSell,dbRefDam,dbRefSrf,dbRefWrk,dbRefMnl,dbRefArb,dbRefOut,
+     dbRefEmp,dbRefSal,dbRefAdv,dbRefEmpTxn,dbRefAudit,dbRefClosures]
+      .forEach(r=>{try{r&&r.off&&r.off();}catch(e){}});
+    try{db&&db.ref&&db.ref().off();}catch(e){}
+    db=null;
+  });
+  await p.evaluate(()=>{ TRASH=[{id:'t1'},{id:'t2'},{id:'t3'}]; clearTrash(); });
   T.push(['clearTrash يفتح الحارس ولا يحذف', await open() &&
           await p.evaluate(()=>TRASH.length)===3]);
   T.push(['حقل السبب مخفي هنا',

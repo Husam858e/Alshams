@@ -6884,7 +6884,11 @@ function renderAcct(){
   if(hd)hd.innerHTML=_acctHeadHTML(R,L);
   const body=document.getElementById("acctBody");
   if(!body)return;
-  body.innerHTML=_journalHTML(R);
+  body.innerHTML = _acctView==="trial"  ? _trialHTML(R,L)
+                 : _acctView==="income" ? _incomeHTML(R)
+                 :                        _journalHTML(R);
+  const sb=document.getElementById("acctSrchBox");
+  if(sb)sb.style.display=_acctView==="journal"?"flex":"none";
 }
 
 /* شريط الحالة: عدد القيود والاتزان ومقارنة النقد بشاشة الصندوق */
@@ -6939,6 +6943,222 @@ function _journalHTML(R){
         <td style="color:${l.c?"var(--owing)":"var(--paper-4)"}">${l.c?fIQD(l.c):"—"}</td>
       </tr>`).join("")).join("")}
     </tbody></table>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ميزان المراجعة وقائمة الدخل — v17.69
+   ──────────────────────────────────────────────────────────────
+   ميزان المراجعة يُجيب سؤالاً واحداً لا تُجيبه أي شاشة أخرى:
+   هل الدفتر متّزن؟ فإن اتّزن صحّ ما بُني عليه، وإن اختلّ ظهر
+   الخلل برقمه ومكانه بدل أن يتسرّب إلى قرارٍ يُبنى عليه.
+
+   وقائمة الدخل تُجيب ما لا تُجيبه المحصلات: كم ربحت الساحة؟
+   المحصلة تقول كم قُبض وكم بقي، والربح شيءٌ آخر تماماً —
+   إيرادٌ استُحقّ ناقص كلفةٍ استُهلكت، مقبوضةً كانت أو لا.
+
+   ══ الاستحقاق لا القبض ══
+   وصل بيعٍ لم يُقبض ثمنه إيرادٌ اليوم لا يوم القبض، ووصل شراءٍ
+   لم يُدفع كلفةٌ اليوم. وإلّا بدا الشهر الذي قُبضت فيه ديون
+   الشهر الماضي شهراً ذهبياً، والذي قبله خاسراً — وكلاهما كذب.
+
+   ══ المقارنة بالفترة السابقة ══
+   الرقم وحده لا يقول شيئاً: مليونان ربحاً خبرٌ سارّ إن كان
+   الشهر الماضي مليوناً، وإنذارٌ إن كان أربعة. فكل سطر يُعرض
+   ومعه نظيره من الفترة السابقة وفرقُهما بالنسبة.
+══════════════════════════════════════════════════════════════ */
+
+/* ── ميزان المراجعة ── */
+function _trialHTML(R,L){
+  if(!L.rows.length)return`<div class="empty-state"><b>لا أرصدة في هذه الفترة</b>سجّل وصولات أولاً.</div>`;
+  const bal=Math.abs(L.gap)<0.5;
+  const grp=g=>{
+    const rows=L.rows.filter(r=>r.t===g.t);
+    if(!rows.length)return"";
+    const nat=v=>g.sign*v;                    // بإشارته الطبيعية
+    const tOpen=rows.reduce((s,r)=>s+nat(r.open),0);
+    const tD=rows.reduce((s,r)=>s+r.d,0);
+    const tC=rows.reduce((s,r)=>s+r.c,0);
+    const tCl=rows.reduce((s,r)=>s+nat(r.close),0);
+    return`<tr class="tot" style="background:var(--ink-200)">
+        <td colspan="5" style="font-weight:900;color:var(--paper-1)">${g.label}</td></tr>
+      ${rows.map(r=>`<tr>
+        <td style="font-size:11px">${esc(r.label)}</td>
+        <td style="font-weight:800">${fIQD(nat(r.close))}</td>
+        <td style="color:var(--paper-3)">${Math.abs(r.open)>0.5?fIQD(nat(r.open)):"—"}</td>
+        <td style="color:${r.d?"var(--settled)":"var(--paper-4)"}">${r.d?fIQD(r.d):"—"}</td>
+        <td style="color:${r.c?"var(--owing)":"var(--paper-4)"}">${r.c?fIQD(r.c):"—"}</td>
+      </tr>`).join("")}
+      <tr style="border-bottom:2px solid var(--rule)">
+        <td style="font-weight:700;color:var(--paper-2)">مجموع ${esc(g.label)}</td>
+        <td style="font-weight:900">${fIQD(tCl)}</td>
+        <td style="font-weight:700">${fIQD(tOpen)}</td>
+        <td style="font-weight:700">${fIQD(tD)}</td>
+        <td style="font-weight:700">${fIQD(tC)}</td>
+      </tr>`;
+  };
+
+  /* المركز المالي: الأصول = الخصوم + حقوق الملكية + الأرباح المتراكمة */
+  const A=_accSum(L.rows,"asset"), Li=_accSum(L.rows,"liab"),
+        E=_accSum(L.rows,"eq"),    Rv=_accSum(L.rows,"rev"),
+        Xp=_accSum(L.rows,"exp");
+  const keep=Rv-Xp;
+
+  return`<div style="background:${bal?"var(--settled-wash)":"var(--owing-wash)"};border:2px solid ${bal?"var(--settled)":"var(--owing)"};border-radius:11px;padding:11px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:900;color:${bal?"var(--settled)":"var(--owing)"};margin-bottom:6px">
+        ${bal?"⚖️ الدفتر متّزن — مجموع المدين = مجموع الدائن":"⚠ الدفتر غير متّزن — فارق "+fIQD(L.gap)}
+      </div>
+      <div style="font-size:11px;color:var(--paper-2);line-height:1.9">
+        الأصول <strong>${fIQD(A)}</strong> =
+        الخصوم <strong>${fIQD(Li)}</strong> +
+        رأس المال <strong>${fIQD(E)}</strong> +
+        الأرباح المتراكمة <strong style="color:${keep>=0?"var(--settled)":"var(--owing)"}">${fIQD(keep)}</strong>
+      </div>
+    </div>
+    <table class="rtbl"><thead><tr>
+      <th>الحساب</th><th>رصيد آخر المدة</th><th>أول المدة</th><th>مدين</th><th>دائن</th>
+    </tr></thead><tbody>
+      ${_ACCT_GROUPS.map(grp).join("")}
+    </tbody>
+    <tfoot><tr class="tot">
+      <td>المجموع العام</td>
+      <td>${bal?"⚖️ صفر":fIQD(L.gap)}</td><td></td>
+      <td>${fIQD(L.dr)}</td><td>${fIQD(L.cr)}</td>
+    </tr></tfoot></table>`;
+}
+
+/* ── قائمة الدخل ──
+   تُبنى من حركة الفترة (مدين − دائن) لا من الرصيد الختامي،
+   فالربح حركةُ فترةٍ لا رصيدٌ متراكم. */
+function _incomeRows(from,to){
+  const L=_ledger(from,to);
+  const pick=k=>{const r=L.rows.find(x=>x.k===k);return r?r.net:0;};
+  const rev=k=>-pick(k), exp=k=>pick(k);
+  const revKeys=_ACCTS.filter(a=>a.t==="rev").map(a=>a.k);
+  const expKeys=_ACCTS.filter(a=>a.t==="exp"&&a.k!=="cogs").map(a=>a.k);
+  const revs=revKeys.map(k=>({k,label:_ACC(k).label,v:rev(k)})).filter(x=>Math.abs(x.v)>0.5);
+  const exps=expKeys.map(k=>({k,label:_ACC(k).label,v:exp(k)})).filter(x=>Math.abs(x.v)>0.5);
+  const totRev=revs.reduce((s,x)=>s+x.v,0);
+  const cogs=exp("cogs");
+  const gross=totRev-cogs;
+  const totExp=exps.reduce((s,x)=>s+x.v,0);
+  return{revs,exps,totRev,cogs,gross,totExp,net:gross-totExp};
+}
+
+/* bad=true: الارتفاع سيّئ (بنود المصروفات) — فيُلوَّن بالعكس،
+   وإلّا بدا نموّ المصروف خبراً ساراً لأنه أخضر. */
+function _cmpCell(now,prev,bad){
+  if(prev===null||prev===undefined)return"";
+  const d=now-prev;
+  if(Math.abs(d)<0.5)return`<span style="font-size:10px;color:var(--paper-3)">= كالسابق</span>`;
+  const pc=Math.abs(prev)>0.5?Math.round(d/Math.abs(prev)*100):null;
+  const up=d>0, good=bad?!up:up;
+  return`<span style="font-size:10px;color:${good?"var(--settled)":"var(--owing)"};font-weight:700">
+    ${up?"▲":"▼"} ${fIQD(Math.abs(d))}${pc!==null?" ("+AR(Math.abs(pc))+"٪)":""}</span>`;
+}
+
+function _incomeHTML(R){
+  if(!R.from&&!R.to)return`<div class="empty-state"><b>اختر فترة</b>قائمة الدخل تحتاج بدايةً ونهاية.</div>`;
+  const N=_incomeRows(R.from,R.to);
+  const P=_acctPrev();
+  const O=P?_incomeRows(P.from,P.to):null;
+  const prevOf=(list,k)=>{if(!O)return null;const x=(list==="rev"?O.revs:O.exps).find(y=>y.k===k);return x?x.v:0;};
+
+  const line=(label,val,prev,opt)=>`<tr${opt&&opt.big?' style="background:var(--ink-200)"':""}>
+      <td style="font-size:${opt&&opt.big?"12px;font-weight:900":"11px"}">${esc(label)}</td>
+      <td style="font-weight:${opt&&opt.big?900:700};color:${opt&&opt.color?opt.color:"var(--paper-1)"}">${fIQD(val)}</td>
+      <td>${O?fIQD(prev||0):"—"}</td>
+      <td>${_cmpCell(val,O?(prev||0):null,!!(opt&&opt.bad))}</td>
+    </tr>`;
+
+  const profit=N.net;
+  return`<div style="background:${profit>=0?"var(--settled-wash)":"var(--owing-wash)"};border:2px solid ${profit>=0?"var(--settled)":"var(--owing)"};border-radius:11px;padding:12px;margin-bottom:10px;text-align:center">
+      <div style="font-size:11px;color:var(--paper-2);margin-bottom:3px">${profit>=0?"صافي ربح":"صافي خسارة"} ${esc(R.label)}</div>
+      <div style="font-size:23px;font-weight:900;color:${profit>=0?"var(--settled)":"var(--owing)"}">${fIQD(profit)}</div>
+      ${O?`<div style="font-size:11px;color:var(--paper-2);margin-top:5px">${esc(P.label)}: <strong>${fIQD(O.net)}</strong> &nbsp; ${_cmpCell(profit,O.net)}</div>`:""}
+    </div>
+    <table class="rtbl"><thead><tr>
+      <th>البند</th><th>${esc(R.label)}</th><th>${O?esc(P.label):"—"}</th><th>الفرق</th>
+    </tr></thead><tbody>
+      <tr class="tot" style="background:var(--ink-200)"><td colspan="4" style="font-weight:900">الإيرادات</td></tr>
+      ${N.revs.map(x=>line(x.label,x.v,prevOf("rev",x.k))).join("")||`<tr><td colspan="4" style="text-align:center;color:var(--paper-3);font-size:11px">لا إيراد في هذه الفترة</td></tr>`}
+      ${line("مجموع الإيرادات",N.totRev,O?O.totRev:null,{big:true})}
+      ${line("− كلفة البضاعة المباعة",N.cogs,O?O.cogs:null,{color:"var(--owing)",bad:true})}
+      ${line("مجمل الربح",N.gross,O?O.gross:null,{big:true,color:N.gross>=0?"var(--settled)":"var(--owing)"})}
+      <tr class="tot" style="background:var(--ink-200)"><td colspan="4" style="font-weight:900">المصروفات</td></tr>
+      ${N.exps.map(x=>line(x.label,x.v,prevOf("exp",x.k),{bad:true})).join("")||`<tr><td colspan="4" style="text-align:center;color:var(--paper-3);font-size:11px">لا مصروف في هذه الفترة</td></tr>`}
+      ${line("مجموع المصروفات",N.totExp,O?O.totExp:null,{big:true,color:"var(--owing)",bad:true})}
+    </tbody>
+    <tfoot><tr class="tot">
+      <td>${profit>=0?"صافي الربح":"صافي الخسارة"}</td>
+      <td style="color:${profit>=0?"var(--settled)":"var(--owing)"}">${fIQD(profit)}</td>
+      <td>${O?fIQD(O.net):"—"}</td><td>${_cmpCell(profit,O?O.net:null)}</td>
+    </tr></tfoot></table>
+    <p style="font-size:11px;color:var(--paper-3);margin-top:9px;line-height:1.8">
+      الأرقام بالاستحقاق لا بالقبض: وصل بيعٍ لم يُقبض ثمنه إيرادٌ في تاريخه،
+      ووصل شراءٍ لم يُدفع كلفةٌ في تاريخه. فلو حُسبت بالقبض لبدا الشهر الذي
+      تُقبض فيه ديون ما قبله شهراً ذهبياً وما قبله خاسراً — وكلاهما كذب.
+    </p>`;
+}
+
+/* ── الطباعة ── */
+function openAcctPrint(){
+  const R=_acctRange();
+  const L=_ledger(R.from,R.to);
+  const N=(R.from||R.to)?_incomeRows(R.from,R.to):null;
+  const d=new Date();const p2=x=>String(x).padStart(2,"0");
+  const nat=(t,v)=>(_ACCT_GROUPS.find(g=>g.t===t)||{sign:1}).sign*v;
+
+  const trial=`<div class="psec">⚖️ ميزان المراجعة</div>
+    <table class="coltbl" style="width:100%;font-size:9px">
+      <thead><tr><th>الحساب</th><th>أول المدة</th><th>مدين</th><th>دائن</th><th>آخر المدة</th></tr></thead>
+      <tbody>${_ACCT_GROUPS.map(g=>{
+        const rows=L.rows.filter(r=>r.t===g.t);
+        if(!rows.length)return"";
+        return`<tr><td colspan="5" style="font-weight:700;background:#F2EDE3">${g.label}</td></tr>`+
+          rows.map(r=>`<tr>
+            <td>${esc(r.label)}</td>
+            <td style="text-align:center">${Math.abs(r.open)>0.5?fIQD(nat(g.t,r.open)):"—"}</td>
+            <td style="text-align:center">${r.d?fIQD(r.d):"—"}</td>
+            <td style="text-align:center">${r.c?fIQD(r.c):"—"}</td>
+            <td style="text-align:center;font-weight:700">${fIQD(nat(g.t,r.close))}</td>
+          </tr>`).join("");
+      }).join("")}</tbody>
+      <tfoot><tr class="ctot">
+        <td style="font-weight:700;padding:5px 4px">المجموع</td><td></td>
+        <td style="text-align:center;font-weight:700">${fIQD(L.dr)}</td>
+        <td style="text-align:center;font-weight:700">${fIQD(L.cr)}</td>
+        <td style="text-align:center;font-weight:700">${Math.abs(L.gap)<0.5?"⚖️ صفر":fIQD(L.gap)}</td>
+      </tr></tfoot>
+    </table>`;
+
+  const inc=!N?"":`<div class="psec">📈 قائمة الدخل</div>
+    <table class="coltbl" style="width:100%;font-size:9px">
+      <tbody>
+        ${N.revs.map(x=>`<tr><td>${esc(x.label)}</td><td style="text-align:center">${fIQD(x.v)}</td></tr>`).join("")}
+        <tr><td style="font-weight:700">مجموع الإيرادات</td><td style="text-align:center;font-weight:700">${fIQD(N.totRev)}</td></tr>
+        <tr><td>− كلفة البضاعة المباعة</td><td style="text-align:center">${fIQD(N.cogs)}</td></tr>
+        <tr><td style="font-weight:700">مجمل الربح</td><td style="text-align:center;font-weight:700">${fIQD(N.gross)}</td></tr>
+        ${N.exps.map(x=>`<tr><td>${esc(x.label)}</td><td style="text-align:center">${fIQD(x.v)}</td></tr>`).join("")}
+        <tr><td style="font-weight:700">مجموع المصروفات</td><td style="text-align:center;font-weight:700">${fIQD(N.totExp)}</td></tr>
+      </tbody>
+      <tfoot><tr class="ctot">
+        <td style="font-weight:700;padding:5px 4px">${N.net>=0?"صافي الربح":"صافي الخسارة"}</td>
+        <td style="text-align:center;font-weight:700">${fIQD(N.net)}</td>
+      </tr></tfoot>
+    </table>`;
+
+  const html=`${COHEAD}
+    <div class="prh" style="background:#33506B">
+      <div class="prhtl">📒 الدفاتر المحاسبية</div>
+      <div class="prhmt">${esc(R.label)}<br/>${tAr(toDay())} ${p2(d.getHours())+":"+p2(d.getMinutes())}</div>
+    </div>
+    <div class="prb">${trial}${inc}</div>
+    ${COFTR}`;
+  _printHTML=html;_isCollScreen=false;
+  document.getElementById("pactTitle").textContent="📒 الدفاتر المحاسبية — "+R.label;
+  document.getElementById("PC").innerHTML=html;
+  document.getElementById("PS").classList.add("active");
+  try{history.pushState({page:"app"},"","");}catch(e){}
 }
 
 /* ══════════════════════════════════════════════════════
@@ -18150,6 +18370,8 @@ document.addEventListener("keydown", function(e){
       </p>
       <div class="ptbs" id="acctViews" style="margin-bottom:10px">
         <button class="ptb active" onclick="sAcctView('journal',this)">📖 دفتر اليومية</button>
+        <button class="ptb" onclick="sAcctView('trial',this)">⚖️ ميزان المراجعة</button>
+        <button class="ptb" onclick="sAcctView('income',this)">📈 قائمة الدخل</button>
       </div>
       <div class="ptbs" id="acctPer" style="margin-bottom:10px">
         <button class="ptb" onclick="sAcctPeriod('day',this)">يومي</button>
@@ -18167,9 +18389,12 @@ document.addEventListener("keydown", function(e){
         <span class="fl2">إلى:</span>
         <input class="fs2" id="acctTo" type="date" onchange="renderAcct()" style="min-width:130px" autocomplete="off" data-lpignore="true">
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <div id="acctSrchBox" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <input class="fs2" id="acctSrch" type="text" placeholder="🔍 بحث بالطرف أو العملية..." oninput="renderAcct()" style="flex:1;min-width:160px" autocomplete="off" data-lpignore="true">
         <button class="btn bgh bsm" onclick="clrAcctF()">× مسح</button>
+      </div>
+      <div style="margin-bottom:10px">
+        <button class="btn bg bsm" onclick="openAcctPrint()">🖨️ طباعة الميزان وقائمة الدخل</button>
       </div>
       <div id="acctHead"></div>
       <div class="rtwrap" id="acctBody"></div>

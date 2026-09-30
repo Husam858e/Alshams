@@ -11,7 +11,19 @@ const { chromium } = require('playwright-core');
   await p.evaluate(()=>{S.su=USERS[0];S.pin=USERS[0].pin;doLogin();});
   await p.waitForTimeout(600);
 
+  /* انتظر تسجيل مستمعي فايربيس قبل فصلها: التهيئة غير متزامنة،
+     وفصلٌ قبل التسجيل لا يمنع لقطةً تصل بعده فتمحو بيانات الاختبار. */
+  await p.waitForFunction(()=>dbRefClosures!==null,null,{timeout:15000}).catch(()=>{});
+
   const r = await p.evaluate(()=>{
+    /* فصل مستمعي فايربيس أولاً: لقطةٌ متأخرة تستبدل المصفوفات
+       التي يبنيها الاختبار فتفشل الفحوص عشوائياً — لا لخللٍ في
+       التطبيق. ويُنتظر تسجيل المستمعين أولاً، فالتهيئة غير
+       متزامنة وقد تسجّلهم بعد الفصل فيعودون. */
+    [dbRef,dbRefSell,dbRefDam,dbRefSrf,dbRefWrk,dbRefMnl,dbRefArb,dbRefOut,
+     dbRefEmp,dbRefSal,dbRefAdv,dbRefEmpTxn,dbRefAudit,dbRefClosures]
+      .forEach(r=>{try{r&&r.off&&r.off();}catch(e){}});
+    try{db&&db.ref&&db.ref().off();}catch(e){}
     db=null;
     S.recs=[];SELL_RECS=[];OUT_RECS=[];MNL_RECS=[];SRF_RECS=[];WRK_RECS=[];
     DAM_RECS=[];SAL_RECS=[];ADV_RECS=[];EMP_TXNS=[];CASH_MOVES=[];CASH_COUNTS=[];
