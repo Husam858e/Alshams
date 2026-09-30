@@ -1828,11 +1828,18 @@ function closeMonth(){
   renderAuditTab();
 }
 
+/* ملاحظة: كان هذا يستعمل prompt() — وهي لا تعمل في غلاف Electron
+   إطلاقاً (تُرجع بلا نافذة)، فكان الفتح يفشل صامتاً على سطح المكتب.
+   الآن السبب والرمز في نافذة واحدة من نوافذ التطبيق نفسها. */
 function reopenMonth(m){
-  const c=_closureOf(m); if(!c)return;
-  const why=prompt("سبب فتح "+_closureLabel(m)+" — يُسجَّل في سجلّ التدقيق:","");
-  if(why===null)return;
-  if(!String(why).trim()){showToast("⚠ اكتب السبب");return;}
+  if(!_closureOf(m))return;
+  _askDanger("فتح فترة مغلقة",
+    `سيُرفع الختم عن <strong>${esc(_closureLabel(m))}</strong> فتُقبل فيه التعديلات مجدداً — وقد تكون مجاميعه طُبعت وسُلّمت.`,
+    why=>_reopenMonthNow(m,why),
+    {reason:"سبب الفتح — يُسجَّل في سجلّ التدقيق"});
+}
+function _reopenMonthNow(m,why){
+  if(!_closureOf(m))return;
   CLOSURES=CLOSURES.filter(x=>x&&x.month!==m);
   try{localStorage.setItem("wShamsClosures",JSON.stringify(CLOSURES));}catch(e){}
   _fbWrite("closures",m,null);
@@ -9098,6 +9105,13 @@ function _dsDelete(d,id){
 ══════════════════════════════════════════════════════ */
 function toolsRestore(mode){
   if(!_restorePayload){showToast("⚠ اختر ملف النسخة أولاً");return;}
+  _askDanger("استعادة نسخة احتياطية",
+    mode==="replace"
+      ? "الاستبدال يكتب فوق بياناتك الحالية <strong>ويحذف</strong> ما ليس في النسخة."
+      : "الدمج يكتب فوق السجلات المتطابقة المعرّف.",
+    ()=>_toolsRestoreNow(mode));
+}
+function _toolsRestoreNow(mode){
 
   // احسب أثر العملية قبل تنفيذها — ثم اعرضه في التأكيد
   const plan=[];
@@ -10441,8 +10455,85 @@ function restoreFromTrash(i){
   showToast("↩️ تم استرجاع السجل إلى "+d.label);
   renderTrash();renderToolsStatus();
 }
+/* ══════════════════════════════════════════════════════════════
+   حارس العمليات الكارثية — v17.69
+   ──────────────────────────────────────────────────────────────
+   لا نظام أدوار هنا، ولا حاجة إليه: مستخدم واحد يعمل على النظام.
+   والمطلوب منعُ الخطأ لا منعُ شخص.
+
+   ولذلك لا يُحرس كل حذف: حذف سجل فردي يذهب إلى سلة المحذوفات
+   ويُسجَّل في التدقيق، فهو قابل للرجوع ومعروف فاعله — حراسته
+   إثقالٌ بلا مقابل، والإثقال بلا مقابل يُعلّم المستخدم أن يضغط
+   «موافق» بلا قراءة، فيضعف الحارس حيث يلزم فعلاً.
+
+   الكارثي ثلاثة لا رجعة فيها:
+     ① استعادة نسخة احتياطية — تكتب فوق كل شيء دفعةً واحدة.
+     ② فتح فترة مغلقة — يرفع ختماً عن شهرٍ طُبعت مجاميعه وسُلّمت.
+     ③ إفراغ سلة المحذوفات — يُزيل آخر طريق للرجوع.
+
+   وهذه الثلاثة يحرسها رمز الدخول نفسه: يعرفه صاحب العمل ولا
+   يُكتب في الملف، ولا يُطلب إلا عند الحافة.
+══════════════════════════════════════════════════════════════ */
+let _dangerPending=null;
+
+/* opts.reason: نصّ التسمية — عندها يُطلب سبب مكتوب ويُمرَّر إلى fn */
+function _askDanger(title,detail,fn,opts){
+  opts=opts||{};
+  const box=document.getElementById("dgWhyBox");
+  const why=document.getElementById("dgWhy");
+  if(box&&why){
+    if(opts.reason){
+      document.getElementById("dgWhyLbl").textContent=opts.reason;
+      why.value=""; box.style.display="block";
+    } else box.style.display="none";
+  }
+  /* لا رمز للمستخدم — لا حارس، لكن السبب يبقى مطلوباً إن طُلب */
+  if(!S.cu||!S.cu.pin){
+    if(!opts.reason){fn();return;}
+  }
+  _dangerPending={fn,reason:!!opts.reason,free:!(S.cu&&S.cu.pin)};
+  document.getElementById("dgTitle").textContent=title;
+  document.getElementById("dgTxt").innerHTML=detail;
+  const inp=document.getElementById("dgPin");
+  inp.value="";
+  inp.parentNode.style.display=_dangerPending.free?"none":"block";
+  document.getElementById("dgErr").style.display="none";
+  document.getElementById("mDanger").classList.add("active");
+  const first=opts.reason?why:inp;
+  setTimeout(()=>{try{first.focus();}catch(e){}},120);
+}
+
+function _confirmDanger(){
+  const p=_dangerPending; if(!p)return;
+  const inp=document.getElementById("dgPin");
+  const err=document.getElementById("dgErr");
+  const fail=msg=>{err.textContent=msg;err.style.display="block";};
+
+  let why="";
+  if(p.reason){
+    why=String(document.getElementById("dgWhy").value||"").trim();
+    if(!why){
+      fail("⚠ اكتب السبب — يُسجَّل في سجلّ التدقيق");
+      try{document.getElementById("dgWhy").focus();}catch(e){}
+      return;
+    }
+  }
+  if(!p.free&&String(inp.value||"")!==String(S.cu&&S.cu.pin)){
+    fail("⛔ الرمز غير صحيح");
+    inp.value=""; try{inp.focus();}catch(e){}
+    return;
+  }
+  _dangerPending=null;
+  closeM();
+  if(typeof p.fn==="function")p.fn(why);
+}
+
 function clearTrash(){
-  if(!confirm("إفراغ سلة المحذوفات نهائياً؟"))return;
+  _askDanger("إفراغ سلة المحذوفات",
+    `ستُزال <strong>${AR(TRASH.length)}</strong> عملية محذوفة نهائياً — وهي آخر طريق لاسترجاعها.`,
+    _clearTrashNow);
+}
+function _clearTrashNow(){
   TRASH=[];
   try{localStorage.removeItem(_TRASHK);}catch(e){}
   renderTrash();
@@ -19936,6 +20027,31 @@ document.addEventListener("keydown", function(e){
       <div style="background:var(--owing-wash);border:2px solid var(--owing);border-radius:9px;padding:10px;margin:10px 0;font-size:12px;color:var(--owing);font-weight:700;">⚠ لا يمكن التراجع عن الحذف</div>
       <div class="mbtns">
         <button class="btn" style="flex:1;justify-content:center;background:var(--owing);color:#fff" onclick="confirmOutDel()">🗑️ حذف نهائي</button>
+        <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- حارس العمليات الخطرة — رمز الدخول عند الحافة -->
+  <div class="mo" id="mDanger">
+    <div class="mob" style="max-width:400px">
+      <div class="mico">🔐</div>
+      <div class="mtit" id="dgTitle" style="color:var(--owing);text-align:center"></div>
+      <p class="mtxt" id="dgTxt" style="text-align:center"></p>
+      <div id="dgWhyBox" style="display:none;margin-top:10px">
+        <label class="fl" id="dgWhyLbl">السبب</label>
+        <textarea class="fi" id="dgWhy" rows="2" style="resize:vertical" placeholder="يُسجَّل في سجلّ التدقيق" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"></textarea>
+      </div>
+      <div style="margin-top:10px">
+        <label class="fl">رمز دخولك</label>
+        <input class="fi" id="dgPin" type="password" inputmode="numeric" maxlength="8" dir="ltr"
+               style="text-align:center;letter-spacing:8px;font-size:18px;font-weight:800"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();_confirmDanger();}"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+      </div>
+      <div id="dgErr" style="display:none;background:var(--owing-wash);border:2px solid var(--owing);border-radius:9px;padding:9px;margin-top:10px;font-size:12px;color:var(--owing);font-weight:700;text-align:center"></div>
+      <div class="mbtns">
+        <button class="btn" style="flex:1;justify-content:center;background:var(--owing);color:#fff" onclick="_confirmDanger()">🔓 تأكيد التنفيذ</button>
         <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إلغاء</button>
       </div>
     </div>
