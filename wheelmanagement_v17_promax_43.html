@@ -14357,24 +14357,109 @@ ${WHS.map(w=>`"${w}" = ${whTitle(w)}`).join('، ')}
 أنت: <<<QUERY>>>{"source":"all","name":"ابو خطاب","unpaid":true}<<<END>>>
 (تصل النتيجة) ثم: "ابو خطاب له ٣ وصولات شراء غير مسدَّدة بمجموع ٤٫٢ مليون د.ع."`;
 }
+/* ══════════════════════════════════════════════════════════════
+   أسماء النماذج تُسأل عنها المزوّدون — v17.72
+   ──────────────────────────────────────────────────────────────
+   عطلٌ حقيقي: ثلاثة مفاتيح سليمة محفوظة، والمساعد يردّ «امتلأت
+   حصص المزوّدين». والسبب غير ذلك تماماً — أسماء النماذج كانت
+   مكتوبة في هذا الملف، وكتالوج المزوّدين يتبدّل بلا إذن أحد:
+
+     · OpenRouter حذف نموذجيه المجانيين — لم يعد لهما وجود أصلاً.
+     · Google حصرت نماذج 2.5 بمن استعملها قبل الحصر، فالمفتاح
+       الجديد يُرفض وإن كان صحيحاً.
+     · Cerebras استبدل zai-glm-4.7.
+
+   فيفشل الجميع، والرسالة تتّهم الحصص — فيزيد المستخدم مفاتيح
+   ولا يتغيّر شيء، لأن العلّة ليست في المفاتيح.
+
+   العلاج طبقتان:
+   ① يُسأل المزوّد عن نماذجه المتاحة فعلاً (مرة كل يوم، مخزَّنة
+     محلياً)، والقائمة المكتوبة احتياطٌ وحدها. فدوران الكتالوج
+     يُصلح نفسه بلا تحديث للملف.
+   ② الرسالة تنقل ما قاله كل مزوّد بنصّه ورمزه، ولا تُخمّن سبباً.
+══════════════════════════════════════════════════════════════ */
 const _AI_PROVIDERS=[
   {id:"gemini", name:"Google Gemini", ks:"ai_key_gemini", pfx:"AIza",
-   url:"https://console.cloud.google.com/apis/credentials",
-   note:"الأسخى — ~١٥٠٠ طلب يومياً، بلا بطاقة",
-   models:["gemini-2.5-flash","gemini-2.5-flash-lite"], big:true},
+   url:"https://aistudio.google.com/apikey",
+   note:"الأسخى — حصّة يومية كبيرة، بلا بطاقة",
+   models:["gemini-3.5-flash-lite","gemini-3.8-flash","gemini-2.5-flash"],
+   like:/flash/i, big:true},
   {id:"groq", name:"Groq", ks:"ai_key", pfx:"gsk_",
    url:"https://console.groq.com/keys",
    note:"الأسرع — ~٣٠ طلب/دقيقة، بلا بطاقة",
-   models:["llama-3.3-70b-versatile","llama-3.1-8b-instant"]},
+   models:["llama-3.3-70b-versatile","llama-3.1-8b-instant","openai/gpt-oss-20b"],
+   like:/llama|gpt-oss|qwen/i},
   {id:"cerebras", name:"Cerebras", ks:"ai_key_cerebras", pfx:"csk-",
    url:"https://cloud.cerebras.ai",
    note:"حصّة رموز يومية كبيرة",
-   models:["gpt-oss-120b","zai-glm-4.7"]},
+   models:["gpt-oss-120b","qwen-3.8-27b"],
+   like:/gpt-oss|qwen|llama/i},
   {id:"openrouter", name:"OpenRouter", ks:"ai_key_or", pfx:"sk-or-",
    url:"https://openrouter.ai/keys",
    note:"احتياط — نماذج مجانية متعددة",
-   models:["meta-llama/llama-3.3-70b-instruct:free","deepseek/deepseek-chat:free"]},
+   models:[],                      // مجانيّات OpenRouter تدور كثيراً: تُكتشف دائماً
+   like:/:free$/, free:true},
 ];
+
+/* ── اكتشاف النماذج المتاحة عند المزوّد ── */
+const _AI_MODELS_TTL=24*60*60*1000;
+const _aiMK=p=>"ai_models_"+p.id;
+
+/* ما لا يصلح للمحادثة مهما ورد في القائمة */
+const _AI_SKIP=/embed|embedding|whisper|tts|audio|image|imagen|veo|vision|guard|safety|moderat|rerank|aqa|prompt-guard|live/i;
+
+function _aiCachedModels(p){
+  try{
+    const c=JSON.parse(localStorage.getItem(_aiMK(p))||"null");
+    if(c&&Array.isArray(c.ids)&&c.ids.length&&Date.now()-c.at<_AI_MODELS_TTL)return c.ids;
+  }catch(e){}
+  return null;
+}
+
+async function _aiFetchModels(p){
+  const k=_aiKeyOf(p);
+  let url,headers={};
+  if(p.id==="gemini")      url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key="+encodeURIComponent(k);
+  else if(p.id==="openrouter") url="https://openrouter.ai/api/v1/models";
+  else{
+    url={groq:"https://api.groq.com/openai/v1/models",
+         cerebras:"https://api.cerebras.ai/v1/models"}[p.id];
+    headers={Authorization:"Bearer "+k};
+  }
+  if(!url)return [];
+  const res=await fetch(url,{headers});
+  const d=await res.json();
+  if(d&&d.error)throw Object.assign(new Error(d.error.message||"خطأ"),{status:d.error.code||res.status});
+  let ids=[];
+  if(p.id==="gemini"){
+    ids=(d.models||[])
+      .filter(m=>(m.supportedGenerationMethods||[]).indexOf("generateContent")>=0)
+      .map(m=>String(m.name||"").replace(/^models\//,""));
+  } else ids=(d.data||[]).map(m=>String(m.id||""));
+  return ids.filter(Boolean).filter(x=>!_AI_SKIP.test(x));
+}
+
+/* القائمة التي تُجرَّب: المكتوبة إن كانت موجودة فعلاً، ثم المكتشفة */
+function _aiRank(p,live){
+  const set=new Set(live);
+  const out=(p.models||[]).filter(m=>set.has(m));
+  live.filter(x=>p.like.test(x)&&out.indexOf(x)<0).forEach(x=>out.push(x));
+  return out.slice(0,4);
+}
+
+async function _aiModels(p){
+  const c=_aiCachedModels(p);
+  if(c)return c;
+  try{
+    const live=await _aiFetchModels(p);
+    const ids=_aiRank(p,live);
+    if(ids.length){
+      try{localStorage.setItem(_aiMK(p),JSON.stringify({at:Date.now(),ids}));}catch(e){}
+      return ids;
+    }
+  }catch(e){ /* الاكتشاف تعذّر — المكتوبة تكفي */ }
+  return (p.models||[]).slice();
+}
 const _aiKeyOf=p=>(localStorage.getItem(p.ks)||"").trim();
 /* v17.47 — بقية كتابات التخزين في التطبيق محميّة، وهاتان لم تكونا.
    في نافذة التصفّح الخاصّ أو حين يمنع المتصفح بيانات الموقع يرمي
@@ -14422,16 +14507,27 @@ async function _aiCall(prov,model,sys,history){
   return d?.choices?.[0]?.message?.content||"";
 }
 
-/* هل الخطأ سببه امتلاء الحصّة أو اختفاء النموذج؟ */
-function _aiIsLimit(e){
-  const m=(e.message||"").toLowerCase(), s=e.status;
-  return s===429||s===503||m.includes("rate")||m.includes("quota")||m.includes("limit")
-      ||m.includes("overload")||m.includes("capacity");
-}
+/* هل الخطأ سببه امتلاء الحصّة أو اختفاء النموذج؟
+
+   ⚠️ الفخّ الذي أطال العطل: المطابقة كانت بـ includes("rate")،
+   و«gene**rate**Content» تحوي «rate». فكل خطأ ٤٠٤ من Gemini —
+   وهو «النموذج غير موجود» — كان يُقرأ «امتلأت الحصّة»، فتظهر
+   الرسالة التي تطلب الانتظار أو إضافة مفتاح، والمفتاح سليم
+   والحصّة فارغة والنموذج وحده هو المفقود.
+
+   فالمطابقة الآن بكلماتٍ محدودة، و«اختفى» تُفحص قبل «امتلأت»
+   لأن ٤٠٤ لا تكون حصّةً أبداً. */
+const _AI_RE_LIMIT=/\brate[ _-]?limit|\bquota\b|too many requests|resource[_ ]?exhausted|\boverload|\bcapacity\b|daily limit|limit reached|limit exceeded/i;
+const _AI_RE_GONE=/decommission|not found|no longer|deprecated|does not exist|no endpoints|unknown model|unsupported|not supported/i;
+
 function _aiIsGone(e){
-  const m=(e.message||"").toLowerCase(), s=e.status;
-  return s===404||m.includes("decommission")||m.includes("not found")
-      ||m.includes("no longer")||m.includes("deprecated")||m.includes("does not exist");
+  const m=e.message||"", s=e.status;
+  return s===404||_AI_RE_GONE.test(m);
+}
+function _aiIsLimit(e){
+  if(_aiIsGone(e))return false;
+  const m=e.message||"", s=e.status;
+  return s===429||s===503||_AI_RE_LIMIT.test(m);
 }
 function _aiIsBadKey(e){
   const m=(e.message||"").toLowerCase(), s=e.status;
@@ -14445,6 +14541,67 @@ function _aiIsBadKey(e){
 }
 
 let _modelIdx=0;
+
+/* ── رسالة الفشل: ما قاله كل مزوّد، لا جملة واحدة تُخمّن ──
+   الرسالة القديمة كانت تقول «امتلأت الحصص» مهما كان السبب،
+   فيزيد المستخدم مفاتيح ولا يتغيّر شيء لأن العلّة في مكان آخر. */
+const _AI_FAIL_LBL={limit:"⏳ امتلأت الحصّة",key:"🔑 المفتاح مرفوض",
+                    gone:"📭 لا نموذج متاح",err:"⚠️ خطأ"};
+/* نصٌّ صِرف لا HTML: ‎_aiAppend‎ يُهرّب ما يصله عمداً — وهو حارسٌ
+   يمنع ردّ النموذج من أن يُحقن في الصفحة، فلا يُثقب من أجل رسالة. */
+function _aiFailText(fails){
+  if(!fails.length)return "⚠️ لا مزوّد مُفعَّل. أضف مفتاحاً من ⚙️ المزوّدون.";
+  const allLimit=fails.every(f=>f.kind==="limit");
+  const lines=fails.map(f=>
+    "• **"+f.p.name+"** — "+(_AI_FAIL_LBL[f.kind]||"")+
+    (f.model?" ("+f.model+")":"")+"\n  "+String(f.msg||"").slice(0,160));
+  return (allLimit
+    ? "⏳ امتلأت حصص كل المزوّدين مؤقتاً — انتظر دقيقة، أو أضف مفتاحاً آخر من ⚙️.\n"
+    : "⚠️ لم يُجب أي مزوّد. هذا ما قاله كلٌّ منهم:\n")
+    +lines.join("\n")
+    +(allLimit?"":"\n\nإن كان السبب «لا نموذج متاح» فكتالوج المزوّد تبدّل — "+
+                  "اضغط **🧪 اختبار المزوّدين** في ⚙️ ليُحدَّث من المصدر.");
+}
+
+/* ── اختبار المزوّدين: نداءٌ حقيقي يقول أين يقف العطل بالضبط ── */
+async function aiTestProviders(){
+  const box=document.getElementById("aiTestRes");
+  if(!box)return;
+  const act=_aiActive();
+  if(!act.length){box.innerHTML=`<div style="color:var(--owing);font-size:11px">أضف مفتاحاً واحداً على الأقل.</div>`;return;}
+  box.innerHTML=`<div style="font-size:11px;color:var(--paper-3)">⏳ جارٍ الاختبار…</div>`;
+  const rows=[];
+  for(const p of act){
+    try{localStorage.removeItem(_aiMK(p));}catch(e){}   // اسأل المصدر لا الكاش
+    let models=[],lerr=null;
+    try{ models=_aiRank(p,await _aiFetchModels(p)); }
+    catch(e){ lerr=e; }
+    if(!models.length)models=(p.models||[]).slice();
+    if(!models.length){
+      rows.push({p,ok:false,t:"لا نموذج",d:(lerr&&lerr.message)||"المزوّد لم يُرجِع قائمة"});
+      continue;
+    }
+    let ok=false,err=null,used="";
+    for(const m of models){
+      try{
+        await _aiCall(p,m,"أجب بحرف واحد.",[{role:"user",content:"مرحبا"}]);
+        ok=true;used=m;break;
+      }catch(e){ err=e; if(_aiIsGone(e))continue; break; }
+    }
+    if(ok){
+      try{localStorage.setItem(_aiMK(p),JSON.stringify({at:Date.now(),ids:models}));}catch(e){}
+      delete _aiCooldown[p.id];
+    }
+    rows.push({p,ok,t:ok?used:(_aiIsGone(err)?"لا نموذج متاح":_aiIsLimit(err)?"الحصّة ممتلئة"
+                              :_aiIsBadKey(err)?"المفتاح مرفوض":"فشل"),
+               d:ok?("النماذج المتاحة: "+models.join(" · ")):((err&&err.message)||"—")});
+  }
+  box.innerHTML=rows.map(r=>`<div style="border:1px solid ${r.ok?'var(--settled)':'var(--owing)'};border-radius:8px;padding:7px;margin-top:5px">
+      <div style="font-size:11px;font-weight:700;color:${r.ok?'var(--settled)':'var(--owing)'}">
+        ${r.ok?"✅":"✗"} ${esc(r.p.name)} — ${esc(r.t)}</div>
+      <div style="font-size:10px;color:var(--paper-3);line-height:1.6;margin-top:2px">${esc(String(r.d).slice(0,200))}</div>
+    </div>`).join("");
+}
 
 async function _aiSend(){
   if(_aiThinking)return;
@@ -14464,34 +14621,53 @@ async function _aiSend(){
    ثم نطلب منه الإجابة بما لديه — حتى لا يدور بلا نهاية. */
 async function _aiRun(msg,round){
   const sys=_aiContext(msg);
-  let raw="",lastErr=null,used=null;
+  let raw="",used=null;
+  const fails=[];                 // ما قاله كل مزوّد بنصّه — لا تخمين
   const provs=_aiReady().length?_aiReady():_aiActive();
   outer:
   for(const p of provs){
-    for(const model of p.models){
+    const models=await _aiModels(p);
+    if(!models.length){
+      fails.push({p,kind:"gone",msg:"لم يُرجِع المزوّد أي نموذج صالح للمحادثة"});
+      continue;
+    }
+    let last=null;
+    for(const model of models){
       try{
         raw=await _aiCall(p,model,sys,_aiHistory.slice(-8));
+        /* ردٌّ فارغ ليس نجاحاً: بعض النماذج تُنهي على «تفكير» بلا نصّ،
+           وكان يُعدّ جواباً فتظهر فقاعةٌ خالية ولا يُجرَّب غيره. */
+        if(!String(raw||"").trim())
+          throw Object.assign(new Error("ردٌّ فارغ من النموذج"),{status:0,empty:true});
         used=p; break outer;
       }catch(e){
-        lastErr=e;
+        last=e;
+        if(e.empty)continue;            // جرّب نموذجاً آخر عند المزوّد نفسه
+        /* نموذج اختفى أو مُنع: أسقط الكاش وجرّب التالي عند نفس المزوّد */
+        if(_aiIsGone(e)){try{localStorage.removeItem(_aiMK(p));}catch(x){}continue;}
         /* الترتيب مقصود: الحصّة تُفحص قبل المفتاح حتى لا يُحذف مفتاح سليم */
-        if(_aiIsLimit(e)){_aiCooldown[p.id]=Date.now()+60000;continue outer;}
+        if(_aiIsLimit(e)){
+          _aiCooldown[p.id]=Date.now()+60000;
+          fails.push({p,kind:"limit",msg:e.message||"امتلأت الحصّة",model});
+          continue outer;
+        }
         if(_aiIsBadKey(e)){
           _aiSetKey(p,"");
+          try{localStorage.removeItem(_aiMK(p));}catch(x){}
+          fails.push({p,kind:"key",msg:e.message||"مفتاح غير مقبول",model});
           _aiAppend("a",`⚠️ مفتاح ${p.name} غير صحيح — أُزيل. أضف مفتاحاً جديداً من ⚙️ المزوّدون.`);
           continue outer;
         }
-        if(_aiIsGone(e))continue;      // نموذج اختفى — جرّب التالي عند نفس المزوّد
+        fails.push({p,kind:"err",msg:e.message||"تعذّر الاتصال",model});
         continue outer;
       }
     }
+    if(!used&&last&&!fails.some(f=>f.p===p))
+      fails.push({p,kind:"gone",msg:last.message||"لم يقبل المزوّد أياً من نماذجه",model:models[0]});
   }
   if(!used){
     _aiSetThinking(false);
-    const busy=Object.keys(_aiCooldown).some(k=>_aiCooldown[k]>Date.now());
-    _aiAppend("a", busy
-      ? "⏳ امتلأت حصص المزوّدين المتاحين مؤقتاً. انتظر دقيقة، أو أضف مفتاح مزوّد آخر من ⚙️ لرفع السقف."
-      : "⚠️ "+((lastErr&&lastErr.message)||"تعذّر الاتصال. تحقّق من الإنترنت."));
+    _aiAppend("a",_aiFailText(fails));
     return;
   }
 
@@ -14567,6 +14743,12 @@ function _aiShowKeySetup(){
   div.innerHTML=`🔑 <strong>مزوّدو المساعد</strong><br>
 <span style="font-size:11px;color:var(--paper-3)">يكفي مفتاح واحد. كل مفتاح تضيفه يرفع السقف اليومي — حين يمتلئ سقف مزوّد ينتقل السؤال للتالي تلقائياً.</span><br><br>
 ${rows}
+<button onclick="aiTestProviders()" style="width:100%;padding:8px;border-radius:8px;background:var(--steel);color:#fff;border:none;font-size:11px;cursor:pointer;font-weight:700;margin-top:4px">🧪 اختبار المزوّدين — يقول أين يقف العطل</button>
+<div style="font-size:10px;color:var(--paper-3);line-height:1.6;margin-top:4px">
+  يسأل كل مزوّد عن نماذجه المتاحة اليوم ثم يُجري نداءً حقيقياً. أسماء النماذج
+  تتبدّل عند المزوّدين بلا إشعار، وهذا يُحدّثها من المصدر.
+</div>
+<div id="aiTestRes"></div>
 <div style="border:1px solid var(--owing);border-radius:9px;padding:8px;margin-top:8px;background:rgba(168,69,58,.08)">
   <div style="font-size:11px;font-weight:700;color:var(--owing);margin-bottom:3px">⚠️ تنبيه خصوصية مهم</div>
   <div style="font-size:10px;color:var(--paper-2);line-height:1.6">
