@@ -1448,21 +1448,65 @@ function _updQueueBadge(){
    أعلنّا الخطأ مرة واحدة لا مرة لكل عملية.
 ══════════════════════════════════════════════════════════════ */
 
+/* ══ لماذا لم تكفِ التسوية أوّل مرة — v17.71 ══
+   بقي ١٣٠ قيداً عالقاً رغم زرّ التسوية، لسببين في المقارنة:
+
+   ① فايربيس **لا يحفظ** null ولا كائناً فارغاً ولا مصفوفة
+      فارغة — يحذف المفتاح أصلاً. فما يعود من السيرفر أقلُّ
+      حقولاً ممّا أُرسل وإن وصل سليماً، فتفشل المطابقة الحرفية
+      ويبدو الواصلُ غيرَ واصل.
+   ② المصفوفة تعود أحياناً كائناً بمفاتيح "0","1" — نفس القيمة
+      بتمثيلٍ آخر، والمقارنة النصّية تراهما مختلفين.
+
+   والأهمّ من هذا كلّه: **سجلّ التدقيق للإضافة فقط**. قيدٌ موجود
+   على السيرفر لا يمكن إعادة كتابته أبداً — القاعدة ترفض بحقّ.
+   فمطالبته بالتطابق الحرفي قبل إزالته من الطابور حَبسٌ أبدي:
+   كل محاولة تُرفض، والعدّاد يرتفع، والرسالة تقول «العقدة ناقصة
+   من القواعد» وهي ليست ناقصة. الوجود وحده كافٍ هنا. */
+const _isAppendOnly=n=>n===_AUDIT_NODE;
+
+/* ما يحفظه فايربيس فعلاً من قيمة: يُسقط null والفارغ */
+function _fbStored(v){
+  if(v===null||v===undefined)return undefined;
+  if(typeof v!=="object")return v;
+  const out={}; let n=0;
+  Object.keys(v).forEach(k=>{
+    const x=_fbStored(v[k]);
+    if(x===undefined)return;
+    out[k]=x; n++;
+  });
+  return n?out:undefined;
+}
+
 /* تمثيل قانوني للمقارنة: ترتيب المفاتيح لا يُعوَّل عليه، فالسيرفر
-   قد يُعيدها بترتيب غير الذي أُرسلت به. */
+   قد يُعيدها بترتيب غير الذي أُرسلت به — والمصفوفة ككائن مفهرس
+   كي لا يختلف التمثيلان على قيمةٍ واحدة. */
 function _canonJSON(v){
   if(v===null||v===undefined)return "null";
   if(typeof v!=="object")return JSON.stringify(v);
-  if(Array.isArray(v))return "["+v.map(_canonJSON).join(",")+"]";
-  return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+_canonJSON(v[k])).join(",")+"}";
+  return "{"+Object.keys(v).sort().map(k=>JSON.stringify(String(k))+":"+_canonJSON(v[k])).join(",")+"}";
+}
+
+/* نجاح كتابة: يُزال من الطابور، ويُمحى إنذار الرفض عن عقدته.
+   كان الإنذار يبقى معروضاً بعد إصلاح القواعد — «مرفوض: سجلّ
+   التدقيق» وعدّادٌ قديم — فيظنّ المستخدم أن شيئاً لم يتغيّر. */
+function _fbWriteOk(node,id){
+  _dequeueWrite(node,id);
+  if(_fbDenied.delete(node)&&!_fbDenied.size){
+    _fbLastErr=null;
+    const d=document.getElementById("syncDot");
+    if(d){d.style.background="var(--settled)";d.title="";}
+  }
 }
 
 /* هل هذه العملية تمّت فعلاً على السيرفر؟ */
 function _reconcileQueued(w){
   if(!db)return Promise.resolve(false);
   return db.ref(w.node).child(w.id).once("value").then(sn=>{
-    const done = w.op==="del" ? !sn.exists()
-               : (sn.exists() && _canonJSON(sn.val())===_canonJSON(w.data));
+    let done;
+    if(w.op==="del")           done=!sn.exists();
+    else if(_isAppendOnly(w.node)) done=sn.exists();
+    else done=sn.exists()&&_canonJSON(sn.val())===_canonJSON(_fbStored(w.data));
     if(done)_dequeueWrite(w.node,w.id);
     return done;
   }).catch(()=>false);
@@ -1476,7 +1520,7 @@ function _flushQueue(){
     try{
       const ref=db.ref(w.node).child(w.id);
       const p=w.op==="del"?ref.remove():ref.set(w.data);
-      p.then(()=>_dequeueWrite(w.node,w.id))
+      p.then(()=>_fbWriteOk(w.node,w.id))
        .catch(err=>{
          _reconcileQueued(w).then(done=>{
            if(!done&&!reported){reported=true;_fbReportWriteError(err,w.node);}
@@ -1616,11 +1660,14 @@ function _fbWrite(node,id,data,onLocal){
   try{
     const ref=db.ref(node).child(id);
     const p=safe===null?ref.remove():ref.set(safe);
-    p.then(()=>{_dequeueWrite(node,id);syncBar(false);_fbLastErr=null;})
+    p.then(()=>{_fbWriteOk(node,id);syncBar(false);})
      .catch(err=>{
        syncBar(false);
        console.warn("fb write failed:",node,id,err);
-       _fbReportWriteError(err,node);
+       /* اسأل السيرفر قبل الإعلان: قد تكون العملية واصلةً أصلاً
+          (سجلّ التدقيق خاصةً)، فالرفض حينها صحيح لا عطل. */
+       _reconcileQueued({node,id,data:safe,op:safe===null?"del":"set"})
+         .then(done=>{if(!done)_fbReportWriteError(err,node);});
      });
   }catch(err){
     syncBar(false);
