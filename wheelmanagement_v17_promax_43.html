@@ -1395,6 +1395,61 @@ function _scheduleRender(fn){
 /* هل التبويب المعروض حالياً هو المطلوب؟ (تجنّب رسم تبويبات مخفية) */
 function _tabActive(id){return !!document.getElementById("tc-"+id)?.classList.contains("active");}
 
+/* ══════════════════════════════════════════════════════════════
+   وضع الدفعة — v17.73
+   ──────────────────────────────────────────────────────────────
+   عطلٌ حقيقي: «سدّد شهر ٧ كاملاً» (١٢٠٠ وصل) كان يُجمّد التطبيق
+   واحدةً وخمسين ثانية على حاسوب، ودقائق على الهاتف — فيقتل
+   المتصفحُ الصفحةَ ويبدو أن النظام سقط.
+
+   والسبب ليس فايربيس ولا الشبكة: كلُّ حفظٍ واحد كان يُرتّب
+   مصفوفة السجلات كاملةً ويُسلسلها ويكتبها في التخزين المحلي.
+   فمع ١٢٠٠ وصلاً صار ذلك ١٢٠٠ مرة × سبعمئة كيلوبايت — نحو
+   غيغابايت من النصّ، كلُّه على خيط الواجهة الوحيد. ومعها
+   ٢٤٠٠ كتابةٍ للطابور، وألفٌ ومئتان لسجلّ التدقيق.
+
+   العلاج: ما يُكتب مرةً واحدة في النهاية لا يُكتب ألف مرة.
+   أثناء الدفعة تُؤجَّل الكتابة إلى التخزين المحلي والترتيب،
+   فتُنفَّذ مرة واحدة بعدها. وخارج الدفعة لا يتغيّر شيء إطلاقاً:
+   نفس الاستدعاء في نفس اللحظة.
+══════════════════════════════════════════════════════════════ */
+let _bulkDepth=0;
+const _bulkPending=new Map();          // مفتاح ← آخر عملٍ مطلوب له
+
+/* يكتب الآن، أو يؤجّل إلى نهاية الدفعة. build() تُستدعى عند
+   الكتابة لا عند الطلب، فتُسلسل الحالة الأخيرة مرة واحدة. */
+function _cacheSet(key,build){
+  if(_bulkDepth){_bulkPending.set(key,build);return;}
+  try{localStorage.setItem(key,build());}catch(e){}
+}
+/* عملٌ يُنفَّذ مرة واحدة في نهاية الدفعة مهما تكرّر طلبه */
+function _bulkOnce(key,fn){
+  if(_bulkDepth){_bulkPending.set("fn:"+key,fn);return;}
+  fn();
+}
+function _bulkFlush(){
+  const jobs=[..._bulkPending.entries()];
+  _bulkPending.clear();
+  jobs.forEach(([key,fn])=>{
+    try{ key.indexOf("fn:")===0 ? fn() : localStorage.setItem(key,fn()); }
+    catch(e){}
+  });
+}
+/* يُفسح للواجهة كي يبقى التطبيق حيّاً ولا يقتله المتصفح */
+const _yieldUI=()=>new Promise(r=>setTimeout(r,0));
+
+function _bulkSync(fn){
+  _bulkDepth++;
+  try{ return fn(); }
+  finally{ if(!--_bulkDepth)_bulkFlush(); }
+}
+
+async function _bulkRun(fn){
+  _bulkDepth++;
+  try{ return await fn(); }
+  finally{ if(!--_bulkDepth)_bulkFlush(); }
+}
+
 /* ── ٥) طابور الكتابة دون اتصال ──
    إذا انقطع الإنترنت أو أُغلق التطبيق قبل وصول الحفظ، تبقى العملية
    محفوظة محلياً وتُرسَل تلقائياً عند عودة الاتصال. */
@@ -1405,8 +1460,8 @@ function _loadQueue(){
   _updQueueBadge();
 }
 function _persistQueue(){
-  try{localStorage.setItem(_QK,JSON.stringify(_writeQueue.slice(-500)));}catch(e){}
-  _updQueueBadge();
+  _cacheSet(_QK,()=>JSON.stringify(_writeQueue.slice(-500)));
+  _bulkOnce("queueBadge",_updQueueBadge);
 }
 function _enqueueWrite(node,id,data){
   _writeQueue=_writeQueue.filter(w=>!(w.node===node&&w.id===id));
@@ -1769,7 +1824,7 @@ function _auditWrite(entry){
   try{
     AUDIT.unshift(entry);
     if(AUDIT.length>_AUDIT_CACHE_MAX)AUDIT.length=_AUDIT_CACHE_MAX;
-    try{localStorage.setItem(_AUDIT_CACHE_K,JSON.stringify(AUDIT.slice(0,400)));}catch(e){}
+    _cacheSet(_AUDIT_CACHE_K,()=>JSON.stringify(AUDIT.slice(0,400)));
     _fbWrite(_AUDIT_NODE,entry.id,entry);
     if(_tabActive("audit"))_scheduleRender(renderAuditTab);
   }catch(e){console.warn("audit write failed",e);}
@@ -1869,7 +1924,7 @@ function closeMonth(){
   const rec={id:m,month:m,open:false,closedAt:nowStr(),
              closedBy:(S.cu&&S.cu.name)||"—",totals:snap};
   CLOSURES=CLOSURES.filter(c=>c&&c.month!==m).concat([rec]);
-  try{localStorage.setItem("wShamsClosures",JSON.stringify(CLOSURES));}catch(e){}
+  _cacheSet("wShamsClosures",()=>JSON.stringify(CLOSURES));
   _fbWrite("closures",m,rec);
   _auditWrite({id:genId()+"-"+Date.now().toString(36),at:nowStr(),
     by:(S.cu&&S.cu.name)||"—",kind:"closure",node:"closures",recId:m,
@@ -1893,7 +1948,7 @@ function reopenMonth(m){
 function _reopenMonthNow(m,why){
   if(!_closureOf(m))return;
   CLOSURES=CLOSURES.filter(x=>x&&x.month!==m);
-  try{localStorage.setItem("wShamsClosures",JSON.stringify(CLOSURES));}catch(e){}
+  _cacheSet("wShamsClosures",()=>JSON.stringify(CLOSURES));
   _fbWrite("closures",m,null);
   _auditWrite({id:genId()+"-"+Date.now().toString(36),at:nowStr(),
     by:(S.cu&&S.cu.name)||"—",kind:"closure",node:"closures",recId:m,
@@ -2885,44 +2940,44 @@ function _doInitFirebase(){
     dbRefSal=db.ref("sal_records");
     dbRefAdv=db.ref("adv_records");
     // v17: كانت هذه المستمعات لا تُفرِّغ المصفوفة عند حذف آخر سجل → تبقى بيانات وهمية على الشاشة.
-    dbRefEmp.on("value",snap=>{const v=snap.val();EMP_LIST=v?Object.values(v):[];try{localStorage.setItem("wShamsEmp",JSON.stringify(EMP_LIST));}catch(x){}if(_tabActive("sal-emps"))_scheduleRender(renderEmpList);});
-    dbRefSal.on("value",snap=>{const v=snap.val();SAL_RECS=v?Object.values(v).sort((a,b)=>(b.dk||"").localeCompare(a.dk||"")):[];try{localStorage.setItem("wShamsSal",JSON.stringify(SAL_RECS));}catch(x){}if(_tabActive("sal-recs"))_scheduleRender(renderSalRecs);});
-    dbRefAdv.on("value",snap=>{const v=snap.val();ADV_RECS=v?Object.values(v):[];try{localStorage.setItem("wShamsAdv",JSON.stringify(ADV_RECS));}catch(x){}if(_tabActive("sal-emps"))_scheduleRender(renderAdvSummary);});
+    dbRefEmp.on("value",snap=>{const v=snap.val();EMP_LIST=v?Object.values(v):[];_cacheSet("wShamsEmp",()=>JSON.stringify(EMP_LIST));if(_tabActive("sal-emps"))_scheduleRender(renderEmpList);});
+    dbRefSal.on("value",snap=>{const v=snap.val();SAL_RECS=v?Object.values(v).sort((a,b)=>(b.dk||"").localeCompare(a.dk||"")):[];_cacheSet("wShamsSal",()=>JSON.stringify(SAL_RECS));if(_tabActive("sal-recs"))_scheduleRender(renderSalRecs);});
+    dbRefAdv.on("value",snap=>{const v=snap.val();ADV_RECS=v?Object.values(v):[];_cacheSet("wShamsAdv",()=>JSON.stringify(ADV_RECS));if(_tabActive("sal-emps"))_scheduleRender(renderAdvSummary);});
     /* v17.50 — سجلّ التدقيق: نجلب الأحدث فقط كي لا يثقل الجهاز مع الزمن */
     dbRefAudit=db.ref(_AUDIT_NODE);
     dbRefAudit.limitToLast(1500).on("value",snap=>{
       const v=snap.val();
       AUDIT=v?Object.values(v).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||""))):[];
-      try{localStorage.setItem(_AUDIT_CACHE_K,JSON.stringify(AUDIT.slice(0,400)));}catch(e){}
+      _cacheSet(_AUDIT_CACHE_K,()=>JSON.stringify(AUDIT.slice(0,400)));
       if(_tabActive("audit"))_scheduleRender(renderAuditTab);
     });
     dbRefClosures=db.ref("closures");
     dbRefClosures.on("value",snap=>{
       const v=snap.val();
       CLOSURES=v?Object.values(v):[];
-      try{localStorage.setItem("wShamsClosures",JSON.stringify(CLOSURES));}catch(e){}
+      _cacheSet("wShamsClosures",()=>JSON.stringify(CLOSURES));
       if(_tabActive("audit"))_scheduleRender(renderAuditTab);
     });
     dbRefEmpTxn=db.ref("emp_txns");
-    dbRefEmpTxn.on("value",snap=>{const v=snap.val();EMP_TXNS=v?Object.values(v).sort((a,b)=>(b.dk||"").localeCompare(a.dk||"")):[];try{localStorage.setItem("wShamsEmpTxn",JSON.stringify(EMP_TXNS));}catch(x){}if(_tabActive("sal-emps"))_scheduleRender(renderEmpList);});
+    dbRefEmpTxn.on("value",snap=>{const v=snap.val();EMP_TXNS=v?Object.values(v).sort((a,b)=>(b.dk||"").localeCompare(a.dk||"")):[];_cacheSet("wShamsEmpTxn",()=>JSON.stringify(EMP_TXNS));if(_tabActive("sal-emps"))_scheduleRender(renderEmpList);});
     dbRefWrk.on("value",snap=>{
       const v=snap.val();
       WRK_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsWrkCache",JSON.stringify(WRK_RECS));}catch(e){}
+      _cacheSet("wShamsWrkCache",()=>JSON.stringify(WRK_RECS));
       if(_tabActive("wrk-recs"))_scheduleRender(renderWrkRecs);
     });
     dbRefArb=db.ref("arb_records");
     dbRefArb.on("value",snap=>{
       const v=snap.val();
       ARB_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsArbCache",JSON.stringify(ARB_RECS));}catch(e){}
+      _cacheSet("wShamsArbCache",()=>JSON.stringify(ARB_RECS));
       if(_tabActive("arb-recs"))_scheduleRender(renderArbRecs);
     });
     dbRefOut=db.ref("out_records");
     dbRefOut.on("value",snap=>{
       const v=snap.val();
       OUT_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsOutCache",JSON.stringify(OUT_RECS));}catch(e){}
+      _cacheSet("wShamsOutCache",()=>JSON.stringify(OUT_RECS));
       if(_tabActive("out-recs"))_scheduleRender(renderOutRecs);
       if(_tabActive("out-jami"))_scheduleRender(renderOutJami);
       if(_tabActive("wh"))_scheduleRender(renderWH);
@@ -2931,7 +2986,7 @@ function _doInitFirebase(){
     dbRefMnl.on("value",snap=>{
       const v=snap.val();
       MNL_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsMnlCache",JSON.stringify(MNL_RECS));}catch(e){}
+      _cacheSet("wShamsMnlCache",()=>JSON.stringify(MNL_RECS));
       if(_tabActive("naql-new"))_scheduleRender(renderMnlRecs);
       if(_tabActive("naql-coll"))_scheduleRender(renderNaqlColl);
       if(_tabActive("naql-recs"))_scheduleRender(renderNaqlRecs);
@@ -2939,20 +2994,20 @@ function _doInitFirebase(){
     dbRefSrf.on("value",snap=>{
       const v=snap.val();
       SRF_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsSrfCache",JSON.stringify(SRF_RECS));}catch(e){}
+      _cacheSet("wShamsSrfCache",()=>JSON.stringify(SRF_RECS));
       if(_tabActive("srf-recs"))_scheduleRender(renderSrfRecs);
     });
     dbRefDam.on("value",snap=>{
       const v=snap.val();
       DAM_RECS=v?Object.values(v).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsDamCache",JSON.stringify(DAM_RECS));}catch(e){}
+      _cacheSet("wShamsDamCache",()=>JSON.stringify(DAM_RECS));
       if(_tabActive("dam-recs"))_scheduleRender(renderDamRecs);
     });
     // استماع لوصلات البيع
     dbRefSell.on("value",snap2=>{
       const v2=snap2.val();
       SELL_RECS=v2?Object.values(v2).sort(_byDkDesc):[];
-      try{localStorage.setItem("wShamsSellCache",JSON.stringify(SELL_RECS));}catch(e){}
+      _cacheSet("wShamsSellCache",()=>JSON.stringify(SELL_RECS));
       if(S.cu){_scheduleRender(renderSellRecs);_scheduleRender(renderSellStats);}
     });
     // استماع فوري لأي تغيير من أي جهاز
@@ -2964,7 +3019,7 @@ function _doInitFirebase(){
         S.recs=[];
       }
       // حفظ محلي احتياطي
-      try{localStorage.setItem("wShamsCache",JSON.stringify(S.recs));}catch(e){}
+      _cacheSet("wShamsCache",()=>JSON.stringify(S.recs));
       syncBar(false);
       if(S.cu){
         _scheduleRender(renderRecsKeep);_scheduleRender(renderStats);
@@ -3010,15 +3065,14 @@ function saveRec(r){
   _fbWrite("records",r.id,r,safe=>{
     const idx=S.recs.findIndex(x=>x.id===r.id);
     if(idx>=0)S.recs[idx]=safe; else S.recs.unshift(safe);
-    S.recs.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsCache",JSON.stringify(S.recs));}catch(e){}
+    _cacheSet("wShamsCache",()=>{S.recs.sort(_byDkDesc);return JSON.stringify(S.recs);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
 }
 function delBuyRec(id){
   _toTrash("buy",S.recs.find(x=>x.id===id));
   _fbWrite("records",id,null,()=>{
     S.recs=S.recs.filter(x=>x.id!==id);
-    try{localStorage.setItem("wShamsCache",JSON.stringify(S.recs));}catch(e){}
+    _cacheSet("wShamsCache",()=>JSON.stringify(S.recs));
   });
 }
 
@@ -3027,15 +3081,14 @@ function saveSellRec(r){
   _fbWrite("sell_records",r.id,r,safe=>{
     const idx=SELL_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)SELL_RECS[idx]=safe; else SELL_RECS.unshift(safe);
-    SELL_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsSellCache",JSON.stringify(SELL_RECS));}catch(e){}
+    _cacheSet("wShamsSellCache",()=>{SELL_RECS.sort(_byDkDesc);return JSON.stringify(SELL_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
 }
 function delSellRec(id){
   _toTrash("sell",SELL_RECS.find(r=>r.id===id));
   _fbWrite("sell_records",id,null,()=>{
     SELL_RECS=SELL_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsSellCache",JSON.stringify(SELL_RECS));}catch(e){}
+    _cacheSet("wShamsSellCache",()=>JSON.stringify(SELL_RECS));
   });
 }
 
@@ -3708,8 +3761,7 @@ function saveDamRec(r){
   _fbWrite("dam_records",r.id,r,safe=>{
     const idx=DAM_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)DAM_RECS[idx]=safe; else DAM_RECS.unshift(safe);
-    DAM_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsDamCache",JSON.stringify(DAM_RECS));}catch(e){}
+    _cacheSet("wShamsDamCache",()=>{DAM_RECS.sort(_byDkDesc);return JSON.stringify(DAM_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
   if(_tabActive("dam-recs"))_scheduleRender(renderDamRecs);
 }
@@ -3717,7 +3769,7 @@ function delDamRec(id){
   _toTrash("dam",DAM_RECS.find(r=>r.id===id));
   _fbWrite("dam_records",id,null,()=>{
     DAM_RECS=DAM_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsDamCache",JSON.stringify(DAM_RECS));}catch(e){}
+    _cacheSet("wShamsDamCache",()=>JSON.stringify(DAM_RECS));
   });
 }
 
@@ -4612,8 +4664,7 @@ function saveSrfRec(r){
   _fbWrite("srf_records",r.id,r,safe=>{
     const idx=SRF_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)SRF_RECS[idx]=safe; else SRF_RECS.unshift(safe);
-    SRF_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsSrfCache",JSON.stringify(SRF_RECS));}catch(e){}
+    _cacheSet("wShamsSrfCache",()=>{SRF_RECS.sort(_byDkDesc);return JSON.stringify(SRF_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
   if(_tabActive("srf-recs"))_scheduleRender(renderSrfRecs);
 }
@@ -4621,7 +4672,7 @@ function delSrfRec(id){
   _toTrash("srf",SRF_RECS.find(r=>r.id===id));
   _fbWrite("srf_records",id,null,()=>{
     SRF_RECS=SRF_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsSrfCache",JSON.stringify(SRF_RECS));}catch(e){}
+    _cacheSet("wShamsSrfCache",()=>JSON.stringify(SRF_RECS));
   });
 }
 
@@ -4920,8 +4971,7 @@ function saveWrkRec(r){
   _fbWrite("wrk_records",r.id,r,safe=>{
     const idx=WRK_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)WRK_RECS[idx]=safe; else WRK_RECS.unshift(safe);
-    WRK_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsWrkCache",JSON.stringify(WRK_RECS));}catch(e){}
+    _cacheSet("wShamsWrkCache",()=>{WRK_RECS.sort(_byDkDesc);return JSON.stringify(WRK_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
   if(_tabActive("wrk-recs"))_scheduleRender(renderWrkRecs);
 }
@@ -4929,7 +4979,7 @@ function delWrkRec(id){
   _toTrash("wrk",WRK_RECS.find(r=>r.id===id));
   _fbWrite("wrk_records",id,null,()=>{
     WRK_RECS=WRK_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsWrkCache",JSON.stringify(WRK_RECS));}catch(e){}
+    _cacheSet("wShamsWrkCache",()=>JSON.stringify(WRK_RECS));
   });
 }
 
@@ -5231,8 +5281,7 @@ function saveArbRec(r){
   _fbWrite("arb_records",r.id,r,safe=>{
     const idx=ARB_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)ARB_RECS[idx]=safe; else ARB_RECS.unshift(safe);
-    ARB_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsArbCache",JSON.stringify(ARB_RECS));}catch(e){}
+    _cacheSet("wShamsArbCache",()=>{ARB_RECS.sort(_byDkDesc);return JSON.stringify(ARB_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
   if(_tabActive("arb-recs"))_scheduleRender(renderArbRecs);
 }
@@ -5240,7 +5289,7 @@ function delArbRec(id){
   _toTrash("arb",ARB_RECS.find(r=>r.id===id));
   _fbWrite("arb_records",id,null,()=>{
     ARB_RECS=ARB_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsArbCache",JSON.stringify(ARB_RECS));}catch(e){}
+    _cacheSet("wShamsArbCache",()=>JSON.stringify(ARB_RECS));
   });
 }
 
@@ -5738,8 +5787,7 @@ function saveOutRec(r){
   _fbWrite("out_records",r.id,r,safe=>{
     const idx=OUT_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)OUT_RECS[idx]=safe; else OUT_RECS.unshift(safe);
-    OUT_RECS.sort(_byDkDesc);
-    try{localStorage.setItem("wShamsOutCache",JSON.stringify(OUT_RECS));}catch(e){}
+    _cacheSet("wShamsOutCache",()=>{OUT_RECS.sort(_byDkDesc);return JSON.stringify(OUT_RECS);});
   });
   if(_tabActive("out-recs"))_scheduleRender(renderOutRecs);
   if(_tabActive("wh"))_scheduleRender(renderWH);
@@ -5748,7 +5796,7 @@ function delOutRec(id){
   _toTrash("out",OUT_RECS.find(r=>r.id===id));
   _fbWrite("out_records",id,null,()=>{
     OUT_RECS=OUT_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsOutCache",JSON.stringify(OUT_RECS));}catch(e){}
+    _cacheSet("wShamsOutCache",()=>JSON.stringify(OUT_RECS));
   });
 }
 
@@ -7236,7 +7284,7 @@ function saveEmp(r){
   _fbWrite("emp_list",r.id,r,safe=>{
     const idx=EMP_LIST.findIndex(x=>x.id===r.id);
     if(idx>=0)EMP_LIST[idx]=safe; else EMP_LIST.push(safe);
-    try{localStorage.setItem("wShamsEmp",JSON.stringify(EMP_LIST));}catch(x){}
+    _cacheSet("wShamsEmp",()=>JSON.stringify(EMP_LIST));
   });
 }
 function delEmp(id){
@@ -7248,19 +7296,19 @@ function delEmp(id){
   SAL_RECS=SAL_RECS.filter(x=>x.empId!==id);
   ADV_RECS=ADV_RECS.filter(x=>x.empId!==id);
   EMP_TXNS=(EMP_TXNS||[]).filter(x=>x.empId!==id);
-  try{localStorage.setItem("wShamsSal",JSON.stringify(SAL_RECS));}catch(x){}
-  try{localStorage.setItem("wShamsAdv",JSON.stringify(ADV_RECS));}catch(x){}
-  try{localStorage.setItem("wShamsEmpTxn",JSON.stringify(EMP_TXNS));}catch(x){}
+  _cacheSet("wShamsSal",()=>JSON.stringify(SAL_RECS));
+  _cacheSet("wShamsAdv",()=>JSON.stringify(ADV_RECS));
+  _cacheSet("wShamsEmpTxn",()=>JSON.stringify(EMP_TXNS));
   _fbWrite("emp_list",id,null,()=>{
     EMP_LIST=EMP_LIST.filter(x=>x.id!==id);
-    try{localStorage.setItem("wShamsEmp",JSON.stringify(EMP_LIST));}catch(x){}
+    _cacheSet("wShamsEmp",()=>JSON.stringify(EMP_LIST));
   });
 }
 function saveSalRec(r){
   _fbWrite("sal_records",r.id,r,safe=>{
     const idx=SAL_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)SAL_RECS[idx]=safe; else SAL_RECS.unshift(safe);
-    try{localStorage.setItem("wShamsSal",JSON.stringify(SAL_RECS));}catch(x){}
+    _cacheSet("wShamsSal",()=>JSON.stringify(SAL_RECS));
   });
   if(_tabActive("sal-recs"))_scheduleRender(renderSalRecs);
 }
@@ -7268,21 +7316,21 @@ function delSalRec(id){
   _toTrash("sal",SAL_RECS.find(x=>x.id===id));
   _fbWrite("sal_records",id,null,()=>{
     SAL_RECS=SAL_RECS.filter(x=>x.id!==id);
-    try{localStorage.setItem("wShamsSal",JSON.stringify(SAL_RECS));}catch(x){}
+    _cacheSet("wShamsSal",()=>JSON.stringify(SAL_RECS));
   });
 }
 function saveAdvRec(r){
   _fbWrite("adv_records",r.id,r,safe=>{
     const idx=ADV_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)ADV_RECS[idx]=safe; else ADV_RECS.unshift(safe);
-    try{localStorage.setItem("wShamsAdv",JSON.stringify(ADV_RECS));}catch(x){}
+    _cacheSet("wShamsAdv",()=>JSON.stringify(ADV_RECS));
   });
 }
 function delAdvRec(id){
   _toTrash("adv",ADV_RECS.find(x=>x.id===id));
   _fbWrite("adv_records",id,null,()=>{
     ADV_RECS=ADV_RECS.filter(x=>x.id!==id);
-    try{localStorage.setItem("wShamsAdv",JSON.stringify(ADV_RECS));}catch(x){}
+    _cacheSet("wShamsAdv",()=>JSON.stringify(ADV_RECS));
   });
 }
 
@@ -7551,7 +7599,7 @@ function saveSalForm(){
     EMP_TXNS=EMP_TXNS.filter(x=>x.id!==t.id);
     if(dbRefEmpTxn)dbRefEmpTxn.child(t.id).remove().catch(()=>{});
   });
-  try{localStorage.setItem("wShamsEmpTxn",JSON.stringify(EMP_TXNS));}catch(x){}
+  _cacheSet("wShamsEmpTxn",()=>JSON.stringify(EMP_TXNS));
   saveSalRec(r);closeM();showToast("✅ تم حفظ راتب "+e.name+" — "+fIQD(finalNet));
 }
 
@@ -7662,7 +7710,7 @@ function saveEmpTxn(r){
   _fbWrite("emp_txns",r.id,r,safe=>{
     const idx=EMP_TXNS.findIndex(x=>x.id===r.id);
     if(idx>=0)EMP_TXNS[idx]=safe; else EMP_TXNS.unshift(safe);
-    try{localStorage.setItem("wShamsEmpTxn",JSON.stringify(EMP_TXNS));}catch(x){}
+    _cacheSet("wShamsEmpTxn",()=>JSON.stringify(EMP_TXNS));
   });
   renderEmpTxnList(r.empId);
   renderEmpList();
@@ -8407,6 +8455,7 @@ function execNaqlBulkPay(){
   let pool=amount;
   const results=[];
   const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
+  _bulkSync(()=>{                       // v17.73 — كتابة واحدة لا كتابة لكل وصل
   for(const e of entries){
     if(pool<=0)break;
     const pay=Math.min(pool,e.remaining);
@@ -8414,6 +8463,7 @@ function execNaqlBulkPay(){
     results.push({label:e.label,dk:e.dk,paid:pay,fullyPaid:pay>=e.remaining});
     pool-=pay;
   }
+  });
   const totalPaid=amount-pool;
   if(!results.length){showToast('⚠ لم يتم تسجيل أي دفعة');return;}
   const summary=`<div style="background:var(--wheat-wash);border:1px solid var(--wheat);border-radius:10px;padding:11px;margin-top:8px">
@@ -9210,8 +9260,7 @@ function saveMnlRec(r){
   _fbWrite("mnl_records",r.id,r,safe=>{
     const idx=MNL_RECS.findIndex(x=>x.id===r.id);
     if(idx>=0)MNL_RECS[idx]=safe; else MNL_RECS.unshift(safe);
-    MNL_RECS.sort(_byDkDesc);   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
-    try{localStorage.setItem("wShamsMnlCache",JSON.stringify(MNL_RECS));}catch(e){}
+    _cacheSet("wShamsMnlCache",()=>{MNL_RECS.sort(_byDkDesc);return JSON.stringify(MNL_RECS);});   // v17.39 — تعديل التاريخ ينقل الوصل ليومه فوراً
   });
   if(_tabActive("naql-new"))_scheduleRender(renderMnlRecs);
 }
@@ -9219,7 +9268,7 @@ function delMnlRec(id){
   _toTrash("mnl",MNL_RECS.find(r=>r.id===id));
   _fbWrite("mnl_records",id,null,()=>{
     MNL_RECS=MNL_RECS.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsMnlCache",JSON.stringify(MNL_RECS));}catch(e){}
+    _cacheSet("wShamsMnlCache",()=>JSON.stringify(MNL_RECS));
   });
 }
 
@@ -9818,6 +9867,7 @@ function _toolsRestoreNow(mode){
   }
 
   let added=0,updated=0,skipped=0,removed=0;
+  _bulkSync(()=>{                       // v17.73 — كتابة واحدة لا كتابة لكل سجل
   plan.forEach(({d,incoming,haveIds,toRemove})=>{
     // ① احذف ما ليس في الملف (مع نسخة للسلة)
     toRemove.forEach(id=>{
@@ -9833,6 +9883,7 @@ function _toolsRestoreNow(mode){
       if(haveIds.has(rec.id))updated++; else added++;
       d.save(rec);
     });
+  });
   });
 
   showToast(mode==="replace"
@@ -11514,15 +11565,15 @@ function _loadCashbox(){
   CASH_COUNTS.forEach(c=>{if(!c.boxId)c.boxId="main";});
 }
 function _saveCashbox(){
-  try{localStorage.setItem("wShamsCashbox",JSON.stringify(CASHBOX));}catch(e){}
+  _cacheSet("wShamsCashbox",()=>JSON.stringify(CASHBOX));
   _fbWrite("cashbox","main",CASHBOX);
 }
 function _saveBoxes(){
-  try{localStorage.setItem("wShamsCashBoxes",JSON.stringify(CASH_BOXES));}catch(e){}
+  _cacheSet("wShamsCashBoxes",()=>JSON.stringify(CASH_BOXES));
   CASH_BOXES.forEach(b=>_fbWrite("cash_boxes",b.id,b));
 }
-function _saveMoves(){try{localStorage.setItem("wShamsCashMoves",JSON.stringify(CASH_MOVES.slice(0,3000)));}catch(e){}}
-function _saveCounts(){try{localStorage.setItem("wShamsCashCounts",JSON.stringify(CASH_COUNTS.slice(0,600)));}catch(e){}}
+function _saveMoves(){_cacheSet("wShamsCashMoves",()=>JSON.stringify(CASH_MOVES.slice(0,3000)));}
+function _saveCounts(){_cacheSet("wShamsCashCounts",()=>JSON.stringify(CASH_COUNTS.slice(0,600)));}
 
 const _box     = id=>CASH_BOXES.find(b=>b.id===(id||_cashBoxId))||CASH_BOXES[0]||null;
 const _mainBox = ()=>CASH_BOXES.find(b=>b.main)||CASH_BOXES[0]||null;
@@ -12322,6 +12373,7 @@ ${scan.closed?`منها ${scan.closed} في شهور مغلقة ستُتخطّى
 
   showToast("⏳ جاري الترقيم…");
   let done=0,skipped=0;
+  await _bulkRun(async()=>{             // v17.73 — الإفساح موجود، والكتابة تُجمَّع
   for(const node of _NUMBERED_NODES){
     const d=_auditDs(node); if(!d)continue;
     const recs=(d.get()||[]).slice()
@@ -12337,6 +12389,7 @@ ${scan.closed?`منها ${scan.closed} في شهور مغلقة ستُتخطّى
       if(done%25===0)await new Promise(r2=>setTimeout(r2,60));   // لا نُجمّد الواجهة
     }
   }
+  });
   showToast(`✅ رُقّم ${AR(done)} سجلاً${skipped?` · تُخطّي ${AR(skipped)} في شهور مغلقة`:""}`,6000);
   renderNumbering();
 }
@@ -13679,17 +13732,32 @@ function _aiPayOne(type,id){
 }
 
 // ── دفع كل السجلات في نطاق تاريخ ──
-function _aiPayRange(type,from,to){
+/* الوصولات غير المسدَّدة في النطاق — تُحسب قبل التنفيذ ليُعرف حجم العمل */
+function _aiUnpaidIn(type,from,to){
   let recs=[];
   if(type==='buy')  recs=S.recs||[];
   if(type==='sell') recs=SELL_RECS;
   if(type==='dam')  recs=DAM_RECS;
   if(type==='srf')  recs=SRF_RECS;
   if(type==='wrk')  recs=WRK_RECS;
-  const filtered=filterByRange(recs,from,to).filter(r=>!isFullyPaid(r));
+  return filterByRange(recs||[],from,to).filter(r=>!isFullyPaid(r));
+}
+
+/* ══ الدفع على شرائح — v17.73 ══
+   كان يدفع الألف والمئتين في حلقةٍ واحدة بلا إفساح، فيُجمَّد
+   خيط الواجهة فيقتل المتصفحُ الصفحة. الآن شريحةٌ ثم إفساح:
+   التطبيق يبقى حيّاً، والتقدّم يظهر، والعمل يصل إلى آخره. */
+const _AI_PAY_CHUNK=40;
+async function _aiPayRange(type,from,to,onProgress){
+  const filtered=_aiUnpaidIn(type,from,to);
   if(!filtered.length)return 0;
-  filtered.forEach(r=>_aiPayOne(type,r.id));
-  return filtered.length;
+  let done=0;
+  for(let i=0;i<filtered.length;i+=_AI_PAY_CHUNK){
+    filtered.slice(i,i+_AI_PAY_CHUNK).forEach(r=>{_aiPayOne(type,r.id);done++;});
+    if(onProgress)onProgress(done,filtered.length);
+    await _yieldUI();
+  }
+  return done;
 }
 
 // ── حساب إحصاء نطاق ──
@@ -13725,28 +13793,51 @@ function _aiParseDate(txt){
 
 // ── تنفيذ أمر/أوامر من المساعد ──
 // يدعم تنفيذ أمر واحد {...} أو عدة أوامر معاً دفعة واحدة كمصفوفة [...]
-function _aiExecute(cmd){
+async function _aiExecute(cmd){
   try{
     const parsed=typeof cmd==='string'?JSON.parse(cmd):cmd;
     const actions=Array.isArray(parsed)?parsed:[parsed];
-    const out=actions.map(c=>{
-      try{ return _aiExecuteOne(c); }
-      catch(e){ return '❌ خطأ في تنفيذ '+((c&&c.action)||'أمر')+': '+e.message; }
-    }).filter(Boolean);
+    const out=[];
+    for(const c of actions){
+      try{ const r=await _aiExecuteOne(c); if(r)out.push(r); }
+      catch(e){ out.push('❌ خطأ في تنفيذ '+((c&&c.action)||'أمر')+': '+e.message); }
+    }
     return out.join('\n');
   }catch(e){return '❌ خطأ في تنفيذ الأمر: '+e.message;}
 }
 
 // ── موجّه الأوامر — كل الصلاحيات المتاحة للمساعد ──
-function _aiExecuteOne(c){
+const _AI_PAY_ASK=25;      // فوق هذا العدد يُطلب تأكيدٌ صريح
+let _aiPendingPay=null;
+
+async function _aiExecuteOne(c){
   if(!c||!c.action)return null;
   switch(c.action){
 
     /* ── المدفوعات ── */
     case 'pay_range':{
       const types=c.type==='all'?['buy','sell','dam','srf','wrk']:[c.type];
+      /* ══ تأكيدٌ قبل الدفع الكبير ══
+         جملةٌ واحدة تُسدّد شهراً كاملاً. والنموذج قد يُسيء فهم
+         السؤال، فيصير خطأ قراءةٍ مالاً مدفوعاً. فما تجاوز الحدّ
+         يُعرض أولاً بعدده ومبلغه، ولا يُنفَّذ إلا بضغطة. */
+      const all=[];
+      types.forEach(t=>_aiUnpaidIn(t,c.from,c.to).forEach(r=>all.push({t,r})));
+      if(!all.length)return '✅ لا يوجد وصل غير مسدَّد في هذه الفترة';
+      if(all.length>_AI_PAY_ASK&&!c.confirm){
+        const sum=all.reduce((x,o)=>x+Math.max(0,getRecTotal(o.r)-getPaidTotal(o.r)),0);
+        _aiPendingPay={...c,confirm:true};
+        return `⚠️ هذا الأمر يُسدّد **${AR(all.length)}** وصلاً بمجموع **${fIQD(sum)}**`
+          +` من ${tAr(c.from)} إلى ${tAr(c.to)}.\nاضغط **«نعم، سدّدها»** أسفل المحادثة للتنفيذ.`
+          +`\n<<<ASKPAY>>>`;
+      }
       let total=0;
-      types.forEach(t=>{ total+=_aiPayRange(t,c.from,c.to); });
+      await _bulkRun(async()=>{
+        for(const t of types){
+          total+=await _aiPayRange(t,c.from,c.to,(d,n)=>_aiProgress(`💸 جارٍ التسديد… ${AR(d)}/${AR(n)}`));
+        }
+      });
+      _aiProgress("");
       renderRecs();renderDamRecs();renderSrfRecs();renderWrkRecs();
       if(typeof renderSellRecs==='function')renderSellRecs();
       return `✅ تم تسديد ${AR(total)} وصل بنجاح`;
@@ -14046,7 +14137,7 @@ function _aiDeleteRecord(type,id){
     if(!S.recs.find(x=>x.id===id))return '❌ لم يتم العثور على وصل الشراء';
     if(dbRef){dbRef.child(id).remove().catch(()=>{});}
     S.recs=S.recs.filter(r=>r.id!==id);
-    try{localStorage.setItem("wShamsCache",JSON.stringify(S.recs));}catch(e){}
+    _cacheSet("wShamsCache",()=>JSON.stringify(S.recs));
     renderRecs();renderStats();renderWH();
     return '🗑️ تم حذف وصل الشراء';
   }
@@ -14697,11 +14788,13 @@ async function _aiRun(msg,round){
   if(reply)_aiAppend("a",reply);
   if(cmdJson){
     _aiAppend("a","⚙️ جاري التنفيذ...");
-    setTimeout(()=>{
-      const result=_aiExecute(cmdJson);
+    setTimeout(async()=>{
+      let result;
+      try{ result=await _aiExecute(cmdJson); }
+      catch(e){ result="❌ تعذّر التنفيذ: "+(e&&e.message||e); }
       const m=document.getElementById("aiMsgs");
       if(m){const l=m.querySelector(".ai-msg-a:last-child");if(l&&l.textContent.includes("جاري التنفيذ"))l.remove();}
-      if(result)_aiAppend("a",result);
+      if(result)_aiShowResult(result);
     },400);
   }
   /* اسم المزوّد المستعمل — ليعرف أين ذهب طلبه */
@@ -14803,6 +14896,52 @@ function _aiAppend(role,text){
     .replace(/\n/g,"<br>");
   msgs.appendChild(div);
   msgs.scrollTop=msgs.scrollHeight;
+}
+
+/* سطر تقدّم واحد يُحدَّث في مكانه — لا فقاعة لكل شريحة */
+function _aiProgress(txt){
+  const msgs=document.getElementById("aiMsgs");
+  if(!msgs)return;
+  let el=document.getElementById("aiProg");
+  if(!txt){ if(el)el.remove(); return; }
+  if(!el){
+    el=document.createElement("div");
+    el.id="aiProg"; el.className="ai-msg-a";
+    msgs.appendChild(el);
+  }
+  el.textContent=txt;
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+/* نتيجة التنفيذ — ومعها زرّ التأكيد إن كان الأمر ينتظره */
+function _aiShowResult(result){
+  const ask=String(result).indexOf("<<<ASKPAY>>>")>=0;
+  _aiAppend("a",String(result).replace("<<<ASKPAY>>>","").trim());
+  if(!ask||!_aiPendingPay)return;
+  const msgs=document.getElementById("aiMsgs");
+  const box=document.createElement("div");
+  box.className="ai-msg-a"; box.id="aiPayAsk";
+  box.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button onclick="_aiConfirmPay()" style="flex:1;padding:8px;border-radius:8px;background:var(--owing);color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer">✅ نعم، سدّدها</button>
+    <button onclick="_aiCancelPay()" style="flex:1;padding:8px;border-radius:8px;background:transparent;color:var(--paper-2);border:1px solid var(--rule);font-size:12px;cursor:pointer">إلغاء</button>
+  </div>`;
+  msgs.appendChild(box);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+async function _aiConfirmPay(){
+  const c=_aiPendingPay; _aiPendingPay=null;
+  document.getElementById("aiPayAsk")?.remove();
+  if(!c)return;
+  let r;
+  try{ r=await _aiExecuteOne(c); }
+  catch(e){ r="❌ تعذّر التنفيذ: "+(e&&e.message||e); }
+  _aiProgress("");
+  if(r)_aiAppend("a",r);
+}
+function _aiCancelPay(){
+  _aiPendingPay=null;
+  document.getElementById("aiPayAsk")?.remove();
+  _aiAppend("a","✋ أُلغي — لم يُسدَّد أي وصل.");
 }
 
 function _aiSetThinking(v){
@@ -15341,6 +15480,10 @@ ${_names.join("\n")}
   let pool=amount;
   const results=[];
   const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
+  /* v17.73 — في دفعة واحدة: مبلغٌ كبير قد يشمل مئات الوصولات،
+     وكتابة الكاش مع كل وصل تُجمّد الواجهة كما جمّدها الدفع من
+     المساعد. هنا تُكتب مرة واحدة في النهاية. */
+  _bulkSync(()=>{
   for(const r of recs){
     if(pool<=0)break;
     const rem=getRemaining(r);
@@ -15356,6 +15499,7 @@ ${_names.join("\n")}
     results.push({label:C.rowLabel(r),dk:r.dk,paid:pay,fullyPaid});
     pool-=pay;
   }
+  });
   const totalPaid=amount-pool;
   if(!results.length){showToast("⚠ لم يتم تسجيل أي دفعة");return;}
   const summary=`<div style="background:var(--settled-wash);border:1px solid var(--settled);border-radius:10px;padding:11px;margin-top:8px">
