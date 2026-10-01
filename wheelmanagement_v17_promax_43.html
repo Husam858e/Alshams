@@ -1561,7 +1561,12 @@ function _nextNo(node){
 const fNo=n=>n?("#"+AR(String(n).padStart(4,"0"))):"—";
 
 /* ── ٦) الكتابة الموحّدة لفايربيس: طابور + كاش محلي + مؤشر حفظ ── */
+/* كل عقدة كُتب فيها فعلاً — يقارنها مولِّد القواعد بقائمته
+   فتظهر العقدة المنسيّة قبل أن يرفضها السيرفر صامتاً */
+const _FB_SEEN=new Set();
+
 function _fbWrite(node,id,data,onLocal){
+  _FB_SEEN.add(node);
   syncBar(true);
   const safe=data===null?null:_stripUndefined(_sanitizeStrings(data));
   /* ══════════════════════════════════════════════════════
@@ -12103,6 +12108,104 @@ function _nodeLabel(node){
   return _NODE_LABELS[node]||node;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   توليد قواعد فايربيس من داخل التطبيق — v17.70
+   ──────────────────────────────────────────────────────────────
+   القواعد قائمةٌ بيضاء: ما لا تذكره العقدةُ فيها يرفضه السيرفر.
+   وشكل العطل مُضلِّل — الحفظ ينجح على الشاشة ثم يُرفض، فتعود
+   البيانات القديمة عند أول تحديث.
+
+   وقع هذا مرتين: مرة بعقدة «مخرجات المخازن» ومرة بـ«سجلّ
+   التدقيق» — ١٣٠ قيداً عالقاً. والسبب واحد في المرّتين: القواعد
+   مكتوبة في مكانٍ والتطبيق يكتب في مكان، فلا شيء يربطهما.
+
+   فالعلاج أن يُولّد التطبيق قواعده بنفسه: زرٌّ ينسخها جاهزةً
+   للّصق، فلا يبقى بينه وبين لوحة فايربيس وسيط يُخطئ.
+
+   وكاشف الانحراف: _fbWrite يسجّل كل عقدة كُتب فيها فعلاً، فإن
+   ظهرت عقدة ليست في القائمة أدناه أُعلنت بدل أن تُنسى.
+══════════════════════════════════════════════════════════════ */
+
+/* عقد تحمل تاريخاً — يحرسها قفل الفترات المغلقة */
+const _FB_DATED=["records","sell_records","dam_records","srf_records","wrk_records",
+                 "mnl_records","arb_records","out_records","sal_records","adv_records",
+                 "emp_txns"];
+/* عقد بلا تاريخ — الهوية وحدها */
+const _FB_PLAIN=["emp_list","cashbox","cash_boxes","cash_counts","cash_moves"];
+
+/* حارس الفترة: يفحص وجود mk قبل قراءته.
+   سجلٌّ قديم بلا mk يجعل child(null) خطأً فتنهار القاعدة كلها
+   ويُرفض الحفظ — لا لأن الشهر مغلق بل لأن التعبير انهار. */
+function _fbClosureGuard(ref){
+  const m=ref+".child('mk')";
+  const c="root.child('closures').child("+m+".val())";
+  return "(!"+ref+".exists() || !"+m+".exists() || !"+c+".exists()"+
+         " || "+c+".child('open').val() == true)";
+}
+
+function _fbRules(){
+  const guard="auth != null && "+_fbClosureGuard("newData")+" && "+_fbClosureGuard("data");
+  const R={".read":"false",".write":"false"};
+  _FB_DATED.forEach(n=>{R[n]={".read":"auth != null","$id":{".write":guard}};});
+  _FB_PLAIN.forEach(n=>{R[n]={".read":"auth != null","$id":{".write":"auth != null"}};});
+  R.closures={".read":"auth != null","$month":{".write":"auth != null"}};
+  /* سجلّ التدقيق يُضاف إليه ولا يُعدَّل ولا يُحذف — ولا حتى من التطبيق */
+  R[_AUDIT_NODE]={".read":"auth != null",
+                  "$entry":{".write":"auth != null && !data.exists() && newData.exists()"}};
+  R.__conncheck__={".read":"auth != null",".write":"auth != null"};
+  return {rules:R};
+}
+const _fbRulesText=()=>JSON.stringify(_fbRules(),null,2)+"\n";
+
+/* عقدةٌ كُتب فيها فعلاً وليست في القائمة = القواعد ستنقصها */
+function _fbRulesDrift(){
+  const known=new Set([..._FB_DATED,..._FB_PLAIN,"closures",_AUDIT_NODE,"__conncheck__"]);
+  return [..._FB_SEEN].filter(n=>!known.has(n));
+}
+
+/* ── نافذة النسخ ── */
+function openFbRules(){
+  const ta=document.getElementById("fbRulesTxt");
+  if(ta)ta.value=_fbRulesText();
+  const d=_fbRulesDrift();
+  const w=document.getElementById("fbRulesWarn");
+  if(w){
+    w.style.display=d.length?"block":"none";
+    w.textContent="⚠ عقد كُتب فيها وليست في المولِّد: "+d.join(" · ")+
+                  " — أبلغني بها، القواعد أدناه لا تشملها.";
+  }
+  const missing=[..._fbDenied.values()].map(v=>v.node);
+  const m=document.getElementById("fbRulesMiss");
+  if(m){
+    m.style.display=missing.length?"block":"none";
+    m.innerHTML="🚫 رفض السيرفر الكتابة في: <strong>"+esc(missing.join("، "))+
+                "</strong> — لصق القواعد أدناه يحلّها.";
+  }
+  document.getElementById("mFbRules").classList.add("active");
+}
+
+function copyFbRules(){
+  const ta=document.getElementById("fbRulesTxt");
+  if(!ta)return;
+  const txt=ta.value;
+  const done=()=>showToast("📋 نُسخت القواعد — الصقها في لوحة فايربيس ← Rules ← Publish");
+  /* الحافظة الحديثة تحتاج سياقاً آمناً، وملف file:// ليس كذلك
+     دائماً — فالطريق القديم يبقى لازماً لا زائداً. */
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>_copyFallback(ta,done));
+  } else _copyFallback(ta,done);
+}
+function _copyFallback(ta,done){
+  try{
+    ta.removeAttribute("readonly");
+    ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand("copy");
+    ta.setAttribute("readonly","readonly");
+    if(ok){done();return;}
+  }catch(e){}
+  showToast("⚠ انسخ يدوياً — النصّ محدَّد كاملاً");
+}
+
 function _fbReportWriteError(err,node){
   const code=String((err&&(err.code||err.message))||"").toUpperCase();
   _fbLastErr={code,node,at:nowStr()};
@@ -12110,8 +12213,8 @@ function _fbReportWriteError(err,node){
     const label=_nodeLabel(node);
     const prev=_fbDenied.get(node);
     _fbDenied.set(node,{label,node,count:((prev&&prev.count)||0)+1,at:nowStr()});
-    showToast(`🚫 رفض السيرفر حفظ «${label}» — أضف "${node}" إلى قواعد فايربيس `+
-              `(الأدوات ← فحص الاتصال والصلاحيات)`,7000);
+    showToast(`🚫 رفض السيرفر حفظ «${label}» — العقدة "${node}" ناقصة من قواعد فايربيس. `+
+              `الأدوات ← فحص الاتصال والصلاحيات ← 🔑 قواعد فايربيس`,7000);
     const d=document.getElementById("syncDot");
     if(d){d.style.background="var(--owing)";d.title="مرفوض: صلاحيات فايربيس — "+node;}
     return;
@@ -12277,8 +12380,8 @@ async function toolsConnCheck(){
   if(_fbDenied.size){
     _fbDenied.forEach(function(v){
       add(false,"مرفوض: "+v.label,
-          `العقدة "${v.node}" غير مسموحة في قواعد فايربيس — أضفها إلى firebase-rules.json `+
-          `(أسهل طريقة: انسخ كتلة "arb_records" وسمِّ النسخة "${v.node}") · `+
+          `العقدة "${v.node}" غير مسموحة في قواعد فايربيس — اضغط «🔑 قواعد فايربيس» `+
+          `أدناه وانسخها كاملةً إلى لوحة فايربيس · `+
           AR(v.count)+" محاولة");
     });
   } else if(_fbLastErr)add(false,"آخر خطأ حفظ",_fbLastErr.code.slice(0,80)+" · "+_fbLastErr.node);
@@ -12297,6 +12400,8 @@ async function toolsConnCheck(){
       <div style="flex:1;min-width:0"><div style="color:var(--paper)">${esc(r.t)}</div>
         ${r.d?`<div style="color:var(--paper-3);font-size:10px;line-height:1.6">${esc(r.d)}</div>`:""}</div>
     </div>`).join("")}
+    ${_fbDenied.size?`<button class="btn bsm" style="width:100%;justify-content:center;margin-top:8px;background:var(--steel);color:#fff"
+         onclick="openFbRules()">🔑 انسخ القواعد الناقصة والصقها في فايربيس</button>`:""}
     ${_writeQueue.length?`<div style="display:flex;gap:7px;margin-top:8px;flex-wrap:wrap">
        <button class="btn bsm bgn" style="flex:1;justify-content:center"
          onclick="toolsReconcileQueue()">🧹 تسوية الطابور</button>
@@ -20708,6 +20813,28 @@ document.addEventListener("keydown", function(e){
     </div>
   </div>
 
+  <!-- قواعد فايربيس جاهزةً للّصق -->
+  <div class="mo" id="mFbRules">
+    <div class="mob" style="max-width:520px">
+      <div class="mtit" style="color:var(--steel)">🔑 قواعد فايربيس</div>
+      <div id="fbRulesMiss" style="display:none;background:var(--owing-wash);border:2px solid var(--owing);border-radius:9px;padding:9px;margin-bottom:8px;font-size:11px;color:var(--owing);font-weight:700;line-height:1.7"></div>
+      <div id="fbRulesWarn" style="display:none;background:var(--pending-wash);border:2px solid var(--pending);border-radius:9px;padding:9px;margin-bottom:8px;font-size:11px;color:var(--pending);font-weight:700;line-height:1.7"></div>
+      <p class="mtxt" style="text-align:right;line-height:1.9">
+        انسخ النصّ كاملاً، ثم في
+        <strong>لوحة فايربيس ← Realtime Database ← Rules</strong>
+        امسح الموجود والصقه واضغط <strong>Publish</strong>.
+        يسري خلال ثوانٍ بلا إعادة تشغيل، وما كان عالقاً في الطابور يُرسَل وحده.
+      </p>
+      <textarea id="fbRulesTxt" readonly dir="ltr" rows="9"
+        style="width:100%;font-family:ui-monospace,monospace;font-size:10px;line-height:1.5;resize:vertical;background:var(--ink-100);color:var(--paper-1);border:1px solid var(--rule);border-radius:9px;padding:8px"
+        autocomplete="off" spellcheck="false"></textarea>
+      <div class="mbtns">
+        <button class="btn" style="flex:1;justify-content:center;background:var(--steel);color:#fff" onclick="copyFbRules()">📋 نسخ القواعد</button>
+        <button class="btn bgh" style="flex:1;justify-content:center" onclick="closeM()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
   <!-- حارس العمليات الخطرة — رمز الدخول عند الحافة -->
   <div class="mo" id="mDanger">
     <div class="mob" style="max-width:400px">
@@ -21211,6 +21338,8 @@ document.addEventListener("keydown", function(e){
       </div>
       <button class="btn" style="width:100%;justify-content:center;background:var(--steel);color:#fff"
         onclick="toolsConnCheck()">📡 ابدأ الفحص</button>
+      <button class="btn bgh bsm" style="width:100%;justify-content:center;margin-top:7px"
+        onclick="openFbRules()">🔑 قواعد فايربيس — جاهزةً للّصق</button>
       <div id="connCheckRes" style="margin-top:9px"></div>
     </div>
 
