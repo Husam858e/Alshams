@@ -2241,7 +2241,14 @@ html,body{background:#fff;color:#16191D;}
    إعداداً يُغيَّر من «الأدوات» ومعه مسطرة اختبار تقيسه بدل
    أن يُخمَّن.
 ══════════════════════════════════════════════════════════════ */
-const _PAPER_DEF=72;                 // ٣ بوصة: شريط الطباعة ٧٢ ملم
+/* v17.80 — الافتراضي ٦٤ لا ٧٢. صورةُ وصلٍ مطبوع بعرض ٧٢ أظهرت القطع
+   على الطرفين معاً: أول حرف من كل عنوان («صل شراء»، «لحالة»)
+   وآخر حرف من كل قيمة («غير مدفو»، «كغد»). القطع من الجهتين يعني
+   أن الشريط الفعلي لطابعة صاحب النظام أضيق من ٧٢ — نحو ٦٨ ملم —
+   وأن المحتوى المتوسّط يزيد عليه بنحو ملّيمترين من كل جانب.
+   ٦٤ يترك ملّيمترين أماناً من كل جانب على شريط ٦٨، ويبقى صالحاً
+   على طابعة ٧٢. والقياس الدقيق بصفحة القياس أدناه. */
+const _PAPER_DEF=64;
 function paperW(){
   let v=NaN;
   try{v=parseFloat(localStorage.getItem("wShamsPaperW"));}catch(e){}
@@ -2255,35 +2262,37 @@ function setPaperW(mm){
   try{renderPaperBox();}catch(e){}
 }
 
-/* ── مسطرة اختبار: تقيس شريط الطباعة بدل تخمينه ── */
+/* ── صفحة القياس — v17.80 ──
+   المسطرة الأولى كانت تبدأ من حافة واحدة، فإذا قُطع الطرفان معاً
+   لم يُعرف كم قُطع من كلٍّ منهما. هنا أشرطةٌ متوسّطة بعروضٍ متدرّجة
+   (٧٦ ← ٥٦ ملم)، لكلٍّ منها خطّان أسودان سميكان عند طرفيه ورقمُه
+   في وسطه. فيُختار أعرض شريطٍ ظهر خطّاه كاملين — بلا حساب.
+   والأشرطة تتجاوز عرض الطباعة المضبوط عمداً (max-width:none
+   وهامش سالب يُبقيها في وسط الورق)، وإلّا قصّتها قاعدة العرض نفسها. */
+const _RULER_W=[76,74,72,70,68,66,64,62,60,58,56];
 function openPaperRuler(){
-  const w=paperW();
-  const ticks=[];
-  for(let mm=0;mm<=w;mm+=5)
-    ticks.push(`<div style="position:absolute;top:0;right:${mm}mm;width:1px;height:${mm%10?4:8}mm;background:#000"></div>`
-      +(mm%10?"":`<div style="position:absolute;top:8mm;right:${mm-3}mm;font-size:7px;width:6mm;text-align:center">${AR(mm)}</div>`));
+  const pw=paperW();
+  const bar=w=>`<div class="rlbar" data-w="${w}" style="box-sizing:border-box;width:${w}mm;max-width:none!important;
+      margin:0 ${((pw-w)/2).toFixed(2)}mm 2mm ${((pw-w)/2).toFixed(2)}mm;height:7mm;
+      border:0.3mm solid #000;border-left:1.4mm solid #000;border-right:1.4mm solid #000;
+      display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:900;color:#000">${AR(w)} ملم</div>`;
   const html=`${COHEAD}
     <div class="prh" style="background:#33506B">
-      <div class="prhtl">📏 مسطرة الطباعة</div>
-      <div class="prhmt">العرض المضبوط: ${AR(w)} ملم</div>
+      <div class="prhtl">📏 صفحة قياس الطباعة</div>
+      <div class="prhmt">المضبوط الآن: ${AR(pw)} ملم</div>
     </div>
-    <div class="prb">
-      <div style="position:relative;height:14mm;width:${w}mm;margin:2mm 0">${ticks.join("")}</div>
-      <div style="width:${w}mm;height:5mm;background:#000;margin:1mm 0"></div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;width:${w}mm">
-        <span>◀ هنا تنتهي</span><span>تبدأ هنا ▶</span>
-      </div>
-      <div style="font-size:9px;line-height:1.8;margin-top:3mm">
-        <strong>كيف تقرأها:</strong><br/>
-        • ظهر الشريط الأسود كاملاً بطرفيه ⟵ العرض صحيح.<br/>
-        • انقطع طرفه الأيسر ⟵ أنقص العرض ٢ ملم وأعد الطباعة.<br/>
-        • بقي بياضٌ واسع على الطرفين ⟵ زد العرض ٢ ملم.<br/>
-        • آخر رقم ظاهر على المسطرة هو عرض شريط طابعتك تقريباً.
-      </div>
+    <div style="font-size:11px;font-weight:700;line-height:1.7;margin:2mm 0 3mm;text-align:center">
+      اختر <u>أعرض</u> شريطٍ ظهر خطّاه الأسودان<br/>على اليمين واليسار كاملين
+    </div>
+    ${_RULER_W.map(bar).join("")}
+    <div style="font-size:10px;line-height:1.8;margin-top:2mm">
+      ثم: الأدوات ← 🖨️ عرض الطباعة ← اضغط الرقم نفسه.<br/>
+      الشريط المقطوع خطّه أو المائل عن الوسط أعرضُ من طابعتك.
     </div>
     ${COFTR}`;
   _printHTML=html;_isCollScreen=false;
-  document.getElementById("pactTitle").textContent="📏 مسطرة الطباعة";
+  document.getElementById("pactTitle").textContent="📏 صفحة قياس الطباعة";
   document.getElementById("PC").innerHTML=html;
   document.getElementById("PS").classList.add("active");
   try{history.pushState({page:"app"},"","");}catch(e){}
@@ -2293,26 +2302,41 @@ function renderPaperBox(){
   const box=document.getElementById("paperBox");
   if(!box)return;
   const w=paperW();
-  const opt=[{v:72,t:"٣ بوصة (٨٠ ملم ورق)"},{v:48,t:"٢ بوصة (٥٨ ملم ورق)"}];
+  const chip=v=>`<button class="btn bsm ${w===v?"":"bgh"}"
+      style="min-width:44px;justify-content:center;${w===v?"background:var(--settled);color:#fff;font-weight:700":""}"
+      onclick="setPaperW(${v})">${AR(v)}</button>`;
   box.innerHTML=`
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      ${opt.map(o=>`<button class="btn bsm ${w===o.v?"":"bgh"}"
-        style="flex:1;justify-content:center;${w===o.v?"background:var(--settled);color:#fff;font-weight:700":""}"
-        onclick="setPaperW(${o.v})">${o.t}</button>`).join("")}
-    </div>
+    <button class="btn" style="width:100%;justify-content:center;background:var(--steel);color:#fff;margin-bottom:9px"
+      onclick="openPaperRuler()">📏 اطبع صفحة القياس</button>
+    <div style="font-size:11px;color:var(--paper-2);margin-bottom:6px">
+      ثم اضغط رقم أعرض شريطٍ ظهر طرفاه كاملين (بالملّيمتر):</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px">${_RULER_W.map(chip).join("")}</div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <span class="fl2">عرض مخصّص:</span>
+      <span class="fl2">أو عرض مخصّص:</span>
       <input class="fs2" id="paperCustom" type="number" min="30" max="120" step="1" value="${w}"
-        style="width:90px" autocomplete="off" data-lpignore="true">
+        style="width:80px" autocomplete="off" data-lpignore="true">
       <span style="font-size:11px;color:var(--paper-3)">ملم</span>
       <button class="btn bsm bg" onclick="setPaperW(document.getElementById('paperCustom').value)">حفظ</button>
-      <button class="btn bsm" style="background:var(--steel);color:#fff" onclick="openPaperRuler()">📏 مسطرة اختبار</button>
     </div>
     <div style="font-size:11px;color:var(--paper-3);line-height:1.8;margin-top:7px">
-      العرض هنا هو <strong>شريط الطباعة</strong> لا عرض الورق: رأس الطابعة
-      ذات الثلاث بوصات يطبع ٧٢ ملم في وسط ورقٍ عرضه ٧٦ أو ٨٠.
-      وما تجاوز الشريط لا يُطبع — فيظهر الوصل مقطوعاً من طرفه الأيسر.
+      المضبوط الآن: <strong style="color:var(--paper-1)">${AR(w)} ملم</strong>.
+      هذا عرض <strong>ما تطبعه الطابعة فعلاً</strong> لا عرض الورق — رأس الطابعة
+      لا يغطّي الورق كلّه. إن قُطع أول العناوين وآخر القيم معاً فالرقم أكبر من طابعتك.
     </div>`;
+}
+
+/* ══ مستند الطباعة — v17.80 ══
+   كانت أربعة مواضع تبني المستند كلٌّ بنسخته، واثنان منها يكتبان
+   <body style="margin:0"> — وهذا الهامش المضمَّن يغلب «margin:0 auto»
+   في قواعد الطباعة، فيلتصق الوصل بحافة الورق اليمنى بدل أن يتوسّط:
+   فيُقطع أول حرف من كل عنوان. واختبار العرض كان يقيس مستنداً بناه
+   بنفسه بلا ذلك الهامش، فرأى الحبر متوسّطاً والطابعة تراه ملتصقاً.
+   الآن دالةٌ واحدة يطبع منها الكل — ويقيسها الاختبار نفسها. */
+function _printDoc(body,fname){
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${fname||"نسائم الخير"}</title><style>${getPDFCss()}</style></head>
+<body>${body}</body></html>`;
 }
 
 function getPDFCss(){
@@ -2407,7 +2431,7 @@ function getPDFCss(){
   /* الهامش صفر: المحتوى أضيق من الورق أصلاً ويتوسّطه بنفسه،
      فأيّ هامشٍ إضافي يُزيحه خارج شريط الطباعة. */
   @page{margin:0;}
-  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:${_pw}mm;margin:0 auto;padding:0;background:#fff!important;color:#000!important;font-size:16px!important;font-family:Arial,Helvetica,sans-serif!important;font-weight:700!important;direction:rtl!important;}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:${_pw}mm;margin:0 auto!important;padding:0!important;background:#fff!important;color:#000!important;font-size:16px!important;font-family:Arial,Helvetica,sans-serif!important;font-weight:700!important;direction:rtl!important;}
   /* ⚠️ القاعدة الشاملة أدناه كانت تُصيب <html> نفسه، فيضيق إلى
      عرض المحتوى ويلتصق — في RTL — بحافة الورق اليسرى، فيخرج
      آخر عمود من شريط الطباعة. تُستثنى الجذور صراحةً هنا. */
@@ -2735,10 +2759,7 @@ async function doMakePDF(action){
     ? `محصلة_${PL[_currentCollPeriod]||_currentCollPeriod}_${_currentCollWH==="all"?"الكل":_currentCollWH}_${toDay()}`
     : `وصل_نسائم_الخير_${toDay()}`;
 
-  const fullHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${fname}</title><style>${getPDFCss()}</style></head>
-<body style="margin:0;padding:0">${_printHTML}</body></html>`;
+  const fullHTML = _printDoc(_printHTML, fname);
 
   if(action === "share"){
     showLoader("جاري إنشاء PDF...");
@@ -3039,10 +3060,7 @@ function doPrint(){
   const fname = _isCollScreen
     ? `محصلة_${PL[_currentCollPeriod]||_currentCollPeriod}_${_currentCollWH==="all"?"الكل":_currentCollWH}_${toDay()}`
     : `وصل_نسائم_الخير_${toDay()}`;
-  const fullHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${fname}</title><style>${getPDFCss()}</style></head>
-<body style="margin:0;padding:0">${_printHTML}</body></html>`;
+  const fullHTML = _printDoc(_printHTML, fname);
   _printViaIframe(fullHTML, fname);
 }
 
@@ -16457,8 +16475,7 @@ async function dlRec(format, action){
   if(!r){ closeM(); return; }
   const html = buildReceipt(r);
   const fname = `وصل_${esc(r.plate)}_${r.dk||toDay()}`;
-  const fullHTML = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
-<style>${getPDFCss()}</style></head><body>${html}</body></html>`;
+  const fullHTML = _printDoc(html, fname);
 
   closeM();
 
@@ -17355,7 +17372,7 @@ function doMakePDF_single(id){
   const r=S.recs.find(x=>x.id===id);if(!r)return;
   const html=buildReceipt(r);
   const fname=`وصل_${esc(r.plate)}_${r.dk||toDay()}.html`;
-  const fullHTML=`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`;
+  const fullHTML=_printDoc(html, fname);
   // محاولة Bridge
   const br=getBridge();
   if(br){
