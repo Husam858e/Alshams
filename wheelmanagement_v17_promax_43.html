@@ -2222,7 +2222,101 @@ const _PDF_TOKENS=`
 html,body{background:#fff;color:#16191D;}
 `;
 // CSS مشترك للـ PDF (يُضاف داخل الـ iframe)
+/* ══════════════════════════════════════════════════════════════
+   عرض الطباعة — v17.75
+   ──────────────────────────────────────────────────────────────
+   خرج الوصل مقطوعاً من طرفه الأيسر: عمود «متبقي» ناقص.
+   والقياس يقول السبب بلا تخمين: الحبر كان يمتدّ من ٣٫٩ ملم
+   إلى ٧٧٫٨ — بعرض ٧٣٫٩ ملم.
+
+   والورق ثلاث بوصات، لكن **رأس الطباعة لا يغطّيه كلّه**: رؤوس
+   هذه الفئة تطبع شريطاً عرضه ٧٢ ملم (٥٧٦ نقطة عند ٢٠٣ نقطة
+   للبوصة) في وسط الورق. فما تجاوز الشريط لا يُطبع — لا لأن
+   التنسيق خاطئ، بل لأن لا حبر هناك أصلاً.
+
+   ولأن الكتابة من اليمين لليسار، فالمقطوع هو آخر الأعمدة:
+   «متبقي». والفارق كان أقلّ من ملّيمترين — يكفي لقطع رقم.
+
+   ولأن عرض الشريط خاصّيةُ الطابعة لا خاصّيةُ التطبيق، صار
+   إعداداً يُغيَّر من «الأدوات» ومعه مسطرة اختبار تقيسه بدل
+   أن يُخمَّن.
+══════════════════════════════════════════════════════════════ */
+const _PAPER_DEF=72;                 // ٣ بوصة: شريط الطباعة ٧٢ ملم
+function paperW(){
+  let v=NaN;
+  try{v=parseFloat(localStorage.getItem("wShamsPaperW"));}catch(e){}
+  return (v>=30&&v<=120)?v:_PAPER_DEF;
+}
+function setPaperW(mm){
+  const v=parseFloat(mm);
+  if(!(v>=30&&v<=120)){showToast("⚠ العرض بين ٣٠ و١٢٠ ملم");return;}
+  try{localStorage.setItem("wShamsPaperW",String(v));}catch(e){}
+  showToast("✅ عرض الطباعة "+AR(v)+" ملم");
+  try{renderPaperBox();}catch(e){}
+}
+
+/* ── مسطرة اختبار: تقيس شريط الطباعة بدل تخمينه ── */
+function openPaperRuler(){
+  const w=paperW();
+  const ticks=[];
+  for(let mm=0;mm<=w;mm+=5)
+    ticks.push(`<div style="position:absolute;top:0;right:${mm}mm;width:1px;height:${mm%10?4:8}mm;background:#000"></div>`
+      +(mm%10?"":`<div style="position:absolute;top:8mm;right:${mm-3}mm;font-size:7px;width:6mm;text-align:center">${AR(mm)}</div>`));
+  const html=`${COHEAD}
+    <div class="prh" style="background:#33506B">
+      <div class="prhtl">📏 مسطرة الطباعة</div>
+      <div class="prhmt">العرض المضبوط: ${AR(w)} ملم</div>
+    </div>
+    <div class="prb">
+      <div style="position:relative;height:14mm;width:${w}mm;margin:2mm 0">${ticks.join("")}</div>
+      <div style="width:${w}mm;height:5mm;background:#000;margin:1mm 0"></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;width:${w}mm">
+        <span>◀ هنا تنتهي</span><span>تبدأ هنا ▶</span>
+      </div>
+      <div style="font-size:9px;line-height:1.8;margin-top:3mm">
+        <strong>كيف تقرأها:</strong><br/>
+        • ظهر الشريط الأسود كاملاً بطرفيه ⟵ العرض صحيح.<br/>
+        • انقطع طرفه الأيسر ⟵ أنقص العرض ٢ ملم وأعد الطباعة.<br/>
+        • بقي بياضٌ واسع على الطرفين ⟵ زد العرض ٢ ملم.<br/>
+        • آخر رقم ظاهر على المسطرة هو عرض شريط طابعتك تقريباً.
+      </div>
+    </div>
+    ${COFTR}`;
+  _printHTML=html;_isCollScreen=false;
+  document.getElementById("pactTitle").textContent="📏 مسطرة الطباعة";
+  document.getElementById("PC").innerHTML=html;
+  document.getElementById("PS").classList.add("active");
+  try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
+function renderPaperBox(){
+  const box=document.getElementById("paperBox");
+  if(!box)return;
+  const w=paperW();
+  const opt=[{v:72,t:"٣ بوصة (٨٠ ملم ورق)"},{v:48,t:"٢ بوصة (٥٨ ملم ورق)"}];
+  box.innerHTML=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      ${opt.map(o=>`<button class="btn bsm ${w===o.v?"":"bgh"}"
+        style="flex:1;justify-content:center;${w===o.v?"background:var(--settled);color:#fff;font-weight:700":""}"
+        onclick="setPaperW(${o.v})">${o.t}</button>`).join("")}
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span class="fl2">عرض مخصّص:</span>
+      <input class="fs2" id="paperCustom" type="number" min="30" max="120" step="1" value="${w}"
+        style="width:90px" autocomplete="off" data-lpignore="true">
+      <span style="font-size:11px;color:var(--paper-3)">ملم</span>
+      <button class="btn bsm bg" onclick="setPaperW(document.getElementById('paperCustom').value)">حفظ</button>
+      <button class="btn bsm" style="background:var(--steel);color:#fff" onclick="openPaperRuler()">📏 مسطرة اختبار</button>
+    </div>
+    <div style="font-size:11px;color:var(--paper-3);line-height:1.8;margin-top:7px">
+      العرض هنا هو <strong>شريط الطباعة</strong> لا عرض الورق: رأس الطابعة
+      ذات الثلاث بوصات يطبع ٧٢ ملم في وسط ورقٍ عرضه ٧٦ أو ٨٠.
+      وما تجاوز الشريط لا يُطبع — فيظهر الوصل مقطوعاً من طرفه الأيسر.
+    </div>`;
+}
+
 function getPDFCss(){
+  const _pw=paperW();
   return _PDF_TOKENS+`/* ══ إصلاح الطابعة الحرارية: تنسيق 80 ملم ══ */
 .pcn{font-size:16px!important;font-weight:900!important;line-height:1.1!important;}
 .pctag{font-size:8px!important;font-weight:700!important;line-height:1.2!important;margin-top:0!important;}
@@ -2310,12 +2404,19 @@ function getPDFCss(){
      أما الفراغات البيضاء بين الصفحات فسببها قواعد منع كسر
      العناصر لا مقاس الصفحة، وهي مُزالة أدناه.
   ══════════════════════════════════════════════════════ */
-  @page{margin:2mm;}
-  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:74mm;margin:0 auto;padding:0;background:#fff!important;color:#000!important;font-size:16px!important;font-family:Arial,Helvetica,sans-serif!important;font-weight:700!important;direction:rtl!important;}
-  *{max-width:74mm !important;box-sizing:border-box !important;font-family:Arial,Helvetica,sans-serif !important;background:transparent !important;color:#000 !important;border-color:#000 !important;text-shadow:none !important;box-shadow:none !important;}
+  /* الهامش صفر: المحتوى أضيق من الورق أصلاً ويتوسّطه بنفسه،
+     فأيّ هامشٍ إضافي يُزيحه خارج شريط الطباعة. */
+  @page{margin:0;}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:${_pw}mm;margin:0 auto;padding:0;background:#fff!important;color:#000!important;font-size:16px!important;font-family:Arial,Helvetica,sans-serif!important;font-weight:700!important;direction:rtl!important;}
+  /* ⚠️ القاعدة الشاملة أدناه كانت تُصيب <html> نفسه، فيضيق إلى
+     عرض المحتوى ويلتصق — في RTL — بحافة الورق اليسرى، فيخرج
+     آخر عمود من شريط الطباعة. تُستثنى الجذور صراحةً هنا. */
+  html{width:auto !important;max-width:none !important;margin:0 !important;padding:0 !important;}
+  body{max-width:${_pw}mm !important;}
+  *{max-width:${_pw}mm !important;box-sizing:border-box !important;font-family:Arial,Helvetica,sans-serif !important;background:transparent !important;color:#000 !important;border-color:#000 !important;text-shadow:none !important;box-shadow:none !important;}
   #aiBtn,#aiPanel,#aiPanelHd,#aiMsgs,#aiInputRow,#syncBar,#toast,#pdfLoader,.pact,.pbk-btn,.pshare-btn,button,input,select,textarea{display:none !important;visibility:hidden !important;}
   #PS{position:static!important;display:block!important;background:#fff !important;}
-  .pc{width:100%!important;max-width:74mm!important;margin:0!important;padding:0!important;background:#fff !important;}
+  .pc{width:100%!important;max-width:${_pw}mm!important;margin:0!important;padding:0!important;background:#fff !important;}
   table{page-break-inside:auto;width:100% !important;table-layout:fixed !important;border-collapse:collapse !important;}
   tr{page-break-inside:auto;page-break-after:auto;}
   /* جذري: table-row-group بدل table-header-group يمنع تكرار رأس الجدول (thead) في كل صفحة عند الطباعة — يظهر مرة واحدة فقط في أول صفحة، طبيعياً قبل أول صف بيانات */
@@ -2511,8 +2612,10 @@ async function doMakePDF(action){
 
 // توليد PDF حقيقي باستخدام iframe مخفي + html2canvas + jsPDF
 /* مقاس بكرة الطابعة الحرارية — ٣ بوصة = ٨٠ملم */
-const _PDF_W_MM = 80;
-const _PDF_W_PX = Math.round(_PDF_W_MM * 96 / 25.4);   // ≈ ٣٠٢ بكسل
+/* v17.75 — ملف الـPDF المُشارَك بعرض الطباعة نفسه، فلا يبقى
+   بياضٌ ميّت على طرفيه ولا يختلف شكله عن الورقة المطبوعة. */
+const _pdfWmm=()=>paperW();
+const _pdfWpx=()=>Math.round(_pdfWmm()*96/25.4);
 
 async function _generatePDFBlob(fullHTML, fname){
   return new Promise((resolve)=>{
@@ -2527,7 +2630,7 @@ async function _generatePDFBlob(fullHTML, fname){
          الآن يُرسم بعرض البكرة نفسه ويخرج صفحة واحدة بطوله.
       ══════════════════════════════════════════════════════ */
       const fr = document.createElement("iframe");
-      fr.style.cssText=`position:fixed;top:0;left:-9999px;width:${_PDF_W_PX}px;height:1200px;border:none;opacity:0;z-index:-1;`;
+      fr.style.cssText=`position:fixed;top:0;left:-9999px;width:${_pdfWpx()}px;height:1200px;border:none;opacity:0;z-index:-1;`;
       document.body.appendChild(fr);
       const doc = fr.contentDocument || fr.contentWindow.document;
       /* ══════════════════════════════════════════════════════
@@ -2548,7 +2651,7 @@ async function _generatePDFBlob(fullHTML, fname){
         try{
           await _ensurePdfLibs();   // v17.10 — تُحمَّل عند الطلب
           const body = doc.body;
-          const totalW = _PDF_W_PX;
+          const totalW = _pdfWpx();
           const totalH = Math.max(body.scrollHeight, body.offsetHeight, 200);
 
           // html2canvas
@@ -2580,16 +2683,16 @@ async function _generatePDFBlob(fullHTML, fname){
           ══════════════════════════════════════════════════════ */
           const { jsPDF } = window.jspdf;
           const canvW=canvas.width, canvH=canvas.height;
-          const imgH=(canvH/canvW)*_PDF_W_MM;          // طول الوصل بالملم
+          const imgH=(canvH/canvW)*_pdfWmm();          // طول الوصل بالملم
           const imgData = canvas.toDataURL("image/jpeg",0.92);
           const MAXH=5000;                              // ملم
 
           let pdf;
           if(imgH <= MAXH){
-            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_PDF_W_MM,imgH]});
-            pdf.addImage(imgData,"JPEG",0,0,_PDF_W_MM,imgH);
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_pdfWmm(),imgH]});
+            pdf.addImage(imgData,"JPEG",0,0,_pdfWmm(),imgH);
           } else {
-            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_PDF_W_MM,MAXH]});
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_pdfWmm(),MAXH]});
             let yOffset=0;
             const pageHpx=(canvH/imgH)*MAXH;
             while(yOffset < canvH){
@@ -2600,9 +2703,9 @@ async function _generatePDFBlob(fullHTML, fname){
               ctx.drawImage(canvas, 0, yOffset, canvW, sliceH, 0, 0, canvW, sliceH);
               const pageImg=pageCanvas.toDataURL("image/jpeg",0.92);
               const sliceHmm=(sliceH/canvH)*imgH;
-              pdf.addImage(pageImg,"JPEG",0,0,_PDF_W_MM,sliceHmm);
+              pdf.addImage(pageImg,"JPEG",0,0,_pdfWmm(),sliceHmm);
               yOffset+=sliceH;
-              if(yOffset<canvH) pdf.addPage([_PDF_W_MM,sliceHmm]);
+              if(yOffset<canvH) pdf.addPage([_pdfWmm(),sliceHmm]);
             }
           }
 
@@ -13347,7 +13450,7 @@ function sT(id,btn){
   if(id==="stock")renderStockVal();
   if(id==="aging")renderAging();
   if(id==="acct")renderAcct();
-  if(id==="tools"){try{renderNumbering();}catch(e){}}
+  if(id==="tools"){try{renderNumbering();}catch(e){}try{renderPaperBox();}catch(e){}}
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
   if(id==="sell-recs"){renderSellRecs();}
@@ -21968,6 +22071,16 @@ document.addEventListener("keydown", function(e){
       </p>
       <div id="numberingRes"></div>
     </div>
+    <!-- عرض الطباعة -->
+    <div class="cd">
+      <div class="cdt">🖨️ عرض الطباعة</div>
+      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
+        إن خرج الوصل مقطوعاً من طرفه الأيسر (عمود «متبقي» ناقص) فالسبب أن
+        المحتوى أعرض من شريط طباعة طابعتك. اضبطه هنا، واقِسه بالمسطرة إن شككت.
+      </div>
+      <div id="paperBox"></div>
+    </div>
+
     <!-- فحص الاتصال والصلاحيات -->
     <div class="cd">
       <div class="cdt">📡 فحص الاتصال والصلاحيات</div>
