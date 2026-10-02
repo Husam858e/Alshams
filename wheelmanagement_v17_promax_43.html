@@ -14045,41 +14045,128 @@ function _selRerender(k){
 }
 
 /* ── طباعة المحدَّد ── */
+/* ══ تفصيل الوصل للطباعة: المادة والكبس والنقل — v17.78 ══
+   كل قسم يحفظ الكبس والنقل بحقولٍ مختلفة، فتُقرأ هنا في موضعٍ
+   واحد بدل أن يعرف جدول الطباعة أسماء حقول كل قسم. */
+function _selDetail(k,r){
+  const o={mat:"",net:+r.net||0,kN:0,kUP:0,kFee:0,nN:0,nUP:0,nFee:0};
+  if(r.mat&&MAT[r.mat])o.mat=MAT[r.mat].label;
+  if(k==="buy"){
+    if(r.kOn){
+      o.kN=+r.kC||0; o.kUP=+r.kUP||0;
+      o.kFee=r.kabsFee!=null?+r.kabsFee:o.kN*o.kUP;
+    }
+    if(r.nOn){
+      const en=getNaqlEntries(r);
+      o.nN=en.reduce((x,e)=>x+(+e.nC||0),0);
+      o.nFee=en.reduce((x,e)=>x+(e.naqlFee!=null?+e.naqlFee:(+e.nC||0)*(+e.nUP||0)),0);
+      /* سعرٌ واحد يُعرض؛ ناقلون بأسعارٍ مختلفة يُكتفى فيهم بالمجموع */
+      const ups=[...new Set(en.map(e=>+e.nUP||0).filter(Boolean))];
+      o.nUP=ups.length===1?ups[0]:0;
+    }
+  } else if(k==="sell"){
+    if(r.nOn){o.nN=+r.nKabs||0; o.nUP=+r.nUP||0; o.nFee=+r.naqlFee||0;}
+  } else if(k==="mnl"){
+    o.nN=+r.kabs||0; o.nUP=+r.pricePerK||0; o.nFee=+r.naqlFee||0;
+  } else if(k==="dam"){
+    /* الضمانة تجمع وصولاتها الفرعية: وزنها وكبسها ونقلها */
+    (r.subRecs?Object.values(r.subRecs):[]).forEach(x=>{
+      o.net+=+x.net||0;
+      o.kN+=+x.pressCount||0; o.kFee+=+x.press||0;
+      o.nN+=+x.transCount||0; o.nFee+=+x.trans||0;
+    });
+  }
+  return o;
+}
+
 function _selPrint(k){
   const d=_DS(k); const S1=_selStats(k);
   if(!S1.n){showToast("⚠ لم تُحدَّد وصولات");return;}
   const rows=S1.recs.slice().sort((a,b)=>String(a.dk||"").localeCompare(String(b.dk||"")));
+  const det=new Map(rows.map(r=>[r,_selDetail(k,r)]));
   const money=S1.total>0;
-  const dt=new Date(); const p2=x=>String(x).padStart(2,"0");
+  const hasNet=rows.some(r=>det.get(r).net>0);
+  const num=v=>AR(Math.round(v).toLocaleString("en"));
+
+  /* المجاميع */
+  const T={net:0,kN:0,kFee:0,nN:0,nFee:0};
+  const byMat={};
+  rows.forEach(r=>{
+    const x=det.get(r);
+    T.net+=x.net; T.kN+=x.kN; T.kFee+=x.kFee; T.nN+=x.nN; T.nFee+=x.nFee;
+    if(x.mat){const m=byMat[x.mat]||(byMat[x.mat]={n:0,net:0}); m.n++; m.net+=x.net;}
+  });
+  const hasK=T.kN>0||T.kFee>0, hasN=T.nN>0||T.nFee>0;
+  const cols=3+(hasNet?1:0)+(money?3:0);
+
+  /* سطر التفصيل تحت كل وصل — بعرض الجدول كاملاً كي يتّسع لشريط ٧٢ ملم */
+  const detLine=x=>{
+    const p=[];
+    if(x.mat)p.push(`<b>${esc(x.mat)}</b>`);
+    if(x.kN||x.kFee)p.push(`كبس ${x.kN?num(x.kN):""}${x.kUP?" × "+num(x.kUP):""}${x.kFee?" = <b>"+num(x.kFee)+"</b>":""}`);
+    if(x.nN||x.nFee)p.push(`نقل ${x.nN?num(x.nN):""}${x.nUP?" × "+num(x.nUP):""}${x.nFee?" = <b>"+num(x.nFee)+"</b>":""}`);
+    /* كل بندٍ لا ينكسر في وسطه: «نقل ١٠ × ٣٬٠٠٠» ثم «= ٣٠٬٠٠٠» على
+       سطرٍ آخر تُقرأ خطأً. البنود تلتفّ كاملةً لا أجزاءً. */
+    return p.map(t=>`<span style="white-space:nowrap;display:inline-block;margin-left:7px">${t}</span>`).join("");
+  };
+
+  const body=rows.map((r,i)=>{
+    const x=det.get(r);
+    const tot=(d.amount?d.amount(r):0)||0;
+    const pd=_agingPaid(k,r)||0;
+    const line=detLine(x);
+    const bg=i%2?"#FAF8F3":"#fff";
+    return`<tr class="${line?"hasdet":""}" style="background:${bg}">
+        <td style="text-align:center;${line?"border-bottom:none":""}">${r.no?fNo(r.no):AR(i+1)}</td>
+        <td style="text-align:center;${line?"border-bottom:none":""}">${tAr(r.dk)}</td>
+        <td style="${line?"border-bottom:none":""}">${esc((d.who?d.who(r):"")||"—")}</td>
+        ${hasNet?`<td style="text-align:center;${line?"border-bottom:none":""}">${x.net?fKG(x.net):"—"}</td>`:""}
+        ${money?`<td style="text-align:center;${line?"border-bottom:none":""}">${fIQD(tot)}</td>
+                 <td style="text-align:center;${line?"border-bottom:none":""}">${fIQD(pd)}</td>
+                 <td style="text-align:center;font-weight:700;${line?"border-bottom:none":""}">${fIQD(Math.max(0,tot-pd))}</td>`:""}
+      </tr>
+      ${line?`<tr class="seldet" style="background:${bg}">
+        <td colspan="${cols}" style="font-size:9px;padding:0 4px 3px;color:#3A332A">${line}</td>
+      </tr>`:""}`;
+  }).join("");
+
+  const sub=(label,val)=>`<tr class="selsum"><td colspan="${cols}" style="padding:3px 4px;font-size:10px">
+      <span style="font-weight:700">${label}</span> ${val}</td></tr>`;
+  const mats=Object.keys(byMat);
+
   const html=`${COHEAD}
     <div class="prh" style="background:#33506B">
       <div class="prhtl">☑️ وصولات محدَّدة — ${esc(d.label)}</div>
-      <div class="prhmt">${tAr(toDay())}<br/>${p2(dt.getHours())+":"+p2(dt.getMinutes())}</div>
+      <div class="prhmt">${tAr(toDay())}<br/>${p2now()}</div>
     </div>
+    <style>
+      /* يرافق الوصل إلى الشاشة والـPDF والطابعة: الوصل وسطر تفصيله
+         كتلةٌ واحدة بلا خطٍّ بينهما، والتظليل للكتلة لا للصف. */
+      .seltbl tbody td{background:transparent!important}
+      .seltbl tr.hasdet td{border-bottom:none!important}
+      .seltbl tr.seldet td{padding-top:0!important;border-bottom:1px solid #C9C1B1!important}
+      .seltbl .selsum td{background:#F2EFE8!important;color:#000!important;border-top:1px solid #000!important}
+      .seltbl th{padding:2px 1px!important;font-size:9px!important}
+    </style>
     <div class="prb">
       <div class="psec">${AR(S1.n)} وصل${money?` — المجموع ${fIQD(S1.total)}`:""}</div>
-      <table class="coltbl" style="width:100%;font-size:9px">
+      <table class="coltbl seltbl" style="width:100%;font-size:9px">
         <thead><tr><th>#</th><th>التاريخ</th><th>الاسم</th>
-          ${rows.some(r=>r.net)?"<th>الصافي</th>":""}
+          ${hasNet?"<th>الصافي</th>":""}
           ${money?"<th>المبلغ</th><th>المدفوع</th><th>المتبقي</th>":""}</tr></thead>
-        <tbody>${rows.map((r,i)=>{
-          const tot=(d.amount?d.amount(r):0)||0;
-          const pd=_agingPaid(k,r)||0;
-          return`<tr>
-            <td style="text-align:center">${r.no?fNo(r.no):AR(i+1)}</td>
-            <td style="text-align:center">${tAr(r.dk)}</td>
-            <td>${esc((d.who?d.who(r):"")||"—")}</td>
-            ${rows.some(x=>x.net)?`<td style="text-align:center">${r.net?fKG(r.net):"—"}</td>`:""}
-            ${money?`<td style="text-align:center">${fIQD(tot)}</td>
-                     <td style="text-align:center">${fIQD(pd)}</td>
-                     <td style="text-align:center;font-weight:700">${fIQD(Math.max(0,tot-pd))}</td>`:""}
-          </tr>`;}).join("")}</tbody>
-        ${money?`<tfoot><tr class="ctot">
-          <td colspan="${rows.some(x=>x.net)?4:3}" style="font-weight:700;padding:5px 4px">المجموع</td>
-          <td style="text-align:center;font-weight:700">${fIQD(S1.total)}</td>
-          <td style="text-align:center;font-weight:700">${fIQD(S1.paid)}</td>
-          <td style="text-align:center;font-weight:700">${fIQD(S1.rem)}</td>
-        </tr></tfoot>`:""}
+        <tbody>${body}</tbody>
+        <tfoot>
+          <tr class="ctot">
+            <td colspan="3" style="font-weight:700;padding:5px 4px">المجموع</td>
+            ${hasNet?`<td style="text-align:center;font-weight:700">${fKG(T.net)}</td>`:""}
+            ${money?`<td style="text-align:center;font-weight:700">${fIQD(S1.total)}</td>
+              <td style="text-align:center;font-weight:700">${fIQD(S1.paid)}</td>
+              <td style="text-align:center;font-weight:700">${fIQD(S1.rem)}</td>`:""}
+          </tr>
+          ${hasK?sub("الكبس:",`${T.kN?num(T.kN)+" كبسة — ":""}الأجور <b>${fIQD(T.kFee)}</b>`):""}
+          ${hasN?sub("النقل:",`${T.nN?num(T.nN)+" كبسة — ":""}الأجور <b>${fIQD(T.nFee)}</b>`):""}
+          ${mats.length?sub("المادة:",mats.map(m=>`${esc(m)} ${AR(byMat[m].n)} وصل${byMat[m].net?" · "+fKG(byMat[m].net):""}`).join(" | ")):""}
+        </tfoot>
       </table>
     </div>
     ${COFTR}`;
@@ -14089,6 +14176,7 @@ function _selPrint(k){
   document.getElementById("PS").classList.add("active");
   try{history.pushState({page:"app"},"","");}catch(e){}
 }
+function p2now(){const t=new Date(),p=x=>String(x).padStart(2,"0");return p(t.getHours())+":"+p(t.getMinutes());}
 
 function getFilt(){
   // v17.43 — حراسة موحّدة: عنصر مفقود يعني «بلا فلترة» لا انهيار الشاشة
