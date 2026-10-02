@@ -327,6 +327,23 @@ input,select,button,textarea{
 .fsum span{color:var(--paper-3);font-size:11px;}
 .fsum strong{color:var(--paper);font-weight:700;}
 
+/* ═══ تحديد الوصولات ═══ */
+.selhost{position:relative;}
+.selcb{position:absolute;top:8px;left:8px;z-index:3;display:flex;align-items:center;
+  justify-content:center;width:30px;height:30px;border-radius:9px;cursor:pointer;
+  background:var(--ink-050);border:1px solid var(--rule);}
+.selcb input{width:18px;height:18px;accent-color:var(--settled);cursor:pointer;margin:0;}
+.selon{outline:2px solid var(--settled);outline-offset:-2px;
+  background:var(--settled-wash)!important;}
+.selbar{position:sticky;top:0;z-index:12;margin-bottom:8px;}
+.selbar-in{background:var(--ink-200);border:1.5px solid var(--settled);border-radius:12px;
+  padding:9px 11px;box-shadow:0 3px 10px rgba(0,0,0,.35);}
+.selbar-nums{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--paper-2);
+  margin-bottom:7px;}
+.selbar-nums strong{color:var(--paper-1);}
+.selbar-btns{display:flex;flex-wrap:wrap;gap:5px;}
+.selbar-btns .btn{flex:1 1 auto;justify-content:center;}
+
 /* ═══ بطاقة الوصل ═══ */
 .rc{background:var(--ink-100);border:1px solid var(--rule);border-radius:var(--r-lg);padding:14px;margin-bottom:10px;
   border-right:3px solid var(--rule-hi);box-shadow:0 1px 2px rgba(0,0,0,.35);}
@@ -13267,6 +13284,7 @@ function doLogin(){
     // إظهار زر AI
     const aiBtn=document.getElementById("aiBtn");
     if(aiBtn)aiBtn.style.display="flex";
+    try{_selWatch();}catch(e){}        // v17.74 — تحديد الوصولات في كل سجل
     // تحميل الكاش المحلي إن لم يكن Firebase اتصل بعد
     try{if(!S.recs.length){const c=localStorage.getItem("wShamsCache");if(c)S.recs=JSON.parse(c).sort(_byDkDesc);}}catch(e){}
     // عرض البيانات
@@ -13538,6 +13556,252 @@ const SB={waiting:"bw",confirmed:"bc",weighed:"bd"};
 const ST=["① وزن محمل","② تأكيد مخزن","③ وزن فارغ"];
 const SI={waiting:0,confirmed:1,weighed:2};
 
+
+/* ══════════════════════════════════════════════════════════════
+   تحديد الوصولات — v17.74
+   ──────────────────────────────────────────────────────────────
+   السجل كان يعرض ويُفلتر، ولا يسمح بانتقاء وصولاتٍ بعينها.
+   فمن أراد دفع سبعة وصولات متفرّقة فتحها واحداً واحداً.
+
+   ══ لماذا لم تُعدَّل تسع دوال رسم ══
+   كل بطاقة في كل قسم تحمل data-rid أصلاً. فالتحديد يُبنى على
+   هذه العلامة الموجودة: دالةٌ واحدة تمرّ على البطاقات بعد
+   رسمها فتزرع المربّع وتستعيد ما كان محدَّداً. وأي قسم يُضاف
+   مستقبلاً يدخل بسطرٍ في الجدول أدناه لا بنسخةٍ عاشرة.
+
+   ══ التحديد يعيش عبر الصفحات ══
+   المحفوظ معرّفاتٌ لا عناصر، فالانتقال بين صفحات السجل أو
+   تغيير الفلترة لا يُفقد ما اختير. والعدّ والمجاميع تُقرأ من
+   سجل المجموعات نفسه (_DATASETS)، فرقم «المحدَّد» مطابقٌ
+   لرقم المحصلة دائماً.
+══════════════════════════════════════════════════════════════ */
+
+/* حاوية القائمة ← مفتاح المجموعة في _DATASETS */
+const _SEL_BOX={RL:"buy", sellRL:"sell", damRL:"dam", srfRL:"srf", wrkRL:"wrk",
+                arbRL:"arb", outRL:"out", salRL:"sal", mnlRL:"mnl"};
+/* أقسامٌ دفعتها في مصفوفة payments الموحّدة — وحدها تقبل «دفع المحدَّد».
+   النقل اليدوي دفعاته في naqlPayments بمسارٍ خاص، فلا يُدفع من هنا. */
+const _SEL_PAYABLE=new Set(["buy","sell","dam","srf","wrk","sal"]);
+
+const _SEL=new Map();
+const _selSet=k=>{ if(!_SEL.has(k))_SEL.set(k,new Set()); return _SEL.get(k); };
+const _selBoxOf=k=>Object.keys(_SEL_BOX).find(b=>_SEL_BOX[b]===k);
+const _selRec=(k,id)=>{const d=_DS(k);return d?(d.get()||[]).find(x=>x&&x.id===id):null;};
+
+/* ── المراقبة: لا تُعدَّل دوال الرسم التسع ──
+   كل دالة رسمٍ تستبدل محتوى حاويتها دفعةً واحدة، فمراقبُ أبنائها
+   يكفي ليُزرع التحديد بعدها. والزرع يُضيف المربّع داخل البطاقة
+   لا في الحاوية، فلا يُشعل المراقبَ من جديد.
+   وبهذا يدخل أي قسمٍ جديد بسطرٍ في _SEL_BOX لا بتعديل رسمه. */
+function _selWatch(){
+  Object.keys(_SEL_BOX).forEach(boxId=>{
+    const box=document.getElementById(boxId);
+    if(!box||box._selWatched)return;
+    box._selWatched=true;
+    try{ new MutationObserver(()=>_selAttach(boxId)).observe(box,{childList:true}); }
+    catch(e){}
+    _selAttach(boxId);
+  });
+}
+
+/* ── الزرع: يُستدعى بعد كل رسم ── */
+function _selAttach(boxId){
+  const k=_SEL_BOX[boxId]; if(!k)return;
+  const box=document.getElementById(boxId); if(!box)return;
+  const set=_selSet(k);
+  box.querySelectorAll("[data-rid]").forEach(el=>{
+    const id=el.getAttribute("data-rid");
+    /* البطاقات الفرعية (وصولات الضمانات) ليست سجلات المجموعة — تُترك */
+    if(!id||!_selRec(k,id))return;
+    if(el.querySelector(":scope > .selcb"))return;
+    const cb=document.createElement("label");
+    cb.className="selcb";
+    cb.innerHTML=`<input type="checkbox" ${set.has(id)?"checked":""}
+      onchange="_selToggle('${k}','${String(id).replace(/'/g,"\\'")}',this.checked)">`;
+    el.classList.add("selhost");
+    el.classList.toggle("selon",set.has(id));
+    el.insertBefore(cb,el.firstChild);
+  });
+  _selBar(k);
+}
+
+function _selToggle(k,id,on){
+  const set=_selSet(k);
+  if(on)set.add(id); else set.delete(id);
+  const box=document.getElementById(_selBoxOf(k));
+  const el=box&&box.querySelector(`[data-rid="${CSS.escape(String(id))}"]`);
+  if(el){
+    el.classList.toggle("selon",!!on);
+    /* المربّع يُوافق الحالة ولو جاء التبديل من غير نقره */
+    const i=el.querySelector(":scope > .selcb input");
+    if(i&&i.checked!==!!on)i.checked=!!on;
+  }
+  _selBar(k);
+}
+function _selPageAll(k,on){
+  const box=document.getElementById(_selBoxOf(k)); if(!box)return;
+  const set=_selSet(k);
+  box.querySelectorAll("[data-rid]").forEach(el=>{
+    const id=el.getAttribute("data-rid");
+    if(!id||!_selRec(k,id))return;
+    if(on)set.add(id); else set.delete(id);
+    el.classList.toggle("selon",!!on);
+    const i=el.querySelector(":scope > .selcb input");
+    if(i)i.checked=!!on;
+  });
+  _selBar(k);
+}
+/* الشراء وحده مُجزّأ بصفحات — فله «كل نتائج الفلترة» */
+function _selFilteredAll(){
+  const set=_selSet("buy");
+  (_recFiltered||[]).forEach(r=>r&&r.id&&set.add(r.id));
+  _renderRecPage(true); _selAttach("RL");
+}
+function _selClear(k){
+  _selSet(k).clear();
+  const box=document.getElementById(_selBoxOf(k));
+  if(box)box.querySelectorAll("[data-rid]").forEach(el=>{
+    el.classList.remove("selon");
+    const i=el.querySelector(":scope > .selcb input"); if(i)i.checked=false;
+  });
+  _selBar(k);
+}
+
+/* ── أرقام المحدَّد: من سجل المجموعات نفسه فلا يختلف عن المحصلة ── */
+function _selStats(k){
+  const d=_DS(k); const set=_selSet(k);
+  const recs=[...set].map(id=>_selRec(k,id)).filter(Boolean);
+  let total=0,paid=0,net=0;
+  recs.forEach(r=>{
+    total+=(d&&d.amount?d.amount(r):0)||0;
+    paid +=_agingPaid(k,r)||0;
+    net  +=r.net||0;
+  });
+  return{recs,n:recs.length,total,paid,rem:Math.max(0,total-paid),net};
+}
+
+/* ── الشريط ── */
+function _selBar(k){
+  const boxId=_selBoxOf(k); if(!boxId)return;
+  const box=document.getElementById(boxId); if(!box)return;
+  const host=box.parentNode; if(!host)return;
+  let bar=document.getElementById("selbar_"+k);
+  const S1=_selStats(k);
+  if(!S1.n){ if(bar)bar.remove(); return; }
+  if(!bar){
+    bar=document.createElement("div");
+    bar.id="selbar_"+k;
+    bar.className="selbar";
+    host.insertBefore(bar,box);
+  }
+  const d=_DS(k);
+  const money=S1.total>0;
+  const more=(k==="buy"&&(_recFiltered||[]).length>S1.n)
+    ?`<button class="btn bsm bgh" onclick="_selFilteredAll()">⊞ كل نتائج الفلترة (${AR(_recFiltered.length)})</button>`:"";
+  bar.innerHTML=`<div class="selbar-in">
+    <div class="selbar-nums">
+      <span>☑️ المحدَّد: <strong>${AR(S1.n)}</strong> وصل</span>
+      ${S1.net>0?`<span>الصافي: <strong>${fKG(S1.net)}</strong></span>`:""}
+      ${money?`<span>المجموع: <strong>${fIQD(S1.total)}</strong></span>`:""}
+      ${money?`<span style="color:var(--settled)">المدفوع: <strong>${fIQD(S1.paid)}</strong></span>`:""}
+      ${money&&S1.rem>0?`<span style="color:var(--owing)">المتبقي: <strong>${fIQD(S1.rem)}</strong></span>`:""}
+    </div>
+    <div class="selbar-btns">
+      <button class="btn bsm bgh" onclick="_selPageAll('${k}',true)">☑ تحديد المعروض</button>
+      ${more}
+      <button class="btn bsm bgh" onclick="_selClear('${k}')">✕ إلغاء التحديد</button>
+      <button class="btn bsm bg" onclick="_selPrint('${k}')">🖨️ طباعة المحدَّد</button>
+      ${_SEL_PAYABLE.has(k)&&S1.rem>0
+        ?`<button class="btn bsm" style="background:var(--settled);color:#fff;font-weight:700" onclick="_selPay('${k}')">💵 دفع المحدَّد (${fIQD(S1.rem)})</button>`:""}
+    </div>
+  </div>`;
+}
+
+/* ── دفع المحدَّد: المتبقّي على كل وصل، في دفعة واحدة ── */
+function _selPay(k){
+  const d=_DS(k); if(!d)return;
+  const S1=_selStats(k);
+  const open=S1.recs.filter(r=>(d.amount?d.amount(r):0)-_agingPaid(k,r)>0.5);
+  if(!open.length){showToast("✅ كل المحدَّد مسدَّد أصلاً");return;}
+  if(!confirm(
+`تسديد ${open.length} وصلاً محدَّداً من «${d.label}»
+
+المتبقّي عليها: ${Math.round(S1.rem).toLocaleString("en")} د.ع
+
+هل تريد المتابعة؟`))return;
+  let n=0;
+  /* v17.73 — دفعة واحدة: مئات الوصولات لا تُجمّد الواجهة */
+  _bulkSync(()=>{
+    open.forEach(r=>{
+      const tot=d.amount(r)||0;
+      const rem=tot-_agingPaid(k,r);
+      if(rem<=0.5)return;
+      const payments=[...(r.payments||[]),
+        {amount:rem,at:nowStr(),by:(S.cu&&S.cu.name)+" (تحديد)"}];
+      d.save({...r,payments,paidTotal:tot,paid:true,
+              paidAt:nowStr(),paidBy:(S.cu&&S.cu.name)||"—"});
+      n++;
+    });
+  });
+  _selClear(k);
+  _selRerender(k);
+  showToast(`✅ سُدّد ${AR(n)} وصلاً محدَّداً`);
+}
+
+/* إعادة رسم قائمة القسم بعد تغيّرها */
+function _selRerender(k){
+  const f={buy:()=>renderRecs(true), sell:renderSellRecs, dam:renderDamRecs,
+           srf:renderSrfRecs, wrk:renderWrkRecs, arb:renderArbRecs,
+           out:renderOutRecs, sal:renderSalRecs, mnl:renderMnlRecs}[k];
+  try{ if(typeof f==="function")f(); }catch(e){}
+}
+
+/* ── طباعة المحدَّد ── */
+function _selPrint(k){
+  const d=_DS(k); const S1=_selStats(k);
+  if(!S1.n){showToast("⚠ لم تُحدَّد وصولات");return;}
+  const rows=S1.recs.slice().sort((a,b)=>String(a.dk||"").localeCompare(String(b.dk||"")));
+  const money=S1.total>0;
+  const dt=new Date(); const p2=x=>String(x).padStart(2,"0");
+  const html=`${COHEAD}
+    <div class="prh" style="background:#33506B">
+      <div class="prhtl">☑️ وصولات محدَّدة — ${esc(d.label)}</div>
+      <div class="prhmt">${tAr(toDay())}<br/>${p2(dt.getHours())+":"+p2(dt.getMinutes())}</div>
+    </div>
+    <div class="prb">
+      <div class="psec">${AR(S1.n)} وصل${money?` — المجموع ${fIQD(S1.total)}`:""}</div>
+      <table class="coltbl" style="width:100%;font-size:9px">
+        <thead><tr><th>#</th><th>التاريخ</th><th>الاسم</th>
+          ${rows.some(r=>r.net)?"<th>الصافي</th>":""}
+          ${money?"<th>المبلغ</th><th>المدفوع</th><th>المتبقي</th>":""}</tr></thead>
+        <tbody>${rows.map((r,i)=>{
+          const tot=(d.amount?d.amount(r):0)||0;
+          const pd=_agingPaid(k,r)||0;
+          return`<tr>
+            <td style="text-align:center">${r.no?fNo(r.no):AR(i+1)}</td>
+            <td style="text-align:center">${tAr(r.dk)}</td>
+            <td>${esc((d.who?d.who(r):"")||"—")}</td>
+            ${rows.some(x=>x.net)?`<td style="text-align:center">${r.net?fKG(r.net):"—"}</td>`:""}
+            ${money?`<td style="text-align:center">${fIQD(tot)}</td>
+                     <td style="text-align:center">${fIQD(pd)}</td>
+                     <td style="text-align:center;font-weight:700">${fIQD(Math.max(0,tot-pd))}</td>`:""}
+          </tr>`;}).join("")}</tbody>
+        ${money?`<tfoot><tr class="ctot">
+          <td colspan="${rows.some(x=>x.net)?4:3}" style="font-weight:700;padding:5px 4px">المجموع</td>
+          <td style="text-align:center;font-weight:700">${fIQD(S1.total)}</td>
+          <td style="text-align:center;font-weight:700">${fIQD(S1.paid)}</td>
+          <td style="text-align:center;font-weight:700">${fIQD(S1.rem)}</td>
+        </tr></tfoot>`:""}
+      </table>
+    </div>
+    ${COFTR}`;
+  _printHTML=html;_isCollScreen=false;
+  document.getElementById("pactTitle").textContent="☑️ وصولات محدَّدة — "+d.label;
+  document.getElementById("PC").innerHTML=html;
+  document.getElementById("PS").classList.add("active");
+  try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
 function getFilt(){
   // v17.43 — حراسة موحّدة: عنصر مفقود يعني «بلا فلترة» لا انهيار الشاشة
   const mf=document.getElementById("fM")?.value||"all";
@@ -13564,7 +13828,9 @@ function getFilt(){
 
 /* ── Pagination للسجلات ── */
 let _recPage=0;
-const _recPageSize=20;
+/* v17.74 — خمسون في الصفحة بدل عشرين: السجل يُقلَّب أقلّ،
+   والبطاقات خفيفة فلا يُثقل الرسم. */
+const _recPageSize=50;
 let _recFiltered=[];
 
 function renderRecs(keepPage){
