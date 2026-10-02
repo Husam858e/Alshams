@@ -2273,7 +2273,7 @@ const _RULER_W=[76,74,72,70,68,66,64,62,60,58,56];
 function openPaperRuler(){
   const pw=paperW();
   const bar=w=>`<div class="rlbar" data-w="${w}" style="box-sizing:border-box;width:${w}mm;max-width:none!important;
-      margin:0 ${((pw-w)/2).toFixed(2)}mm 2mm ${((pw-w)/2).toFixed(2)}mm;height:7mm;
+      margin:0 calc((100% - ${w}mm)/2) 2mm;height:7mm;
       border:0.3mm solid #000;border-left:1.4mm solid #000;border-right:1.4mm solid #000;
       display:flex;align-items:center;justify-content:center;
       font-size:12px;font-weight:900;color:#000">${AR(w)} ملم</div>`;
@@ -2296,6 +2296,36 @@ function openPaperRuler(){
   document.getElementById("PC").innerHTML=html;
   document.getElementById("PS").classList.add("active");
   try{history.pushState({page:"app"},"","");}catch(e){}
+}
+
+/* صفحة القياس كملف PDF: تُرسم على لوحٍ بعرض صفحة الـPDF نفسها
+   (٨٠ ملم) — الأشرطة بالملم الحقيقي في وسطها. فإن كبّر تطبيق
+   الطابعة الصفحة أو صغّرها، فعل بالوصل مثلها، فالرقم المختار يصدق. */
+function _rulerCanvas(){
+  const K=3*96/25.4, PW=_pdfPageMM(), pw=paperW();     // بكسل لكل ملم (مقياس ٣)
+  const lines=[["bold",15,"صفحة قياس الطباعة"],["",11,"المضبوط الآن: "+AR(pw)+" ملم"],
+               ["bold",11,"اختر أعرض شريطٍ ظهر خطّاه الأسودان"],["bold",11,"على اليمين واليسار كاملين"]];
+  const tail=[["",10,"ثم: الأدوات ← عرض الطباعة ← اضغط الرقم نفسه."]];
+  const H=Math.round((8+lines.length*6+_RULER_W.length*9+3+tail.length*6+6)*K);
+  const c=document.createElement("canvas"); c.width=Math.round(PW*K); c.height=H;
+  const x=c.getContext("2d");
+  x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height);
+  x.fillStyle="#000"; x.strokeStyle="#000"; x.textAlign="center"; x.textBaseline="middle";
+  try{x.direction="rtl";}catch(e){}
+  const txt=(w,sz,t,y)=>{x.font=`${w||"normal"} ${sz*3}px Arial,sans-serif`;x.fillText(t,c.width/2,y);};
+  let y=6*K;
+  lines.forEach(([w,sz,t])=>{txt(w,sz,t,y);y+=6*K;});
+  y+=1*K;
+  _RULER_W.forEach(w=>{
+    const L=(PW-w)/2*K, R=L+w*K, h=7*K;
+    x.lineWidth=0.3*K; x.strokeRect(L,y,w*K,h);
+    x.fillRect(L,y,1.4*K,h); x.fillRect(R-1.4*K,y,1.4*K,h);
+    txt("bold",12,AR(w)+" ملم",y+h/2);
+    y+=9*K;
+  });
+  y+=2*K;
+  tail.forEach(([w,sz,t])=>{txt(w,sz,t,y);y+=6*K;});
+  return c;
 }
 
 function renderPaperBox(){
@@ -2817,10 +2847,20 @@ async function doMakePDF(action){
 
 // توليد PDF حقيقي باستخدام iframe مخفي + html2canvas + jsPDF
 /* مقاس بكرة الطابعة الحرارية — ٣ بوصة = ٨٠ملم */
-/* v17.75 — ملف الـPDF المُشارَك بعرض الطباعة نفسه، فلا يبقى
-   بياضٌ ميّت على طرفيه ولا يختلف شكله عن الورقة المطبوعة. */
+/* v17.75 جعل صفحة الـPDF بعرض الوصل بلا هامش — وكان ذلك خطأً
+   أصلحه v17.81 أدناه. */
 const _pdfWmm=()=>paperW();
 const _pdfWpx=()=>Math.round(_pdfWmm()*96/25.4);
+/* v17.81 — صفحة الـPDF ٨٠ ملم، والوصل في وسطها بعرضه المضبوط.
+   كانت الصفحة بعرض الوصل تماماً بلا هامش (v17.75)، وتطبيق
+   الطابعة يُكبّر الصفحة إلى عرض الورق كله بينما رأس الطابعة لا
+   يطبع إلا وسطه — فيضيع الطرفان مهما ضُبط العرض، لأن التكبير
+   يمحو أثر الضبط.
+   الآن الصفحة بعرض ثابت والهامش جزءٌ منها، فما يفعله تطبيق
+   الطابعة بالصفحة يفعله بالهامش معها. وصفحة القياس تخرج بالعرض
+   نفسه، فالرقم الذي تختاره منها يصدق على الوصل أيّاً كان التكبير. */
+const _pdfPageMM=()=>Math.max(80,Math.ceil(_pdfWmm()+4));
+const _pdfPagePx=()=>Math.round(_pdfPageMM()*96/25.4);
 
 async function _generatePDFBlob(fullHTML, fname){
   return new Promise((resolve)=>{
@@ -2835,7 +2875,12 @@ async function _generatePDFBlob(fullHTML, fname){
          الآن يُرسم بعرض البكرة نفسه ويخرج صفحة واحدة بطوله.
       ══════════════════════════════════════════════════════ */
       const fr = document.createElement("iframe");
-      fr.style.cssText=`position:fixed;top:0;left:-9999px;width:${_pdfWpx()}px;height:1200px;border:none;opacity:0;z-index:-1;`;
+      /* صفحة القياس تُرسم مباشرةً بعرض الصفحة كلها (أشرطتها أعرض من
+         الوصل، وhtml2canvas يُخطئ موضع ما يتجاوز الـbody في RTL)؛
+         وما سواها يُصوَّر بعرض الوصل ثم يُوضع في وسط الصفحة — أدناه */
+      const wide=/class="rlbar"/.test(fullHTML);
+      const capW=_pdfWpx();
+      fr.style.cssText=`position:fixed;top:0;left:-9999px;width:${capW}px;height:1200px;border:none;opacity:0;z-index:-1;`;
       document.body.appendChild(fr);
       const doc = fr.contentDocument || fr.contentWindow.document;
       /* ══════════════════════════════════════════════════════
@@ -2856,11 +2901,11 @@ async function _generatePDFBlob(fullHTML, fname){
         try{
           await _ensurePdfLibs();   // v17.10 — تُحمَّل عند الطلب
           const body = doc.body;
-          const totalW = _pdfWpx();
+          const totalW = capW;
           const totalH = Math.max(body.scrollHeight, body.offsetHeight, 200);
 
           // html2canvas
-          const canvas = await html2canvas(body,{
+          let canvas = wide ? _rulerCanvas() : await html2canvas(body,{
             scale:3,
             useCORS:true,
             allowTaint:true,
@@ -2886,18 +2931,30 @@ async function _generatePDFBlob(fullHTML, fname){
              (السقف ٥٠٠٠ملم حدُّ ما تقرأه قارئات PDF؛ ما زاد
              يُقسَّم بطوله لا بطول A4.)
           ══════════════════════════════════════════════════════ */
+          /* الوصل في وسط صفحةٍ أعرض منه: يُرسم على لوحٍ بيضاء بعرض
+             الصفحة. التوسيط هنا لا في الصفحة: html2canvas يُزيح الرسم
+             إلى الحافة إن كان المحتوى مُزاحاً عن أول الصفحة في RTL
+             (قيس: هامش auto وحشوة وغلاف — كلّها خرجت ملتصقة). */
+          if(!wide){
+            const full=document.createElement("canvas");
+            full.width=Math.round(canvas.width*_pdfPagePx()/capW); full.height=canvas.height;
+            const cx=full.getContext("2d"); cx.fillStyle="#fff"; cx.fillRect(0,0,full.width,full.height);
+            cx.drawImage(canvas,Math.round((full.width-canvas.width)/2),0);
+            canvas=full;
+          }
           const { jsPDF } = window.jspdf;
           const canvW=canvas.width, canvH=canvas.height;
-          const imgH=(canvH/canvW)*_pdfWmm();          // طول الوصل بالملم
+          const PW=_pdfPageMM();
+          const imgH=(canvH/canvW)*PW;                  // طول الوصل بالملم
           const imgData = canvas.toDataURL("image/jpeg",0.92);
           const MAXH=5000;                              // ملم
 
           let pdf;
           if(imgH <= MAXH){
-            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_pdfWmm(),imgH]});
-            pdf.addImage(imgData,"JPEG",0,0,_pdfWmm(),imgH);
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[PW,imgH]});
+            pdf.addImage(imgData,"JPEG",0,0,PW,imgH);
           } else {
-            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_pdfWmm(),MAXH]});
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[PW,MAXH]});
             let yOffset=0;
             const pageHpx=(canvH/imgH)*MAXH;
             while(yOffset < canvH){
@@ -2908,9 +2965,9 @@ async function _generatePDFBlob(fullHTML, fname){
               ctx.drawImage(canvas, 0, yOffset, canvW, sliceH, 0, 0, canvW, sliceH);
               const pageImg=pageCanvas.toDataURL("image/jpeg",0.92);
               const sliceHmm=(sliceH/canvH)*imgH;
-              pdf.addImage(pageImg,"JPEG",0,0,_pdfWmm(),sliceHmm);
+              pdf.addImage(pageImg,"JPEG",0,0,PW,sliceHmm);
               yOffset+=sliceH;
-              if(yOffset<canvH) pdf.addPage([_pdfWmm(),sliceHmm]);
+              if(yOffset<canvH) pdf.addPage([PW,Math.min(MAXH,(canvH-yOffset)/canvH*imgH)]);
             }
           }
 

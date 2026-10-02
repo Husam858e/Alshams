@@ -15,7 +15,7 @@ const PX  = DPI/25.4;
 
 /* يبني مستند الطباعة الحقيقي (نفس مسار الطباعة لا نسخةً منه) */
 async function buildDoc(paperMM){
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox','--ignore-certificate-errors'] });
   const p = await b.newPage();
   await p.goto('file:///home/user/Alshams/wheelmanagement_v17_promax_43.html');
   await p.waitForTimeout(1800);
@@ -50,8 +50,36 @@ async function buildDoc(paperMM){
     return {doc:_printDoc(html,'t'), rec:_printDoc(rec,'v'), ruler:_printDoc(ruler,'r'),
             css:getPDFCss(), w:paperW()};
   }, paperMM);
+  /* ملف الـPDF الذي يُشارَك إلى تطبيق الطابعة — من مساره الحقيقي */
+  const toPDF = full => p.evaluate(async(full)=>{
+    const blob=await _generatePDFBlob(full,'t'); if(!blob)return null;
+    const u=new Uint8Array(await blob.arrayBuffer()); let s='';
+    for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]); return btoa(s);
+  }, full);
+  out.pdf = await toPDF(out.rec);
+  out.rulerPdf = await toPDF(out.ruler);
   await b.close();
   return out;
+}
+
+/* يقيس حبر ملف PDF جاهز: المقاس من الملف نفسه */
+function measurePDF(b64, tag){
+  const file=`${DIR}/pw_${tag}`;
+  fs.writeFileSync(file+'.pdf', Buffer.from(b64,'base64'));
+  execSync(`cd ${DIR} && rm -f pw_${tag}_pg*.png && pdftoppm -r ${DPI} -png -f 1 -l 1 pw_${tag}.pdf pw_${tag}_pg`);
+  const png=fs.readdirSync(DIR).find(f=>f.startsWith(`pw_${tag}_pg`));
+  const [pw,left,right]=execSync(`cd ${DIR} && python3 -c "
+from PIL import Image
+im=Image.open('${png}').convert('L'); w,h=im.size; px=im.load()
+l=w; r=0
+for y in range(h):
+  for x in range(w):
+    if px[x,y]<200:
+      if x<l: l=x
+      if x>r: r=x
+print(w,l,r)"`).toString().trim().split(' ').map(Number);
+  return{page:pw/PX, left:left/PX, right:right/PX, ink:(right-left)/PX,
+         mRight:left/PX, mLeft:(pw-right)/PX};
 }
 
 /* يطبع المستند إلى PDF بعرض ورقٍ معلوم ويقيس امتداد الحبر */
@@ -118,7 +146,29 @@ print(w,l,r)"`).toString().trim().split(' ').map(Number);
   add('صفحة القياس: أعرض شريط ٧٦ ملم في الوسط', Math.abs(k.ink-76)<0.6&&mid(k),
       `${k.ink.toFixed(1)}mm · ${lr(k)}`);
 
-  /* ⑥ الإعداد يُحترم: ٤٨ ملم لورق البوصتين */
+  /* ⑥ ملف الـPDF المُرسَل لتطبيق الطابعة: التطبيق يُكبّره إلى عرض
+     الورق كله، ورأس الطابعة لا يطبع إلا وسطه. فالمهمّ نسبة الهامش
+     لا مقداره: يُحاكى التكبير إلى ورق ٨٠ و٧٦٫٢ ويُقاس بالشريط. */
+  add('توليد PDF نجح', !!d.pdf);
+  if(d.pdf){
+    const f=measurePDF(d.pdf,'pdf');
+    add('صفحة الـPDF ٨٠ ملم والوصل ٦٤ في وسطها',
+        Math.abs(f.page-80)<0.6&&f.ink<=64.5&&mid(f), `${f.page.toFixed(1)}mm · ${f.ink.toFixed(1)} · ${lr(f)}`);
+    /* مكبَّرة إلى ورق P: الحبر من left·P/page إلى right·P/page؛ الشريط B في الوسط */
+    const fit=(P,B)=>{const k=P/f.page,a=(P-B)/2;return f.left*k>=a&&f.right*k<=P-a;};
+    add('مكبَّرة إلى ورق ٨٠: داخل شريط ٧٢', fit(80,72));
+    add('مكبَّرة إلى ورق ٧٦٫٢: داخل شريط ٦٨', fit(76.2,68));
+    add('مكبَّرة إلى ورق ٨٠: داخل شريط ٦٨', fit(80,68));
+  }
+  /* صفحة القياس بالـPDF نفسه: الأشرطة الأعرض من الوصل لا تُقصّ،
+     فالرقم المختار منها يصدق على الوصل أيّاً كان تكبير التطبيق */
+  if(d.rulerPdf){
+    const g=measurePDF(d.rulerPdf,'rulerpdf');
+    add('صفحة القياس PDF: ٨٠ ملم وأعرض شريط ٧٦ في الوسط',
+        Math.abs(g.page-80)<0.6&&Math.abs(g.ink-76)<0.8&&mid(g), `${g.page.toFixed(1)}mm · ${g.ink.toFixed(1)} · ${lr(g)}`);
+  } else add('صفحة القياس PDF', false);
+
+  /* ⑦ الإعداد يُحترم: ٤٨ ملم لورق البوصتين */
   const d48=await buildDoc(48);
   const m58=await measure(d48.rec,58,'d48p58');
   add('إعداد ٤٨ ملم يُحترم', d48.w===48&&m58.ink<=48.5, m58.ink.toFixed(1)+'mm');
