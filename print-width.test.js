@@ -117,16 +117,17 @@ print(w,l,r)"`).toString().trim().split(' ').map(Number);
   const mid=m=>Math.abs(m.mRight-m.mLeft)<1.2;
   const lr=m=>`يمين ${m.mRight.toFixed(1)} · يسار ${m.mLeft.toFixed(1)}`;
 
-  /* ① الافتراضي ٦٤ ملم: يدخل حتى شريطاً ضيقاً (~٦٨) بهامش */
+  /* ① الافتراضي ٥٨ ملم: صفحة القياس على طابعة صاحب النظام طبعت
+     ٥٨ كاملاً و٦٠ نصفَ خطّيه — شريطها ≈ ٥٩ ملم */
   const d=await buildDoc(null);
-  add('العرض الافتراضي ٦٤ ملم', d.w===64, d.w+'mm');
+  add('العرض الافتراضي ٥٨ ملم', d.w===58, d.w+'mm');
 
   /* ② وصل الشراء على ورق ٣ بوصات — ما خرج مقطوعاً من الطرفين */
   const r76=await measure(d.rec,76.2,'rec76');
-  add('الوصل لا يتجاوز ٦٤ ملم', r76.ink<=64.5, r76.ink.toFixed(1)+'mm');
+  add('الوصل لا يتجاوز ٥٨ ملم', r76.ink<=58.5, r76.ink.toFixed(1)+'mm');
   add('الوصل يتوسّط ورق ٣ بوصات', mid(r76), lr(r76));
-  /* شريط ٦٨ في وسط ٧٦٫٢ ⇒ من ٤٫١ إلى ٧٢٫١ */
-  add('كل الحبر داخل شريط ٦٨ ملم', r76.left>=4.1&&r76.right<=72.1,
+  /* الشريط المقيس ٥٩ في وسط ٧٦٫٢ ⇒ من ٨٫٦ إلى ٦٧٫٦ */
+  add('كل الحبر داخل الشريط المقيس ٥٩ ملم', r76.left>=8.6&&r76.right<=67.6,
       `${r76.left.toFixed(1)} → ${r76.right.toFixed(1)}`);
   const r80=await measure(d.rec,80,'rec80');
   add('ويتوسّط ورق ٨٠', mid(r80), lr(r80));
@@ -138,7 +139,7 @@ print(w,l,r)"`).toString().trim().split(' ').map(Number);
 
   /* ④ أعرض جدول في التطبيق */
   const t76=await measure(d.doc,76.2,'tbl76');
-  add('الجدول العريض داخل العرض ومتوسّط', t76.ink<=64.5&&mid(t76),
+  add('الجدول العريض داخل العرض ومتوسّط', t76.ink<=58.5&&mid(t76),
       `${t76.ink.toFixed(1)}mm · ${lr(t76)}`);
 
   /* ⑤ صفحة القياس: الأشرطة متمركزة وبعرضها الحقيقي (أعرضها ٧٦) */
@@ -152,13 +153,14 @@ print(w,l,r)"`).toString().trim().split(' ').map(Number);
   add('توليد PDF نجح', !!d.pdf);
   if(d.pdf){
     const f=measurePDF(d.pdf,'pdf');
-    add('صفحة الـPDF ٨٠ ملم والوصل ٦٤ في وسطها',
-        Math.abs(f.page-80)<0.6&&f.ink<=64.5&&mid(f), `${f.page.toFixed(1)}mm · ${f.ink.toFixed(1)} · ${lr(f)}`);
+    add('صفحة الـPDF ٨٠ ملم والوصل ٥٨ في وسطها',
+        Math.abs(f.page-80)<0.6&&f.ink<=58.5&&mid(f), `${f.page.toFixed(1)}mm · ${f.ink.toFixed(1)} · ${lr(f)}`);
     /* مكبَّرة إلى ورق P: الحبر من left·P/page إلى right·P/page؛ الشريط B في الوسط */
     const fit=(P,B)=>{const k=P/f.page,a=(P-B)/2;return f.left*k>=a&&f.right*k<=P-a;};
     add('مكبَّرة إلى ورق ٨٠: داخل شريط ٧٢', fit(80,72));
     add('مكبَّرة إلى ورق ٧٦٫٢: داخل شريط ٦٨', fit(76.2,68));
     add('مكبَّرة إلى ورق ٨٠: داخل شريط ٦٨', fit(80,68));
+    add('بمقاسها: داخل الشريط المقيس ٥٩', fit(80,59));
   }
   /* صفحة القياس بالـPDF نفسه: الأشرطة الأعرض من الوصل لا تُقصّ،
      فالرقم المختار منها يصدق على الوصل أيّاً كان تكبير التطبيق */

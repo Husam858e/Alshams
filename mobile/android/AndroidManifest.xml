@@ -8,8 +8,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nasaem.alkhair"
-    android:versionCode="5"
-    android:versionName="17.81">
+    android:versionCode="6"
+    android:versionName="17.82">
 
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
 
