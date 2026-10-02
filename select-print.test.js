@@ -32,12 +32,25 @@ const { chromium } = require('playwright-core');
     o.buyMultiNaql = dB.nN===12&&dB.nFee===33000&&dB.nUP===0;   // سعران ⇒ يُكتفى بالمجموع
     o.buyMat = dA.mat==="الجت المكبوس"&&dB.mat==="الجرش";
     let t=sel('buy',['A','B']);
-    o.buyNetTotal = t.indexOf("٤٬٢٦٥ كغم".replace("٬",","))>=0;      // ٢٠٨٥+٢١٨٠
-    o.buyKabsTotal= /الكبس: ?٢٠ كبسة — الأجور ٤٠,٠٠٠/.test(t);
-    o.buyNaqlTotal= /النقل: ?٢٢ كبسة — الأجور ٦٣,٠٠٠/.test(t);    // ١٠+١٢ · ٣٠٠٠٠+٣٣٠٠٠
-    o.buyMatSum   = t.indexOf("الجت المكبوس ١ وصل")>=0&&t.indexOf("الجرش ١ وصل")>=0;
-    o.buyLine     = t.indexOf("كبس ٢٠ × ٢,٠٠٠ = ٤٠,٠٠٠")>=0;
-
+    const Q=q=>[...document.querySelectorAll("#PC .seltbl "+q)];
+    const T=el=>el.textContent.replace(/\s+/g," ").trim();
+    o.buyNetTotal = t.indexOf("٤,٢٦٥ كغم")>=0;                       // ٢٠٨٥+٢١٨٠
+    /* صفّ العناوين الثاني: حقولٌ بأسمائها */
+    o.subHead = Q("thead tr.sh th").map(T).join("|")==="المادة|عدد الكبس|أجور الكبس|عدد النقل|أجور النقل";
+    /* كل صفّ حقول يملأ أعمدة الجدول السبعة بالضبط — لا يزيد ولا ينقص */
+    const head=Q("thead tr:first-child th").length;
+    o.aligned = Q("tr.seldet").every(tr=>[...tr.cells].reduce((a,c)=>a+(+c.getAttribute("colspan")||1),0)===head)
+             && Q("thead tr.sh th").reduce((a,c)=>a+(+c.getAttribute("colspan")||1),0)===head;
+    /* حقول الوصل الأول تحت عناوينها */
+    o.buyLine = Q("tr.seldet")[0] && [...Q("tr.seldet")[0].cells].map(T).join("|")==="الجت المكبوس|٢٠|٤٠,٠٠٠|١٠|٣٠,٠٠٠";
+    /* المجاميع تحت الحقول نفسها */
+    const st=Q("tfoot tr.st")[0];
+    const stv=st?[...st.cells].map(T):[];
+    o.buyKabsTotal= stv[1]==="٢٠"&&stv[2]==="٤٠,٠٠٠";
+    o.buyNaqlTotal= stv[3]==="٢٢"&&stv[4]==="٦٣,٠٠٠";              // ١٠+١٢ · ٣٠٠٠٠+٣٣٠٠٠
+    o.buyMatSum   = (stv[0]||"").indexOf("الجت المكبوس: ١ وصل")>=0&&(stv[0]||"").indexOf("الجرش: ١ وصل")>=0;
+    /* لا سعر وحدة في الحقول — العدد والأجر فقط */
+    o.noUnitPrice = t.indexOf("×")<0;
     /* ── وصل لم يُوزن بعد: أجر الكبس من العدد × السعر ── */
     o.unweighed = _selDetail('buy',{kOn:true,kC:5,kUP:2000}).kFee===10000;
 
@@ -52,7 +65,9 @@ const { chromium } = require('playwright-core');
     const dM=_selDetail('mnl',MNL_RECS[0]);
     o.mnl = dM.nN===8&&dM.nUP===25000&&dM.nFee===200000;
     t=sel('mnl',['M1']);
-    o.mnlPrint = /النقل: ?٨ كبسة — الأجور ٢٠٠,٠٠٠/.test(t);
+    const mst=[...document.querySelectorAll("#PC .seltbl tfoot tr.st td")].map(e=>e.textContent.trim());
+    o.mnlPrint = mst[1]==="٨"&&mst[2]==="٢٠٠,٠٠٠"
+      && [...document.querySelectorAll("#PC .seltbl thead tr.sh th")].map(e=>e.textContent.trim()).join("|")==="|عدد النقل|أجور النقل";
 
     /* ── الضمانة: تجمع وصولاتها الفرعية ── */
     DAM_RECS=[{id:'D1',seq:1,dk:'2026-10-01',damin:'ض',madmun:'م',price:0,payments:[],
@@ -66,19 +81,17 @@ const { chromium } = require('playwright-core');
     t=sel('out',['O1']);
     o.outNet  = t.indexOf("٤,٠٠٠ كغم")>=0;
     o.outNoMoney = t.indexOf("المدفوع")<0;
-    o.outNoKabs  = t.indexOf("الكبس:")<0&&t.indexOf("النقل:")<0;
-    o.outMat  = t.indexOf("الجت المكبوس ١ وصل")>=0;
+    o.outNoKabs  = t.indexOf("عدد الكبس")<0&&t.indexOf("أجور النقل")<0;
+    o.outMat  = t.indexOf("الجت المكبوس: ١ وصل")>=0;
 
     /* ── الصرفيات: لا وزن ولا كبس ولا مادة — الجدول كما كان ── */
     SRF_RECS=[{id:'R1',seq:1,dk:'2026-10-01',recv:'كراج',purp:'وقود',amount:50000,payments:[]}];
     t=sel('srf',['R1']);
-    o.srfPlain = t.indexOf("الصافي")<0&&t.indexOf("المادة:")<0&&t.indexOf("٥٠,٠٠٠")>=0;
+    o.srfPlain = t.indexOf("الصافي")<0&&!document.querySelector("#PC .seltbl tr.seldet")&&t.indexOf("٥٠,٠٠٠")>=0;
 
-    /* الأعمدة: سطر التفصيل يمتدّ بعرض الجدول كاملاً */
+    /* الأرقام تنكسر عند الفاصلة لا في وسط الخانات */
     sel('buy',['A']);
-    const det=document.querySelector("#PC .seltbl tr.seldet td");
-    const head=document.querySelectorAll("#PC .seltbl thead th").length;
-    o.colspan = det&&+det.getAttribute("colspan")===head;
+    o.wbr = document.querySelector("#PC .seltbl tbody").innerHTML.indexOf(",<wbr>")>0;
     return o;
   });
 
@@ -88,17 +101,20 @@ const { chromium } = require('playwright-core');
     ['ناقلان بسعرين: يُجمع ولا يُخترع سعر',   r.buyMultiNaql],
     ['نوع المادة باسمه',                     r.buyMat],
     ['مجموع الوزن الصافي',                   r.buyNetTotal],
+    ['صفّ عناوين الحقول',                     r.subHead],
+    ['الحقول تملأ الأعمدة السبعة بالضبط',      r.aligned],
     ['مجموع الكبسات وأجور الكبس',            r.buyKabsTotal],
     ['مجموع كبسات النقل وأجوره',             r.buyNaqlTotal],
     ['ملخّص حسب المادة',                     r.buyMatSum],
-    ['سطر التفصيل تحت الوصل',                r.buyLine],
+    ['حقول الوصل تحت عناوينها',               r.buyLine],
+    ['العدد والأجر بلا سعر وحدة',              r.noUnitPrice],
     ['وصلٌ لم يُوزن: الأجر من العدد × السعر', r.unweighed],
     ['البيع: نقل وتبن',                      r.sell],
     ['النقل اليدوي',                         r.mnl&&r.mnlPrint],
     ['الضمانة تجمع وصولاتها الفرعية',          r.dam],
     ['المخرجات: وزن ومادة بلا مبالغ',          r.outNet&&r.outNoMoney&&r.outNoKabs&&r.outMat],
     ['الصرفيات: الجدول كما كان',              r.srfPlain],
-    ['سطر التفصيل بعرض الجدول',               r.colspan],
+    ['الأرقام تنكسر عند الفاصلة فقط',          r.wbr],
     ['بلا أخطاء جافاسكربت',                   errs.length===0],
   ];
   let bad=0;

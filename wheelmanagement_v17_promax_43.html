@@ -14086,7 +14086,10 @@ function _selPrint(k){
   const det=new Map(rows.map(r=>[r,_selDetail(k,r)]));
   const money=S1.total>0;
   const hasNet=rows.some(r=>det.get(r).net>0);
-  const num=v=>AR(Math.round(v).toLocaleString("en"));
+  /* الرقم لا ينكسر في وسط خاناته («٥,٢٨١,٠» ثم «٠٠ د.ع») — بل عند
+     الفاصلة وحدها؛ والعملة تُذكر مرةً في رأس الجدول لا في كل خانة. */
+  const num=v=>AR(Math.round(v).toLocaleString("en")).replace(/,/g,",<wbr>");
+  const kg=v=>num(v)+" كغم";
 
   /* المجاميع */
   const T={net:0,kN:0,kFee:0,nN:0,nFee:0};
@@ -14097,42 +14100,43 @@ function _selPrint(k){
     if(x.mat){const m=byMat[x.mat]||(byMat[x.mat]={n:0,net:0}); m.n++; m.net+=x.net;}
   });
   const hasK=T.kN>0||T.kFee>0, hasN=T.nN>0||T.nFee>0;
+  const mats=Object.keys(byMat), hasMat=mats.length>0;
   const cols=3+(hasNet?1:0)+(money?3:0);
 
-  /* سطر التفصيل تحت كل وصل — بعرض الجدول كاملاً كي يتّسع لشريط ٧٢ ملم */
-  const detLine=x=>{
-    const p=[];
-    if(x.mat)p.push(`<b>${esc(x.mat)}</b>`);
-    if(x.kN||x.kFee)p.push(`كبس ${x.kN?num(x.kN):""}${x.kUP?" × "+num(x.kUP):""}${x.kFee?" = <b>"+num(x.kFee)+"</b>":""}`);
-    if(x.nN||x.nFee)p.push(`نقل ${x.nN?num(x.nN):""}${x.nUP?" × "+num(x.nUP):""}${x.nFee?" = <b>"+num(x.nFee)+"</b>":""}`);
-    /* كل بندٍ لا ينكسر في وسطه: «نقل ١٠ × ٣٬٠٠٠» ثم «= ٣٠٬٠٠٠» على
-       سطرٍ آخر تُقرأ خطأً. البنود تلتفّ كاملةً لا أجزاءً. */
-    return p.map(t=>`<span style="white-space:nowrap;display:inline-block;margin-left:7px">${t}</span>`).join("");
-  };
+  /* ══ حقول التفصيل — v17.79 ══
+     كان التفصيل جملةً حرّة تحت الوصل («نقل ١٠٠ × ٥٠٠ = ٥٠٬٠٠٠»)
+     فلا تقع القيم تحت عناوين ولا تُقارَن بالعين. الآن صفُّ عناوينٍ
+     ثانٍ وحقولٌ بعرض الأعمدة السبعة نفسها، والمجاميع تحتها تماماً:
+       المادة (تمتدّ) │ عدد الكبس │ أجور الكبس │ عدد النقل │ أجور النقل
+     ولا يظهر إلا ما في الوصولات المحدَّدة منه شيء. */
+  const F=[];
+  if(hasK){ if(T.kN)F.push({h:"عدد الكبس",v:x=>x.kN,t:T.kN});
+            F.push({h:"أجور الكبس",v:x=>x.kFee,t:T.kFee,fee:1}); }
+  if(hasN){ if(T.nN)F.push({h:"عدد النقل",v:x=>x.nN,t:T.nN});
+            F.push({h:"أجور النقل",v:x=>x.nFee,t:T.nFee,fee:1}); }
+  const subOn=hasMat||F.length>0;
+  const span=Math.max(1,cols-F.length);              // خانة المادة تملأ الباقي
+  const cell=(v,b)=>`<td class="sd"${b?' style="font-weight:700"':""}>${v?num(v):"—"}</td>`;
 
   const body=rows.map((r,i)=>{
     const x=det.get(r);
     const tot=(d.amount?d.amount(r):0)||0;
     const pd=_agingPaid(k,r)||0;
-    const line=detLine(x);
     const bg=i%2?"#FAF8F3":"#fff";
-    return`<tr class="${line?"hasdet":""}" style="background:${bg}">
-        <td style="text-align:center;${line?"border-bottom:none":""}">${r.no?fNo(r.no):AR(i+1)}</td>
-        <td style="text-align:center;${line?"border-bottom:none":""}">${tAr(r.dk)}</td>
-        <td style="${line?"border-bottom:none":""}">${esc((d.who?d.who(r):"")||"—")}</td>
-        ${hasNet?`<td style="text-align:center;${line?"border-bottom:none":""}">${x.net?fKG(x.net):"—"}</td>`:""}
-        ${money?`<td style="text-align:center;${line?"border-bottom:none":""}">${fIQD(tot)}</td>
-                 <td style="text-align:center;${line?"border-bottom:none":""}">${fIQD(pd)}</td>
-                 <td style="text-align:center;font-weight:700;${line?"border-bottom:none":""}">${fIQD(Math.max(0,tot-pd))}</td>`:""}
+    return`<tr class="${subOn?"hasdet":""}" style="background:${bg}">
+        <td style="text-align:center">${r.no?fNo(r.no):AR(i+1)}</td>
+        <td style="text-align:center">${String(tAr(r.dk)).replace(/-/g,"-<wbr>")}</td>
+        <td>${esc((d.who?d.who(r):"")||"—")}</td>
+        ${hasNet?`<td style="text-align:center">${x.net?kg(x.net):"—"}</td>`:""}
+        ${money?`<td style="text-align:center">${num(tot)}</td>
+                 <td style="text-align:center">${num(pd)}</td>
+                 <td style="text-align:center;font-weight:700">${num(Math.max(0,tot-pd))}</td>`:""}
       </tr>
-      ${line?`<tr class="seldet" style="background:${bg}">
-        <td colspan="${cols}" style="font-size:9px;padding:0 4px 3px;color:#3A332A">${line}</td>
+      ${subOn?`<tr class="seldet" style="background:${bg}">
+        <td class="sd sdm" colspan="${span}">${x.mat?esc(x.mat):""}</td>
+        ${F.map(f=>cell(f.v(x),f.fee)).join("")}
       </tr>`:""}`;
   }).join("");
-
-  const sub=(label,val)=>`<tr class="selsum"><td colspan="${cols}" style="padding:3px 4px;font-size:10px">
-      <span style="font-weight:700">${label}</span> ${val}</td></tr>`;
-  const mats=Object.keys(byMat);
 
   const html=`${COHEAD}
     <div class="prh" style="background:#33506B">
@@ -14140,32 +14144,46 @@ function _selPrint(k){
       <div class="prhmt">${tAr(toDay())}<br/>${p2now()}</div>
     </div>
     <style>
-      /* يرافق الوصل إلى الشاشة والـPDF والطابعة: الوصل وسطر تفصيله
+      /* يرافق الوصل إلى الشاشة والـPDF والطابعة: الوصل وصفّ حقوله
          كتلةٌ واحدة بلا خطٍّ بينهما، والتظليل للكتلة لا للصف. */
       .seltbl tbody td{background:transparent!important}
+      .seltbl td,.seltbl th{word-break:normal!important;overflow-wrap:normal!important}
       .seltbl tr.hasdet td{border-bottom:none!important}
-      .seltbl tr.seldet td{padding-top:0!important;border-bottom:1px solid #C9C1B1!important}
-      .seltbl .selsum td{background:#F2EFE8!important;color:#000!important;border-top:1px solid #000!important}
-      .seltbl th{padding:2px 1px!important;font-size:9px!important}
+      .seltbl tr.seldet td{border-bottom:1px solid #8C8270!important}
+      .seltbl td.sd{text-align:center;font-size:9px!important;padding:1px 2px 3px!important;
+        border-top:1px dashed #C9C1B1!important;color:#2E2822}
+      .seltbl td.sdm{text-align:right;font-weight:700}
+      .seltbl th{padding:2px 1px!important;font-size:9px!important;text-align:center!important}
+      .seltbl thead tr.sh th{font-size:8px!important;background:#EEE9DF!important;color:#000!important}
+      .seltbl tfoot tr.st td{background:#F2EFE8!important;color:#000!important;font-weight:700;
+        text-align:center;font-size:9px!important;border-top:1px solid #000!important}
+      .seltbl tfoot tr.st td.sdm{text-align:right}
     </style>
     <div class="prb">
-      <div class="psec">${AR(S1.n)} وصل${money?` — المجموع ${fIQD(S1.total)}`:""}</div>
+      <div class="psec">${AR(S1.n)} وصل${money?` — المجموع ${fIQD(S1.total)} · المبالغ بالدينار`:""}</div>
       <table class="coltbl seltbl" style="width:100%;font-size:9px">
-        <thead><tr><th>#</th><th>التاريخ</th><th>الاسم</th>
-          ${hasNet?"<th>الصافي</th>":""}
-          ${money?"<th>المبلغ</th><th>المدفوع</th><th>المتبقي</th>":""}</tr></thead>
+        <thead>
+          <tr><th>#</th><th>التاريخ</th><th>الاسم</th>
+            ${hasNet?"<th>الصافي</th>":""}
+            ${money?"<th>المبلغ</th><th>المدفوع</th><th>المتبقي</th>":""}</tr>
+          ${subOn?`<tr class="sh"><th colspan="${span}" style="text-align:right!important">${hasMat?"المادة":""}</th>
+            ${F.map(f=>`<th>${f.h}</th>`).join("")}</tr>`:""}
+        </thead>
         <tbody>${body}</tbody>
         <tfoot>
           <tr class="ctot">
             <td colspan="3" style="font-weight:700;padding:5px 4px">المجموع</td>
-            ${hasNet?`<td style="text-align:center;font-weight:700">${fKG(T.net)}</td>`:""}
-            ${money?`<td style="text-align:center;font-weight:700">${fIQD(S1.total)}</td>
-              <td style="text-align:center;font-weight:700">${fIQD(S1.paid)}</td>
-              <td style="text-align:center;font-weight:700">${fIQD(S1.rem)}</td>`:""}
+            ${hasNet?`<td style="text-align:center;font-weight:700">${kg(T.net)}</td>`:""}
+            ${money?`<td style="text-align:center;font-weight:700">${num(S1.total)}</td>
+              <td style="text-align:center;font-weight:700">${num(S1.paid)}</td>
+              <td style="text-align:center;font-weight:700">${num(S1.rem)}</td>`:""}
           </tr>
-          ${hasK?sub("الكبس:",`${T.kN?num(T.kN)+" كبسة — ":""}الأجور <b>${fIQD(T.kFee)}</b>`):""}
-          ${hasN?sub("النقل:",`${T.nN?num(T.nN)+" كبسة — ":""}الأجور <b>${fIQD(T.nFee)}</b>`):""}
-          ${mats.length?sub("المادة:",mats.map(m=>`${esc(m)} ${AR(byMat[m].n)} وصل${byMat[m].net?" · "+fKG(byMat[m].net):""}`).join(" | ")):""}
+          ${subOn?`<tr class="st">
+            <td class="sdm" colspan="${span}">${hasMat
+              ?mats.map(m=>`${esc(m)}: ${AR(byMat[m].n)} وصل${byMat[m].net?" · "+kg(byMat[m].net):""}`).join("<br/>")
+              :"المجموع"}</td>
+            ${F.map(f=>`<td>${num(f.t)}</td>`).join("")}
+          </tr>`:""}
         </tfoot>
       </table>
     </div>
