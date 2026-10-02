@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  نسائم الخير — غلاف أندرويد
+  ──────────────────────────
+  الصفحة نفسها (app.html) مُضمَّنة في التطبيق، ويُضاف لها جسرٌ
+  (window.JSBridge) يفعل ما لا تستطيعه صفحة ويب داخل WebView:
+  مشاركة ملف PDF عبر قائمة أندرويد، والحفظ في التنزيلات، والطباعة.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.nasaem.alkhair"
+    android:versionCode="1"
+    android:versionName="17.76">
+
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- الحفظ في التنزيلات على أندرويد ٩ وما قبله فقط؛ ما بعده عبر MediaStore بلا إذن -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- أندرويد ١١+: يلزم التصريح كي تظهر تطبيقات المشاركة في القائمة -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|smallestScreenSize|uiMode|density|fontScale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- يقدّم الملف المُشارَك لتطبيق آخر بإذن مؤقت — غير مُصدَّر -->
+        <provider
+            android:name=".ShareProvider"
+            android:authorities="com.nasaem.alkhair.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

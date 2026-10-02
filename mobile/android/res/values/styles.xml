@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- بلا شريط عنوان: التطبيق يرسم شريطه بنفسه. والخلفية داكنة كي لا يومض
+         الأبيض لحظة التشغيل قبل أن تُرسم الصفحة. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorPrimaryDark">#14110E</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -2642,7 +2642,7 @@ async function shareBlobSmart(blob,fname,mime,text){
 
   /* الملف تعذّر. نحفظه أولاً كي لا يضيع، ثم نفتح القائمة بنصّه —
      فالمطلوب أن تُفتح القائمة، والنصّ خيرٌ من صمت. */
-  _saveBlob(blob,fname);
+  await saveBlobSmart(blob,fname,mime);
   const det=_printAsText();
   const body=((text?text+"\n":"")+(det?"\n"+det:"")).trim()||"نسائم الخير";
 
@@ -2665,6 +2665,18 @@ async function shareBlobSmart(blob,fname,mime,text){
   showToast("💾 حُفظ في التنزيلات. تطبيقك لا يسمح للصفحة بفتح قائمة المشاركة — "
            +"افتح الأدوات ← 🔗 فحص المشاركة",8000);
   return false;
+}
+
+/* v17.77 — الحفظ الموحّد: جسر التطبيق (يكتب في «التنزيلات» فعلاً)
+   ثم رابط التنزيل. وفي WebView لا يعمل رابط blob: للتنزيل أصلاً
+   عند أغلب المُحوِّلات — فالجسر هنا ليس تحسيناً بل هو الطريق. */
+async function saveBlobSmart(blob,fname,mime){
+  const br=getBridge();
+  if(br&&typeof br.saveBase64==="function"){
+    try{ br.saveBase64(fname,_b64(await blob.arrayBuffer()),mime||blob.type||""); return true; }
+    catch(e){}
+  }
+  return _saveBlob(blob,fname);
 }
 
 function _saveBlob(blob,fname){
@@ -2770,13 +2782,10 @@ async function doMakePDF(action){
       const pdfBlob = await _generatePDFBlob(fullHTML, fname);
       hideLoader();
       if(pdfBlob){
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = url; a.download = fname+".pdf";
-        a.style.display="none";
-        document.body.appendChild(a); a.click();
-        setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); },3000);
-        showToast("💾 تم حفظ PDF في التنزيلات");
+        /* v17.77 — الجسر أولاً: يكتب في «التنزيلات» ويُعلن بنفسه */
+        const br=getBridge();
+        await saveBlobSmart(pdfBlob,fname+".pdf","application/pdf");
+        if(!(br&&typeof br.saveBase64==="function"))showToast("💾 تم حفظ PDF في التنزيلات");
         return;
       }
     }catch(e){ hideLoader(); console.error("PDF save error:",e); }
@@ -2972,8 +2981,16 @@ function _printViaIframe(html, fname){
         }
 
         // 6. طباعة
-        fr.contentWindow.focus();
-        fr.contentWindow.print();
+        /* v17.77 — داخل تطبيق أندرويد لا يفعل window.print() شيئاً.
+           إن وفّر التطبيق printHtml سُلِّم الوصل جاهزاً — بعد
+           التعديلات أعلاه — لخدمة الطباعة في النظام. */
+        const _pbr=getBridge();
+        if(_pbr&&typeof _pbr.printHtml==="function"){
+          _pbr.printHtml("<!DOCTYPE html>"+doc.documentElement.outerHTML, fname||"وصل نسائم الخير");
+        } else {
+          fr.contentWindow.focus();
+          fr.contentWindow.print();
+        }
 
       }catch(err){
         console.error("Print iframe error:", err);
@@ -3059,6 +3076,12 @@ async function doShareXL(period,wh){
   }catch(e){showToast("⚠ خطأ في Excel: "+e.message);}
 }
 function _xlSave(arr,fname){
+  /* v17.77 — جسر التطبيق أولاً: رابط data: لا يُنزَّل في أغلب WebView */
+  const br=getBridge();
+  if(br&&typeof br.saveBase64==="function"){
+    try{ br.saveBase64(fname,_b64(arr),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); return; }
+    catch(e){}
+  }
   try{
     // data URI للـ Excel
     const b64=btoa(String.fromCharCode.apply(null,new Uint8Array(arr)));
