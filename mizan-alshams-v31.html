@@ -14,7 +14,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics-compat.js"></script>
   <style>
     :root {
       --ink: #1C252C;
@@ -1732,6 +1731,7 @@
           <div>⏳ بانتظار الرفع: <span id="cloudPending" class="num-font">0</span></div>
           <div>🖥️ معرّف هذا الجهاز: <span id="cloudDeviceId" style="direction:ltr; display:inline-block; font-size:0.8rem;">—</span></div>
           <div>🌐 مصدر الفتح: <span id="cloudOrigin" style="direction:ltr; display:inline-block; font-size:0.78rem; word-break:break-all;">—</span></div>
+          <div>📚 مكتبات السحابة: <span id="cloudLibSource" style="direction:ltr; display:inline-block; font-size:0.8rem;">—</span></div>
           <div>🧾 رمز الخطأ: <span id="cloudErrCode" style="direction:ltr; display:inline-block; font-size:0.78rem; word-break:break-all;">—</span></div>
         </div>
         <div class="modal-actions">
@@ -4226,7 +4226,9 @@
         started: false,
         firstSnapshotDone: false,
         reconciled: false,
-        retryTimer: null
+        retryTimer: null,
+        sdkPromise: null,
+        sdkMirror: ""
       };
 
       function setCloudError(text, kind, badgeText, code) {
@@ -4322,6 +4324,13 @@
 
         const codeEl = document.getElementById("cloudErrCode");
         if (codeEl) codeEl.textContent = CLOUD.authCode || "—";
+        const libEl = document.getElementById("cloudLibSource");
+        if (libEl) {
+          libEl.textContent = sdkStatus().store ?
+            ("محمّلة" + (CLOUD.sdkMirror ? " — " + CLOUD.sdkMirror.replace(/^https:\/\//, "").split("/")[0] : "")) :
+            "غير محمّلة";
+          libEl.style.color = sdkStatus().store ? "var(--success)" : "var(--danger)";
+        }
         const originEl = document.getElementById("cloudOrigin");
         if (originEl) {
           let org = "";
@@ -4334,8 +4343,13 @@
           stateText = CLOUD.authError;
           setCloudBadge(CLOUD.authErrorBadge, CLOUD.authErrorKind);
         } else if (!CLOUD.available) {
-          stateText = "المكتبات السحابية غير محمّلة";
-          setCloudBadge("☁️ السحابة غير متاحة", "warn");
+          if (sdkStatus().store) {
+            stateText = "المكتبات جاهزة — جاري بدء الاتصال…";
+            setCloudBadge("⏳ جاري بدء الاتصال…", "info");
+          } else {
+            stateText = "جاري تحميل مكتبات السحابة… (تُعاد المحاولة تلقائياً)";
+            setCloudBadge("⏳ جاري تحميل مكتبات السحابة…", "info");
+          }
         } else if (!CLOUD.started) {
           stateText = "جاري تجهيز الاتصال…";
           setCloudBadge("⏳ جاري تفعيل المزامنة…", "info");
@@ -4716,6 +4730,99 @@
         });
       }
 
+      /* ===== تحميل مكتبات Firebase وقت التشغيل =====
+         وسوم <script> في الأعلى هي الطريق الأسرع، لكنها الطريق الوحيد سابقاً:
+         إذا فشلت — وهذا ما يحدث داخل تطبيق APK يعمل على 127.0.0.1 حين لا يكون
+         هناك إنترنت لحظة الإقلاع، أو حين يحجب المتصفح المدمج نطاق gstatic —
+         يبقى firebase غير مُعرّف إلى الأبد، ولا يستطيع زر "إعادة الاتصال"
+         إصلاحه لأنه يفحص المتغير نفسه. الآن نحمّلها برمجياً من ثلاث مرايا
+         بالتتابع، ونعيد المحاولة عند عودة الاتصال. */
+      const FIREBASE_VERSION = "10.12.5";
+      const FIREBASE_SDK_MIRRORS = [
+        "https://www.gstatic.com/firebasejs/" + FIREBASE_VERSION + "/",
+        "https://cdn.jsdelivr.net/npm/firebase@" + FIREBASE_VERSION + "/",
+        "https://unpkg.com/firebase@" + FIREBASE_VERSION + "/"
+      ];
+
+      function sdkStatus() {
+        const fb = (typeof firebase !== "undefined") ? firebase : null;
+        return {
+          app: !!(fb && fb.initializeApp),
+          auth: !!(fb && fb.auth),
+          store: !!(fb && fb.firestore)
+        };
+      }
+
+      function loadScriptOnce(url, timeoutMs) {
+        return new Promise(function(resolve, reject) {
+          let settled = false;
+          const el = document.createElement("script");
+          const finish = function(ok) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (ok) resolve(url);
+            else {
+              if (el.parentNode) el.parentNode.removeChild(el);
+              reject(new Error(url));
+            }
+          };
+          /* مهلة صريحة: داخل WebView قد لا يُطلق onerror إطلاقاً فيتعلّق التحميل */
+          const timer = setTimeout(function() { finish(false); }, timeoutMs || 15000);
+          el.async = false;
+          el.onload = function() { finish(true); };
+          el.onerror = function() { finish(false); };
+          el.src = url;
+          document.head.appendChild(el);
+        });
+      }
+
+      function ensureFirebaseSdk() {
+        const now = sdkStatus();
+        if (now.app && now.store) return Promise.resolve(true);
+        if (CLOUD.sdkPromise) return CLOUD.sdkPromise;
+
+        let chain = Promise.resolve();
+        FIREBASE_SDK_MIRRORS.forEach(function(base) {
+          chain = chain.then(function() {
+            const st = sdkStatus();
+            if (st.app && st.store) return null;
+            CLOUD.sdkMirror = base;
+            let p = Promise.resolve();
+            if (!sdkStatus().app) p = p.then(function() { return loadScriptOnce(base + "firebase-app-compat.js"); });
+            /* المصادقة اختيارية (USE_ANONYMOUS_AUTH=false) فلا نُفشل المرآة بسببها */
+            p = p.then(function() {
+              if (sdkStatus().auth) return null;
+              return loadScriptOnce(base + "firebase-auth-compat.js").catch(function() { return null; });
+            });
+            p = p.then(function() {
+              if (sdkStatus().store) return null;
+              return loadScriptOnce(base + "firebase-firestore-compat.js");
+            });
+            return p.catch(function() { return null; });   // جرّب المرآة التالية
+          });
+        });
+
+        CLOUD.sdkPromise = chain.then(function() {
+          CLOUD.sdkPromise = null;
+          const st = sdkStatus();
+          return st.app && st.store;
+        });
+        return CLOUD.sdkPromise;
+      }
+
+      let sdkRetryTimer = null;
+
+      function scheduleSdkRetry() {
+        if (sdkRetryTimer) return;
+        sdkRetryTimer = setTimeout(function() {
+          sdkRetryTimer = null;
+          if (sdkStatus().store) return;
+          if (!navigator.onLine) { scheduleSdkRetry(); return; }
+          initFirebase();
+        }, 20000);
+      }
+
       function initFirebase() {
         if (!isWebOrigin()) {
           CLOUD.available = false;
@@ -4726,43 +4833,77 @@
           updateCloudUI();
           return;
         }
-        if (typeof firebase === "undefined" || !firebase.initializeApp) {
-          setCloudError("لم تُحمّل مكتبات Firebase — تأكد من الاتصال بالإنترنت ثم أعد تحميل الصفحة.",
-            "warn", "☁️ السحابة غير متاحة");
-          updateCloudUI();
-          return;
+        if (!sdkStatus().store) {
+          setCloudBadge("⏳ جاري تحميل مكتبات السحابة…", "info");
+          const stEl = document.getElementById("cloudStateText");
+          if (stEl) stEl.textContent = "جاري تحميل مكتبات Firebase…";
         }
+        ensureFirebaseSdk().then(function(ready) {
+          if (!ready) {
+            setCloudError(
+              "تعذّر تحميل مكتبات Firebase من الإنترنت. جُرّبت ثلاثة مصادر (gstatic و jsdelivr و unpkg). " +
+              "تأكد من اتصال الجهاز بالإنترنت، ومن أن التطبيق مسموح له بالوصول للشبكة، ثم اضغط «إعادة الاتصال». " +
+              "بياناتك محفوظة كاملة على الجهاز ولن تضيع.",
+              "warn", "☁️ تعذّر تحميل مكتبات السحابة", "sdk-load-failed");
+            updateCloudUI();
+            scheduleSdkRetry();
+            return;
+          }
+          startFirebaseWithSdk();
+        }).catch(function(err) {
+          setCloudError("خطأ أثناء تحميل مكتبات السحابة: " + (err && err.message ? err.message : ""),
+            "danger", "⚠️ خطأ في تحميل المكتبات", "sdk-error");
+          updateCloudUI();
+          scheduleSdkRetry();
+        });
+      }
+
+      function startFirebaseWithSdk() {
+        if (CLOUD.started && CLOUD.db) return;
         try {
           if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
         } catch (e) {}
-        try {
-          if (firebase.analytics && location.protocol.indexOf("http") === 0) firebase.analytics();
-        } catch (e) {}
         CLOUD.available = true;
+        CLOUD.authError = "";
+        CLOUD.authCode = "";
         try {
           CLOUD.db = firebase.firestore();
+          /* داخل WebView (تطبيق APK) وخلف بعض الشبكات تفشل قناة Firestore
+             السريعة ويبقى الاتصال معلّقاً. هذا الإعداد يجعلها تكتشف ذلك
+             وتتحوّل تلقائياً إلى الاستطلاع الطويل. يجب ضبطه قبل أي استخدام. */
+          try {
+            CLOUD.db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+          } catch (e) {}
           CLOUD.db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
         } catch (e) {
-          setCloudBadge("☁️ تعذّر تشغيل قاعدة البيانات السحابية", "danger");
+          setCloudError("تعذّر تشغيل قاعدة البيانات السحابية: " + (e && e.message ? e.message : ""),
+            "danger", "☁️ تعذّر تشغيل قاعدة البيانات", "firestore-init");
+          updateCloudUI();
           return;
         }
-        firebase.auth().onAuthStateChanged(function(user) {
-          CLOUD.user = user || null;
-          if (user) {
-            CLOUD.authError = "";
-            CLOUD.authCode = "";
-            startCloudSync();
-            cloudMsg("");
-          }
-          updateCloudUI();
-        });
+        try {
+          firebase.auth().onAuthStateChanged(function(user) {
+            CLOUD.user = user || null;
+            if (user) {
+              CLOUD.authError = "";
+              CLOUD.authCode = "";
+              startCloudSync();
+              cloudMsg("");
+            }
+            updateCloudUI();
+          });
+        } catch (e) {
+          /* مكتبة المصادقة غير محمّلة — لا حاجة لها ما دام الدخول المجهول معطّلاً */
+        }
         ensureCloudSession();
         window.addEventListener("online", function() {
+          if (!sdkStatus().store) { initFirebase(); return; }
           if (!CLOUD.user) ensureCloudSession();
           updateCloudUI();
           cloudSync();
         });
         window.addEventListener("offline", updateCloudUI);
+        updateCloudUI();
       }
 
       function ensureCloudSession() {
@@ -4867,12 +5008,15 @@
           initFirebase();
           return;
         }
-        if (!CLOUD.available && typeof firebase !== "undefined" && firebase.initializeApp) {
+        if (!sdkStatus().store) {
+          /* أعِد تنزيل المكتبات فعلياً بدل الاكتفاء بفحص متغيّر فارغ */
+          cloudMsg("جاري إعادة تحميل مكتبات السحابة…", "info");
+          CLOUD.sdkPromise = null;
           initFirebase();
           return;
         }
         if (!CLOUD.available) {
-          cloudMsg("المكتبات السحابية غير محمّلة — تأكد من الاتصال ثم أعد تحميل الصفحة.", "danger");
+          initFirebase();
           return;
         }
         stopCloudSync();
