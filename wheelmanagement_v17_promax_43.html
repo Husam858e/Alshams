@@ -2526,6 +2526,196 @@ function shareViaIntent(text, title){
   return false;
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   المشاركة من داخل تطبيق APK — v17.76
+   ──────────────────────────────────────────────────────────────
+   في المتصفح يفتح زرّ «مشاركة» قائمةَ أندرويد ويُرسل الـPDF.
+   وفي التطبيق المُحوَّل (WebView) كان يُنزّل الوصل صامتاً.
+
+   والسبب مُحدَّد: مسار الـPDF **لم يكن يسأل جسر التطبيق إطلاقاً**.
+   مسار Excel يسأله (br.shareFile) ومسار النصّ يسأله (br.shareText)،
+   أما الـPDF — وهو الزرّ الوحيد الذي يُضغط يومياً — فكان يقفز من
+   navigator.share مباشرةً إلى التنزيل. وnavigator.share غير موجود
+   أصلاً في WebView عند أغلب المُحوِّلات.
+
+   ══ الترتيب الآن: من الأقوى إلى الأضعف ══
+     ① جسر التطبيق بملفٍ فعلي (إن وفّره المُحوِّل)
+     ② Web Share بملف        (المتصفح الحديث)
+     ③ Web Share بنصّ         (تفتح القائمة بلا ملف)
+     ④ Intent SEND بنصّ       (قائمة أندرويد من داخل WebView)
+     ⑤ تنزيل — ومعه قولُ السبب لا صمت
+
+   ⚠️ المحاولة ④ تُطلق عبر إطارٍ مخفيّ لا عبر تغيير عنوان الصفحة:
+      لو لم يعرف المُحوِّل المخطّط intent: لانتقلت الصفحة كلّها إلى
+      خطأ وضاعت الجلسة.
+══════════════════════════════════════════════════════════════ */
+
+const _b64 = buf => {
+  const b=new Uint8Array(buf); let s="";
+  for(let i=0;i<b.length;i+=0x8000)
+    s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));
+  return btoa(s);
+};
+
+/* أسماء دوال المشاركة في المُحوِّلات الشائعة — تُجرَّب بالترتيب */
+const _BR_FILE=["shareFile","sharePDF","sharePdf","shareBase64","shareFileBase64",
+                "shareBlob","downloadAndShare","saveAndShare"];
+
+async function _bridgeShareFile(blob,fname,mime){
+  const br=getBridge(); if(!br)return false;
+  let b64; try{ b64=_b64(await blob.arrayBuffer()); }catch(e){ return false; }
+  for(const m of _BR_FILE){
+    if(typeof br[m]!=="function")continue;
+    /* ترتيب الوسائط هو الذي يستعمله مسار Excel أصلاً، ثم المعكوس */
+    try{ br[m](fname,b64,mime); return true; }catch(e){}
+    try{ br[m](b64,fname,mime); return true; }catch(e){}
+  }
+  return false;
+}
+
+/* قائمة أندرويد بنصّ — من داخل WebView عبر إطار مخفيّ */
+function _shareIntentText(text,title){
+  try{
+    const u="intent:#Intent;action=android.intent.action.SEND;type=text/plain;"
+      +"S.android.intent.extra.TEXT="+encodeURIComponent(text)
+      +(title?";S.android.intent.extra.SUBJECT="+encodeURIComponent(title):"")
+      +";end";
+    const f=document.createElement("iframe");
+    f.style.cssText="display:none;width:0;height:0;border:0";
+    f.src=u;
+    document.body.appendChild(f);
+    setTimeout(()=>{try{f.remove();}catch(e){}},2500);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* نصّ مختصر من الوصل المعروض — ليُشارَك حين يتعذّر الملف */
+function _printAsText(limit){
+  /* ⚠️ لا يُقرأ إلا وشاشة الطباعة مفتوحة: محتوى #PC يبقى من آخر
+     وصلٍ عُرض، فمشاركة ملف Excel كانت ستحمل نصّ وصلٍ لا علاقة له. */
+  const ps=document.getElementById("PS");
+  if(!ps||!ps.classList.contains("active"))return "";
+  const el=document.getElementById("PC");
+  let t=(el?el.innerText||el.textContent||"":"").replace(/ /g," ");
+  t=t.split("\n").map(x=>x.trim()).filter(Boolean).join("\n");
+  return t.slice(0,limit||1200);
+}
+
+/* ما تستطيعه هذه البيئة فعلاً — يُعرض في «فحص المشاركة» */
+function shareCaps(){
+  const br=getBridge();
+  const methods=br?Object.keys(br).filter(k=>{try{return typeof br[k]==="function";}catch(e){return false;}}):[];
+  let canFiles=false;
+  try{
+    const f=new File([new Blob(["x"],{type:"text/plain"})],"t.txt",{type:"text/plain"});
+    canFiles=!!(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]}));
+  }catch(e){}
+  return{
+    bridge:!!br,
+    bridgeName: window.JSBridge?"JSBridge":window.Android?"Android":"—",
+    bridgeFile: br?_BR_FILE.filter(m=>typeof br[m]==="function"):[],
+    bridgeAll: methods,
+    webShare: typeof navigator.share==="function",
+    webShareFiles: canFiles,
+    secure: !!window.isSecureContext,
+    ua:(navigator.userAgent||""),
+    webview:/\bwv\b|Version\/[\d.]+ Chrome/.test(navigator.userAgent||""),
+  };
+}
+
+/* ══ المسار الموحّد: يُستعمل للـPDF ولـExcel معاً ══ */
+async function shareBlobSmart(blob,fname,mime,text){
+  // ① جسر التطبيق
+  if(await _bridgeShareFile(blob,fname,mime)){ showToast("✅ أُرسل الملف"); return true; }
+
+  // ② Web Share بملف
+  try{
+    if(navigator.share&&navigator.canShare){
+      const file=new File([blob],fname,{type:mime});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:"نسائم الخير",text:text||fname});
+        showToast("✅ تمت المشاركة"); return true;
+      }
+    }
+  }catch(e){ if(e&&e.name==="AbortError")return true; }
+
+  /* الملف تعذّر. نحفظه أولاً كي لا يضيع، ثم نفتح القائمة بنصّه —
+     فالمطلوب أن تُفتح القائمة، والنصّ خيرٌ من صمت. */
+  _saveBlob(blob,fname);
+  const det=_printAsText();
+  const body=((text?text+"\n":"")+(det?"\n"+det:"")).trim()||"نسائم الخير";
+
+  // ③ Web Share بنصّ
+  try{
+    if(navigator.share){
+      await navigator.share({title:"نسائم الخير",text:body});
+      showToast("✅ فُتحت قائمة المشاركة — والملف محفوظ في التنزيلات",6000);
+      return true;
+    }
+  }catch(e){ if(e&&e.name==="AbortError")return true; }
+
+  // ④ Intent SEND
+  if(_shareIntentText(body,"نسائم الخير")){
+    showToast("📤 فُتحت قائمة المشاركة بالنصّ — والملف محفوظ في التنزيلات",7000);
+    return true;
+  }
+
+  // ⑤ لا سبيل — يُقال السبب لا يُصمت عنه
+  showToast("💾 حُفظ في التنزيلات. تطبيقك لا يسمح للصفحة بفتح قائمة المشاركة — "
+           +"افتح الأدوات ← 🔗 فحص المشاركة",8000);
+  return false;
+}
+
+function _saveBlob(blob,fname){
+  try{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=fname; a.style.display="none";
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{try{URL.revokeObjectURL(url);a.remove();}catch(e){}},3000);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ── لوحة التشخيص ── */
+function renderShareBox(){
+  const box=document.getElementById("shareBox");
+  if(!box)return;
+  const c=shareCaps();
+  const row=(ok,t,d)=>`<div style="display:flex;gap:7px;align-items:flex-start;padding:5px 2px;
+      border-bottom:1px solid var(--rule);font-size:11px">
+    <span style="color:${ok?"var(--settled)":"var(--owing)"};font-weight:800">${ok?"✓":"✗"}</span>
+    <div style="flex:1;min-width:0"><div style="color:var(--paper)">${t}</div>
+    ${d?`<div style="color:var(--paper-3);font-size:10px;line-height:1.6;word-break:break-all">${esc(d)}</div>`:""}</div>
+  </div>`;
+  const best = c.bridgeFile.length ? "جسر التطبيق — يُرسل الـPDF نفسه"
+             : c.webShareFiles    ? "Web Share — يُرسل الـPDF نفسه"
+             : c.webShare         ? "Web Share بالنصّ — تُفتح القائمة بلا ملف"
+             :                      "Intent — تُفتح القائمة بالنصّ إن دعمها المُحوِّل";
+  box.innerHTML=
+    row(c.bridgeFile.length>0,"جسر التطبيق يشارك ملفاً",
+        c.bridge?("الجسر: "+c.bridgeName+(c.bridgeFile.length?" · "+c.bridgeFile.join("، "):" · لا دالة مشاركة ملفات")
+          +(c.bridgeAll.length?" · الدوال المتاحة: "+c.bridgeAll.slice(0,12).join("، "):"")):"لا جسر — المُحوِّل لا يوفّر window.JSBridge ولا window.Android")+
+    row(c.webShare,"navigator.share موجود",c.webShare?"":"غير موجود — طبيعي داخل WebView")+
+    row(c.webShareFiles,"ويقبل الملفات",c.webShareFiles?"":"لا يقبل — لا يمكن إرسال PDF بهذا الطريق")+
+    row(c.secure,"سياق آمن (https/file)",c.secure?"":"غير آمن — المشاركة تُمنع")+
+    `<div style="background:var(--ink-100);border:1px solid var(--rule);border-radius:9px;padding:9px;margin-top:8px;font-size:11px;line-height:1.8;color:var(--paper-2)">
+       <strong>المسار المستعمل عندك:</strong> ${esc(best)}
+       ${(!c.bridgeFile.length&&!c.webShareFiles)?`<br/><span style="color:var(--pending)">
+       لإرسال الـPDF نفسه من داخل التطبيق يلزم أن يوفّر المُحوِّل دالة مشاركة ملفات
+       (shareFile مثلاً). وهذا إعدادٌ في برنامج التحويل لا في الصفحة — والصفحة
+       تستعملها فور وجودها بلا تغيير.</span>`:""}
+     </div>
+     <button class="btn bsm" style="width:100%;justify-content:center;margin-top:8px;background:var(--steel);color:#fff"
+       onclick="shareTestNow()">📤 جرّب المشاركة الآن</button>`;
+}
+
+async function shareTestNow(){
+  const blob=new Blob(["نسائم الخير — اختبار مشاركة\n"+nowStr()],{type:"text/plain"});
+  await shareBlobSmart(blob,"اختبار_المشاركة.txt","text/plain","اختبار مشاركة من نسائم الخير");
+}
+
 // فتح نافذة PDF / مشاركة — متوافق مع Website To App
 async function doMakePDF(action){
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
@@ -2545,26 +2735,11 @@ async function doMakePDF(action){
       const pdfBlob = await _generatePDFBlob(fullHTML, fname);
       hideLoader();
       if(pdfBlob){
-        // ── Web Share API مع ملف PDF ──
-        try{
-          if(navigator.share && navigator.canShare){
-            const file = new File([pdfBlob], fname+".pdf", {type:"application/pdf"});
-            if(navigator.canShare({files:[file]})){
-              await navigator.share({files:[file], title:"نسائم الخير", text:fname});
-              showToast("✅ تم إرسال PDF");
-              return;
-            }
-          }
-        }catch(e){ if(e && e.name==="AbortError") return; }
-
-        // ── fallback: تنزيل PDF مباشرة ──
-        const url = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = url; a.download = fname+".pdf";
-        a.style.display="none";
-        document.body.appendChild(a); a.click();
-        setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); },3000);
-        showToast("💾 تم حفظ PDF في التنزيلات");
+        /* v17.76 — المسار الموحّد: جسر التطبيق أولاً، ثم Web Share
+           بملف، ثم بنصّ، ثم Intent — والتنزيل آخرُ ما يُلجأ إليه
+           ومعه قولُ السبب. كان هذا الموضع يقفز إلى التنزيل مباشرةً
+           ولا يسأل الجسر إطلاقاً، فظهر في التطبيق «ينزّل ولا يشارك». */
+        await shareBlobSmart(pdfBlob,fname+".pdf","application/pdf",fname);
         return;
       }
     }catch(e){ hideLoader(); console.error("PDF error:",e); }
@@ -2871,29 +3046,16 @@ async function doShareXL(period,wh){
   try{
     const arr = makeXLBlob(data, wh==="all"?"وصلات":whTitle(wh).replace(/ /g,"_"));
 
-    // محاولة Bridge
+    const XLMIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    /* saveExcel خاصّة بـExcel ولا مقابل لها في المسار الموحّد */
     const br=getBridge();
-    if(br){
+    if(br&&typeof br.saveExcel==="function"){
       try{
-        const b64=btoa(String.fromCharCode.apply(null,new Uint8Array(arr)));
-        if(br.saveExcel){ br.saveExcel(fname,b64); showToast("✅ تم حفظ Excel"); return; }
-        if(br.shareFile){ br.shareFile(fname,b64,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); showToast("✅ تم"); return; }
+        br.saveExcel(fname,btoa(String.fromCharCode.apply(null,new Uint8Array(arr))));
+        showToast("✅ تم حفظ Excel"); return;
       }catch(e){}
     }
-
-    // Web Share API
-    try{
-      const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-      const file=new File([blob],fname,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-      if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:"نسائم الخير",text:"تقرير Excel"})
-          .then(function(){showToast("✅ تم إرسال Excel");})
-          .catch(function(e){if(e.name!=="AbortError")_xlSave(arr,fname);});
-        return;
-      }
-    }catch(e){}
-
-    _xlSave(arr,fname);
+    await shareBlobSmart(new Blob([arr],{type:XLMIME}),fname,XLMIME,"تقرير Excel");
   }catch(e){showToast("⚠ خطأ في Excel: "+e.message);}
 }
 function _xlSave(arr,fname){
@@ -13450,7 +13612,7 @@ function sT(id,btn){
   if(id==="stock")renderStockVal();
   if(id==="aging")renderAging();
   if(id==="acct")renderAcct();
-  if(id==="tools"){try{renderNumbering();}catch(e){}try{renderPaperBox();}catch(e){}}
+  if(id==="tools"){try{renderNumbering();}catch(e){}try{renderPaperBox();}catch(e){}try{renderShareBox();}catch(e){}}
   if(id==="rpt")renderRpt();
   if(id==="coll"){showCollTab(_curCollTab||1);}
   if(id==="sell-recs"){renderSellRecs();}
@@ -22071,6 +22233,16 @@ document.addEventListener("keydown", function(e){
       </p>
       <div id="numberingRes"></div>
     </div>
+    <!-- فحص المشاركة -->
+    <div class="cd">
+      <div class="cdt">🔗 فحص المشاركة</div>
+      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
+        إن كان زرّ «مشاركة» يُنزّل الوصل بدل أن يفتح قائمة المشاركة، فهذا يقول
+        بالضبط ما يسمح به تطبيقك وما يمنعه، وأي طريقٍ يستعمله النظام عندك.
+      </div>
+      <div id="shareBox"></div>
+    </div>
+
     <!-- عرض الطباعة -->
     <div class="cd">
       <div class="cdt">🖨️ عرض الطباعة</div>
