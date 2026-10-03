@@ -13283,7 +13283,6 @@ function renderToolsTab(){
   renderSnapshots();
   renderToolsStatus();
   renderTrash();
-  toolsGlobalSearch();
 }
 
 /* ══════════════════════════════════════════════════════
@@ -13754,6 +13753,7 @@ function sT(id,btn){
     else renderPayLog();
   }
   if(id==="tools"){renderToolsTab();}
+  if(id==="gsearch"){toolsGlobalSearch();}
   if(id==="perf"){if(!_perfRange.from&&!_perfRange.to)perfSetRange("month");else renderPerfTab();}
   if(id==="cash"){_cashOpenTab();}
   if(id==="audit"){renderAuditTab();}
@@ -19263,6 +19263,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb grp" onclick="sT('paylog',this)">💵 سجل الدفعات</button>
     <button class="tbb" onclick="sT('aging',this)">⏳ أعمار الديون</button>
     <button class="tbb" onclick="sT('acct',this)">📒 الدفاتر المحاسبية</button>
+    <button class="tbb" onclick="sT('gsearch',this)">🔎 الجمع الشامل</button>
     <button class="tbb" onclick="sT('tools',this)">⚙️ الأدوات</button>
     <button class="tbb" onclick="sT('perf',this)">📈 الأداء</button>
     <button class="tbb" onclick="sT('cash',this)">💰 الصندوق</button>
@@ -22332,33 +22333,12 @@ document.addEventListener("keydown", function(e){
 
   </div>
 
-  <div class="tc" id="tc-tools">
+  <!-- ══ v17.83 — الجمع الشامل تبويبٌ مستقل لا بطاقةٌ داخل «الأدوات» ══
+       يُستعمل كل يوم لجمع حساب الشخص من الأقسام كلها ودفعه، فلا يُدفن
+       بين النسخ الاحتياطي وفحص الاتصال. -->
+  <div class="tc" id="tc-gsearch">
 
-    <!-- حالة النظام -->
-    <div class="cd">
-      <div class="cdt">📈 حالة النظام</div>
-      <div id="toolsStatus"></div>
-    </div>
-
-    <!-- النسخ الاحتياطي -->
-    <div class="cd">
-      <div class="cdt">📦 النسخ الاحتياطي والاستعادة</div>
-      <div id="bkNudge"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--paper-2);margin:4px 0 5px">📸 اللقطات التلقائية على هذا الجهاز</div>
-      <div id="snapBox" style="margin-bottom:10px"></div>
-      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
-        النسخة الاحتياطية ملف واحد يحتوي كل بيانات النظام. احفظه في مكان آمن (واتساب/درايف) — يمكنك استعادته على أي جهاز.
-      </div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn bgn" style="flex:1;min-width:150px;justify-content:center" onclick="toolsBackup()">📦 حفظ نسخة احتياطية</button>
-        <button class="btn bbl" style="flex:1;min-width:150px;justify-content:center" onclick="toolsPickRestore()">♻️ استعادة من ملف</button>
-        <button class="btn bg" style="flex:1;min-width:150px;justify-content:center" onclick="toolsExportXL()">📊 تصدير Excel شامل</button>
-      </div>
-      <input type="file" id="toolsRestoreFile" accept=".json,application/json" style="display:none" onchange="toolsReadRestore(this)">
-      <div id="toolsRestoreBox"></div>
-    </div>
-
-    <!-- البحث الشامل -->
+    <!-- الجمع الشامل: بحث في كل الأقسام + الدفع الشامل -->
     <div class="cd">
       <div class="cdt">🔎 بحث شامل في كل الأقسام</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
@@ -22418,6 +22398,34 @@ document.addEventListener("keydown", function(e){
         </div>
         <div id="gPayResult"></div>
       </div>
+    </div>
+
+  </div>
+
+  <div class="tc" id="tc-tools">
+
+    <!-- حالة النظام -->
+    <div class="cd">
+      <div class="cdt">📈 حالة النظام</div>
+      <div id="toolsStatus"></div>
+    </div>
+
+    <!-- النسخ الاحتياطي -->
+    <div class="cd">
+      <div class="cdt">📦 النسخ الاحتياطي والاستعادة</div>
+      <div id="bkNudge"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--paper-2);margin:4px 0 5px">📸 اللقطات التلقائية على هذا الجهاز</div>
+      <div id="snapBox" style="margin-bottom:10px"></div>
+      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:9px">
+        النسخة الاحتياطية ملف واحد يحتوي كل بيانات النظام. احفظه في مكان آمن (واتساب/درايف) — يمكنك استعادته على أي جهاز.
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn bgn" style="flex:1;min-width:150px;justify-content:center" onclick="toolsBackup()">📦 حفظ نسخة احتياطية</button>
+        <button class="btn bbl" style="flex:1;min-width:150px;justify-content:center" onclick="toolsPickRestore()">♻️ استعادة من ملف</button>
+        <button class="btn bg" style="flex:1;min-width:150px;justify-content:center" onclick="toolsExportXL()">📊 تصدير Excel شامل</button>
+      </div>
+      <input type="file" id="toolsRestoreFile" accept=".json,application/json" style="display:none" onchange="toolsReadRestore(this)">
+      <div id="toolsRestoreBox"></div>
     </div>
 
     <!-- هوية الجهاز -->
