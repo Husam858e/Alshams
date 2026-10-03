@@ -2045,7 +2045,9 @@ function nameKey(s){
      مثل "سالم" أو "خالد" كي لا تندمج أسماء مختلفة خطأً. */
   return normArabic(t)
     .split(" ")
-    .map(w=>w.replace(/^(عبد|ابو|ابن|بن|ام|اخو|اخت|ذو|اهل|است)ال(?=.)/,"$1"))
+    /* v17.85 — «الله» تبقى: normArabic تُبقيها في «عبد الله» المفصولة،
+       فإسقاطها من «عبدالله» الموصولة كان يجعلهما مفتاحين مختلفين. */
+    .map(w=>w.replace(/^(عبد|ابو|ابن|بن|ام|اخو|اخت|ذو|اهل|است)ال(?!له$)(?=.)/,"$1"))
     .join("");
 }
 
@@ -9006,17 +9008,100 @@ function doNaqlSearch(){
   el.innerHTML=html;
 }
 
+/* ══════════════════════════════════════════════════════
+   أسماء ناقلين متقاربة — v17.85
+   ──────────────────────────────────────────────────────
+   nameKey يجمع ما اختلف كتابةً لا حرفاً. أما «منذر» و«منثر» فحرفٌ
+   مختلف — قد يكون خطأً إملائياً وقد يكونان شخصين، فلا يُدمجان
+   تلقائياً. يُعرضان تنبيهاً، والتوحيد بيد صاحب النظام: يختار
+   الصيغة الصحيحة، فيُعاد كتابة اسم الناقل في كل وصولات الصيغة
+   الأخرى (شراء، بيع، ضمانات، نقل يدوي).
+══════════════════════════════════════════════════════ */
+let _naqlNear=[];
+function _naqlNearPairs(groups){
+  const g=groups.filter(x=>x.key&&x.key.length>=5);
+  const out=[];
+  for(let i=0;i<g.length;i++)for(let j=i+1;j<g.length;j++){
+    if(_editDist(g[i].key,g[j].key,1)<=1)
+      out.push([{key:g[i].key,name:g[i].forms[0],n:g[i].entries.length},
+                {key:g[j].key,name:g[j].forms[0],n:g[j].entries.length}]);
+  }
+  return out;
+}
+function _naqlNearHTML(groups){
+  _naqlNear=_naqlNearPairs(groups);
+  if(!_naqlNear.length)return"";
+  return `<div style="background:var(--pending-wash,#fff7e6);border:1px solid var(--pending,#c98a1a);border-radius:10px;padding:11px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:800;color:var(--pending,#c98a1a);margin-bottom:6px">⚠️ أسماء متقاربة — هل هي نفس الناقل؟</div>
+    <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:8px">إن كانت لشخصٍ واحد فاضغط الصيغة الصحيحة، فيُكتب بها اسم الناقل في كل وصولات الصيغة الأخرى ويُجمع حسابهما. وإن كانا شخصين فاتركهما.</div>
+    ${_naqlNear.map((p,i)=>`<div style="border-top:1px dashed var(--rule);padding:7px 0">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">«${esc(p[0].name)}» <span style="color:var(--paper-4)">(${AR(p[0].n)} وصل)</span> و«${esc(p[1].name)}» <span style="color:var(--paper-4)">(${AR(p[1].n)} وصل)</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn bsm" style="background:var(--wheat);color:#fff" onclick="naqlUnify(${i},0)">✔ توحيد إلى «${esc(p[0].name)}»</button>
+        <button class="btn bsm" style="background:var(--wheat);color:#fff" onclick="naqlUnify(${i},1)">✔ توحيد إلى «${esc(p[1].name)}»</button>
+      </div></div>`).join("")}
+  </div>`;
+}
+/* يكتب الاسم `to` مكان كل ناقل مفتاحه `fromKey` — يُرجع عدد الوصولات */
+function _naqlRename(fromKey,to){
+  const hit=t=>t&&nameKey(String(t))===fromKey;
+  let n=0;
+  _bulkSync(()=>{
+    (S.recs||[]).slice().forEach(r=>{
+      if(Array.isArray(r.naqlList)&&r.naqlList.some(x=>hit(x.transporter))){
+        saveRec({...r,naqlList:r.naqlList.map(x=>hit(x.transporter)?{...x,transporter:to}:x),
+                 ...(hit(r.transporter)?{transporter:to}:{})});n++;
+      } else if(!(Array.isArray(r.naqlList)&&r.naqlList.length)&&hit(r.transporter)){
+        saveRec({...r,transporter:to});n++;
+      }
+    });
+    (SELL_RECS||[]).slice().forEach(r=>{ if(hit(r.transporter)){saveSellRec({...r,transporter:to});n++;} });
+    (DAM_RECS||[]).slice().forEach(d=>{
+      if(!d.subRecs)return;
+      const ks=Object.keys(d.subRecs).filter(k=>hit(d.subRecs[k].transporter));
+      if(!ks.length)return;
+      const subs={...d.subRecs}; ks.forEach(k=>{subs[k]={...subs[k],transporter:to};});
+      const upd={...d,subRecs:subs};
+      const di=DAM_RECS.findIndex(x=>x.id===d.id); if(di>=0)DAM_RECS[di]=upd;
+      saveDamRec(upd); n+=ks.length;
+    });
+    (MNL_RECS||[]).slice().forEach(r=>{ if(hit(r.transporter)){saveMnlRec({...r,transporter:to});n++;} });
+  });
+  return n;
+}
+function naqlUnify(i,side){
+  const p=_naqlNear[i]; if(!p)return;
+  const to=p[side], from=p[1-side];
+  if(!confirm(`توحيد اسم الناقل\n\n«${from.name}» ← «${to.name}»\n\nسيُكتب «${to.name}» في ${from.n} وصل بدل «${from.name}»، ويُجمع حسابهما في بطاقة واحدة.\n\nهل هما فعلاً نفس الشخص؟`))return;
+  const n=_naqlRename(from.key,to.name);
+  renderNaqlColl();
+  try{renderNaqlRecs();}catch(e){}
+  showToast(`✅ وُحِّد الاسم في ${AR(n)} وصل — «${to.name}»`);
+}
+
 function renderNaqlColl(){
   const from=(document.getElementById("naqlFrom")?.value||"").trim();
   const to=(document.getElementById("naqlTo")?.value||"").trim();
   const el=document.getElementById("naqlCollResult");
   if(!el)return;
 
-  // map: transporterName → {fee,paidTotal,kabs,entries:[]}
-  const map={};
+  /* ══════════════════════════════════════════════════════
+     الناقل الواحد بصيغتين — v17.85
+     ──────────────────────────────────────────────────────
+     كان التجميع بالاسم حرفياً، فمسافةٌ زائدة أو همزة أو «عبدالله»
+     مقابل «عبد الله» تُظهر الناقل الواحد بطاقتين، ويتوزّع حسابه
+     بينهما. بقية الأقسام تجمع بـnameKey منذ v17.5؛ هنا الآن مثلها.
+     يُعرض الاسم بأكثر صيغه تكراراً، وتُذكر الصيغ الأخرى تحته.
+  ══════════════════════════════════════════════════════ */
+  // map: مفتاح الناقل → {fee,paidTotal,kabs,entries:[]}
+  let map={};
+  const spell={};
 
   function addEntry(name,fee,paidAmt,kabs,label,dk,farmer,id,type,damId,rRef,note,price){
     if(!name||fee<=0)return;
+    const raw=String(name).trim().replace(/\s+/g," ");
+    name=nameKey(raw)||raw;
+    (spell[name]=spell[name]||{})[raw]=(spell[name][raw]||0)+1;
     if(!map[name])map[name]={fee:0,paid:0,kabs:0,entries:[]};
     map[name].fee+=fee;
     map[name].paid+=paidAmt;
@@ -9067,7 +9152,16 @@ function renderNaqlColl(){
     const name=r.transporter||"(بدون اسم ناقل)";
     addEntry(name,r.naqlFee,getNaqlPaidTotal_mnl(r),r.kabs||0,"نقل يدوي"+(r.farmer?" — "+r.farmer:"")+(r.plate?" | "+r.plate:""),dk,r.farmer,r.id,'mnl',null,r,r.note,r.pricePerK||0);
   });
+  /* من المفتاح إلى الاسم المعروض: أكثر الصيغ تكراراً */
+  const byName={};
+  Object.keys(map).forEach(k=>{
+    const sp=spell[k], forms=Object.keys(sp).sort((a,b)=>sp[b]-sp[a]||b.length-a.length);
+    map[k].key=k; map[k].forms=forms;
+    byName[forms[0]]=map[k];
+  });
+  map=byName;
   const keys=Object.keys(map);
+  const nearHTML=_naqlNearHTML(keys.map(n=>map[n]));
   if(keys.length===0){
     el.innerHTML=`<div style="text-align:center;color:var(--paper-3);padding:32px;font-size:14px">لا توجد أجور نقل في هذه الفترة</div>`;
     return;
@@ -9099,7 +9193,8 @@ function renderNaqlColl(){
       <span>⏳ متبقي: <strong style="color:var(--owing)">${fIQD(totalRem)}</strong></span>
     </div>
   </div>
-  <button class="btn bsm" style="background:var(--wheat);color:#fff;width:100%;margin-bottom:12px;justify-content:center" onclick="printNaqlColl()">🖨️ طباعة حساب النقال</button>`;
+  <button class="btn bsm" style="background:var(--wheat);color:#fff;width:100%;margin-bottom:12px;justify-content:center" onclick="printNaqlColl()">🖨️ طباعة حساب النقال</button>
+  ${nearHTML}`;
 
   keys.forEach(name=>{
     const d=map[name];
@@ -9111,6 +9206,7 @@ function renderNaqlColl(){
         <div>
           <div style="font-size:15px;font-weight:800;color:var(--wheat)">🚚 ${esc(name)}</div>
           <div style="font-size:11px;color:var(--paper-3);margin-top:2px">${AR(d.entries.length)} وصل | ${AR(d.kabs)} كبسة</div>
+          ${d.forms&&d.forms.length>1?`<div style="font-size:10px;color:var(--paper-4);margin-top:2px">يُكتب أيضاً: ${d.forms.slice(1).map(f=>"«"+esc(f)+"»").join("، ")}</div>`:""}
         </div>
         <div style="text-align:left">
           <div style="font-size:16px;font-weight:900;color:var(--wheat-hi)">${fIQD(d.fee)}</div>
