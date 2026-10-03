@@ -3374,6 +3374,7 @@ function _doInitFirebase(){
       if(_tabActive("naql-new"))_scheduleRender(renderMnlRecs);
       if(_tabActive("naql-coll"))_scheduleRender(renderNaqlColl);
       if(_tabActive("naql-recs"))_scheduleRender(renderNaqlRecs);
+      if(_tabActive("naql-bulkpay"))_scheduleRender(renderNaqlBulkPayPreview);
     });
     dbRefSrf.on("value",snap=>{
       const v=snap.val();
@@ -3410,6 +3411,7 @@ function _doInitFirebase(){
         _scheduleRender(renderWH);_scheduleRender(refreshHistIfOpen);
         if(_tabActive("naql-coll"))_scheduleRender(renderNaqlColl);
         if(_tabActive("naql-recs"))_scheduleRender(renderNaqlRecs);
+        if(_tabActive("naql-bulkpay"))_scheduleRender(renderNaqlBulkPayPreview);
       }
     },err=>{
       console.warn("Firebase read error:",err);
@@ -13732,7 +13734,8 @@ function sT(id,btn){
   if(id==="sal-emps"){renderEmpList();renderAdvSummary();}
   if(id==="sal-recs"){updateEmpSelect();renderSalRecs();}
   if(id==="sal-coll"){renderSalCollTab();buildSalHistoryLists();}
-  if(id==="naql-coll"){loadMnlCache();renderNaqlColl();renderNaqlBulkPayPreview();}
+  if(id==="naql-coll"){loadMnlCache();renderNaqlColl();}
+  if(id==="naql-bulkpay"){loadMnlCache();renderNaqlBulkPayPreview();}
   if(id==="naql-new"){loadMnlCache();renderMnlRecs();}
   if(id==="naql-recs"){loadMnlCache();renderNaqlRecs();}
   if(id==="naql-cust"){loadMnlCache();renderCustTab('naql');}
@@ -19255,6 +19258,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" onclick="sT('naql-coll',this)">📊 حساب النقال</button>
     <button class="tbb" onclick="sT('naql-recs',this)">📋 سجل النقل</button>
     <button class="tbb" onclick="sT('naql-cust',this)">🔍 ناقل</button>
+    <button class="tbb" onclick="sT('naql-bulkpay',this)">💵 دفع جامع</button>
     <button class="tbb grp" onclick="sT('arb-new',this)">🏬 مخزن أربيل</button>
     <button class="tbb" id="arbRecsTabBtn" onclick="sT('arb-recs',this)">📋 سجل أربيل</button>
     <button class="tbb" onclick="sT('arb-coll',this)">💼 محصلة أربيل</button>
@@ -21505,25 +21509,6 @@ document.addEventListener("keydown", function(e){
         </div>
         <div id="naqlSrchResult" style="margin-top:10px"></div>
       </div>
-      <!-- الدفع الجامع لأجور النقل -->
-      <div style="background:var(--ink-100);border:1px solid #fb923c44;border-radius:10px;padding:11px;margin-bottom:12px">
-        <div style="font-size:12px;color:var(--wheat);font-weight:700;margin-bottom:4px">💵 الدفع الجامع لأجور النقل</div>
-        <p style="font-size:11px;color:var(--paper-3);margin-bottom:9px">أدخل اسم الناقل والمبلغ المدفوع، وسيتم توزيعه تلقائياً على وصولاته غير المسددة (شراء/بيع/ضمانات/نقل يدوي) بدءاً من <strong style="color:var(--wheat-hi)">الأقدم</strong> ثم الأحدث.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
-          <input id="naqlBulkPayName" type="text" placeholder="اسم الناقل..." oninput="naqlBulkPaySearch()"
-            style="flex:1;min-width:140px;padding:9px 12px;border-radius:8px;border:2px solid var(--rule);background:var(--ink-200);color:var(--paper);font-size:13px;outline:none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
-          <input id="naqlBulkPayAmount" type="text" inputmode="numeric" autocomplete="off" placeholder="المبلغ المدفوع (د.ع)" dir="ltr" oninput="fmtPayInput(this)"
-            style="flex:1;min-width:140px;padding:9px 12px;border-radius:8px;border:2px solid var(--rule);background:var(--ink-200);color:var(--paper);font-size:13px;outline:none" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
-          <input id="naqlBulkPayNote" type="text" placeholder="ملاحظة (اختياري)"
-            style="flex:1;min-width:140px;padding:9px 12px;border-radius:8px;border:2px solid var(--rule);background:var(--ink-200);color:var(--paper);font-size:13px;outline:none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
-        </div>
-        <div id="naqlBulkPayPreview" style="margin-bottom:9px"></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn bsm" style="background:var(--wheat);color:#fff;flex:1;justify-content:center" onclick="execNaqlBulkPay()">💵 تنفيذ الدفع الجامع</button>
-          <button class="btn bgh bsm" onclick="clrNaqlBulkPay()">× مسح</button>
-        </div>
-        <div id="naqlBulkPayResult"></div>
-      </div>
       <!-- فلتر التاريخ -->
       <div style="background:var(--ink-100);border:1px solid var(--rule);border-radius:10px;padding:11px;margin-bottom:12px">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
@@ -21550,6 +21535,35 @@ document.addEventListener("keydown", function(e){
   </div>
 
 <!-- مودال إضافة/تعديل عامل -->
+  <!-- ══ v17.84 — الدفع الجامع لأجور النقل تبويبٌ مستقل لا بطاقةٌ داخل
+       «حساب النقال» — كتبويبات «💵 دفع جامع» في بقية الأقسام. ══ -->
+  <div class="tc" id="tc-naql-bulkpay">
+    <div class="cd">
+      <div class="cdt" style="color:var(--wheat)">💵 الدفع الجامع لأجور النقل</div>
+      <p style="font-size:12px;color:var(--paper-3);margin-bottom:12px">أدخل اسم الناقل والمبلغ المدفوع، وسيتم توزيعه تلقائياً على وصولاته غير المسددة (شراء/بيع/ضمانات/نقل يدوي) بدءاً من <strong style="color:var(--wheat-hi)">الأقدم</strong> ثم الأحدث، حتى نفاد المبلغ.</p>
+      <div class="fg" style="margin-bottom:6px">
+        <div class="fi-g">
+          <label class="fl">اسم الناقل *</label>
+          <input class="fi" id="naqlBulkPayName" type="text" placeholder="اسم الناقل..." oninput="naqlBulkPaySearch()" style="border-color:var(--wheat)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">المبلغ المدفوع (د.ع) *</label>
+          <input class="fi" id="naqlBulkPayAmount" type="text" inputmode="numeric" placeholder="0" dir="ltr" style="text-align:right" oninput="fmtPayInput(this)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+        <div class="fi-g">
+          <label class="fl">ملاحظة (اختياري)</label>
+          <input class="fi" id="naqlBulkPayNote" type="text" placeholder="أي تفاصيل عن الدفعة" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+        </div>
+      </div>
+      <div id="naqlBulkPayPreview" style="margin-bottom:11px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn bfw" style="background:var(--wheat);color:#fff;flex:1" onclick="execNaqlBulkPay()">💵 تنفيذ الدفع الجامع</button>
+        <button class="btn bgh" onclick="clrNaqlBulkPay()">× مسح</button>
+      </div>
+      <div id="naqlBulkPayResult"></div>
+    </div>
+  </div>
+
 <!-- ══ سجل وصولات النقل ══ -->
   <div class="tc" id="tc-naql-recs">
     <div class="cd">
