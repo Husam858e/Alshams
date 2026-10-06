@@ -2371,8 +2371,80 @@ function renderPaperBox(){
 function _printDoc(body,fname){
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${fname||"نسائم الخير"}</title><style>${getPDFCss()}</style></head>
-<body>${body}</body></html>`;
+<title>${fname||"نسائم الخير"}</title><style>${getPDFCss()}${_STK_CSS}</style></head>
+<body>${_stackWide(body)}</body></html>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   الجداول العريضة بطاقاتُ حقول — v17.86
+   ──────────────────────────────────────────────────────────────
+   كشف «حساب النقال» تسعة أعمدة. على ورق ٥٨ ملم يبقى للعمود نحو
+   ستة ملّيمترات، فتنكسر الكلمة حرفاً حرفاً («الت/اري/خ»). وأداة
+   تحويل الصفحة إلى PDF (html2canvas) ترسم كل قطعةٍ مكسورة وحدها،
+   فتنفصل الحروف العربية عن بعضها. تصغير الخطّ لا ينقذ تسعة أعمدة.
+   فكل جدولٍ أعمدته أكثر مما يتّسع له الورق يُطبع بطاقةً لكل صفّ:
+   اسم الحقل صغيراً وقيمته تحته، حقلان في السطر — لا تنكسر كلمة.
+   والعمود الذي فيه قيمةٌ طويلة يأخذ السطر كلّه في كل البطاقات،
+   فتأتي البطاقات كلها بترتيبٍ واحد لا يتبدّل من وصلٍ لآخر.
+   صفّ المجموع بطاقةٌ داكنة. ورقمُ الصفّ (#) عنوانُ بطاقته.
+   ما يتّسع يبقى جدولاً كما كان؛ وطباعة المحدَّد (seltbl) مصمَّمة
+   بحقولها فلا تُمسّ.
+══════════════════════════════════════════════════════════════ */
+const _STK_CSS=`
+.stk{margin:2px 0 4px;}
+.stk-card{border:1px solid #000;border-radius:3px;margin:0 0 3px;padding:2px 3px 1px;page-break-inside:auto;}
+.stk-hd{font-size:10px;font-weight:900;border-bottom:1px solid #C9C1B1;margin-bottom:1px;padding-bottom:1px;}
+.stk-g{display:grid;grid-template-columns:1fr 1fr;column-gap:4px;}
+.stk-f{padding:1px 0;min-width:0;}
+.stk-f.w{grid-column:1 / -1;}
+.stk-k{display:block;font-size:8.5px;font-weight:700;color:#57503F;line-height:1.2;}
+.stk-v{display:block;font-size:11px;font-weight:900;color:#000;line-height:1.25;word-break:normal;overflow-wrap:normal;}
+.stk-card.tot{background:#DED8CB;border-width:2px;}
+.stk-card.tot .stk-hd{font-size:11px;}
+`;
+function _stkCols(){ return Math.max(4,Math.floor(paperW()/10)); }   // ٥٨ ← ٥ · ٧٢ ← ٧ · ٨٠ ← ٨
+function _stackWide(html){
+  if(!html||html.indexOf("coltbl")<0)return html;
+  let tpl;
+  try{ tpl=document.createElement("template"); tpl.innerHTML=html; }catch(e){ return html; }
+  const fit=_stkCols();
+  const txt=el=>(el.textContent||"").replace(/\s+/g," ").trim();
+  tpl.content.querySelectorAll("table.coltbl").forEach(tb=>{
+    if(tb.classList.contains("seltbl"))return;
+    const rows=[...tb.rows];
+    const hi=rows.findIndex(r=>r.cells.length&&[...r.cells].every(c=>c.tagName==="TH"));
+    if(hi<0)return;
+    /* رأسٌ واحد فقط — جدول برأسين له تصميمه */
+    if(rows.slice(hi+1).some(r=>r.cells.length>1&&[...r.cells].every(c=>c.tagName==="TH")))return;
+    const labels=[];
+    [...rows[hi].cells].forEach(c=>{const n=+c.getAttribute("colspan")||1;for(let i=0;i<n;i++)labels.push(i?"":txt(c));});
+    if(labels.length<=fit)return;
+    /* العمود العريض يُقرَّر للجدول كله لا للخليّة — كي تتطابق البطاقات */
+    const wideCol=labels.map(()=>false);
+    rows.slice(hi+1).forEach(r=>{let col=0;[...r.cells].forEach(c=>{const n=+c.getAttribute("colspan")||1;
+      if(n===1&&txt(c).length>16)wideCol[col]=true; col+=n;});});
+    const out=document.createElement("div"); out.className="stk";
+    rows.slice(hi+1).forEach(r=>{
+      if(!r.cells.length)return;
+      const tot=r.classList.contains("ctot")||r.closest("tfoot")!==null||[...r.cells].some(c=>/المجموع|الإجمالي/.test(txt(c))&&(+c.getAttribute("colspan")||1)>1);
+      let col=0, head="", fields="";
+      [...r.cells].forEach(c=>{
+        const span=+c.getAttribute("colspan")||1, lab=labels[col]||"", t=txt(c), wide=wideCol[col];
+        col+=span;
+        if(!t)return;
+        if(span>1){ head+=(head?" · ":"")+c.innerHTML; return; }            // خليّة ممتدّة: عنوانٌ لا حقل
+        if(lab==="#"||lab===""){ head=c.innerHTML+(head?" · "+head:""); return; }
+        fields+=`<div class="stk-f${wide?" w":""}"><span class="stk-k">${lab}</span><span class="stk-v">${c.innerHTML}</span></div>`;
+      });
+      if(!head&&!fields)return;
+      const card=document.createElement("div");
+      card.className="stk-card"+(tot?" tot":"");
+      card.innerHTML=(head?`<div class="stk-hd">${head}</div>`:"")+(fields?`<div class="stk-g">${fields}</div>`:"");
+      out.appendChild(card);
+    });
+    tb.replaceWith(out);
+  });
+  return tpl.innerHTML;
 }
 
 function getPDFCss(){
