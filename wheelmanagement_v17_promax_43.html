@@ -1871,6 +1871,7 @@ function _auditCapture(node,id,before,after){
     action, changes,
     dk:(after&&after.dk)||(before&&before.dk)||"",
   });
+  try{_watchAudit(AUDIT[0]);}catch(e){console.warn("watch",e);}   // v17.87 — الرقابة
 }
 
 /* تحميل الكاش المحلي عند الإقلاع */
@@ -1972,6 +1973,7 @@ function _reopenMonthNow(m,why){
     subject:_closureLabel(m),action:"reopen",dk:m+"-01",
     changes:[{f:"month",from:"مغلق",to:"مفتوح"},{f:"note",from:"—",to:String(why).trim()}]});
   showToast("🔓 فُتح "+_closureLabel(m));
+  try{_alertRaise("reopen","high","فتح شهرٍ مغلق",`${_closureLabel(m)} — السبب: ${String(why).trim()}`);}catch(e){}
   renderAuditTab();
 }
 
@@ -3384,6 +3386,7 @@ function _doInitFirebase(){
     const app=firebase.initializeApp(FB_CONFIG);
     db=firebase.database(app);
     _fbSignIn(app).then(ok=>{
+      if(ok)setTimeout(()=>{try{_devRegister(true);}catch(e){}},2500);   // v17.87
       const dot=document.getElementById("syncDot");
       if(dot&&!ok)dot.title="متصل بلا هوية — فعّل الدخول المجهول لتطبيق قواعد الأمان";
     });
@@ -3409,6 +3412,7 @@ function _doInitFirebase(){
       _cacheSet(_AUDIT_CACHE_K,()=>JSON.stringify(AUDIT.slice(0,400)));
       if(_tabActive("audit"))_scheduleRender(renderAuditTab);
     });
+    try{_watchListen();}catch(e){console.warn("watch listen",e);}   // v17.87 — الرقابة
     dbRefClosures=db.ref("closures");
     dbRefClosures.on("value",snap=>{
       const v=snap.val();
@@ -8915,6 +8919,7 @@ function execNaqlBulkPay(){
   let pool=amount;
   const results=[];
   const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
+  _snapBefore("الدفع الجامع للنقل");   // v17.87
   _bulkSync(()=>{                       // v17.73 — كتابة واحدة لا كتابة لكل وصل
   for(const e of entries){
     if(pool<=0)break;
@@ -9145,6 +9150,7 @@ function naqlUnify(i,side){
   const p=_naqlNear[i]; if(!p)return;
   const to=p[side], from=p[1-side];
   if(!confirm(`توحيد اسم الناقل\n\n«${from.name}» ← «${to.name}»\n\nسيُكتب «${to.name}» في ${from.n} وصل بدل «${from.name}»، ويُجمع حسابهما في بطاقة واحدة.\n\nهل هما فعلاً نفس الشخص؟`))return;
+  _snapBefore("توحيد اسم ناقل");   // v17.87
   const n=_naqlRename(from.key,to.name);
   renderNaqlColl();
   try{renderNaqlRecs();}catch(e){}
@@ -10421,6 +10427,8 @@ function _toolsRestoreNow(mode){
   }
 
   let added=0,updated=0,skipped=0,removed=0;
+  _snapBefore(mode==="replace"?"استعادة (استبدال)":"استعادة (دمج)");   // v17.87
+  _watchQuiet(()=>{                     // v17.87 — تنبيهٌ واحد للاستعادة لا مئات
   _bulkSync(()=>{                       // v17.73 — كتابة واحدة لا كتابة لكل سجل
   plan.forEach(({d,incoming,haveIds,toRemove})=>{
     // ① احذف ما ليس في الملف (مع نسخة للسلة)
@@ -10439,6 +10447,9 @@ function _toolsRestoreNow(mode){
     });
   });
   });
+  });
+  try{_alertRaise("restore","high","استعادة نسخة احتياطية",
+    `${mode==="replace"?"استبدال":"دمج"} — أُضيف ${AR(added)} · حُدّث ${AR(updated)} · حُذف ${AR(removed)}`);}catch(e){}
 
   showToast(mode==="replace"
     ? `♻️ استبدال — أُضيف ${AR(added)} · حُدّث ${AR(updated)} · حُذف ${AR(removed)}`
@@ -10904,6 +10915,7 @@ offName.length?`\n\n🛡️ استُبعد ${offName.length} سجل ظهر في 
 
 هل تريد المتابعة؟`))return;
 
+  _snapBefore("الدفع الشامل");   // v17.87
   let pool=amount;
   const results=[],touched=new Set();
   const bid=genId();                    // v17.63 — عملية واحدة، سطر واحد في سجل الدفعات
@@ -12603,14 +12615,15 @@ function _snapshotPayload(){
 function autoSnapshot(force){
   try{
     const snaps=_snapshots();
-    if(!force&&snaps.length&&snaps[0].dk===toDay())return false;   // لهذا اليوم لقطة
+    const lastDay=snaps.find(s=>!s.pre);                           // v17.87 — لقطات «قبل» لا تُحسب يومية
+    if(!force&&lastDay&&lastDay.dk===toDay())return false;   // لهذا اليوم لقطة
     const pay=_snapshotPayload();
     /* الفراغ يُرفض دائماً — حتى مع force. لقطةٌ بلا سجلات لا تنفع
        في استعادة، وقد تدفع لقطةً صالحة خارج قائمة السبع. */
     if(pay.total===0)return false;
     // لا تستبدل لقطة ممتلئة بأخرى شبه فارغة (قد تكون البيانات لم تصل بعد)
-    if(!force&&snaps.length&&pay.total < Math.round((snaps[0].total||0)*0.5))return false;
-    const next=[pay,...snaps].slice(0,_SNAP_MAX);
+    if(!force&&lastDay&&pay.total < Math.round((lastDay.total||0)*0.5))return false;
+    const next=_snapTrim([pay,...snaps]);
     localStorage.setItem(_SNAP_K,JSON.stringify(next));
     return true;
   }catch(e){
@@ -12674,7 +12687,7 @@ function renderSnapshots(){
         background:var(--ink-100);border:1px solid var(--rule);border-radius:8px;
         padding:7px 9px;margin-bottom:5px;font-size:11px">
       <div style="flex:1;min-width:0">
-        <div style="color:var(--paper)">📅 ${tAr(esc(sn.dk))} — <strong>${AR(sn.total)}</strong> سجل</div>
+        <div style="color:var(--paper)">${sn.pre?`⏮ قبل: <strong>${esc(sn.pre)}</strong> · `:"📅 "}${tAr(esc(sn.dk))} — <strong>${AR(sn.total)}</strong> سجل</div>
         <div style="color:var(--paper-3);font-size:10px">${tAr(esc(sn.at||""))} · ${esc(sn.by||"—")}</div>
       </div>
       <button class="btn bsm bgh" onclick="restoreSnapshot(${i})">↩️ استعادة</button>
@@ -12796,22 +12809,30 @@ function _fbClosureGuard(ref){
 }
 
 function _fbRules(){
-  const guard="auth != null && "+_fbClosureGuard("newData")+" && "+_fbClosureGuard("data");
+  /* v17.87 — هويةٌ سُحبت صلاحيتها لا تقرأ ولا تكتب شيئاً */
+  const ok="auth != null && !root.child('"+_REVOKE_NODE+"').child(auth.uid).exists()";
+  const guard=ok+" && "+_fbClosureGuard("newData")+" && "+_fbClosureGuard("data");
   const R={".read":"false",".write":"false"};
-  _FB_DATED.forEach(n=>{R[n]={".read":"auth != null","$id":{".write":guard}};});
-  _FB_PLAIN.forEach(n=>{R[n]={".read":"auth != null","$id":{".write":"auth != null"}};});
-  R.closures={".read":"auth != null","$month":{".write":"auth != null"}};
+  _FB_DATED.forEach(n=>{R[n]={".read":ok,"$id":{".write":guard}};});
+  _FB_PLAIN.forEach(n=>{R[n]={".read":ok,"$id":{".write":ok}};});
+  R.closures={".read":ok,"$month":{".write":ok}};
   /* سجلّ التدقيق يُضاف إليه ولا يُعدَّل ولا يُحذف — ولا حتى من التطبيق */
-  R[_AUDIT_NODE]={".read":"auth != null",
-                  "$entry":{".write":"auth != null && !data.exists() && newData.exists()"}};
-  R.__conncheck__={".read":"auth != null",".write":"auth != null"};
+  R[_AUDIT_NODE]={".read":ok,
+                  "$entry":{".write":ok+" && !data.exists() && newData.exists()"}};
+  /* التنبيهات والأجهزة: تُكتب وتُحدَّث (الاطّلاع، آخر ظهور) ولا تُحذف */
+  R[_WATCH_NODE]={".read":ok,"$id":{".write":ok+" && newData.exists()"}};
+  R[_DEV_NODE]={".read":ok,"$id":{".write":ok+" && newData.exists()"}};
+  /* السحب: لا يرفعه الجهاز المسحوب عن نفسه — يرفعه غيره */
+  R[_REVOKE_NODE]={".read":"auth != null","$uid":{".write":ok+" && auth.uid != $uid"}};
+  R.__conncheck__={".read":ok,".write":ok};
   return {rules:R};
 }
 const _fbRulesText=()=>JSON.stringify(_fbRules(),null,2)+"\n";
 
 /* عقدةٌ كُتب فيها فعلاً وليست في القائمة = القواعد ستنقصها */
 function _fbRulesDrift(){
-  const known=new Set([..._FB_DATED,..._FB_PLAIN,"closures",_AUDIT_NODE,"__conncheck__"]);
+  const known=new Set([..._FB_DATED,..._FB_PLAIN,"closures",_AUDIT_NODE,"__conncheck__",
+                      _WATCH_NODE,_DEV_NODE,_REVOKE_NODE]);
   return [..._FB_SEEN].filter(n=>!known.has(n));
 }
 
@@ -13189,6 +13210,400 @@ function renderAuthBox(){
       <div style="font-size:10px;color:var(--paper-4);margin-top:5px;line-height:1.6">
         كلمة السر لا تُحفظ في التطبيق ولا في الجهاز — فايربيس يحفظ الجلسة وحدها.</div>`}
     <div id="authRes"></div>`;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   الرقابة — كشفٌ واستجابة على بيانات العمل — v17.87
+   ──────────────────────────────────────────────────────────────
+   فكرة EDR مطبَّقة على ما يملكه هذا النظام فعلاً: لا يرى الجهاز،
+   بل يرى كل كتابة في البيانات (كلها تمرّ بـ_auditCapture). فيراقبها
+   بقواعد بسيطة، ويُنبّه على ما لا يشبه العمل اليومي، ويُتيح الردّ:
+   ① الكشف: حذفٌ جماعي · دفعة كبيرة · دفعات في الليل · تعديل مبلغ
+      وصلٍ قديم · فتح شهر مغلق · استعادة نسخة · جهاز جديد.
+   ② التنبيه: يُكتب في عقدة alerts فيظهر على كل الأجهزة، مع شارة
+      على تبويب «🛡️ الرقابة» ورسالة فورية لما يصل من جهازٍ آخر.
+   ③ الاستجابة: لقطة احتياطية تلقائية قبل كل عملية جماعية، وسحب
+      صلاحية جهاز مفقود: تُمسح بيانات التطبيق منه ويُقفل، وترفضه
+      قواعد فايربيس (بعد لصقها) قراءةً وكتابة.
+   ⚠️ حدود صريحة: الجهاز يُعرَّف بهويته في فايربيس. الجهاز المجهول
+      الهوية يستطيع — إن مُسح التطبيق وأعيد تثبيته — أن يأخذ هوية
+      مجهولة جديدة. فالسحب يكتمل حين تُربط الأجهزة بالحسابات ويُطفأ
+      الدخول المجهول (الأدوات ← هوية هذا الجهاز).
+══════════════════════════════════════════════════════════════ */
+const _WATCH_NODE="alerts", _DEV_NODE="devices", _REVOKE_NODE="revoked";
+const _DEV_K="wShamsDevId", _REVOKED_K="wShamsRevoked", _WATCH_CFG_K="wShamsWatchCfg";
+let ALERTS=[], DEVICES=[], REVOKED={};
+let _watchQuietDepth=0;                 // عمليةٌ لها تنبيهها الخاص (الاستعادة) لا تُنبّه بتفاصيلها
+let _watchSeen=null;                    // معرّفات التنبيهات المعروفة — لإعلان الجديد وحده
+const _watchOpen={};                    // تنبيهٌ مفتوح لكل قاعدة تجميعية
+let _watchDelTimes=[];
+
+const _WATCH_DEF={bigPay:5000000,nightFrom:22,nightTo:5,delN:5,delMin:10,oldDays:3};
+function _watchCfg(){
+  let c={}; try{c=JSON.parse(localStorage.getItem(_WATCH_CFG_K)||"{}")||{};}catch(e){}
+  const o={..._WATCH_DEF};
+  Object.keys(o).forEach(k=>{const v=+c[k]; if(isFinite(v)&&v>=0)o[k]=v;});
+  return o;
+}
+function _watchSetCfg(k,v){
+  const c=_watchCfg(); const n=+String(v).replace(/[^\d.]/g,"");
+  if(!isFinite(n))return;
+  c[k]=n; try{localStorage.setItem(_WATCH_CFG_K,JSON.stringify(c));}catch(e){}
+}
+
+/* ── هوية الجهاز: معرّفٌ ثابت لهذا التثبيت ── */
+function _devId(){
+  let v=null; try{v=localStorage.getItem(_DEV_K);}catch(e){}
+  if(!v){ v="d"+genId()+Date.now().toString(36); try{localStorage.setItem(_DEV_K,v);}catch(e){} }
+  return v;
+}
+function _devLabel(){
+  const ua=navigator.userAgent||"";
+  let s=/Android/i.test(ua)?"أندرويد":/Windows/i.test(ua)?"ويندوز":/iPhone|iPad/i.test(ua)?"آيفون":/Mac OS/i.test(ua)?"ماك":/Linux/i.test(ua)?"لينكس":"جهاز";
+  const m=ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/);
+  if(m&&m[1]&&!/^(wv|K|Linux)$/i.test(m[1].trim()))s+=" · "+m[1].trim();
+  try{ if(getBridge())s+=" · التطبيق"; }catch(e){}
+  return s;
+}
+const _myUid=()=>{const u=_authUser();return u?u.uid:null;};
+
+/* ── التنبيه ── */
+const _SEV={high:{ic:"🔴",c:"var(--owing)",w:"var(--owing-wash)",t:"خطير"},
+            mid:{ic:"🟠",c:"var(--pending)",w:"var(--pending-wash)",t:"يستحق النظر"},
+            info:{ic:"🔵",c:"var(--steel)",w:"var(--steel-wash)",t:"للعلم"}};
+function _alertWrite(a){
+  const i=ALERTS.findIndex(x=>x.id===a.id);
+  if(i>=0)ALERTS[i]=a; else ALERTS.unshift(a);
+  _cacheSet("wShamsAlerts",()=>JSON.stringify(ALERTS.slice(0,300)));
+  _fbWrite(_WATCH_NODE,a.id,a);
+  _watchBadge();
+  if(_tabActive("watch"))_scheduleRender(renderWatchTab);
+}
+function _alertRaise(rule,sev,title,detail,extra){
+  const a={id:"al"+genId()+Date.now().toString(36),at:nowStr(),ts:Date.now(),rule,sev,title,
+    detail:String(detail||""),by:(S.cu&&S.cu.name)||"—",dev:_devId(),devLabel:_devLabel(),
+    uid:_myUid(),ack:null,n:1,...(extra||{})};
+  if(_watchSeen)_watchSeen.add(a.id);
+  _alertWrite(a);
+  showToast(_SEV[sev].ic+" "+title,4500);
+  return a;
+}
+/* تنبيهٌ يتجمّع: ما يقع في نافذة الوقت نفسها يزيد عدّاده ولا يُكرَّر */
+function _alertBump(rule,sev,winMin,make){
+  const o=_watchOpen[rule], now=Date.now();
+  const cur=o&&ALERTS.find(x=>x.id===o.id);
+  if(cur&&now-o.last<=winMin*60000&&!cur.ack){
+    o.last=now;
+    const upd={...cur,...make(cur),n:(cur.n||1)+1,at:nowStr(),ts:now};
+    _alertWrite(upd);
+    return upd;
+  }
+  const made=make(null);
+  const a=_alertRaise(rule,sev,made.title,made.detail,made);
+  _watchOpen[rule]={id:a.id,last:now};
+  return a;
+}
+
+/* ── الكشف: يُنادى مع كل قيد تدقيق كُتب على هذا الجهاز ── */
+const _WATCH_MONEY=new Set(["final","ppkg","net","gross","empty","naqlFee","kabsFee","wFee",
+  "waslFee","amount","price","finalNet","salary","trans","press","nUP","kUP","pricePerK"]);
+function _watchInNight(h,c){ return c.nightFrom>c.nightTo ? (h>=c.nightFrom||h<c.nightTo) : (h>=c.nightFrom&&h<c.nightTo); }
+function _watchAudit(e){
+  if(!e||_watchQuietDepth>0)return;
+  const c=_watchCfg(), now=Date.now(), h=new Date().getHours();
+  const what=(e.subject?"«"+e.subject+"»":"")+(e.dk?" · "+tAr(e.dk):"");
+  const fv=v=>v==null?"—":(typeof v==="number"?AR(v.toLocaleString("en")):AR(v));
+  const ds=_auditDs(e.node), sec=ds?ds.label:e.node;
+
+  /* ① حذفٌ جماعي */
+  if(e.action==="delete"){
+    _watchDelTimes=_watchDelTimes.filter(t=>now-t<=c.delMin*60000); _watchDelTimes.push(now);
+    if(_watchDelTimes.length>=c.delN){
+      const n=_watchDelTimes.length;
+      _alertBump("del_burst","high",c.delMin,()=>({title:"حذفٌ جماعي",
+        detail:`حُذف ${AR(n)} سجلاً خلال ${AR(c.delMin)} دقائق — آخرها من ${sec}: ${what}. المحذوف في سلة المحذوفات على هذا الجهاز.`}));
+    }
+  }
+  /* ② ③ الدفعات: كبيرة، أو في الليل */
+  (e.changes||[]).forEach(ch=>{
+    if(!ch.money)return;
+    const added=(+ch.to||0)-(+ch.from||0);
+    if(added<=0)return;
+    if(c.bigPay>0&&added>=c.bigPay)
+      _alertRaise("big_pay","mid","دفعةٌ كبيرة",
+        `${fIQD(added)} على ${sec}: ${what} — الحدّ المضبوط ${fIQD(c.bigPay)}`);
+    if(_watchInNight(h,c))
+      _alertBump("night_pay","mid",60,cur=>({title:"دفعاتٌ في الليل",
+        sum:((cur&&cur.sum)||0)+added,
+        detail:`${AR(((cur&&cur.n)||0)+1)} دفعة بمجموع ${fIQD(((cur&&cur.sum)||0)+added)} بعد الساعة ${AR(c.nightFrom)} ليلاً — آخرها على ${sec}: ${what}`}));
+  });
+  /* ④ تعديل مبلغ وصلٍ قديم */
+  if(e.action==="edit"&&e.dk){
+    const age=(_D(toDay())-_D(String(e.dk).slice(0,10)))/864e5;
+    const money=(e.changes||[]).filter(ch=>_WATCH_MONEY.has(ch.f));
+    if(age>c.oldDays&&money.length)
+      _alertRaise("old_edit","high","تعديل مبلغ وصلٍ قديم",
+        `${sec}: ${what} (عمره ${AR(Math.floor(age))} يوماً) — `+
+        money.map(ch=>`${_auditFieldName(ch.f)}: ${fv(ch.from)} ← ${fv(ch.to)}`).join(" · "));
+  }
+}
+/* عمليةٌ تُنبّه عن نفسها مرة: تفاصيلها لا تُغرق السجلّ */
+function _watchQuiet(fn){ _watchQuietDepth++; try{return fn();}finally{_watchQuietDepth--;} }
+
+/* ── تسجيل الجهاز: آخر ظهور، ومن يستعمله ── */
+let _devLastReg=0;
+function _devRegister(force){
+  if(!db||!_myUid())return;
+  const now=Date.now();
+  if(!force&&now-_devLastReg<10*60000)return;
+  _devLastReg=now;
+  const id=_devId();
+  const prev=DEVICES.find(d=>d.id===id);
+  let known=false; try{known=!!localStorage.getItem("wShamsDevKnown");}catch(e){}
+  const rec={id,uid:_myUid(),named:_authIsNamed(),label:_devLabel(),
+    user:(S.cu&&S.cu.name)||(prev&&prev.user)||"—",
+    first:(prev&&prev.first)||nowStr(),last:nowStr()};
+  _fbWrite(_DEV_NODE,id,rec);
+  const i=DEVICES.findIndex(d=>d.id===id); if(i>=0)DEVICES[i]=rec; else DEVICES.push(rec);
+  /* جهاز جديد: أول مرة يظهر هذا التثبيت وفي السجلّ أجهزةٌ قبله */
+  if(!known&&!prev&&DEVICES.some(d=>d.id!==id))
+    _alertRaise("new_device","mid","جهازٌ جديد دخل النظام",
+      `${rec.label} — المستخدم: ${rec.user}. إن لم تعرفه فاسحب صلاحيته من تبويب الرقابة.`);
+  try{localStorage.setItem("wShamsDevKnown","1");}catch(e){}
+}
+
+/* ── السحب: يُقفل الجهاز المسحوب ويُمسح ما عليه ── */
+function _isRevokedMe(){ const u=_myUid(); return !!(u&&REVOKED[u]); }
+function _lockRevoked(info){
+  try{localStorage.setItem(_REVOKED_K,JSON.stringify(info||{at:nowStr()}));}catch(e){}
+  /* بيانات العمل على هذا الجهاز: الكاش واللقطات والطابور والسلة */
+  try{
+    Object.keys(localStorage).filter(k=>/^wSham/i.test(k)&&k!==_REVOKED_K&&k!==_DEV_K)
+      .forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  try{(_DATASETS||[]).forEach(d=>{const a=d.get&&d.get(); if(Array.isArray(a))a.length=0;});}catch(e){}
+  try{AUDIT.length=0;ALERTS.length=0;_writeQueue.length=0;}catch(e){}
+  try{if(db)db.goOffline();}catch(e){}
+  _showRevokedScreen();
+}
+function _showRevokedScreen(){
+  let el=document.getElementById("revokedScr");
+  if(!el){
+    el=document.createElement("div"); el.id="revokedScr";
+    el.style.cssText="position:fixed;inset:0;z-index:999999;background:#14110e;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;direction:rtl;font-family:Arial,sans-serif";
+    (document.body||document.documentElement).appendChild(el);
+  }
+  el.innerHTML=`<div style="max-width:360px;text-align:center;line-height:1.9">
+    <div style="font-size:48px">🚫</div>
+    <div style="font-size:19px;font-weight:800;margin:6px 0 10px">سُحبت صلاحية هذا الجهاز</div>
+    <div style="font-size:13px;opacity:.85">سحبها صاحب النظام من جهازٍ آخر، ومُسحت بيانات التطبيق من هذا الجهاز.
+      إن كان ذلك خطأً فأعِد السماح له من الجهاز الآخر (🛡️ الرقابة ← الأجهزة) ثم اضغط:</div>
+    <button onclick="_revokeRecheck()" style="margin-top:14px;padding:11px 20px;border-radius:10px;border:none;background:#2f7a4c;color:#fff;font-size:14px;font-weight:700">🔄 تحقّق مجدداً</button>
+    <div id="revokedMsg" style="font-size:12px;margin-top:10px;opacity:.8"></div></div>`;
+}
+async function _revokeRecheck(){
+  const msg=document.getElementById("revokedMsg");
+  const say=t=>{if(msg)msg.textContent=t;};
+  try{
+    if(!db){say("لا اتصال بقاعدة البيانات");return;}
+    db.goOnline();
+    const u=_myUid(); if(!u){say("لا هوية — أعد فتح التطبيق");return;}
+    const snap=await db.ref(_REVOKE_NODE+"/"+u).once("value");
+    if(snap.exists()){say("ما زال الجهاز مسحوباً");try{db.goOffline();}catch(e){}return;}
+    try{localStorage.removeItem(_REVOKED_K);}catch(e){}
+    location.reload();
+  }catch(e){ say("ما زال الجهاز مسحوباً أو لا اتصال"); }
+}
+function _watchBootLock(){
+  let v=null; try{v=localStorage.getItem(_REVOKED_K);}catch(e){}
+  if(v){ _showRevokedScreen(); return true; }
+  return false;
+}
+
+function revokeDevice(id){
+  const d=DEVICES.find(x=>x.id===id); if(!d)return;
+  if(id===_devId()){showToast("⚠ هذا هو الجهاز الذي بيدك — اسحبه من جهازٍ آخر");return;}
+  if(d.uid&&d.uid===_myUid()){
+    showToast("⚠ هذا الجهاز يشارك حسابك نفسه — سحبه يسحب جهازك أيضاً. فكّ ربطه بالحساب أولاً",6000);return;}
+  _askDanger("سحب صلاحية جهاز",
+    `سيُقفل <strong>${esc(d.label)}</strong> (${esc(d.user||"—")}) فوراً حين يتصل، وتُمسح بيانات التطبيق منه —
+     ومعها ما لم يُرسَل من طابوره. وترفضه قواعد فايربيس قراءةً وكتابة بعد لصقها.`,
+    why=>{
+      const rec={uid:d.uid,dev:d.id,label:d.label,user:d.user||"—",at:nowStr(),
+        by:(S.cu&&S.cu.name)||"—",why:String(why||"").trim()};
+      REVOKED[d.uid]=rec;
+      _fbWrite(_REVOKE_NODE,d.uid,rec);
+      _alertRaise("revoke","info","سُحبت صلاحية جهاز",`${d.label} — ${d.user||"—"} · السبب: ${rec.why}`);
+      renderWatchTab();
+    },{reason:"سبب السحب (مثلاً: الهاتف ضاع)"});
+}
+function unrevokeDevice(uid){
+  const r=REVOKED[uid]; if(!r)return;
+  if(!confirm(`إعادة السماح لـ «${r.label}»؟\n\nيعود يقرأ البيانات ويكتبها. بياناته المحلية مُسحت، فتُحمَّل من جديد.`))return;
+  delete REVOKED[uid];
+  _fbWrite(_REVOKE_NODE,uid,null);
+  _alertRaise("unrevoke","info","أُعيد السماح لجهاز",`${r.label} — ${r.user||"—"}`);
+  renderWatchTab();
+}
+
+/* ── المستمعات: التنبيهات والأجهزة والسحب من فايربيس ── */
+function _watchListen(){
+  if(!db)return;
+  db.ref(_WATCH_NODE).limitToLast(300).on("value",snap=>{
+    const v=snap.val();
+    const list=v?Object.values(v).sort((a,b)=>(b.ts||0)-(a.ts||0)):[];
+    const first=_watchSeen===null;
+    if(first)_watchSeen=new Set(list.map(a=>a.id));
+    else list.forEach(a=>{
+      if(_watchSeen.has(a.id))return;
+      _watchSeen.add(a.id);
+      if(!a.ack&&a.dev!==_devId())showToast(`🛡️ ${_SEV[a.sev]?_SEV[a.sev].ic:""} ${a.title} — من ${a.devLabel||"جهاز آخر"}`,6000);
+    });
+    ALERTS=list;
+    _cacheSet("wShamsAlerts",()=>JSON.stringify(ALERTS.slice(0,300)));
+    _watchBadge();
+    if(_tabActive("watch"))_scheduleRender(renderWatchTab);
+  },()=>{});
+  db.ref(_DEV_NODE).on("value",snap=>{
+    const v=snap.val(); DEVICES=v?Object.values(v):[];
+    if(_tabActive("watch"))_scheduleRender(renderWatchTab);
+  },()=>{});
+  db.ref(_REVOKE_NODE).on("value",snap=>{
+    REVOKED=snap.val()||{};
+    if(_isRevokedMe())_lockRevoked(REVOKED[_myUid()]);
+    if(_tabActive("watch"))_scheduleRender(renderWatchTab);
+  },()=>{});
+}
+function _loadWatchCache(){
+  try{ALERTS=JSON.parse(localStorage.getItem("wShamsAlerts")||"[]")||[];}catch(e){ALERTS=[];}
+}
+
+/* ── الواجهة ── */
+const _watchUnacked=()=>ALERTS.filter(a=>!a.ack).length;
+function _watchBadge(){
+  const b=[...document.querySelectorAll(".tbb")].find(x=>(x.getAttribute("onclick")||"").includes("sT('watch'"));
+  if(!b)return;
+  const n=_watchUnacked();
+  b.innerHTML="🛡️ الرقابة"+(n?` <span style="background:var(--owing);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;font-weight:800">${AR(n)}</span>`:"");
+}
+function ackAlert(id){
+  const a=ALERTS.find(x=>x.id===id); if(!a||a.ack)return;
+  _alertWrite({...a,ack:{at:nowStr(),by:(S.cu&&S.cu.name)||"—"}});
+}
+function ackAllAlerts(){
+  const open=ALERTS.filter(a=>!a.ack); if(!open.length)return;
+  _bulkSync(()=>open.forEach(a=>_alertWrite({...a,ack:{at:nowStr(),by:(S.cu&&S.cu.name)||"—"}})));
+  showToast("✔ اطّلعت على "+AR(open.length)+" تنبيه");
+}
+function _watchAgo(ts){
+  if(!ts)return "—";
+  const m=Math.round((Date.now()-ts)/60000);
+  if(m<2)return "الآن"; if(m<60)return "منذ "+AR(m)+" دقيقة";
+  const h=Math.round(m/60); if(h<48)return "منذ "+AR(h)+" ساعة";
+  return "منذ "+AR(Math.round(h/24))+" يوماً";
+}
+const _devTs=s=>{const t=Date.parse(String(s||"").replace(" ","T"));return isNaN(t)?0:t;};
+function renderWatchTab(){
+  const el=document.getElementById("watchRes"); if(!el)return;
+  const c=_watchCfg(), n=_watchUnacked(), me=_devId(), myUid=_myUid();
+  const alerts=ALERTS.slice(0,120);
+  const aHTML=alerts.length?alerts.map(a=>{
+    const s=_SEV[a.sev]||_SEV.info;
+    return `<div style="border:1px solid ${a.ack?"var(--rule)":s.c};background:${a.ack?"var(--ink-100)":s.w};
+        border-radius:9px;padding:8px 10px;margin-bottom:6px;${a.ack?"opacity:.7":""}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div style="font-size:13px;font-weight:800;color:${a.ack?"var(--paper-2)":s.c}">${s.ic} ${esc(a.title||"")}${a.n>1?` <span style="font-size:11px">(${AR(a.n)})</span>`:""}</div>
+        ${a.ack?`<span style="font-size:10px;color:var(--paper-4);white-space:nowrap">✔ ${esc(a.ack.by||"")}</span>`
+               :`<button class="btn bsm bgh" style="white-space:nowrap" onclick="ackAlert('${esc(a.id)}')">✔ اطّلعت</button>`}
+      </div>
+      <div style="font-size:11px;color:var(--paper-2);line-height:1.7;margin-top:3px">${esc(a.detail||"")}</div>
+      <div style="font-size:10px;color:var(--paper-4);margin-top:3px">${tAr(esc(a.at||""))} · ${esc(a.by||"—")} · ${esc(a.devLabel||"")}${a.dev===me?" (هذا الجهاز)":""}</div>
+    </div>`;}).join("")
+    :`<div style="text-align:center;color:var(--paper-3);padding:20px;font-size:12px">✅ لا تنبيهات — لم يُرصد ما يخالف العمل المعتاد</div>`;
+
+  const devs=DEVICES.slice().sort((a,b)=>_devTs(b.last)-_devTs(a.last));
+  const revokedOnly=Object.values(REVOKED||{}).filter(r=>!devs.some(d=>d.uid===r.uid));
+  const dHTML=(devs.length||revokedOnly.length)?devs.map(d=>{
+    const rv=d.uid&&REVOKED[d.uid], mine=d.id===me;
+    return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;
+        border:1px solid ${rv?"var(--owing)":"var(--rule)"};background:${rv?"var(--owing-wash)":"var(--ink-100)"};
+        border-radius:9px;padding:8px 10px;margin-bottom:6px">
+      <div style="flex:1;min-width:0;font-size:11px;line-height:1.7">
+        <div style="font-size:13px;font-weight:700;color:var(--paper)">${rv?"🚫":"📱"} ${esc(d.label||"جهاز")}${mine?` <span style="color:var(--settled);font-size:11px">(هذا الجهاز)</span>`:""}</div>
+        <div style="color:var(--paper-3)">${esc(d.user||"—")} · ${d.named?"🔐 مربوط بحساب":"👤 مجهول"} · آخر ظهور: ${_watchAgo(_devTs(d.last))}</div>
+        ${rv?`<div style="color:var(--owing)">سُحبت ${tAr(esc(rv.at||""))} — ${esc(rv.why||"")}</div>`:""}
+      </div>
+      ${mine?"":rv?`<button class="btn bsm bgh" onclick="unrevokeDevice('${esc(d.uid)}')">↩️ إعادة السماح</button>`
+                  :`<button class="btn bsm" style="background:var(--owing);color:#fff" onclick="revokeDevice('${esc(d.id)}')">🚫 سحب</button>`}
+    </div>`;}).join("")+revokedOnly.map(r=>`<div style="border:1px solid var(--owing);background:var(--owing-wash);border-radius:9px;padding:8px 10px;margin-bottom:6px;font-size:11px;display:flex;justify-content:space-between;gap:8px;align-items:center">
+      <span>🚫 ${esc(r.label||"جهاز")} — ${esc(r.user||"—")}</span>
+      <button class="btn bsm bgh" onclick="unrevokeDevice('${esc(r.uid)}')">↩️ إعادة السماح</button></div>`).join("")
+    :`<div style="text-align:center;color:var(--paper-3);padding:14px;font-size:12px">لم يُسجَّل جهاز بعد — يظهر كل جهاز حين يفتح التطبيق متصلاً</div>`;
+
+  const inp=(k,lbl,w)=>`<div style="flex:1;min-width:${w||120}px"><label class="fl">${lbl}</label>
+    <input class="fi" type="text" inputmode="numeric" dir="ltr" style="text-align:right" value="${c[k]}"
+      onchange="_watchSetCfg('${k}',this.value);renderWatchTab()" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true"></div>`;
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:800;color:${n?"var(--owing)":"var(--settled)"}">${n?`⚠️ ${AR(n)} تنبيه لم تطّلع عليه`:"✅ لا تنبيه جديد"}</div>
+      ${n?`<button class="btn bsm bgh" onclick="ackAllAlerts()">✔ اطّلعت على الكل</button>`:""}
+    </div>
+    ${aHTML}
+    <div class="cdt" style="margin:14px 0 8px">📱 الأجهزة</div>
+    ${dHTML}
+    <div style="font-size:10px;color:var(--paper-3);line-height:1.8;margin:4px 0 6px">
+      السحب يُقفل الجهاز ويمسح بيانات التطبيق منه حين يتصل. ولكي ترفضه قاعدة البيانات نفسها
+      الصق قواعد فايربيس الجديدة مرة واحدة:
+      <button class="btn bsm bgh" style="margin-top:4px" onclick="openFbRules()">🔑 قواعد فايربيس</button><br>
+      ⚠️ الجهاز «المجهول» قد يأخذ هوية جديدة إن مُسح التطبيق وأعيد تثبيته — يكتمل السحب
+      بربط الأجهزة بالحسابات وإطفاء الدخول المجهول.</div>
+    <div class="cdt" style="margin:14px 0 8px">⚙️ حدود التنبيه</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${inp("bigPay","دفعة كبيرة من (د.ع)",150)}
+      ${inp("nightFrom","الليل من الساعة",90)}
+      ${inp("nightTo","إلى الساعة",90)}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      ${inp("delN","حذفٌ جماعي: عدد",90)}
+      ${inp("delMin","خلال (دقائق)",90)}
+      ${inp("oldDays","وصلٌ قديم بعد (أيام)",110)}
+    </div>
+    <div style="font-size:10px;color:var(--paper-4);line-height:1.8;margin-top:8px">
+      يُراقَب: الحذف الجماعي · الدفعة الكبيرة · الدفعات في الليل · تعديل مبلغ وصلٍ قديم ·
+      فتح شهر مغلق · استعادة نسخة احتياطية · دخول جهاز جديد. وقبل كل عملية جماعية
+      (دفع جامع أو شامل، دفع المساعد، تسديد المحدَّد، توحيد الأسماء، الاستعادة)
+      تُؤخذ لقطة احتياطية تلقائياً — تجدها في الأدوات ← النسخ الاحتياطي.</div>`;
+  _watchBadge();
+}
+
+/* ── لقطة قبل العمليات الجماعية ──
+   عمليةٌ تكتب مئات السجلات بضغطة: إن أخطأت فالرجوع منها باليد
+   مستحيل عملياً. اللقطة تُبقي الحالة السابقة على الجهاز.
+   لا تُكرَّر خلال عشر دقائق (دفع المساعد يجري على دفعات). */
+function _snapTrim(list){
+  const pre=list.filter(s=>s.pre).slice(0,2), day=list.filter(s=>!s.pre).slice(0,_SNAP_MAX);
+  return list.filter(s=>pre.includes(s)||day.includes(s));
+}
+function _snapBefore(label){
+  try{
+    const snaps=_snapshots(), now=Date.now();
+    const last=snaps.find(s=>s.pre);
+    if(last&&last.ts&&now-last.ts<10*60000)return false;
+    const pay=_snapshotPayload(); if(pay.total===0)return false;
+    pay.pre=String(label||"عملية جماعية"); pay.ts=now;
+    const next=_snapTrim([pay,...snaps]);
+    try{ localStorage.setItem(_SNAP_K,JSON.stringify(next)); }
+    catch(e){
+      /* امتلاء التخزين: تُترك أقدم اليوميات أولاً، ولا تُترك لقطة «قبل» الجديدة */
+      let l=next.slice();
+      while(l.length>1){ const i=l.map(s=>!s.pre).lastIndexOf(true); if(i<1)break; l.splice(i,1);
+        try{localStorage.setItem(_SNAP_K,JSON.stringify(l));return true;}catch(x){} }
+      return false;
+    }
+    return true;
+  }catch(e){ return false; }
 }
 
 
@@ -13651,6 +14066,8 @@ function appInit(){
   _loadQueue();
   _loadTrash();
   _loadAuditCache();
+  _loadWatchCache();                    // v17.87
+  _watchBootLock();                     // جهازٌ سُحبت صلاحيته يبقى مقفلاً ولو بلا إنترنت
   _loadClosures();
   _loadCashbox();
   /* v17.50 — لقطة يومية بعد أن تستقرّ البيانات (فايربيس أو الكاش) */
@@ -13821,6 +14238,7 @@ function doLogin(){
     const aiBtn=document.getElementById("aiBtn");
     if(aiBtn)aiBtn.style.display="flex";
     try{_selWatch();}catch(e){}        // v17.74 — تحديد الوصولات في كل سجل
+    try{_watchBadge();setTimeout(()=>{try{_devRegister(true);}catch(e){}},3000);}catch(e){}   // v17.87 — الرقابة
     // تحميل الكاش المحلي إن لم يكن Firebase اتصل بعد
     try{if(!S.recs.length){const c=localStorage.getItem("wShamsCache");if(c)S.recs=JSON.parse(c).sort(_byDkDesc);}}catch(e){}
     // عرض البيانات
@@ -13928,6 +14346,7 @@ function sT(id,btn){
   if(id==="perf"){if(!_perfRange.from&&!_perfRange.to)perfSetRange("month");else renderPerfTab();}
   if(id==="cash"){_cashOpenTab();}
   if(id==="audit"){renderAuditTab();}
+  if(id==="watch"){try{_devRegister();}catch(e){}renderWatchTab();}
 }
 
 /* ════════════════════════════════════════════
@@ -14269,6 +14688,7 @@ function _selPay(k){
 هل تريد المتابعة؟`))return;
   let n=0;
   /* v17.73 — دفعة واحدة: مئات الوصولات لا تُجمّد الواجهة */
+  _snapBefore("تسديد المحدَّد");   // v17.87
   _bulkSync(()=>{
     open.forEach(r=>{
       const tot=d.amount(r)||0;
@@ -14742,6 +15162,7 @@ async function _aiExecuteOne(c){
           +`\n<<<ASKPAY>>>`;
       }
       let total=0;
+      _snapBefore("دفع المساعد");   // v17.87
       await _bulkRun(async()=>{
         for(const t of types){
           total+=await _aiPayRange(t,c.from,c.to,(d,n)=>_aiProgress(`💸 جارٍ التسديد… ${AR(d)}/${AR(n)}`));
@@ -16393,6 +16814,7 @@ ${_names.join("\n")}
   /* v17.73 — في دفعة واحدة: مبلغٌ كبير قد يشمل مئات الوصولات،
      وكتابة الكاش مع كل وصل تُجمّد الواجهة كما جمّدها الدفع من
      المساعد. هنا تُكتب مرة واحدة في النهاية. */
+  _snapBefore("الدفع الجامع");   // v17.87
   _bulkSync(()=>{
   for(const r of recs){
     if(pool<=0)break;
@@ -19440,6 +19862,7 @@ document.addEventListener("keydown", function(e){
     <button class="tbb" onclick="sT('perf',this)">📈 الأداء</button>
     <button class="tbb" onclick="sT('cash',this)">💰 الصندوق</button>
     <button class="tbb" onclick="sT('audit',this)">📜 سجلّ التدقيق</button>
+    <button class="tbb" onclick="sT('watch',this)">🛡️ الرقابة</button>
   </div>
 
   <!-- وصل جديد -->
@@ -22582,6 +23005,18 @@ document.addEventListener("keydown", function(e){
       </div>
     </div>
 
+  </div>
+
+  <!-- ══ v17.87 — الرقابة: كشف النشاط غير المعتاد والأجهزة ══ -->
+  <div class="tc" id="tc-watch">
+    <div class="cd">
+      <div class="cdt">🛡️ الرقابة — كشفٌ وتنبيه</div>
+      <div style="font-size:11px;color:var(--paper-3);line-height:1.7;margin-bottom:10px">
+        يراقب كل حفظٍ في النظام ويُنبّه على ما لا يشبه العمل اليومي — على كل الأجهزة.
+        التنبيه لا يعني خطأً بالضرورة: اقرأه، فإن كان منك فاضغط «اطّلعت».
+      </div>
+      <div id="watchRes"></div>
+    </div>
   </div>
 
   <div class="tc" id="tc-tools">

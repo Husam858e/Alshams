@@ -3,116 +3,134 @@
     ".read": "false",
     ".write": "false",
     "records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "sell_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "dam_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "srf_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "wrk_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "mnl_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "arb_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "out_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "sal_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "adv_records": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "emp_txns": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && (!newData.exists() || !newData.child('mk').exists() || !root.child('closures').child(newData.child('mk').val()).exists() || root.child('closures').child(newData.child('mk').val()).child('open').val() == true) && (!data.exists() || !data.child('mk').exists() || !root.child('closures').child(data.child('mk').val()).exists() || root.child('closures').child(data.child('mk').val()).child('open').val() == true)"
       }
     },
     "emp_list": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "cashbox": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "cash_boxes": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "cash_counts": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "cash_moves": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$id": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "closures": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$month": {
-        ".write": "auth != null"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
       }
     },
     "audit_log": {
-      ".read": "auth != null",
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
       "$entry": {
-        ".write": "auth != null && !data.exists() && newData.exists()"
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && !data.exists() && newData.exists()"
+      }
+    },
+    "alerts": {
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
+      "$id": {
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && newData.exists()"
+      }
+    },
+    "devices": {
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
+      "$id": {
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && newData.exists()"
+      }
+    },
+    "revoked": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && !root.child('revoked').child(auth.uid).exists() && auth.uid != $uid"
       }
     },
     "__conncheck__": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && !root.child('revoked').child(auth.uid).exists()",
+      ".write": "auth != null && !root.child('revoked').child(auth.uid).exists()"
     }
   }
 }

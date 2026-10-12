@@ -29,10 +29,14 @@ const data = {
   mnl_records: { M_OLD: { id: 'M_OLD', transporter: 'سعد', dk: '2026-04-02', naqlFee: 9000 } }, // بلا mk
   out_records: {},
   audit_log: { A1: { id: 'A1', at: 'x', by: 'y' } },
+  alerts: { AL1: { id: 'AL1', rule: 'big_pay', ack: null } },
+  devices: { D1: { id: 'D1', uid: 'anon-1' } },
+  revoked: { 'lost-1': { uid: 'lost-1', at: 'x', by: 'y' } },
 };
 
 const db = targaryen.database(rules, data).as({ uid: 'anon-1', provider: 'anonymous' });
 const anon = targaryen.database(rules, data).as(null);
+const lost = targaryen.database(rules, data).as({ uid: 'lost-1', provider: 'anonymous' });
 
 const results = [];
 const check = (label, res, wantAllowed) => {
@@ -88,6 +92,23 @@ check('سجلّ التدقيق: حذف قيد مرفوض', db.write('audit_log/A
 
 // ⑥ القراءة لمن له هوية
 check('قراءة الوصولات بهوية', db.read('records'), true);
+
+// ⑦ الرقابة (v17.87): الجهاز المسحوب لا يقرأ ولا يكتب، ولا يرفع السحب عن نفسه
+check('جهاز مسحوب: قراءة الوصولات مرفوضة', lost.read('records'), false);
+check('جهاز مسحوب: الكتابة مرفوضة',
+  lost.write('records/NEW1', { id: 'NEW1', driver: 'علي', dk: '2026-09-01', mk: '2026-09', naqlFee: 3 }), false);
+check('جهاز مسحوب: سجلّ التدقيق مرفوض', lost.write('audit_log/L1', { id: 'L1' }), false);
+check('جهاز مسحوب: يعرف أنه مسحوب', lost.read('revoked/lost-1'), true);
+check('جهاز مسحوب: لا يرفع السحب عن نفسه', lost.write('revoked/lost-1', null), false);
+check('جهازٌ آخر يرفع السحب', db.write('revoked/lost-1', null), true);
+check('جهازٌ لا يسحب نفسه', db.write('revoked/anon-1', { uid: 'anon-1' }), false);
+check('سحب جهازٍ آخر', db.write('revoked/other-9', { uid: 'other-9' }), true);
+check('تنبيه: إنشاء', db.write('alerts/AL2', { id: 'AL2', rule: 'x' }), true);
+check('تنبيه: الاطّلاع عليه', db.write('alerts/AL1', { id: 'AL1', rule: 'big_pay', ack: { by: 'y' } }), true);
+check('تنبيه: حذفه مرفوض', db.write('alerts/AL1', null), false);
+check('جهاز: تحديث آخر ظهور', db.write('devices/D1', { id: 'D1', uid: 'anon-1', last: 'z' }), true);
+check('جهاز: حذفه مرفوض', db.write('devices/D1', null), false);
+check('بلا هوية: التنبيهات مرفوضة', anon.read('alerts'), false);
 
 results.forEach(r => console.log(' ' + r));
 const failed = results.filter(r => r.startsWith('FAIL'));
