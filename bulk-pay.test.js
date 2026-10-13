@@ -67,7 +67,9 @@ const MAX_BLOCK_MS = 400;     // أطول توقّف مسموح للواجهة �
 
     /* ④ التدقيق لم يُفقد قيداً، والطابور يحمل الاثنين */
     o.audit=AUDIT.length;
-    o.queue=_writeQueue.length;
+    /* السجلات وقيودها فقط — تنبيه الرقابة (v17.87) قد يُضاف إن جرى الفحص ليلاً */
+    o.queue=_writeQueue.filter(q=>q.node==="records"||q.node==="audit_log").length;
+    o.queueOther=_writeQueue.filter(q=>q.node!=="records"&&q.node!=="audit_log").map(q=>q.node);
 
     /* ⑤ التخزين المحلي كُتب مرة واحدة في النهاية — لا مؤجَّل عالق */
     o.flushed=_bulkPending.size===0 && _bulkDepth===0;
@@ -119,6 +121,7 @@ const MAX_BLOCK_MS = 400;     // أطول توقّف مسموح للواجهة �
     ['ومنسوبةً للمساعد',                      r.byAI],
     [`سجلّ التدقيق كامل (${r.audit})`,        r.audit===N],
     [`الطابور يحمل السجل والقيد (${r.queue})`, r.queue===N*2],
+    ['ولا شيء غيرهما سوى تنبيه واحد على الأكثر', r.queueOther.length<=1&&r.queueOther.every(n=>n==="alerts")],
     ['لا عملٌ مؤجَّل عالق بعد الدفعة',         r.flushed],
     ['التخزين المحلي كُتب بالحالة النهائية',   r.cacheWritten],
     ['والطابور كُتب كذلك',                    r.queueWritten],

@@ -708,6 +708,44 @@ input[data-secret="1"]{-webkit-text-security:disc;text-security:disc;}
 /* النوافذ المنزلقة */
 .mov.on{display:flex!important}
 #mPartialPay-ov.on{display:flex!important}
+
+/* ══════════════════════════════════════════════════════
+   القائمة الجانبية — v17.88
+   ──────────────────────────────────────────────────────
+   سبعةٌ وخمسون تبويباً في شريطٍ أفقي يُسحب يميناً ويساراً: لا يُرى منه
+   إلا خمسة، ولا يُعرف أين أنت. صار زرّ ☰ في الترويسة يفتح قائمةً
+   طولية من اليمين، التبويبات فيها تحت عناوين أقسامها، والتبويب
+   المفتوح ظاهرٌ اسمه في الترويسة.
+   ⚠️ الأزرار نفسها (.tbb) هي التي نُقلت إلى القائمة لا نسخٌ منها —
+      فكل شيفرة تبحث عنها وتضغطها (sT والمساعد والاختبارات) تبقى تعمل.
+══════════════════════════════════════════════════════ */
+.navbtn{width:40px;height:40px;border:none;background:transparent;color:var(--paper);cursor:pointer;
+  padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;}
+.navbtn:active{background:var(--ink-200);}
+.navbtn svg{width:24px;height:24px;}
+.tbname{display:flex;flex-direction:column;line-height:1.15;min-width:0;}
+.curtab{font-size:11.5px;font-weight:700;color:var(--wheat);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw;}
+#navScrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:880;opacity:0;pointer-events:none;transition:opacity .22s;}
+body.nav-open #navScrim{opacity:1;pointer-events:auto;}
+body.nav-open{overflow:hidden;}
+.tabs{position:fixed!important;top:0;bottom:0;right:0;left:auto;width:min(86vw,340px);z-index:890;
+  display:flex!important;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+  padding:calc(8px + env(safe-area-inset-top)) 0 calc(28px + env(safe-area-inset-bottom));
+  background:var(--ink-050)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  border:none!important;border-left:1px solid var(--rule)!important;box-shadow:var(--shadow-2);
+  -webkit-mask-image:none!important;mask-image:none!important;
+  transform:translateX(105%);transition:transform .26s cubic-bezier(.22,.8,.3,1);visibility:hidden;}
+body.nav-open .tabs{transform:none;visibility:visible;}
+.navhd{display:flex;align-items:center;justify-content:space-between;padding:10px 20px 12px;flex-shrink:0;}
+.navhd b{font-size:22px;font-weight:800;color:var(--paper);letter-spacing:-.4px;}
+.navhd button{width:36px;height:36px;border-radius:10px;border:none;background:transparent;color:var(--paper-2);font-size:20px;cursor:pointer;}
+.navsec{font-size:12px;font-weight:800;color:var(--paper-3);padding:16px 22px 6px;letter-spacing:.2px;
+  border-top:1px solid var(--rule);margin-top:6px;flex-shrink:0;}
+.navhd+.navsec{border-top:none;margin-top:0;}
+.tabs .tbb,.tabs .tbb.grp{width:100%;text-align:right;font-size:15.5px;font-weight:600;padding:12px 22px;
+  border:none;border-right:3px solid transparent;margin:0;border-radius:0;color:var(--paper-2);flex-shrink:0;}
+.tabs .tbb.active{background:var(--ink-200);color:var(--wheat);border-right-color:var(--wheat);font-weight:800;}
 </style>
 <script>
 // ════ الـ JS كله هنا في <head> بدون defer ════
@@ -3253,6 +3291,7 @@ function _xlSave(arr,fname){
 
 /* ── زر الرجوع الفيزيائي Android ────────────────────────── */
 window.onAndroidBackPressed = function(){
+  if(_navIsOpen()){navClose();return true;}          // v17.88
   if(document.getElementById("PS").classList.contains("active")){closePrint();return true;}
   const m=document.querySelector(".mo.active");if(m){closeM();return true;}
   return false;
@@ -3260,6 +3299,7 @@ window.onAndroidBackPressed = function(){
 try{history.pushState({page:"app"},"","");}catch(e){}
 window.addEventListener("popstate",function(){
   try{
+    if(_navIsOpen()){navClose();return;}             // v17.88
     if(document.getElementById("PS").classList.contains("active")){
       closePrint();return;
     }
@@ -14028,6 +14068,7 @@ function appInit(){
   if(window._appInited) return;
   window._appInited = true;
   _reparentTabs();   // يجب أن يسبق أي رسم
+  try{_navBuild();}catch(e){}   // v17.88 — عناوين الأقسام في القائمة
   _watchAutofill();   // يمنع شريط الإكمال التلقائي فوق لوحة المفاتيح
   _applyTheme(_getTheme());
   _updFsBtn();
@@ -14285,10 +14326,44 @@ function doLogout(){
 /* ════════════════════════════════════════════
    TABS
 ════════════════════════════════════════════ */
+/* ── القائمة الجانبية — v17.88 ── */
+const _NAV_SECTIONS={"new":"🛒 الشراء","out-new":"📤 المخرجات","sell-new":"💰 البيع",
+  "dam-new":"🤝 الضمانات","srf-new":"🧾 الصرفيات","wrk-new":"🔧 أجور الأعمال",
+  "sal-emps":"👷 الرواتب","naql-new":"🚚 النقل","arb-new":"🏬 مخزن أربيل",
+  "paylog":"📒 الحسابات والأدوات"};
+function _navBuild(){
+  const bar=document.getElementById("navDrawer");
+  if(!bar||bar.dataset.built)return;
+  bar.dataset.built="1";
+  bar.querySelectorAll(".tbb").forEach(b=>{
+    const m=(b.getAttribute("onclick")||"").match(/sT\('([^']+)'/);
+    if(m&&_NAV_SECTIONS[m[1]]){
+      const h=document.createElement("div"); h.className="navsec"; h.textContent=_NAV_SECTIONS[m[1]];
+      bar.insertBefore(h,b);
+    }
+  });
+}
+function navOpen(){
+  _navBuild();
+  document.body.classList.add("nav-open");
+  const a=document.querySelector("#navDrawer .tbb.active");
+  if(a)setTimeout(()=>{try{a.scrollIntoView({block:"center"});}catch(e){}},30);
+  try{history.pushState({page:"nav"},"","");}catch(e){}
+}
+function navClose(){ document.body.classList.remove("nav-open"); }
+const _navIsOpen=()=>document.body.classList.contains("nav-open");
+function _navCur(btn){
+  const el=document.getElementById("curTab");
+  if(el&&btn)el.textContent=(btn.firstChild&&btn.firstChild.nodeType===3?btn.firstChild.textContent:btn.textContent).trim();
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&_navIsOpen())navClose(); });
+
 function sT(id,btn){
   document.querySelectorAll(".tbb").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".tc").forEach(c=>c.classList.remove("active"));
   btn.classList.add("active");
+  _navCur(btn); navClose();             // v17.88 — اسم التبويب في الترويسة، والقائمة تُغلق
+  try{window.scrollTo(0,0);}catch(e){}
   document.getElementById("tc-"+id).classList.add("active");
   if(id==="recs")renderRecs();
   if(id==="buy-cust"){renderCustTab('buy');}
@@ -19795,7 +19870,7 @@ document.addEventListener("keydown", function(e){
 <!-- APP -->
 <div id="AS">
   <div class="tb">
-    <div class="tbr"><span class="tbico"><svg class="mark" viewBox="0 0 48 46" width="21" height="20" fill="none" aria-hidden="true"><circle cx="24" cy="8" r="3.8" fill="currentColor"/><path d="M24 1.4v1.9M24 12.7v1.9M30.6 8h-1.9M19.3 8h-1.9M28.7 3.3l-1.4 1.4M20.7 11.3l-1.4 1.4M28.7 12.7l-1.4-1.4M20.7 4.7l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M24 15.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20h32M24 20v18M16.5 38h15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M11 20.5l-4 6.5M11 20.5l4 6.5M37 20.5l-4 6.5M37 20.5l4 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 27h11M31.5 27h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="tbn">نسائم الخير</span></div>
+    <div class="tbr"><button class="navbtn" id="navBtn" onclick="navOpen()" title="القائمة" aria-label="القائمة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6.5h16M4 12h12M4 17.5h8"/></svg></button><span class="tbico"><svg class="mark" viewBox="0 0 48 46" width="21" height="20" fill="none" aria-hidden="true"><circle cx="24" cy="8" r="3.8" fill="currentColor"/><path d="M24 1.4v1.9M24 12.7v1.9M30.6 8h-1.9M19.3 8h-1.9M28.7 3.3l-1.4 1.4M20.7 11.3l-1.4 1.4M28.7 12.7l-1.4-1.4M20.7 4.7l-1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M24 15.5V20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20h32M24 20v18M16.5 38h15" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M11 20.5l-4 6.5M11 20.5l4 6.5M37 20.5l-4 6.5M37 20.5l4 6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 27h11M31.5 27h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="tbname"><span class="tbn">نسائم الخير</span><span class="curtab" id="curTab">🛒 شراء</span></span></div>
     <div class="tbr">
       <span class="tbu" id="TU"></span>
       <button id="fsBtn" onclick="toggleFullscreen()" title="ملء الشاشة (F11)" style="width:30px;height:30px;border-radius:8px;border:1px solid var(--rule);background:var(--ink-200);color:var(--paper-2);font-size:14px;cursor:pointer;line-height:1;padding:0">⛶</button>
@@ -19805,7 +19880,9 @@ document.addEventListener("keydown", function(e){
       <button class="lgbtn" onclick="doLogout()">خروج</button>
     </div>
   </div>
-  <div class="tabs">
+  <div id="navScrim" onclick="navClose()"></div>
+  <div class="tabs" id="navDrawer" role="navigation" aria-label="الأقسام">
+    <div class="navhd"><b>نسائم الخير</b><button onclick="navClose()" aria-label="إغلاق">✕</button></div>
     <button class="tbb grp active" onclick="sT('new',this)">🛒 شراء</button>
     <button class="tbb" onclick="sT('recs',this)">📋 السجلات</button>
     <button class="tbb" onclick="sT('wh',this)">🏟️ الساحة والمخازن</button>
