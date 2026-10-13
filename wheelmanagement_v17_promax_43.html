@@ -985,7 +985,31 @@ const whIcon=wh=>isYard(wh)?"🏟️":"🏭";
 const whFull=wh=>whIcon(wh)+" "+whTitle(wh);
 /* كلمة الحقل: «الموقع» للساحة و«المخزن» للمخازن */
 const whFieldLbl=wh=>isYard(wh)?"الموقع":"المخزن";
-const PROVS=["بغداد","البصرة","الموصل","أربيل","كركوك","النجف","كربلاء","الحلة","الديوانية","السماوة","العمارة","الناصرية","الكوت","الرمادي","تكريت","بعقوبة","الفلوجة","سامراء","دهوك","السليمانية","خانقين","أخرى"];
+/* ══ المحافظات العراقية — v17.90 ══
+   كانت القائمة مراكز محافظات وأقضية (الفلوجة، سامراء، خانقين) لا
+   محافظات، وتنقصها حلبجة. صارت المحافظات التسع عشرة بأسمائها، ويُذكر
+   المركز بين قوسين حيث يختلف اسمه — ليُعرف بالاسم المتداول.
+   الوصولات القديمة تبقى بما حُفظ فيها؛ provOf تردّ اسم المدينة إلى
+   محافظته في التصفية والمحصلة وشاشة التعديل. */
+const PROVS=["بغداد","البصرة","نينوى","أربيل","السليمانية","دهوك","حلبجة","كركوك","ديالى",
+  "الأنبار","صلاح الدين","بابل","كربلاء","النجف","القادسية","المثنى","ذي قار","ميسان","واسط","أخرى"];
+const _PROV_CAP={"نينوى":"الموصل","ديالى":"بعقوبة","الأنبار":"الرمادي","صلاح الدين":"تكريت",
+  "بابل":"الحلة","القادسية":"الديوانية","المثنى":"السماوة","ذي قار":"الناصرية","ميسان":"العمارة","واسط":"الكوت"};
+const _LEGACY_PROV={"الموصل":"نينوى","الحلة":"بابل","الديوانية":"القادسية","السماوة":"المثنى",
+  "العمارة":"ميسان","الناصرية":"ذي قار","الكوت":"واسط","الرمادي":"الأنبار","الفلوجة":"الأنبار",
+  "تكريت":"صلاح الدين","سامراء":"صلاح الدين","بعقوبة":"ديالى","خانقين":"ديالى"};
+const provOf=d=>{const t=String(d||"").trim();return _LEGACY_PROV[t]||t;};
+const _provText=p=>_PROV_CAP[p]?`${p} (${_PROV_CAP[p]})`:p;
+function _fillProvSelects(){
+  [["sDst",false],["seDst",false],["sfDst",true]].forEach(([id,all])=>{
+    const el=document.getElementById(id); if(!el)return;
+    const keep=el.value;
+    el.innerHTML=(all?'<option value="all">الكل</option>':"")+
+      PROVS.map(p=>`<option value="${p}">${_provText(p)}</option>`).join("");
+    const v=all&&keep==="all"?"all":provOf(keep);
+    el.value=[...el.options].some(o=>o.value===v)?v:(all?"all":PROVS[0]);
+  });
+}
 
 /* ════════════════════════════════════════════
    STATE
@@ -3743,7 +3767,8 @@ function openSellEdit(id){
   document.getElementById("sePl").value=r.plate||"";
   document.getElementById("seDph2").value=r.driverPhone||"";
   document.getElementById("seRcv2").value=r.receiver||"";
-  document.getElementById("seDst").value=r.dest||PROVS[0];
+  { const el=document.getElementById("seDst"), v=provOf(r.dest)||PROVS[0];   // v17.90 — اسم المدينة القديم ← محافظته
+    el.value=[...el.options].some(o=>o.value===v)?v:"أخرى"; }
   document.getElementById("seMt").value=r.mat||"jet";
   _fillMatIcons("se");
   _updateMatBtnActive("se",r.mat||"jet");
@@ -3912,7 +3937,7 @@ function renderSellRecs(){
     if(df&&r.dk!==df)return false;
     if(pf==="paid"&&!r.paid)return false;
     if(pf==="unpaid"&&r.paid)return false;
-    if(dst!=="all"&&r.dest!==dst)return false;
+    if(dst!=="all"&&provOf(r.dest)!==dst)return false;
     if(srch){
       if(!smartMatch(r.driver,srch)&&
          !smartMatch(r.plate,srch)&&
@@ -4085,8 +4110,8 @@ function buildSellCollHTML(data, period, destLabel, dateLabel){
   const paidAmount=data.reduce((s,r)=>s+getPaidTotal(r),0);
   const remaining=tFin-paidAmount;
   // تجميع حسب الوجهة
-  const dests=[...new Set(data.map(r=>r.dest).filter(Boolean))];
-  const secs=dests.map(d=>buildSellDestSec(data.filter(r=>r.dest===d),d)).join("");
+  const dests=[...new Set(data.map(r=>provOf(r.dest)).filter(Boolean))];
+  const secs=dests.map(d=>buildSellDestSec(data.filter(r=>provOf(r.dest)===d),d)).join("");
   const grand=`<div class="grand" style="background:#1A1714;padding:12px 14px;margin-top:4px">
     <div style="color:#6B6151;font-size:11px;font-weight:700;margin-bottom:9px;text-align:center">📊 الإجمالي الشامل — ${destLabel||"جميع الوجهات"}</div>
     <div style="display:flex;gap:0;flex-wrap:wrap">
@@ -14069,6 +14094,7 @@ function appInit(){
   window._appInited = true;
   _reparentTabs();   // يجب أن يسبق أي رسم
   try{_navBuild();}catch(e){}   // v17.88 — عناوين الأقسام في القائمة
+  try{_fillProvSelects();}catch(e){}   // v17.90 — المحافظات
   _watchAutofill();   // يمنع شريط الإكمال التلقائي فوق لوحة المفاتيح
   _applyTheme(_getTheme());
   _updFsBtn();
@@ -15397,7 +15423,7 @@ function _aiCreateSell(p){
   if(!drv)return '❌ يجب توفير اسم الفلاح لإنشاء وصل البيع';
   if(!plt)return '❌ يجب توفير رقم العجلة';
   if(!emp||emp<=0)return '❌ يجب توفير الوزن الفارغ (empty) بشكل صحيح';
-  const dst=p.dest&&PROVS.includes(p.dest)?p.dest:PROVS[0];
+  const dst=p.dest&&PROVS.includes(provOf(p.dest))?provOf(p.dest):PROVS[0];
   const mat=p.mat&&MAT[p.mat]?p.mat:'jet';
   const wP=parseFloat(p.waslPrice)||0, wOn=wP>0;
   const nKabs=parseFloat(p.naqlKabs)||0, nUP=parseFloat(p.naqlPrice)||0;
@@ -20501,19 +20527,7 @@ document.addEventListener("keydown", function(e){
       <div class="fg" style="margin-bottom:12px">
         <div class="fi-g">
           <label class="fl">المحافظة المرسل إليها</label>
-          <select class="fs" id="sDst">
-            <option value="بغداد">بغداد</option><option value="البصرة">البصرة</option>
-            <option value="الموصل">الموصل</option><option value="أربيل">أربيل</option>
-            <option value="كركوك">كركوك</option><option value="النجف">النجف</option>
-            <option value="كربلاء">كربلاء</option><option value="الحلة">الحلة</option>
-            <option value="الديوانية">الديوانية</option><option value="السماوة">السماوة</option>
-            <option value="العمارة">العمارة</option><option value="الناصرية">الناصرية</option>
-            <option value="الكوت">الكوت</option><option value="الرمادي">الرمادي</option>
-            <option value="تكريت">تكريت</option><option value="بعقوبة">بعقوبة</option>
-            <option value="الفلوجة">الفلوجة</option><option value="سامراء">سامراء</option>
-            <option value="دهوك">دهوك</option><option value="السليمانية">السليمانية</option>
-            <option value="خانقين">خانقين</option><option value="أخرى">أخرى</option>
-          </select>
+          <select class="fs" id="sDst"></select>
         </div>
       </div>
       <div class="fg">
@@ -20575,16 +20589,7 @@ document.addEventListener("keydown", function(e){
         </select>
       </div>
       <div class="fg2"><span class="fl2">الوجهة:</span>
-        <select class="fs2" id="sfDst" onchange="renderSellRecs()">
-          <option value="all">الكل</option>
-          <option value="بغداد">بغداد</option><option value="البصرة">البصرة</option>
-          <option value="الموصل">الموصل</option><option value="أربيل">أربيل</option>
-          <option value="كركوك">كركوك</option><option value="النجف">النجف</option>
-          <option value="كربلاء">كربلاء</option><option value="الحلة">الحلة</option>
-          <option value="الديوانية">الديوانية</option><option value="السماوة">السماوة</option>
-          <option value="العمارة">العمارة</option><option value="الناصرية">الناصرية</option>
-          <option value="الكوت">الكوت</option><option value="أخرى">أخرى</option>
-        </select>
+        <select class="fs2" id="sfDst" onchange="renderSellRecs()"><option value="all">الكل</option></select>
       </div>
       <div class="fg2"><span class="fl2">الدفع:</span>
         <select class="fs2" id="sfPaid" onchange="renderSellRecs()">
@@ -21529,19 +21534,7 @@ document.addEventListener("keydown", function(e){
       <div class="fi-g"><label class="fl">رقم الفلاح</label><input class="fi" id="seDph2" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"></div>
       <div class="fi-g"><label class="fl">اسم المستلم</label><input class="fi" id="seRcv2" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"></div>
       <div class="fi-g"><label class="fl">المحافظة</label>
-        <select class="fs" id="seDst">
-          <option value="بغداد">بغداد</option><option value="البصرة">البصرة</option>
-          <option value="الموصل">الموصل</option><option value="أربيل">أربيل</option>
-          <option value="كركوك">كركوك</option><option value="النجف">النجف</option>
-          <option value="كربلاء">كربلاء</option><option value="الحلة">الحلة</option>
-          <option value="الديوانية">الديوانية</option><option value="السماوة">السماوة</option>
-          <option value="العمارة">العمارة</option><option value="الناصرية">الناصرية</option>
-          <option value="الكوت">الكوت</option><option value="الرمادي">الرمادي</option>
-          <option value="تكريت">تكريت</option><option value="بعقوبة">بعقوبة</option>
-          <option value="الفلوجة">الفلوجة</option><option value="سامراء">سامراء</option>
-          <option value="دهوك">دهوك</option><option value="السليمانية">السليمانية</option>
-          <option value="خانقين">خانقين</option><option value="أخرى">أخرى</option>
-        </select>
+        <select class="fs" id="seDst"></select>
       </div>
       <div class="fi-g" style="grid-column:1/-1"><label class="fl">نوع الحمولة</label>
         <input type="hidden" id="seMt" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
