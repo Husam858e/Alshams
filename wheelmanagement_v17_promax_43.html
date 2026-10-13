@@ -13326,7 +13326,7 @@ function _alertRaise(rule,sev,title,detail,extra){
     uid:_myUid(),ack:null,n:1,...(extra||{})};
   if(_watchSeen)_watchSeen.add(a.id);
   _alertWrite(a);
-  showToast(_SEV[sev].ic+" "+title,4500);
+  if(_isOwner())showToast(_SEV[sev].ic+" "+title,4500);   // v17.89 — التنبيه لصاحب النظام وحده
   return a;
 }
 /* تنبيهٌ يتجمّع: ما يقع في نافذة الوقت نفسها يزيد عدّاده ولا يُكرَّر */
@@ -13498,7 +13498,7 @@ function _watchListen(){
     else list.forEach(a=>{
       if(_watchSeen.has(a.id))return;
       _watchSeen.add(a.id);
-      if(!a.ack&&a.dev!==_devId())showToast(`🛡️ ${_SEV[a.sev]?_SEV[a.sev].ic:""} ${a.title} — من ${a.devLabel||"جهاز آخر"}`,6000);
+      if(!a.ack&&a.dev!==_devId()&&_isOwner())showToast(`🛡️ ${_SEV[a.sev]?_SEV[a.sev].ic:""} ${a.title} — من ${a.devLabel||"جهاز آخر"}`,6000);
     });
     ALERTS=list;
     _cacheSet("wShamsAlerts",()=>JSON.stringify(ALERTS.slice(0,300)));
@@ -14279,6 +14279,7 @@ function doLogin(){
     const aiBtn=document.getElementById("aiBtn");
     if(aiBtn)aiBtn.style.display="flex";
     try{_selWatch();}catch(e){}        // v17.74 — تحديد الوصولات في كل سجل
+    try{_navBuild();_applyAccess();}catch(e){}   // v17.89 — «الحسابات والأدوات» لصاحب النظام
     try{_watchBadge();setTimeout(()=>{try{_devRegister(true);}catch(e){}},3000);}catch(e){}   // v17.87 — الرقابة
     // تحميل الكاش المحلي إن لم يكن Firebase اتصل بعد
     try{if(!S.recs.length){const c=localStorage.getItem("wShamsCache");if(c)S.recs=JSON.parse(c).sort(_byDkDesc);}}catch(e){}
@@ -14358,7 +14359,46 @@ function _navCur(btn){
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&_navIsOpen())navClose(); });
 
+/* ══════════════════════════════════════════════════════
+   «الحسابات والأدوات» لصاحب النظام وحده — v17.89
+   ──────────────────────────────────────────────────────
+   سجل الدفعات وأعمار الديون والدفاتر والجمع الشامل والأدوات والأداء
+   والصندوق وسجلّ التدقيق والرقابة: تظهر لحسام عايد (المستخدم ١)
+   وتُخفى عن البقية — من القائمة ومن كل طريقٍ آخر إليها، لأن كل
+   انتقالٍ بين التبويبات يمرّ بـsT (الأزرار، والمساعد، والاختصارات،
+   والانتقال إلى سجلٍّ بعينه).
+   ⚠️ هذا حجبٌ في الواجهة: من يملك الملف يملك البيانات. الحجب على
+      الخادم يحتاج أن يُربط كل جهاز بحساب صاحبه (الأدوات ← هوية الجهاز).
+══════════════════════════════════════════════════════ */
+const _OWNER_ID=1;
+const _OWNER_TABS=new Set(["paylog","aging","acct","gsearch","tools","perf","cash","audit","watch"]);
+const _isOwner=()=>!!(S.cu&&S.cu.id===_OWNER_ID);
+const _tabIdOf=b=>{const m=((b&&b.getAttribute("onclick"))||"").match(/sT\('([^']+)'/);return m?m[1]:null;};
+function _applyAccess(){
+  const own=_isOwner();
+  document.querySelectorAll(".tbb").forEach(b=>{
+    if(_OWNER_TABS.has(_tabIdOf(b)))b.style.display=own?"":"none";
+  });
+  document.querySelectorAll("#navDrawer .navsec").forEach(h=>{
+    const n=h.nextElementSibling;
+    if(n&&_OWNER_TABS.has(_tabIdOf(n)))h.style.display=own?"":"none";
+  });
+  /* تبويبٌ محجوب مفتوحٌ من جلسةٍ سابقة يُغلق */
+  if(!own){
+    const cur=document.querySelector(".tc.active");
+    const id=cur&&cur.id.replace(/^tc-/,"");
+    if(id&&_OWNER_TABS.has(id)){
+      const first=document.querySelector(".tbb[onclick*=\"sT('new'\"]");
+      if(first)sT("new",first);
+    }
+  }
+}
+
 function sT(id,btn){
+  if(_OWNER_TABS.has(id)&&!_isOwner()){         // v17.89
+    showToast("⛔ هذا القسم لصاحب النظام فقط");
+    return;
+  }
   document.querySelectorAll(".tbb").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".tc").forEach(c=>c.classList.remove("active"));
   btn.classList.add("active");
