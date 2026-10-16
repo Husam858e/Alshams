@@ -1,0 +1,93 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000; /* black = no light on the table */
+  cursor: none;
+}
+
+#stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+#idle {
+  transition: opacity 0.8s ease;
+}
+
+#idle.dim {
+  opacity: 0.3;
+}
+
+#layers > .zone {
+  position: absolute;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--fade, 500ms) ease;
+  /* Screen blending turns black pixels transparent, so dish clips drawn on
+     black merge with the idle loop instead of showing hard rectangles. */
+  mix-blend-mode: screen;
+}
+
+#layers > .zone.visible {
+  opacity: 1;
+}
+
+/* Size, position and rotation are set per zone by player.js. */
+.zone-inner {
+  position: absolute;
+  display: grid;
+  place-items: center;
+}
+
+.zone-inner > video,
+.zone-inner > img,
+.zone-inner > canvas,
+#idle > video,
+#idle > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.zone-inner > img {
+  animation: breathe 6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+#test-pattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
+
+#status {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #3a0d0d;
+  color: #ffb4b4;
+  font: 600 18px system-ui, sans-serif;
+  z-index: 20;
+}

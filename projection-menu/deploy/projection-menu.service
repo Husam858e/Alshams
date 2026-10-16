@@ -1,0 +1,18 @@
+# systemd unit for the server (on the restaurant's local server / mini-PC).
+#   sudo cp deploy/projection-menu.service /etc/systemd/system/
+#   sudo systemctl enable --now projection-menu
+[Unit]
+Description=Projection mapping menu server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/projection-menu
+EnvironmentFile=/opt/projection-menu/.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+User=projection
+
+[Install]
+WantedBy=multi-user.target

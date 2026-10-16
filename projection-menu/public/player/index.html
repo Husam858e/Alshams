@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projection Player</title>
+  <link rel="stylesheet" href="player.css">
+  <!-- three.js is served locally by the server (no internet needed on the LAN). -->
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <!-- The stage is the table surface. It is warped (corner-pin) onto the
+       projector output so its edges match the physical table. -->
+  <div id="stage">
+    <div id="idle" class="layer"></div>
+    <div id="layers"></div>
+    <canvas id="test-pattern" width="1920" height="1080" hidden></canvas>
+  </div>
+  <div id="status" hidden></div>
+  <script type="module" src="player.js"></script>
+</body>
+</html>

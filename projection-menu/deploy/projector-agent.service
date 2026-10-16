@@ -1,0 +1,20 @@
+# systemd user unit for the mpv agent on a Raspberry Pi (needs the graphical
+# session for fullscreen output on HDMI).
+#   mkdir -p ~/.config/systemd/user && cp deploy/projector-agent.service ~/.config/systemd/user/
+#   edit SERVER / PROJECTOR / KEY below, then:
+#   systemctl --user enable --now projector-agent
+#   sudo loginctl enable-linger $USER     # start at boot
+[Unit]
+Description=Projection menu — mpv projector agent
+After=graphical-session.target network-online.target
+
+[Service]
+Environment=SERVER=http://192.168.1.10:3000
+Environment=PROJECTOR=2
+Environment=KEY=replace-with-key-from-dashboard
+ExecStart=/usr/bin/python3 %h/projection-menu/agent/projector_agent.py --server ${SERVER} --projector ${PROJECTOR} --key ${KEY} --cec
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

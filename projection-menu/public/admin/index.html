@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>لوحة تحكم المنيو الضوئي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="card login-card">
+      <div class="logo" aria-hidden="true">☀</div>
+      <h1>لوحة تحكم المنيو الضوئي</h1>
+      <p class="muted">أدخل رمز الإدارة (ADMIN_TOKEN) المضبوط على الخادم</p>
+      <input id="token" type="password" placeholder="رمز الدخول" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">دخول</button>
+      <p id="login-error" class="error" hidden></p>
+    </form>
+  </section>
+
+  <div id="app" class="shell" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="logo" aria-hidden="true">☀</span><strong>المنيو الضوئي</strong></div>
+      <nav id="nav">
+        <a href="#dishes" data-view="dishes">🍕 الأطباق والعروض</a>
+        <a href="#media" data-view="media">🎞️ مكتبة العروض</a>
+        <a href="#devices" data-view="devices">📽️ الطاولات والأجهزة</a>
+        <a href="#orders" data-view="orders">🧾 الطلبات <span id="orders-badge" class="pill" hidden></span></a>
+        <a href="#log" data-view="log">📜 سجل العرض</a>
+      </nav>
+      <div class="sidebar-foot">
+        <span id="live" class="live" data-on="false">غير متصل</span>
+        <button id="logout" class="btn ghost small">خروج</button>
+      </div>
+    </aside>
+    <main id="view" class="view"></main>
+  </div>
+
+  <dialog id="modal" class="modal"></dialog>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

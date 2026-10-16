@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#120d08">
+  <title>المنيو التفاعلي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tablet.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">☀</span>
+      <div>
+        <h1>المنيو التفاعلي</h1>
+        <p id="table-name" class="muted"></p>
+      </div>
+    </div>
+    <div class="seat-picker">
+      <span class="muted">مقعدك</span>
+      <div id="seats" class="chips" role="radiogroup" aria-label="اختر رقم مقعدك"></div>
+    </div>
+    <button id="orders-btn" class="ghost">طلباتي</button>
+  </header>
+
+  <nav id="categories" class="tabs" aria-label="التصنيفات"></nav>
+  <main id="menu" class="grid"></main>
+
+  <button id="cart-btn" class="cart-fab" hidden>
+    <span>السلة</span>
+    <span id="cart-count" class="badge">0</span>
+    <span id="cart-total"></span>
+  </button>
+
+  <!-- Dish details: opening it lights up the dish on the table -->
+  <dialog id="dish-sheet" class="sheet"></dialog>
+  <dialog id="cart-sheet" class="sheet"></dialog>
+  <dialog id="orders-sheet" class="sheet"></dialog>
+
+  <div id="fatal" class="fatal" hidden></div>
+  <script type="module" src="tablet.js"></script>
+</body>
+</html>
