@@ -5,6 +5,7 @@ import android.content.res.AssetManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import androidx.webkit.WebViewAssetLoader
+import java.io.ByteArrayInputStream
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -40,51 +41,19 @@ class LocalContent(context: Context) {
             return null
         }
         val range = ByteRange.parse(rangeHeader, total)
+        // WebView sets Content-Length itself, from the stream's available().
+        val headers = mapOf("Accept-Ranges" to "bytes")
         return try {
             val stream = assets.open(assetPath)
             if (range == null) {
-                WebResourceResponse(mime, null, 200, "OK", mediaHeaders(total), stream)
+                WebResourceResponse(mime, null, 200, "OK", headers, stream)
             } else {
-                stream.skipFully(range.start)
-                val headers = mediaHeaders(range.length) + ("Content-Range" to "bytes ${range.start}-${range.end}/$total")
-                WebResourceResponse(mime, null, 206, "Partial Content", headers, LimitedInputStream(stream, range.length))
+                val partial = headers + ("Content-Range" to range.contentRange(total))
+                WebResourceResponse(mime, null, 206, "Partial Content", partial, range.body(stream))
             }
         } catch (_: IOException) {
             null
         }
-    }
-
-    private fun mediaHeaders(length: Long) = mapOf(
-        "Accept-Ranges" to "bytes",
-        "Content-Length" to length.toString(),
-    )
-
-    private fun InputStream.skipFully(count: Long) {
-        var left = count
-        while (left > 0) {
-            val skipped = skip(left)
-            if (skipped <= 0) throw IOException("Could not skip to range start")
-            left -= skipped
-        }
-    }
-
-    /** Ends the stream after [limit] bytes (the end of the requested range). */
-    private class LimitedInputStream(input: InputStream, private var left: Long) : FilterInputStream(input) {
-        override fun read(): Int {
-            if (left <= 0) return -1
-            val b = super.read()
-            if (b >= 0) left--
-            return b
-        }
-
-        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-            if (left <= 0) return -1
-            val n = super.read(buffer, offset, minOf(length.toLong(), left).toInt())
-            if (n > 0) left -= n
-            return n
-        }
-
-        override fun available(): Int = minOf(super.available().toLong(), left).toInt()
     }
 
     companion object {
@@ -99,12 +68,26 @@ class LocalContent(context: Context) {
 
         /** Returned for bundled resources requested by a remote page. */
         fun forbidden() = WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), null)
+
+        /** For a refused main-frame navigation: a 204 is never committed, the current page stays. */
+        fun refused() = WebResourceResponse(
+            "text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)),
+        )
     }
 }
 
 /** A single satisfiable `Range: bytes=…` request against a file of known length. */
 data class ByteRange(val start: Long, val end: Long) {
     val length: Long get() = end - start + 1
+
+    fun contentRange(total: Long) = "bytes $start-$end/$total"
+
+    /**
+     * The response body for this range, from the whole [file] stream. WebView applies
+     * the request's Range to intercepted responses itself (available() as the size,
+     * then skip(start)), so the body starts at byte 0 and only ends after [end].
+     */
+    fun body(file: InputStream): InputStream = LimitedInputStream(file, end + 1)
 
     companion object {
         private val SINGLE = Regex("""^\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$""", RegexOption.IGNORE_CASE)
@@ -130,4 +113,33 @@ data class ByteRange(val start: Long, val end: Long) {
             return range.takeIf { it.start < total && it.start <= it.end }
         }
     }
+}
+
+/** Ends [input] after [limit] bytes; skipped bytes count towards the limit. */
+class LimitedInputStream(input: InputStream, limit: Long) : FilterInputStream(input) {
+    private var left = limit
+
+    override fun read(): Int {
+        if (left <= 0) return -1
+        val b = super.read()
+        if (b >= 0) left--
+        return b
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (left <= 0) return -1
+        val n = super.read(buffer, offset, minOf(length.toLong(), left).toInt())
+        if (n > 0) left -= n
+        return n
+    }
+
+    override fun skip(count: Long): Long {
+        val skipped = super.skip(minOf(count, left))
+        if (skipped > 0) left -= skipped
+        return skipped
+    }
+
+    override fun available(): Int = minOf(super.available().toLong(), left).toInt()
+
+    override fun markSupported() = false
 }

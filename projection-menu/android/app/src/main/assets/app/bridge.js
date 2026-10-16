@@ -69,7 +69,8 @@ export const bridge = {
   getState: () => request('getState'),
   validateLink: (url) => request('validateLink', { url }),
   scanQr: () => request('scanQr', {}, { timeoutMs: 0 }),
-  // { url, pin: '' | '4-8 digits', kiosk, launcher } → native then opens the page.
+  // { url, pin: null | '' | '4-8 digits', kiosk, launcher } → native then opens the page.
+  // pin null (or missing) keeps the saved PIN, '' removes it.
   saveConfig: (config) => request('saveConfig', config),
   startDemo: () => request('startDemo'),
   resume: () => request('resume'),

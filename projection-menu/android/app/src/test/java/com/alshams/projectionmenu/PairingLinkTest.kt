@@ -21,6 +21,28 @@ class PairingLinkTest {
         assertEquals("https://menu.example.com/player/?projector=2&key=k", link.normalizedUrl)
     }
 
+    // Exactly what the dashboard shows and QR-encodes: the LAN base plus
+    // tablet_path / player_path from src/routes/devices.js, and pairing.js's admin QR.
+    @Test
+    fun dashboardQrLinksParse() {
+        val key = "Zq3v-_9LkR2mXp0aB7cD4eF_" // newKey(): 18 random bytes as base64url
+        val base = "http://192.168.1.50:3000"
+        val tablet = valid("$base/tablet/?table=T01&key=$key")
+        assertEquals(AppMode.TABLET, tablet.mode)
+        assertEquals("$base/tablet/?table=T01&key=$key", tablet.normalizedUrl)
+        // Table codes go through encodeURIComponent (Arabic, spaces, '&').
+        assertEquals(AppMode.TABLET, valid("$base/tablet/?table=%D8%B7%D8%A7%D9%88%D9%84%D8%A9%205&key=$key").mode)
+        assertEquals(AppMode.TABLET, valid("$base/tablet/?table=A%26B&key=$key").mode)
+        val player = valid("$base/player/?projector=12&key=$key")
+        assertEquals(AppMode.PLAYER, player.mode)
+        assertEquals("$base/player/?projector=12&key=$key", player.normalizedUrl)
+        assertEquals("$base/admin/", valid("$base/admin/").normalizedUrl)
+        // PUBLIC_BASE_URL behind a reverse proxy: https, no port.
+        assertEquals(AppMode.TABLET, valid("https://menu.example.com/tablet/?table=T02&key=$key").mode)
+        // The APK download QR is shown next to them; scanning it must not pair.
+        assertEquals(PairingLink.ERROR_UNKNOWN, error("$base/app.apk"))
+    }
+
     @Test
     fun trimsAndAddsHttpWhenTheSchemeIsMissing() {
         val link = valid("  \n192.168.1.10:3000/tablet/?table=T01&key=abc\t ")

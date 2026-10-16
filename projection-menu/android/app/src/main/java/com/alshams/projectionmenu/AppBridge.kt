@@ -28,10 +28,11 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         isMainFrame: Boolean,
         replyProxy: JavaScriptReplyProxy,
     ) {
-        // The origin rule already limits this to local frames; also refuse a local
-        // frame embedded in a remote page (it could reach settings without the PIN).
-        val mainFrameIsLocal = view.url?.let(WebUrl::parse)?.isLocal == true
-        if (sourceOrigin.scheme != "https" || sourceOrigin.host != LOCAL_HOST || !mainFrameIsLocal) return
+        // The origin rule already limits this to local frames. Only the bundled top-level
+        // pages use the bridge, so a local frame (e.g. inside a remote page, which could
+        // reach settings without the PIN) never does. WebView.getUrl() is no help here:
+        // it already returns the URL of a load that has not committed yet.
+        if (!isMainFrame || sourceOrigin.scheme != "https" || sourceOrigin.host != LOCAL_HOST) return
         val request = try {
             JSONObject(message.data ?: return)
         } catch (e: JSONException) {
@@ -86,8 +87,10 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
             is PairingLink.Valid -> parsed
             is PairingLink.Invalid -> return reply.error(parsed.error)
         }
-        val pin = Pin.normalize(request.text("pin"))
-        if (pin.isNotEmpty() && !Pin.isValid(pin)) return reply.error(Pin.ERROR_FORMAT)
+        // A missing or null pin keeps the saved one (re-pairing after a key change must
+        // not silently unlock the device); "" removes it.
+        val pin = if (request.isNull("pin")) null else Pin.normalize(request.optString("pin"))
+        if (!pin.isNullOrEmpty() && !Pin.isValid(pin)) return reply.error(Pin.ERROR_FORMAT)
         val launcher = request.optBoolean("launcher")
         activity.store.save(
             mode = link.mode,
@@ -95,7 +98,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
             // Screen pinning only makes sense for the customer-facing modes.
             kiosk = request.optBoolean("kiosk") && Screen.of(link.mode).isKiosk,
             launcher = launcher,
-            pin = pin, // "" removes the PIN (setup.html says so next to the field)
+            pin = pin,
         )
         DeviceInfo.setLauncherEnabled(activity, launcher)
         reply.send("saved")
@@ -163,7 +166,9 @@ class QrScanner(activity: ComponentActivity) {
     }
 
     fun scan(reply: BridgeReply) {
-        pending?.send("scanCancelled")
+        // A second tap while the camera starts would stack another scanner whose
+        // result nobody waits for: only one runs, the extra request is answered at once.
+        if (pending != null) return reply.send("scanCancelled")
         pending = reply
         launcher.launch(
             ScanOptions()

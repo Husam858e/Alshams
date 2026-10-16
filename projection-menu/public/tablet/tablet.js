@@ -16,7 +16,7 @@ const state = {
   seat: 1,
   category: null,
   cart: [], // { dish, qty, seat, notes }
-  openDish: null,
+  openToken: null, // new object per opened sheet, so a late preview reply can tell it is stale
   openSeat: null,
   previewSeat: null,
   ordersTimer: null,
@@ -160,7 +160,8 @@ async function openDish(dish) {
   const sheet = $('#dish-sheet');
   const seat = state.seat;
   let qty = 1;
-  state.openDish = dish;
+  const token = {}; // the same dish can be reopened (on another seat) before the reply
+  state.openToken = token;
   state.openSeat = seat;
 
   const status = h(
@@ -210,7 +211,7 @@ async function openDish(dish) {
   try {
     const result = await api('/preview', { method: 'POST', body: { dish_id: dish.id, seat_no: seat } });
     const live = result.status === 'sent';
-    if (state.openDish !== dish) {
+    if (state.openToken !== token) {
       // Closed before the projector answered: switch it back off — unless
       // another dish is already showing on that same seat (it replaced this one).
       if (live && state.openSeat !== seat) stopPreview(seat);
@@ -230,7 +231,7 @@ function stopPreview(seat) {
 
 // Runs for every way the sheet can close (button, Esc, backdrop, idle timer).
 $('#dish-sheet').addEventListener('close', () => {
-  state.openDish = null;
+  state.openToken = null;
   state.openSeat = null;
   if (state.previewSeat) stopPreview(state.previewSeat);
   state.previewSeat = null;

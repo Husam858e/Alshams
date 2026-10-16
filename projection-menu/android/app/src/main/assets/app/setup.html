@@ -94,6 +94,15 @@
             </label>
           </div>
           <p id="pin-status" class="status" aria-live="polite"></p>
+          <!-- Shown when a PIN is saved: it is kept unless replaced or removed here. -->
+          <label id="pin-clear-row" class="toggle" hidden>
+            <input id="pin-clear" type="checkbox">
+            <span class="switch" aria-hidden="true"></span>
+            <span class="toggle-text">
+              <strong>إزالة رمز PIN الحالي</strong>
+              <small>بدون رمز يستطيع أي شخص فتح الإعدادات.</small>
+            </span>
+          </label>
         </div>
         <label id="kiosk-row" class="toggle">
           <input id="kiosk" type="checkbox">

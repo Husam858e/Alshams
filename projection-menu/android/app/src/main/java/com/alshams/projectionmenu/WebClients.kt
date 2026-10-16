@@ -16,15 +16,40 @@ import androidx.core.graphics.createBitmap
 
 /** Bundled pages, the navigation guard, the offline fallback and renderer-crash recovery. */
 class AppWebViewClient(private val activity: MainActivity, private val local: LocalContent) : WebViewClient() {
+    private var lastCommitWasLocal = true
 
     // Runs on a WebView background thread, for every request including main frames.
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         val isLocal = request.url.scheme == "https" && request.url.host == LOCAL_HOST
-        if (request.isForMainFrame) activity.mainFrameIsLocal = isLocal
+        if (request.isForMainFrame) {
+            // shouldOverrideUrlLoading never sees POSTs or back/forward navigations,
+            // so the same boundaries are enforced here as well.
+            if (isLocal && !activity.claimLocalLoad(request.method, request.url.path)) return refuse(request)
+            if (!isLocal && request.method != "GET" && !mayOpen(request.url.toString())) return refuse(request)
+            activity.mainFrameIsLocal = isLocal
+        }
         if (!isLocal) return null
         // Remote pages must not embed bundled pages (or the bridge they carry).
         if (!request.isForMainFrame && !activity.mainFrameIsLocal) return LocalContent.forbidden()
         return local.serve(request)
+    }
+
+    private fun mayOpen(url: String) =
+        NavigationPolicy.decide(url, false, activity.screen, activity.store.load()?.url) == NavDecision.ALLOW
+
+    // A 204 is never committed: the current page simply stays.
+    private fun refuse(request: WebResourceRequest): WebResourceResponse {
+        Log.i(TAG, "Refused main-frame ${request.method} ${request.url}")
+        return LocalContent.refused()
+    }
+
+    // UI thread, after each main-frame commit. Once a server page replaces a bundled
+    // one, drop the history: back/forward must not return to setup or to a server
+    // that was configured before.
+    override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
+        val isLocal = WebUrl.parse(url)?.isLocal == true
+        if (!isLocal && lastCommitWasLocal) view.clearHistory()
+        lastCommitWasLocal = isLocal
     }
 
     // Only called for page-initiated navigations; the app's own loadUrl calls skip it.

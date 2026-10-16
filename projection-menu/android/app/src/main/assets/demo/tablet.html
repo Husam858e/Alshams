@@ -10,6 +10,14 @@
        Google Fonts, absolute paths, and the in-memory demo backend. -->
   <link rel="stylesheet" href="/app/fonts.css">
   <link rel="stylesheet" href="/tablet/tablet.css">
+  <style>
+    /* Demo only: on a phone this frame is small, and the sticky header (it wraps
+       to ~220 px when narrow) would cover the whole menu. Let it scroll away. */
+    @media (max-height: 520px), (max-width: 420px) {
+      .top { position: static; padding: 8px 12px; gap: 8px; }
+      .brand p { display: none; }
+    }
+  </style>
 </head>
 <body>
   <header class="top">

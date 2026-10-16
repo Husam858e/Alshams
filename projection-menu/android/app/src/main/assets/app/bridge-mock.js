@@ -7,7 +7,16 @@
 
 const STORAGE_KEY = 'projection-menu:mock-config';
 const MIN_WEBVIEW = 89; // import maps (used by the demo player)
-const UNKNOWN_LINK = 'الرابط غير معروف — انسخه أو امسحه من لوحة التحكم';
+// Same texts as PairingLink.kt, so the browser shows what the device will.
+const LINK_ERRORS = {
+  empty: 'أدخل رابط الربط أو امسحه من لوحة التحكم',
+  malformed: 'الرابط غير صالح — تأكد من كتابته كاملاً',
+  scheme: 'يجب أن يبدأ الرابط بـ http:// أو https://',
+  host: 'الرابط لا يحتوي على عنوان الخادم',
+  tablet: 'رابط التابلت ناقص: يجب أن يحتوي على رمز الطاولة (table) والمفتاح (key)',
+  player: 'رابط شاشة العرض ناقص: يجب أن يحتوي على رقم جهاز العرض (projector) والمفتاح (key)',
+  unknown: 'الرابط غير معروف — انسخه أو امسحه من لوحة التحكم',
+};
 
 const flags = new URLSearchParams(location.search);
 let memory = null; // fallback when storage is disabled
@@ -32,32 +41,35 @@ function storeConfig(config) {
 
 // Same rules as PairingLink.parse on the native side.
 export function parseLink(raw) {
+  const fail = (key) => ({ ok: false, error: LINK_ERRORS[key] });
   let text = String(raw ?? '').trim();
-  if (!text) return { ok: false, error: 'الصق الرابط أولاً' };
+  if (!text) return fail('empty');
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) text = `http://${text}`;
   let url;
   try {
     url = new URL(text);
   } catch {
-    return { ok: false, error: 'الرابط غير صالح' };
+    return fail('malformed');
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return { ok: false, error: 'الرابط يجب أن يبدأ بـ http أو https' };
-  if (!url.hostname) return { ok: false, error: 'عنوان الخادم مفقود في الرابط' };
+  if (url.username || url.password) return fail('malformed'); // user@host disguises the real host
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return fail('scheme');
+  if (!url.hostname) return fail('host');
 
-  const path = url.pathname;
+  const path = url.pathname.replace(/^\/{2,}/, '/');
+  const under = (prefix) => path === prefix || path.startsWith(`${prefix}/`); // not /tablets
   const params = url.searchParams;
-  if (path.startsWith('/tablet')) {
-    if (!params.get('table') || !params.get('key')) return { ok: false, error: 'رابط التابلت ناقص (table و key)' };
+  if (under('/tablet')) {
+    if (!params.get('table')?.trim() || !params.get('key')?.trim()) return fail('tablet');
     return { ok: true, mode: 'TABLET', normalizedUrl: url.href };
   }
-  if (path.startsWith('/player')) {
-    if (!params.get('projector') || !params.get('key')) return { ok: false, error: 'رابط جهاز العرض ناقص (projector و key)' };
+  if (under('/player')) {
+    if (!params.get('projector')?.trim() || !params.get('key')?.trim()) return fail('player');
     return { ok: true, mode: 'PLAYER', normalizedUrl: url.href };
   }
-  if (path === '' || path === '/' || path.startsWith('/admin')) {
+  if (path === '' || path === '/' || under('/admin')) {
     return { ok: true, mode: 'ADMIN', normalizedUrl: `${url.protocol}//${url.host}/admin/` };
   }
-  return { ok: false, error: UNKNOWN_LINK };
+  return fail('unknown');
 }
 
 function webViewInfo() {
@@ -106,7 +118,7 @@ export function createMockBridge() {
       storeConfig({
         mode: link.mode,
         url: link.normalizedUrl,
-        hasPin: Boolean(msg.pin),
+        hasPin: msg.pin == null ? Boolean(loadConfig()?.hasPin) : Boolean(msg.pin), // null keeps it
         kiosk: Boolean(msg.kiosk) && link.mode !== 'ADMIN',
         launcher: Boolean(msg.launcher),
       });

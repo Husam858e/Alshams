@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var webView: WebView? = null
 
     /** What the WebView shows; follows every main-frame navigation. */
+    @Volatile
     internal var screen = Screen.SETUP
         private set
 
@@ -59,6 +60,10 @@ class MainActivity : AppCompatActivity() {
      */
     @Volatile
     internal var mainFrameIsLocal = true
+
+    /** Path of the bundled page [navigate] is loading, until its request arrives. */
+    @Volatile
+    private var nativeLocalPath: String? = null
 
     private var lastMainFrameUrl: String? = null
     private var lockTaskPending = false
@@ -156,6 +161,12 @@ class MainActivity : AppCompatActivity() {
         }
         view.webViewClient = AppWebViewClient(this, local)
         view.webChromeClient = AppChromeClient(this)
+        // WebView cannot save files: the dashboard's downloads (e.g. its APK button) go to
+        // the browser, like other external links in ADMIN. Customer screens never download.
+        view.setDownloadListener { url, _, _, _, _ ->
+            val dashboard = screen == Screen.ADMIN || screen == Screen.SETUP
+            if (dashboard && WebUrl.parse(url)?.isHttp == true) openExternally(url)
+        }
         container.addView(view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         view.requestFocus()
         webView = view
@@ -171,7 +182,21 @@ class MainActivity : AppCompatActivity() {
     internal fun navigate(url: String) {
         val view = webView ?: return
         applyScreen(Screen.forUrl(url, store.load()?.mode))
+        nativeLocalPath = WebUrl.parse(url)?.takeIf { it.isLocal }?.path
         view.loadUrl(url)
+    }
+
+    /**
+     * Whether a main-frame request for a bundled page may be served (WebView background
+     * thread). Only the app itself opens them: page scripts could otherwise reach setup
+     * without the PIN through POST forms or history.back(), which shouldOverrideUrlLoading
+     * never sees.
+     */
+    internal fun claimLocalLoad(method: String?, path: String?): Boolean {
+        val expected = nativeLocalPath ?: return false
+        if (method != "GET" || path != expected) return false
+        nativeLocalPath = null
+        return true
     }
 
     /** Navigates after the current callback (e.g. once a bridge reply is posted). */
@@ -235,7 +260,8 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(container)
         cornerTaps.reset()
         backPresses.reset()
-        if (wantsLockTask()) requestLockTask() else stopLockTaskSafely()
+        // Pinning only ends in showSetup(), after the PIN, never because of a page load.
+        if (wantsLockTask()) requestLockTask() else lockTaskPending = false
     }
 
     private fun backgroundFor(screen: Screen) = if (screen == Screen.PLAYER) Color.BLACK else getColor(R.color.navy)
@@ -320,9 +346,12 @@ class MainActivity : AppCompatActivity() {
         when (screen) {
             // Customers must not leave: single presses are swallowed, three open settings.
             Screen.TABLET, Screen.PLAYER -> if (backPresses.press(SystemClock.uptimeMillis())) openSettings()
+            // History never steps back into bundled pages (they only open via navigate()).
             Screen.ADMIN -> {
-                val view = webView
-                if (view != null && view.canGoBack()) view.goBack() else openSettings()
+                val view = webView ?: return openSettings()
+                val history = view.copyBackForwardList()
+                val previous = if (history.currentIndex > 0) history.getItemAtIndex(history.currentIndex - 1)?.url else null
+                if (previous != null && WebUrl.parse(previous)?.isLocal == false) view.goBack() else openSettings()
             }
             Screen.DEMO -> openSettings()
             // Leaving setup returns to the configured page (or closes a fresh install).

@@ -30,21 +30,25 @@ class ConfigStore(context: Context) {
 
     /**
      * Saves synchronously (a kiosk may lose power right after setup).
-     * @param pin a valid normalized PIN, or "" for no PIN.
+     * @param pin a valid normalized PIN, "" for no PIN, or null to keep the current one.
      */
-    fun save(mode: AppMode, url: String, kiosk: Boolean, launcher: Boolean, pin: String) {
+    fun save(mode: AppMode, url: String, kiosk: Boolean, launcher: Boolean, pin: String?) {
         prefs.edit(commit = true) {
             putString(KEY_MODE, mode.name)
             putString(KEY_URL, url)
             putBoolean(KEY_KIOSK, kiosk)
             putBoolean(KEY_LAUNCHER, launcher)
-            if (pin.isEmpty()) {
-                remove(KEY_PIN_HASH)
-                remove(KEY_PIN_SALT)
-            } else {
-                val salt = Pin.newSalt()
-                putString(KEY_PIN_SALT, salt)
-                putString(KEY_PIN_HASH, Pin.hash(pin, salt))
+            when {
+                pin == null -> Unit
+                pin.isEmpty() -> {
+                    remove(KEY_PIN_HASH)
+                    remove(KEY_PIN_SALT)
+                }
+                else -> {
+                    val salt = Pin.newSalt()
+                    putString(KEY_PIN_SALT, salt)
+                    putString(KEY_PIN_HASH, Pin.hash(pin, salt))
+                }
             }
         }
     }

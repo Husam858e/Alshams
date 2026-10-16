@@ -2,6 +2,8 @@
 // server 5xx): offline.html?url=<target>. Retries on its own with a visible
 // countdown — 5 s, backing off to 30 s while failures keep coming — because
 // a kiosk device must come back by itself once the server is up again.
+//
+// Chrome 80 APIs only (see bridge.js): this page must work on any WebView.
 
 import { bridge } from './bridge.js';
 import { enableArrowNavigation } from './spatial-nav.js';
@@ -11,6 +13,12 @@ const STORE_KEY = 'projection-menu:offline';
 const RING = 2 * Math.PI * 34; // circumference of the SVG ring
 
 const $ = (sel) => document.querySelector(sel);
+
+// Remote-control users need a focused button; on a touch screen (the table
+// tablet) focus would only paint a ring around it for the whole outage.
+function focusForKeys(el) {
+  if (!matchMedia('(any-pointer: coarse)').matches) el.focus();
+}
 
 // Only http(s) targets are followed (the parameter must never run script).
 function parseTarget(raw) {
@@ -87,23 +95,23 @@ function init() {
     $('#countdown').hidden = true;
     $('#retry').hidden = true;
     $('#settings').classList.add('primary');
-    $('#settings').focus();
+    focusForKeys($('#settings'));
     return;
   }
 
-  // The host only: the full link carries the device's access key.
-  const host = document.createElement('bdi');
-  host.dir = 'ltr';
-  host.textContent = target.host;
-  $('#reason').replaceChildren(
-    navigator.onLine === false ? 'الجهاز غير متصل بأي شبكة حالياً. الخادم: ' : 'لا يستجيب الخادم على العنوان ',
-    host,
-  );
   $('#retry').addEventListener('click', retry);
   // Back on the network: try again right away.
   addEventListener('online', () => setTimeout(retry, 1000));
+  // The host only: the full link carries the device's access key.
+  // (textContent + append: Element.replaceChildren needs Chrome 86.)
+  const host = document.createElement('bdi');
+  host.dir = 'ltr';
+  host.textContent = target.host;
+  const reason = $('#reason');
+  reason.textContent = navigator.onLine === false ? 'الجهاز غير متصل بأي شبكة حالياً. الخادم: ' : 'لا يستجيب الخادم على العنوان ';
+  reason.append(host);
   startCountdown(nextDelay(target));
-  $('#retry').focus();
+  focusForKeys($('#retry'));
 }
 
 init();

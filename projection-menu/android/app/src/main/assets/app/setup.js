@@ -3,12 +3,10 @@
 // the server by QR code or pasted link, and save. Native validates links and
 // stores the config (see bridge.js for the message contract).
 //
-// Chrome 80 syntax only (see bridge.js).
+// Chrome 80 syntax and APIs only (see bridge.js).
 
 import { BridgeError, bridge, isNative } from './bridge.js';
 import { enableArrowNavigation } from './spatial-nav.js';
-
-window.setupReady = true; // modules run: the inline outdated-WebView fallback stays quiet
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -49,9 +47,15 @@ function h(tag, props, ...children) {
 
 const ltr = (text) => h('bdi', { dir: 'ltr' }, text);
 
+// Element.replaceChildren needs Chrome 86.
+function setChildren(el, ...children) {
+  el.textContent = '';
+  el.append(...children);
+}
+
 function setStatus(el, kind, ...content) {
   el.dataset.kind = kind;
-  el.replaceChildren(...content);
+  setChildren(el, ...content);
 }
 
 const errorText = (err) => (err instanceof BridgeError ? err.message : 'حدث خطأ غير متوقع');
@@ -62,7 +66,7 @@ function describeLink(mode, rawUrl) {
   try {
     url = new URL(rawUrl);
   } catch {
-    return { detail: '', host: rawUrl };
+    return { detail: '', host: rawUrl, origin: rawUrl };
   }
   const detail =
     mode === 'TABLET'
@@ -70,7 +74,7 @@ function describeLink(mode, rawUrl) {
       : mode === 'PLAYER'
         ? `جهاز العرض رقم ${url.searchParams.get('projector')}`
         : '';
-  return { detail, host: url.host };
+  return { detail, host: url.host, origin: url.origin };
 }
 
 // ── Startup ────────────────────────────────────────────────────────
@@ -113,7 +117,8 @@ function showCurrent() {
   $('#current-mode').textContent = MODES[config.mode]?.label ?? config.mode;
   $('#current-detail').textContent = detail;
   $('#current-host').textContent = host;
-  $('#current-tags').replaceChildren(
+  setChildren(
+    $('#current-tags'),
     ...[
       config.kiosk && '🔒 قفل الشاشة',
       config.hasPin && '🔑 محمي برمز PIN',
@@ -130,7 +135,8 @@ function showWizard({ prefill = null } = {}) {
   $('#wizard').hidden = false;
   if (prefill) {
     selectMode(prefill.mode);
-    $('#link').value = prefill.mode === 'ADMIN' ? describeLink('ADMIN', prefill.url).host : prefill.url;
+    // The origin keeps https and the port; it normalizes back to <origin>/admin/.
+    $('#link').value = prefill.mode === 'ADMIN' ? describeLink('ADMIN', prefill.url).origin : prefill.url;
     $('#kiosk').checked = prefill.kiosk;
     $('#launcher').checked = prefill.launcher;
     validateNow();
@@ -209,6 +215,7 @@ function selectMode(mode) {
   $('#or').hidden = $('#scan').hidden;
   // PIN and screen lock only apply to the customer-facing kiosk modes.
   $('#pin-block').hidden = !pairing;
+  $('#pin-clear-row').hidden = !pairing || !state?.config?.hasPin;
   $('#kiosk-row').hidden = !pairing;
   updatePinStatus();
 }
@@ -220,6 +227,7 @@ function resetForm() {
   clearLink();
   $('#pin').value = '';
   $('#pin2').value = '';
+  $('#pin-clear').checked = false;
   $('#kiosk').checked = true;
   $('#launcher').checked = false;
   setStatus($('#save-status'), '', '');
@@ -314,8 +322,10 @@ async function validateNow() {
 }
 
 // ── Step 3: options ────────────────────────────────────────────────
+const clearingPin = () => !$('#pin-clear-row').hidden && $('#pin-clear').checked;
+
 function pinError() {
-  if (form.mode === 'ADMIN') return null;
+  if (form.mode === 'ADMIN' || clearingPin()) return null;
   const pin = $('#pin').value;
   const confirm = $('#pin2').value;
   if (!pin && !confirm) return null;
@@ -326,13 +336,18 @@ function pinError() {
 
 function updatePinStatus() {
   const status = $('#pin-status');
+  const clearing = clearingPin();
+  $('#pin').disabled = clearing;
+  $('#pin2').disabled = clearing;
+  if (clearing) return setStatus(status, '', 'سيُلغى الرمز الحالي عند الحفظ.');
   const error = pinError();
   if (error) return setStatus(status, 'error', error);
-  if ($('#pin').value) return setStatus(status, 'ok', '✓ سيُطلب هذا الرمز لفتح الإعدادات');
+  const hasPin = state?.config?.hasPin;
+  if ($('#pin').value) return setStatus(status, 'ok', hasPin ? '✓ سيحل هذا الرمز محل الرمز الحالي' : '✓ سيُطلب هذا الرمز لفتح الإعدادات');
   setStatus(
     status,
     '',
-    state?.config?.hasPin ? 'يوجد رمز حالياً: اتركه فارغاً لإلغائه أو اكتب رمزاً جديداً.' : 'بدون رمز يستطيع أي شخص فتح الإعدادات.',
+    hasPin ? 'يوجد رمز حالياً وسيبقى كما هو. اكتب رمزاً جديداً لتغييره.' : 'بدون رمز يستطيع أي شخص فتح الإعدادات.',
   );
 }
 
@@ -342,6 +357,7 @@ for (const id of ['#pin', '#pin2']) {
     updatePinStatus();
   });
 }
+$('#pin-clear').addEventListener('change', updatePinStatus);
 
 // ── Save ───────────────────────────────────────────────────────────
 $('#wizard').addEventListener('submit', async (e) => {
@@ -368,7 +384,8 @@ $('#wizard').addEventListener('submit', async (e) => {
   try {
     await bridge.saveConfig({
       url: form.link.normalizedUrl,
-      pin: pairing ? $('#pin').value : '',
+      // null keeps the saved PIN (e.g. re-pairing after a key change); '' removes it.
+      pin: !pairing || clearingPin() ? '' : $('#pin').value || null,
       kiosk: pairing && $('#kiosk').checked,
       launcher: $('#launcher').checked,
     });
@@ -381,3 +398,6 @@ $('#wizard').addEventListener('submit', async (e) => {
 
 resetForm();
 init();
+// Last on purpose: if anything above throws on an outdated WebView, the inline
+// fallback in setup.html shows the update warning instead of a dead page.
+window.setupReady = true;
