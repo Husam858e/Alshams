@@ -1,0 +1,80 @@
+/* Shared design tokens of the projection menu (projector player + staff app).
+ * Dark luxe palette with a refined gold accent, an 8px spacing grid and one
+ * set of motion curves, so both UIs feel like the same product.
+ * Pages link /shared/fonts.css before this file. */
+
+:root {
+  /* Brand */
+  --pm-gold: #d4a056;
+  --pm-gold-hi: #ecca8e;
+  --pm-gold-lo: #a2763a;
+  --pm-gold-rgb: 212, 160, 86;
+
+  /* Warm ivory ink on dark surfaces */
+  --pm-ink: #f6efe4;
+  --pm-ink-2: rgba(246, 239, 228, 0.74);
+  --pm-ink-3: rgba(246, 239, 228, 0.5);
+  --pm-ink-4: rgba(246, 239, 228, 0.28);
+
+  /* Canvas and surfaces (darkest first) */
+  --pm-bg-0: #060606;
+  --pm-bg-1: #0d0d0f;
+  --pm-bg-2: #141417;
+  --pm-bg-3: #1c1c21;
+  --pm-line: rgba(255, 255, 255, 0.08);
+  --pm-line-2: rgba(255, 255, 255, 0.14);
+  --pm-glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.025) 55%, rgba(255, 255, 255, 0.04));
+  --pm-glass-edge: rgba(255, 255, 255, 0.1);
+
+  /* Feedback */
+  --pm-ok: #74c48f;
+  --pm-warn: #e6b450;
+  --pm-danger: #e2705f;
+  --pm-info: #82a9e3;
+
+  /* Order statuses (chips, tiles, tracker) */
+  --pm-status-open: #82a9e3;
+  --pm-status-preparing: #e6b450;
+  --pm-status-served: #74c48f;
+  --pm-status-paid: #a9a3b8;
+  --pm-status-cancelled: #e2705f;
+
+  /* Table statuses */
+  --pm-table-free: #74c48f;
+  --pm-table-occupied: #e6b450;
+  --pm-table-reserved: #b58ae0;
+
+  /* 8px grid */
+  --pm-s1: 8px;
+  --pm-s2: 16px;
+  --pm-s3: 24px;
+  --pm-s4: 32px;
+  --pm-s5: 40px;
+  --pm-s6: 48px;
+  --pm-s8: 64px;
+  --pm-s12: 96px;
+
+  /* Radii */
+  --pm-r-sm: 8px;
+  --pm-r-md: 14px;
+  --pm-r-lg: 22px;
+  --pm-r-xl: 32px;
+  --pm-r-pill: 999px;
+
+  /* Elevation */
+  --pm-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --pm-shadow-2: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --pm-shadow-3: 0 30px 80px rgba(0, 0, 0, 0.55);
+
+  /* Motion */
+  --pm-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --pm-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --pm-ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+  --pm-dur-1: 160ms;
+  --pm-dur-2: 280ms;
+  --pm-dur-3: 600ms;
+  --pm-dur-4: 1000ms;
+
+  /* Type */
+  --pm-font: var(--font-cairo, 'Cairo', 'Segoe UI', Tahoma, sans-serif);
+}
