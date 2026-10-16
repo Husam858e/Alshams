@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#120d08">
+  <title>المنيو التفاعلي</title>
+  <!-- Offline copy of public/tablet/index.html (keep the element ids in sync;
+       test/android-assets.test.js checks them): bundled font instead of
+       Google Fonts, absolute paths, and the in-memory demo backend. -->
+  <link rel="stylesheet" href="/app/fonts.css">
+  <link rel="stylesheet" href="/tablet/tablet.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">☀</span>
+      <div>
+        <h1>المنيو التفاعلي</h1>
+        <p id="table-name" class="muted"></p>
+      </div>
+    </div>
+    <div class="seat-picker">
+      <span class="muted">مقعدك</span>
+      <div id="seats" class="chips" role="radiogroup" aria-label="اختر رقم مقعدك"></div>
+    </div>
+    <button id="orders-btn" class="ghost">طلباتي</button>
+  </header>
+
+  <nav id="categories" class="tabs" aria-label="التصنيفات"></nav>
+  <main id="menu" class="grid"></main>
+
+  <button id="cart-btn" class="cart-fab" hidden>
+    <span>السلة</span>
+    <span id="cart-count" class="badge">0</span>
+    <span id="cart-total"></span>
+  </button>
+
+  <!-- Dish details: opening it lights up the dish on the table -->
+  <dialog id="dish-sheet" class="sheet"></dialog>
+  <dialog id="cart-sheet" class="sheet"></dialog>
+  <dialog id="orders-sheet" class="sheet"></dialog>
+
+  <div id="fatal" class="fatal" hidden></div>
+  <!-- Module scripts run in document order: fetch() is answered by the demo
+       backend before tablet.js makes its first request. -->
+  <script type="module" src="/demo/demo-backend.js"></script>
+  <script type="module" src="/tablet/tablet.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#120d08">
+  <title>عرض تجريبي — المنيو الضوئي</title>
+  <link rel="stylesheet" href="/app/fonts.css">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <header class="demo-bar">
+    <span class="logo" aria-hidden="true">☀</span>
+    <div class="intro">
+      <h1>عرض تجريبي</h1>
+      <p>اختر مقعدك ثم طبقاً من المنيو، وشاهد عرضه الضوئي يظهر على الطاولة أمام المقعد. اطلب لترى مرحلتي التحضير والتقديم.</p>
+    </div>
+    <button id="exit" type="button" class="exit">خروج من العرض التجريبي</button>
+  </header>
+
+  <main class="demo-main">
+    <!-- The ordering UI: the real tablet.js on an in-memory backend. -->
+    <section class="tablet-pane" aria-label="تابلت الطاولة">
+      <div class="device">
+        <iframe id="tablet-frame" src="/demo/tablet.html?table=DEMO&amp;key=demo" title="منيو التابلت"></iframe>
+      </div>
+    </section>
+
+    <!-- The table seen from above. The projector output (the real player.js)
+         is blended with "screen": its black is no light, only the glow shows. -->
+    <section class="table-pane" aria-label="الطاولة كما تُرى من الأعلى">
+      <div class="scene" dir="ltr">
+        <div class="chairs far"><span class="chair">مقعد 1</span><span class="chair">مقعد 2</span></div>
+        <div class="table">
+          <span class="plate" style="left: 25%; top: 25%"></span>
+          <span class="plate" style="left: 75%; top: 25%"></span>
+          <span class="plate" style="left: 25%; top: 75%"></span>
+          <span class="plate" style="left: 75%; top: 75%"></span>
+          <iframe id="player-frame" src="/demo/player.html?projector=1&amp;key=demo" title="ما يُسقطه جهاز العرض على الطاولة" tabindex="-1"></iframe>
+        </div>
+        <div class="chairs near"><span class="chair">مقعد 3</span><span class="chair">مقعد 4</span></div>
+      </div>
+      <div id="now-playing" class="now-playing" aria-live="polite"></div>
+    </section>
+  </main>
+  <script type="module" src="demo.js"></script>
+</body>
+</html>

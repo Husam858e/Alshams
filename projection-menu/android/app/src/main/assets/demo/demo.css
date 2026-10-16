@@ -1,0 +1,211 @@
+/* Offline demo: the tablet menu next to a top-down restaurant table that
+   shows what the projector puts on it. Landscape: side by side; portrait
+   (phones): table on top, tablet below. */
+:root {
+  --bg: #120d08;
+  --surface: #1d1610;
+  --surface-2: #2a2017;
+  --line: rgba(255, 220, 170, 0.1);
+  --text: #f6ede2;
+  --muted: #b3a08a;
+  --accent: #f59e0b;
+  --accent-2: #fbbf24;
+  --bar-h: 76px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 30% 40%, #22180f, var(--bg) 70%);
+  color: var(--text);
+  font-family: 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; }
+
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: var(--bar-h);
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+.logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: radial-gradient(circle at 30% 30%, var(--accent-2), #b45309);
+  color: #1c1105;
+  font-size: 24px;
+}
+.intro { flex: 1; min-width: 0; }
+.intro h1 { margin: 0; font-size: 19px; line-height: 1.3; }
+.intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.exit {
+  flex: none;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 220, 170, 0.2);
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.demo-main {
+  display: grid;
+  grid-template-columns: minmax(340px, 42%) 1fr; /* RTL: tablet on the right */
+  gap: 20px;
+  height: calc(100% - var(--bar-h));
+  padding: 16px 20px 20px;
+}
+
+/* ── Tablet ─────────────────────────────────────────────────────── */
+.tablet-pane { min-height: 0; display: flex; }
+.device {
+  flex: 1;
+  padding: 10px;
+  border-radius: 28px;
+  background: #050302;
+  box-shadow: 0 0 0 1px rgba(255, 220, 170, 0.12), 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+#tablet-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 20px;
+  background: var(--bg);
+}
+
+/* ── Table ──────────────────────────────────────────────────────── */
+.table-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+/* Width follows the space left for a 16:9 table plus chairs and caption. */
+.scene {
+  --chair-h: 34px;
+  width: min(100%, calc((100vh - var(--bar-h) - 36px - 2 * var(--chair-h) - 90px) * 16 / 9));
+  display: grid;
+  gap: 8px;
+}
+
+.chairs { display: grid; grid-template-columns: 1fr 1fr; height: var(--chair-h); }
+.chair {
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 46%;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #3a2a1d, #2b1f15);
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 170, 0.12);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.chairs.far .chair { border-radius: 12px 12px 6px 6px; }
+.chairs.near .chair { border-radius: 6px 6px 12px 12px; }
+
+.table {
+  position: relative;
+  isolation: isolate; /* the projection blends with the wood only */
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255, 190, 120, 0.06), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 27px),
+    linear-gradient(180deg, #3d2414, #2f1b0e 55%, #382111);
+  box-shadow:
+    inset 0 0 0 5px #24140a,
+    inset 0 0 50px rgba(0, 0, 0, 0.65),
+    0 18px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* Plates sit at the centres of the default seat zones (defaultZones(4)). */
+.plate {
+  position: absolute;
+  width: 14.6%; /* 26% of the table height */
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #d9d5cd 0 52%, #c7c2b8 54% 64%, #e4e0d8 66% 70%, #b9b3a8 72% 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+  opacity: 0.85;
+}
+
+#player-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+  mix-blend-mode: screen; /* black = no light: only the projected glow shows */
+  pointer-events: none;
+}
+
+.now-playing {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  direction: rtl;
+}
+.now-playing .idle { color: var(--muted); font-size: 14px; line-height: 34px; }
+.now-playing .chip {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--accent-2);
+  font-size: 14px;
+  font-weight: 700;
+}
+.now-playing .chip[data-phase='served'] { background: rgba(52, 211, 153, 0.14); color: #6ee7b7; }
+
+/* ── Portrait (phones): table on top, tablet below ───────────────── */
+@media (orientation: portrait) {
+  :root { --bar-h: auto; }
+  .demo-bar { flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; }
+  .logo { width: 38px; height: 38px; font-size: 21px; }
+  .intro { display: contents; }
+  .intro h1 { flex: 1; font-size: 17px; }
+  .intro p { order: 3; flex-basis: 100%; font-size: 13px; }
+  .exit { height: 40px; padding: 0 12px; font-size: 14px; }
+
+  body { display: flex; flex-direction: column; }
+  .demo-main {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    padding: 10px 12px 12px;
+  }
+  .table-pane { order: -1; gap: 8px; }
+  .scene { --chair-h: 26px; width: min(100%, 44vh * 16 / 9); gap: 6px; }
+  .chair { font-size: 12px; }
+  .now-playing { min-height: 28px; }
+  .now-playing .idle { line-height: 28px; font-size: 13px; }
+  .now-playing .chip { padding: 2px 12px; font-size: 13px; }
+  .device { padding: 6px; border-radius: 20px; }
+  #tablet-frame { border-radius: 15px; }
+}

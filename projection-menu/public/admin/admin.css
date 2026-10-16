@@ -107,8 +107,9 @@ label.inline { display: flex; align-items: center; gap: 8px; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; }
 .brand .logo { margin: 0; }
 #nav { display: grid; gap: 4px; }
-#nav a { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 600; }
-#nav a:hover { background: var(--surface-2); }
+#nav a, #nav button { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-weight: 600; }
+#nav button { border: 0; background: none; cursor: pointer; text-align: start; }
+#nav a:hover, #nav button:hover { background: var(--surface-2); }
 #nav a.active { background: var(--surface-3); color: var(--gold-2); }
 #nav .pill { margin-inline-start: auto; background: var(--gold); color: #1c1105; }
 .sidebar-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; }
@@ -157,6 +158,25 @@ tr:last-child td { border-bottom: 0; }
 .device-head h3 { font-size: 16px; margin-inline-end: auto; }
 .link-box { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
 .link-box code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notice { padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); color: var(--gold-2); font-weight: 600; overflow-wrap: anywhere; }
+.notice.error { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); color: var(--red); }
+.notice code { color: var(--text); }
+
+/* Pairing QR codes: dark modules on white with the quiet zone drawn in. */
+.qr-panel { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 14px; border-radius: var(--radius); background: var(--surface-2); min-width: 0; }
+.qr-frame { background: #fff; border-radius: 12px; overflow: hidden; line-height: 0; justify-self: center; }
+.qr { display: block; width: 210px; height: 210px; image-rendering: pixelated; }
+.qr-info { display: grid; gap: 10px; min-width: 0; }
+.qr-info h4 { margin: 0; color: var(--gold-2); font-size: 15px; }
+.qr-info p { margin: 0; }
+.qr-info .link-box code { white-space: normal; overflow-wrap: anywhere; }
+.qr-info pre { margin: 0; padding: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.qr-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.qr-pair .qr-panel { grid-template-columns: 1fr; align-content: start; }
+.qr-pair .qr { width: 180px; height: 180px; }
+.steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 6px; }
+.steps strong { color: var(--gold-2); }
+.fine-print { font-size: 12px; margin: 0; }
 
 /* Modal */
 .modal {
@@ -236,8 +256,9 @@ tr:last-child td { border-bottom: 0; }
 
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }
-  .sidebar { position: static; height: auto; }
+  .sidebar { position: static; height: auto; min-width: 0; } /* the nav scrolls, the page doesn't */
   #nav { grid-auto-flow: column; overflow-x: auto; }
   .view { padding: 16px; }
   .phase { grid-template-columns: 1fr 1fr; }
+  .qr-panel { grid-template-columns: 1fr; }
 }

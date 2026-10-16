@@ -89,3 +89,7 @@ export async function copy(text) {
     prompt('انسخ الرابط:', text);
   }
 }
+
+export function linkBox(text, ...extra) {
+  return h('div', { class: 'link-box' }, h('code', { title: text }, text), btn('نسخ', () => copy(text), 'small'), extra);
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projection Player</title>
+  <!-- Offline copy of public/player/index.html (keep the element ids in sync;
+       test/android-assets.test.js checks them). There is no server: the
+       import map swaps the Socket.IO client for a BroadcastChannel bridge
+       to the demo tablet frame, and player.js runs unchanged. -->
+  <link rel="stylesheet" href="/player/player.css">
+  <script type="importmap">
+    { "imports": { "/socket.io/socket.io.esm.min.js": "/demo/fake-socket.js" } }
+  </script>
+</head>
+<body>
+  <!-- The stage is the table surface. It is warped (corner-pin) onto the
+       projector output so its edges match the physical table. -->
+  <div id="stage">
+    <div id="idle" class="layer"></div>
+    <div id="layers"></div>
+    <canvas id="test-pattern" width="1920" height="1080" hidden></canvas>
+  </div>
+  <div id="status" hidden></div>
+  <script type="module" src="/player/player.js"></script>
+</body>
+</html>

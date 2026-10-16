@@ -5,6 +5,8 @@
 import { io } from '/socket.io/socket.io.esm.min.js';
 import { $, h, toast } from '/shared/dom.js';
 import { AuthError, api, auth } from './api.js';
+import { openAndroidApp } from './pairing.js';
+import { run } from './ui.js';
 import * as devices from './views/devices.js';
 import * as dishes from './views/dishes.js';
 import * as log from './views/log.js';
@@ -43,6 +45,8 @@ $('#login-form').addEventListener('submit', (e) => {
   auth.set($('#token').value.trim());
   start();
 });
+
+$('#nav-android').addEventListener('click', (e) => run(e.currentTarget, openAndroidApp));
 
 $('#logout').addEventListener('click', () => {
   auth.clear();

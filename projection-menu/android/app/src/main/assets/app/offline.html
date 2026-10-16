@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#120d08">
+  <title>تعذر الاتصال بالخادم</title>
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <!-- Native opens this page as offline.html?url=<page that failed to load>. -->
+  <main class="offline-page">
+    <section class="panel offline-card">
+      <div class="offline-icon" aria-hidden="true">📡</div>
+      <h1 id="title">تعذر الاتصال بالخادم</h1>
+      <p id="reason" class="muted"></p>
+      <ul class="checklist">
+        <li>تأكد أن كمبيوتر الخادم في المطعم يعمل وأن برنامج المنيو مُشغَّل عليه.</li>
+        <li>تأكد أن هذا الجهاز متصل بنفس شبكة الواي فاي.</li>
+        <li>إذا تغيّر عنوان الخادم افتح الإعدادات واربط الجهاز من جديد.</li>
+      </ul>
+      <div id="countdown" class="countdown" aria-live="polite">
+        <div class="ring">
+          <svg viewBox="0 0 80 80" aria-hidden="true">
+            <circle class="track" cx="40" cy="40" r="34"></circle>
+            <circle id="ring-bar" class="bar" cx="40" cy="40" r="34"></circle>
+          </svg>
+          <span id="seconds"></span>
+        </div>
+        <p id="countdown-text"></p>
+      </div>
+      <div class="actions">
+        <button id="retry" type="button" class="btn primary big">إعادة المحاولة الآن</button>
+        <button id="settings" type="button" class="btn big">الإعدادات</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="offline.js"></script>
+</body>
+</html>

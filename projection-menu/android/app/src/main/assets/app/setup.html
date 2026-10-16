@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#120d08">
+  <title>إعداد المنيو الضوئي</title>
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="setup.css">
+</head>
+<body>
+  <main class="page">
+    <header class="brand">
+      <span class="logo" aria-hidden="true">☀</span>
+      <div>
+        <h1>المنيو الضوئي</h1>
+        <p class="muted">إعداد هذا الجهاز</p>
+      </div>
+    </header>
+
+    <div id="webview-warning" class="notice warn" role="alert" hidden>
+      <strong>نسخة «Android System WebView» قديمة على هذا الجهاز<span id="webview-version"></span>.</strong>
+      حدّثها من متجر Google Play ثم أعد فتح التطبيق، وإلا قد لا تعمل الصفحات بشكل صحيح.
+    </div>
+
+    <!-- Shown when the device is already configured (settings reopened). -->
+    <section id="current" class="panel" hidden>
+      <h2>الإعداد الحالي</h2>
+      <div class="current-info">
+        <span id="current-mode" class="mode-pill"></span>
+        <span id="current-detail"></span>
+        <code id="current-host" dir="ltr"></code>
+      </div>
+      <div id="current-tags" class="tags"></div>
+      <div class="actions">
+        <button id="resume" type="button" class="btn primary">متابعة</button>
+        <button id="change" type="button" class="btn">تغيير الإعداد</button>
+        <button id="reset" type="button" class="btn danger">حذف الإعداد</button>
+      </div>
+      <p id="current-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <form id="wizard" novalidate>
+      <section class="panel">
+        <h2><span class="step-no">1</span>ماذا سيكون هذا الجهاز؟</h2>
+        <div class="modes" role="radiogroup" aria-label="نوع الجهاز">
+          <button type="button" class="mode" data-mode="TABLET" role="radio" aria-checked="false">
+            <span class="mode-icon" aria-hidden="true">📱</span>
+            <strong>تابلت طاولة</strong>
+            <small>منيو الطلب أمام الزبائن</small>
+          </button>
+          <button type="button" class="mode" data-mode="PLAYER" role="radio" aria-checked="false">
+            <span class="mode-icon" aria-hidden="true">📽️</span>
+            <strong>جهاز عرض</strong>
+            <small>يُوصل بالبروجكتر عبر HDMI</small>
+          </button>
+          <button type="button" class="mode" data-mode="ADMIN" role="radio" aria-checked="false">
+            <span class="mode-icon" aria-hidden="true">🖥️</span>
+            <strong>لوحة التحكم</strong>
+            <small>إدارة المنيو والطلبات</small>
+          </button>
+          <button type="button" id="demo" class="mode demo">
+            <span class="mode-icon" aria-hidden="true">✨</span>
+            <strong>عرض تجريبي بدون خادم</strong>
+            <small>جرّب الفكرة على هذا الجهاز فقط</small>
+          </button>
+        </div>
+        <p id="demo-status" class="status" aria-live="polite"></p>
+      </section>
+
+      <section id="link-step" class="panel" hidden>
+        <h2><span class="step-no">2</span><span id="link-title"></span></h2>
+        <button id="scan" type="button" class="btn scan"><span aria-hidden="true">📷</span> امسح رمز QR</button>
+        <div id="or" class="or"><span>أو</span></div>
+        <label class="field">
+          <span id="link-label"></span>
+          <input id="link" type="url" dir="ltr" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <p id="link-status" class="status" aria-live="polite"></p>
+        <p id="link-hint" class="hint"></p>
+      </section>
+
+      <section id="options-step" class="panel" hidden>
+        <h2><span class="step-no">3</span>خيارات</h2>
+        <div id="pin-block">
+          <div class="pin-grid">
+            <label class="field">
+              <span>رمز PIN لفتح الإعدادات (اختياري)</span>
+              <input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="من 4 إلى 8 أرقام">
+            </label>
+            <label class="field">
+              <span>تأكيد الرمز</span>
+              <input id="pin2" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password">
+            </label>
+          </div>
+          <p id="pin-status" class="status" aria-live="polite"></p>
+        </div>
+        <label id="kiosk-row" class="toggle">
+          <input id="kiosk" type="checkbox">
+          <span class="switch" aria-hidden="true"></span>
+          <span class="toggle-text">
+            <strong>قفل الشاشة على التطبيق</strong>
+            <small>يمنع الخروج من الصفحة إلى بقية الجهاز (تثبيت الشاشة).</small>
+          </span>
+        </label>
+        <label class="toggle">
+          <input id="launcher" type="checkbox">
+          <span class="switch" aria-hidden="true"></span>
+          <span class="toggle-text">
+            <strong>تشغيل تلقائي كشاشة رئيسية</strong>
+            <small>يفتح التطبيق وحده عند تشغيل الجهاز. سيطلب منك Android اختياره تطبيقاً للشاشة الرئيسية.</small>
+          </span>
+        </label>
+      </section>
+
+      <div id="save-bar" class="save-bar" hidden>
+        <button id="save" type="submit" class="btn primary big">حفظ وتشغيل</button>
+        <p id="save-status" class="status" aria-live="polite"></p>
+      </div>
+    </form>
+
+    <section class="panel help">
+      <h2>من أين أحصل على الرابط؟</h2>
+      <ul>
+        <li>النظام يعمل من <strong>خادم</strong> على كمبيوتر داخل المطعم، وهذا الجهاز يجب أن يكون على نفس شبكة الواي فاي.</li>
+        <li>افتح لوحة التحكم على ذلك الكمبيوتر ثم <strong>«الطاولات والأجهزة»</strong>: لكل تابلت ولكل جهاز عرض رابط ورمز QR خاص به.</li>
+        <li>امسح الرمز بكاميرا هذا الجهاز أو انسخ الرابط والصقه هنا. للوحة التحكم يكفي عنوان الخادم مثل <code dir="ltr">192.168.1.10:3000</code>.</li>
+        <li>لفتح هذه الشاشة لاحقاً: المس الزاوية العلوية اليسرى 5 مرات بسرعة، أو اضغط زر الرجوع 3 مرات.</li>
+      </ul>
+    </section>
+
+    <footer id="versions" class="foot muted" dir="ltr"></footer>
+  </main>
+
+  <!-- An outdated WebView may not run the module below at all: say so instead of a dead page. -->
+  <script>
+    setTimeout(function () {
+      if (window.setupReady) return;
+      var warning = document.getElementById('webview-warning');
+      if (warning) warning.hidden = false;
+    }, 4000);
+  </script>
+  <script type="module" src="setup.js"></script>
+</body>
+</html>

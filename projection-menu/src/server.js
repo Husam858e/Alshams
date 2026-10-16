@@ -13,7 +13,8 @@ server.listen(config.port, config.host, () => {
   const base = `http://localhost:${config.port}`;
   console.log(`🍽️  Projection menu server on ${base}`);
   console.log(`   لوحة التحكم : ${base}/admin/`);
-  console.log(`   روابط التابلت وأجهزة العرض تظهر في لوحة التحكم ← الطاولات والأجهزة`);
+  console.log(`   على الشبكة  : ${config.publicBaseUrl}/admin/  (عنوان التابلتات وأجهزة العرض)`);
+  console.log(`   روابط التابلت وأجهزة العرض ورموز QR تظهر في لوحة التحكم ← الطاولات والأجهزة`);
 });
 
 // io.close() disconnects players/dashboards and closes the HTTP server.

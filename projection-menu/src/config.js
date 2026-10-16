@@ -1,22 +1,28 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lanAddresses } from './lib/network.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const env = process.env;
+const port = Number(env.PORT ?? 3000);
 
 export const config = {
   root: ROOT,
-  port: Number(env.PORT ?? 3000),
+  port,
   host: env.HOST ?? '0.0.0.0',
 
-  // Base URL that LAN devices (mpv agents) use to download media.
-  // Browser players use relative URLs and don't need it.
-  publicBaseUrl: env.PUBLIC_BASE_URL ?? `http://localhost:${env.PORT ?? 3000}`,
+  // Base URL that LAN devices use to reach the server: mpv agents download
+  // media from it, and the dashboard puts it in pairing links/QR codes when
+  // it is itself opened via localhost. Defaults to this machine's LAN IP.
+  publicBaseUrl: (env.PUBLIC_BASE_URL || `http://${lanAddresses()[0] ?? 'localhost'}:${port}`).replace(/\/+$/, ''),
 
   dbPath: env.DB_PATH ?? path.join(ROOT, 'data', 'menu.db'),
   mediaDir: env.MEDIA_DIR ?? path.join(ROOT, 'data', 'media'),
   maxUploadMb: Number(env.MAX_UPLOAD_MB ?? 500),
+
+  // Android app offered to tablets at /app.apk (built from android/).
+  apkPath: env.APK_PATH ?? path.join(ROOT, 'dist', 'ProjectionMenu.apk'),
 
   // Shown next to prices on the tablet.
   currency: env.CURRENCY ?? 'د.ع',

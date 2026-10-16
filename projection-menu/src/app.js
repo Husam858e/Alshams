@@ -10,6 +10,7 @@ import { deviceRoutes } from './routes/devices.js';
 import { mediaRoutes } from './routes/media.js';
 import { menuRoutes } from './routes/menu.js';
 import { orderRoutes } from './routes/orders.js';
+import { apkDownload, systemRoutes } from './routes/system.js';
 import { tabletRoutes } from './routes/tablet.js';
 import { attachSockets } from './sockets.js';
 import { createBrowserDriver } from './services/drivers/browserDriver.js';
@@ -46,6 +47,7 @@ export function createApp({ db, config }) {
     mediaRoutes(deps),
     deviceRoutes(deps),
     orderRoutes(deps),
+    systemRoutes(deps),
   );
   app.use('/api/tablet', tabletRoutes(deps));
   app.use('/api/agent', agentRoutes(deps));
@@ -65,6 +67,10 @@ export function createApp({ db, config }) {
   // three.js for live .glb rendering on browser players (served locally:
   // a restaurant LAN may have no internet).
   app.use('/vendor/three', express.static(path.join(config.root, 'node_modules', 'three')));
+  // QR codes for pairing tablets/players in the dashboard.
+  app.use('/vendor/qrcode', express.static(path.join(config.root, 'node_modules', 'qrcode-generator', 'dist')));
+  // The Android app (tablet / player / dashboard), installed over the LAN.
+  app.get('/app.apk', apkDownload(deps));
   app.use(express.static(path.join(config.root, 'public')));
   app.get('/', (_req, res) => res.redirect('/admin/'));
 

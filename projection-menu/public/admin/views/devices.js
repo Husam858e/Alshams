@@ -2,20 +2,22 @@
 
 import { h, mount, toast } from '/shared/dom.js';
 import { api } from '../api.js';
-import { btn, copy, field, openModal, projectionMessage, run, selectEl } from '../ui.js';
+import { lanBase, localWarning, openQr } from '../pairing.js';
+import { btn, field, linkBox, openModal, projectionMessage, run, selectEl } from '../ui.js';
 import { openCalibration } from './calibration.js';
 
 const DRIVER_LABEL = {
-  browser: 'متصفح (Chromium Kiosk عبر HDMI)',
+  browser: 'متصفح / تطبيق أندرويد (عبر HDMI)',
   mpv_agent: 'وكيل mpv (Raspberry Pi)',
 };
 
 export async function render(container, ctx) {
-  const [tables, projectors, media] = await Promise.all([api('/tables'), api('/projectors'), api('/media')]);
-  const data = { tables, projectors, media };
+  const [tables, projectors, media, lan] = await Promise.all([api('/tables'), api('/projectors'), api('/media'), lanBase()]);
+  const data = { tables, projectors, media, lan };
 
   mount(
     container,
+    localWarning(lan),
     h('div', { class: 'view-head' }, h('h2', {}, 'الطاولات'), btn('+ طاولة جديدة', () => editTable(null, ctx), 'primary')),
     tables.length
       ? h(
@@ -25,7 +27,7 @@ export async function render(container, ctx) {
             'table',
             {},
             h('thead', {}, h('tr', {}, ['الرمز', 'الاسم', 'المقاعد', 'أجهزة العرض', 'رابط التابلت', ''].map((t) => h('th', {}, t)))),
-            h('tbody', {}, tables.map((t) => tableRow(t, ctx))),
+            h('tbody', {}, tables.map((t) => tableRow(t, data, ctx))),
           ),
         )
       : h('div', { class: 'card muted' }, 'لا توجد طاولات بعد.'),
@@ -48,14 +50,14 @@ function setOnline(pill, online) {
   pill.textContent = online ? 'متصل' : 'غير متصل';
 }
 
-const absolute = (path) => `${location.origin}${path}`;
-
-function linkBox(text) {
-  return h('div', { class: 'link-box' }, h('code', { title: text }, text), btn('نسخ', () => copy(text), 'small'));
-}
-
 // ── Tables ─────────────────────────────────────────────────────────
-function tableRow(t, ctx) {
+function tableRow(t, { lan }, ctx) {
+  const link = `${lan.base}${t.tablet_path}`;
+  const qr = btn('📱 QR', () => openQr(`ربط تابلت ${t.code} — ${t.name}`, link, {
+    lan,
+    hint: 'على تابلت الطاولة: افتح تطبيق «المنيو الضوئي» واختر "امسح رمز QR"، أو امسح الرمز بكاميرا التابلت لفتح الرابط في المتصفح. "مفتاح جديد" يُبطل هذا الرمز.',
+    fileName: `tablet-${t.code}`,
+  }), 'small primary');
   const rotate = btn('مفتاح جديد', async () => {
     if (!confirm('سيتوقف الرابط القديم عن العمل على كل التابلتات المرتبطة. متابعة؟')) return;
     if (await run(rotate, () => api(`/tables/${t.id}/rotate-key`, { method: 'POST' }), 'تم إنشاء رابط جديد')) ctx.rerender();
@@ -72,7 +74,7 @@ function tableRow(t, ctx) {
     h('td', {}, t.name),
     h('td', {}, t.seats),
     h('td', {}, t.projector_count),
-    h('td', { style: { maxWidth: '320px' } }, linkBox(absolute(t.tablet_path))),
+    h('td', { style: { maxWidth: '360px' } }, linkBox(link, qr)),
     h(
       'td',
       {},
@@ -142,19 +144,28 @@ function projectorCard(p, data, ctx) {
   }, 'small');
 
   const idle = data.media.find((m) => m.id === p.idle_asset_id);
+  const { lan } = data;
+  const playerLink = `${lan.base}${p.player_path}`;
   const connection =
     p.driver === 'browser'
       ? h(
           'div',
           {},
-          h('div', { class: 'muted' }, 'افتح هذا الرابط على الكمبيوتر المتصل بالبرجكتر (وضع Kiosk):'),
-          linkBox(absolute(p.player_path)),
+          h('div', { class: 'muted' }, 'افتح هذا الرابط على الجهاز المتصل بالبرجكتر (Chromium Kiosk)، أو امسح رمز QR من تطبيق أندرويد على Android TV / البرجكتر:'),
+          linkBox(
+            playerLink,
+            btn('📺 QR', () => openQr(`ربط جهاز العرض: ${p.name}`, playerLink, {
+              lan,
+              hint: 'على جهاز Android TV أو البرجكتر بنظام أندرويد (المتصل بـ HDMI): افتح تطبيق «المنيو الضوئي» وامسح الرمز، أو اكتب الرابط يدوياً إذا لم تكن فيه كاميرا.',
+              fileName: `player-${p.id}`,
+            }), 'small primary'),
+          ),
         )
       : h(
           'div',
           {},
           h('div', { class: 'muted' }, `شغّل هذا الأمر على جهاز الوكيل (${p.agent_host ?? 'لم يُحدد IP'}):`),
-          linkBox(`python3 projector_agent.py --server ${location.origin} --projector ${p.id} --key ${p.access_key}`),
+          linkBox(`python3 projector_agent.py --server ${lan.base} --projector ${p.id} --key ${p.access_key}`),
         );
 
   return h(

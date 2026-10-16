@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dashboard palette (public/admin/admin.css). -->
+    <color name="navy">#FF07101F</color>
+    <color name="surface">#FF0F1C2E</color>
+    <color name="gold">#FFF59E0B</color>
+    <color name="gold_light">#FFFBBF24</color>
+</resources>
