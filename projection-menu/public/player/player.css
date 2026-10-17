@@ -1,15 +1,66 @@
-html, body {
+/* Projector player: page, stage geometry, transitions and shared bits.
+ * Scene layouts live in scenes.css, theme presets and card styles in themes.css.
+ * Everything is designed on a 1920x1080 stage; black means "no light on the table". */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #000; /* black = no light on the table */
-  cursor: none;
+  background: #000;
 }
 
-#stage {
+html[data-mode='device'],
+html[data-mode='device'] * {
+  cursor: none !important;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+}
+
+.player {
   position: absolute;
-  top: 0;
+  inset: 0;
+  font-family: var(--font, var(--font-cairo));
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.4;
+  font-feature-settings: 'kern', 'liga';
+}
+
+.player h1,
+.player h2,
+.player h3,
+.player p {
+  margin: 0;
+  font-weight: inherit;
+}
+
+bdi {
+  unicode-bidi: isolate;
+}
+
+/* ── Geometry ─────────────────────────────────────────────────────── */
+
+.stage {
+  position: absolute;
   left: 0;
+  top: 0;
   width: 1920px;
   height: 1080px;
   transform-origin: 0 0;
@@ -17,77 +68,550 @@ html, body {
   background: #000;
 }
 
-.layer {
+.surface,
+.frame-slot {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+
+.frame-slot {
+  overflow: hidden;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--bg);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition: opacity 1.4s var(--pm-ease-in-out);
+}
+
+.backdrop > * {
   position: absolute;
   inset: 0;
 }
 
-#idle {
-  transition: opacity 0.8s ease;
+.bd-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-#idle.dim {
-  opacity: 0.3;
-}
-
-#layers > .zone {
+.scenes {
   position: absolute;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity var(--fade, 500ms) ease;
-  /* Screen blending turns black pixels transparent, so dish clips drawn on
-     black merge with the idle loop instead of showing hard rectangles. */
-  mix-blend-mode: screen;
+  inset: 0;
+  z-index: 1;
 }
 
-#layers > .zone.visible {
+.scenes > .swap-host {
+  position: absolute;
+  inset: 0;
+}
+
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scene.off {
+  background: #000;
+}
+
+.frame.is-off {
+  background: #000;
+}
+
+.frame.is-off .backdrop,
+.frame.is-off .table-tag {
+  opacity: 0;
+}
+
+/* ── Cross-fades ──────────────────────────────────────────────────── */
+
+.swap-host {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.swap {
+  grid-area: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.swap.is-in {
+  animation: swap-in 760ms var(--pm-ease-out) 360ms both;
+}
+
+/* Out first, then in: text never sits on top of other text. */
+.swap.is-out {
+  animation: swap-out 420ms var(--pm-ease-in-out) both;
+  pointer-events: none;
+}
+
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes swap-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Whole scenes: a slow, soft dissolve with a hint of depth. */
+.scene-layer > .swap.is-in {
+  animation: scene-in 1100ms var(--pm-ease-out) 480ms both;
+}
+
+.scene-layer > .swap.is-out {
+  animation: scene-out 700ms var(--pm-ease-in-out) both;
+}
+
+@keyframes scene-in {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+}
+
+@keyframes scene-out {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+/* ── Media ────────────────────────────────────────────────────────── */
+
+.img,
+.vid {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 700ms var(--pm-ease-out);
+}
+
+.img.is-ok,
+.vid.is-ok {
   opacity: 1;
 }
 
-/* Size, position and rotation are set per zone by player.js. */
-.zone-inner {
-  position: absolute;
-  display: grid;
-  place-items: center;
-}
-
-.zone-inner > video,
-.zone-inner > img,
-.zone-inner > canvas,
-#idle > video,
-#idle > img {
+.vid-wrap {
+  position: relative;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  display: block;
 }
 
-.zone-inner > img {
-  animation: breathe 6s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.04); }
-}
-
-#test-pattern {
+.vid-wrap > * {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
 }
 
-#status {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 18px;
+.kenburns {
+  animation: kenburns 32s ease-in-out infinite alternate;
+  transform-origin: 40% 45%;
+}
+
+.kenburns-soft {
+  animation: kenburns-soft 40s ease-in-out infinite alternate;
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1.02) translate(0, 0);
+  }
+  to {
+    transform: scale(1.14) translate(-2.2%, -1.6%);
+  }
+}
+
+@keyframes kenburns-soft {
+  from {
+    transform: scale(1.01);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.model-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.model-view > * {
+  position: absolute;
+  inset: 0;
+}
+
+.model-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 900ms var(--pm-ease-out);
+}
+
+.model-view.is-ready .model-canvas canvas {
+  opacity: 1;
+}
+
+/* Missing photo: an empty plate with cutlery, never a broken image. */
+.ph {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse 70% 70% at 50% 45%, rgba(var(--accent-rgb), 0.1), transparent 70%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+}
+
+.ph-plate {
+  width: min(56%, 260px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(var(--accent-rgb), 0.35);
+  box-shadow:
+    0 0 0 14px rgba(var(--accent-rgb), 0.05),
+    inset 0 0 40px rgba(var(--accent-rgb), 0.08);
+}
+
+.ph-icon {
+  display: grid;
+  place-items: center;
+  width: 46%;
+  height: 46%;
+  color: rgba(var(--accent-rgb), 0.75);
+  font-size: 64px;
+  line-height: 1;
+}
+
+.ph-icon .icon {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Shared bits ──────────────────────────────────────────────────── */
+
+.icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+.price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28em;
+  white-space: nowrap;
+  color: var(--accent);
+}
+
+.price-num {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.price-cur {
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 18px 8px;
   border-radius: 999px;
-  background: #3a0d0d;
-  color: #ffb4b4;
-  font: 600 18px system-ui, sans-serif;
-  z-index: 20;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--accent-hi);
+  background: rgba(8, 8, 8, 0.62);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  white-space: nowrap;
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.meta .icon {
+  color: var(--accent);
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  color: var(--accent);
+}
+
+.orn-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to left, transparent, rgba(var(--accent-rgb), 0.75));
+}
+
+.orn-line:last-child {
+  background: linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.75));
+}
+
+.orn-gem {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  flex: none;
+}
+
+.page-dots {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.page-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  transition: all 500ms var(--pm-ease-out);
+}
+
+.page-dots i.on {
+  width: 40px;
+  border-radius: 6px;
+  background: var(--accent);
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+  padding: 80px;
+}
+
+.empty-mark {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 58px;
+  color: var(--accent);
+  border: 1.5px solid rgba(var(--accent-rgb), 0.45);
+  box-shadow:
+    0 0 0 16px rgba(var(--accent-rgb), 0.05),
+    0 0 80px rgba(var(--accent-rgb), 0.15);
+  margin-bottom: 18px;
+}
+
+.empty-title {
+  font-size: 54px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.empty-text {
+  font-size: 30px;
+  color: var(--ink-2);
+  max-width: 1100px;
+}
+
+/* Table number: always there, never loud. */
+.table-tag {
+  position: absolute;
+  z-index: 3;
+  top: 56px;
+  inset-inline-end: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 25px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+  transition: opacity 1.2s var(--pm-ease-in-out);
+  pointer-events: none;
+}
+
+.tt-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tt-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.8;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.8);
+}
+
+.tt-net {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(230, 180, 80, 0.7);
+}
+
+.tt-net i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: net-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes net-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Connection / setup notices. */
+.notice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  text-align: center;
+  padding: 120px;
+  font-family: var(--font-cairo);
+  color: #f6efe4;
+}
+
+.notice-mark {
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+  background: #d4a056;
+  box-shadow: 0 0 30px rgba(212, 160, 86, 0.6);
+  margin-bottom: 16px;
+}
+
+.notice-title {
+  font-size: 58px;
+  font-weight: 700;
+}
+
+.notice-text {
+  font-size: 32px;
+  color: rgba(246, 239, 228, 0.7);
+  max-width: 1300px;
+  line-height: 1.6;
+}
+
+.notice.is-dim {
+  opacity: 0.4;
+}
+
+.notice.is-dim .notice-title {
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.notice.is-dim .notice-mark {
+  animation: net-pulse 2s ease-in-out infinite;
+}
+
+/* Calibration test pattern sits above everything, on the warped stage. */
+.test-pattern {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  font-family: var(--font-cairo);
+}
+
+.test-pattern text {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  direction: rtl;
+}
+
+.tp-num {
+  font-size: 56px;
+  font-weight: 800;
+  fill: #000;
+  direction: ltr;
+}
+
+.tp-table {
+  font-size: 140px;
+  font-weight: 800;
+  fill: #fff;
+}
+
+.tp-name {
+  font-size: 44px;
+  font-weight: 600;
+  fill: #d4a056;
+}
+
+.tp-hint {
+  font-size: 28px;
+  fill: #9a9a9a;
+}
+
+/* Preview inside the staff app: no cursor games, no interaction. */
+html[data-mode='preview'] .player {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kenburns,
+  .kenburns-soft {
+    animation: none;
+  }
 }

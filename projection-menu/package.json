@@ -1,8 +1,8 @@
 {
   "name": "alshams-projection-menu",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "منيو طعام تفاعلي بالإسقاط الضوئي (Projection Mapping) على طاولات المطاعم",
+  "description": "منيو مطعم كامل يُعرض بالإسقاط الضوئي على الطاولات، مع تطبيق للموظفين (مالك، مصمم، ويتر)",
   "type": "module",
   "main": "src/server.js",
   "engines": {
@@ -13,6 +13,7 @@
     "start:env": "node --env-file=.env src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
+    "seed:reset": "node src/db/seed.js --reset",
     "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {

@@ -3,22 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Projection Player</title>
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <title>منيو الطاولة</title>
+  <link rel="stylesheet" href="/shared/fonts.css">
+  <link rel="stylesheet" href="/shared/tokens.css">
   <link rel="stylesheet" href="player.css">
-  <!-- three.js is served locally by the server (no internet needed on the LAN). -->
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="scenes.css">
+  <!-- Everything is served by the restaurant server (the LAN may have no internet). -->
   <script type="importmap">
-    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+    {
+      "imports": {
+        "preact": "/vendor/preact/dist/preact.module.js",
+        "preact/hooks": "/vendor/preact/hooks/dist/hooks.module.js",
+        "htm": "/vendor/htm/dist/htm.module.js",
+        "htm/preact": "/vendor/htm/preact/index.module.js",
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/"
+      }
+    }
   </script>
 </head>
 <body>
-  <!-- The stage is the table surface. It is warped (corner-pin) onto the
-       projector output so its edges match the physical table. -->
-  <div id="stage">
-    <div id="idle" class="layer"></div>
-    <div id="layers"></div>
-    <canvas id="test-pattern" width="1920" height="1080" hidden></canvas>
-  </div>
-  <div id="status" hidden></div>
-  <script type="module" src="player.js"></script>
+  <!-- Black = no light on the table. The app paints into #root. -->
+  <div id="root"></div>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

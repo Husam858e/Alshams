@@ -5,9 +5,8 @@ import path from 'node:path';
 import multer from 'multer';
 import { HttpError, badRequest } from '../lib/validate.js';
 
-// Allowed projection formats. Pre-rendered 3D animations (Blender, Cinema 4D,
-// After Effects) are exported as video; .glb models are rendered live with
-// three.js on browser players.
+// Allowed formats: food photos, videos (pre-rendered animations are exported
+// as video) and .glb models rendered live with three.js on the players.
 const FORMATS = {
   '.mp4': { kind: 'video', mime: 'video/mp4' },
   '.webm': { kind: 'video', mime: 'video/webm' },
@@ -22,6 +21,27 @@ export const ACCEPTED_EXTENSIONS = Object.keys(FORMATS);
 
 export function formatFor(fileName) {
   return FORMATS[path.extname(fileName).toLowerCase()] ?? null;
+}
+
+// First bytes of each format, so an HTML page renamed to .jpg is refused.
+const SIGNATURES = {
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/webp': (b) => b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP',
+  'video/mp4': (b) => b.toString('latin1', 4, 8) === 'ftyp',
+  'video/webm': (b) => b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
+  'model/gltf-binary': (b) => b.toString('latin1', 0, 4) === 'glTF',
+};
+
+export async function matchesSignature(filePath, format) {
+  const handle = await fs.promises.open(filePath, 'r');
+  try {
+    const buf = Buffer.alloc(16);
+    const { bytesRead } = await handle.read(buf, 0, 16, 0);
+    return bytesRead >= 12 && (SIGNATURES[format.mime]?.(buf) ?? false);
+  } finally {
+    await handle.close();
+  }
 }
 
 export function createUploader({ mediaDir, maxUploadMb }) {

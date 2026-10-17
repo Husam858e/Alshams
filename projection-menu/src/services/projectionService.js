@@ -1,163 +1,293 @@
-import crypto from 'node:crypto';
-import { parseJson } from '../db/index.js';
-import { notFound } from '../lib/validate.js';
-import { DEFAULT_CALIBRATION, FULL_ZONE } from '../lib/zones.js';
+import { nowIso, parseJson } from '../db/index.js';
+import { defaultCalibration, readCalibration } from '../lib/calibration.js';
+import { safeEqual } from '../lib/keys.js';
+import { badRequest, int } from '../lib/validate.js';
 
-// ProjectionService turns business events ("seat 2 at table T01 is looking
-// at the pizza") into cues for the right projector(s), and logs the outcome.
-//
-// A cue is a small JSON command, identical for every driver:
-//   { cueId, action: 'play', layer: 'seat-2', zone: {x,y,w,h,rotate},
-//     media: {kind, url, sha256}, loop, durationMs, scale, fadeMs, meta }
-//   { cueId, action: 'stop', layer: 'seat-2' }      // layer null = everything
-//   { cueId, action: 'config', calibration, zones, idle }
-//   { cueId, action: 'test_pattern', on: true }
+export const SCENE_TYPES = ['welcome', 'menu', 'category', 'dish', 'order', 'off'];
+export const DEFAULT_SCENE = Object.freeze({ type: 'welcome' });
+
+export const tableRoom = (tableId) => `table:${tableId}`;
+export const projectorRoom = (projectorId) => `projector:${projectorId}`;
+
+// ProjectionService decides what each table's projector shows:
+//  - one scene per table (welcome / menu / category / dish / order / off),
+//    persisted in table_scenes so a rebooted projector restores it;
+//  - delivery to the table's connected players with an ack timeout;
+//  - which projectors are online (= have a connected /player socket);
+//  - the PlayerBootstrap a player (or a staff preview) starts from.
 export class ProjectionService {
-  constructor({ db, drivers, bus }) {
+  constructor({ db, config, settings, menu, orders, live }) {
     this.db = db;
-    this.drivers = drivers;
-    this.bus = bus;
-    this.stmt = {
+    this.config = config;
+    this.settings = settings;
+    this.menu = menu;
+    this.orders = orders;
+    this.live = live;
+    this.players = null; // Socket.IO '/player' namespace, set by attachSockets()
+    this.connections = new Map(); // projectorId -> Set<socket>
+    this.q = {
+      scene: db.prepare('SELECT scene FROM table_scenes WHERE table_id = ?'),
+      scenes: db.prepare('SELECT table_id, scene FROM table_scenes'),
+      saveScene: db.prepare(`
+        INSERT INTO table_scenes (table_id, scene, updated_at, updated_by) VALUES (?, ?, ?, ?)
+        ON CONFLICT(table_id) DO UPDATE SET scene = excluded.scene, updated_at = excluded.updated_at,
+          updated_by = excluded.updated_by`),
+      table: db.prepare(`
+        SELECT t.id, t.number, a.name AS area_name
+        FROM restaurant_tables t LEFT JOIN areas a ON a.id = t.area_id WHERE t.id = ?`),
       projector: db.prepare('SELECT * FROM projectors WHERE id = ?'),
-      tableProjectors: db.prepare('SELECT * FROM projectors WHERE table_id = ? ORDER BY id'),
-      dishProjection: db.prepare(`
-        SELECT dp.*, d.name_ar AS dish_name, m.kind, m.file_name, m.sha256
-        FROM dish_projections dp
-        JOIN dishes d       ON d.id = dp.dish_id
-        JOIN media_assets m ON m.id = dp.media_asset_id
-        WHERE dp.dish_id = ? AND dp.phase = ?`),
-      asset: db.prepare('SELECT * FROM media_assets WHERE id = ?'),
-      log: db.prepare(`
-        INSERT INTO projection_log
-          (projector_id, table_id, dish_id, media_asset_id, cue_id, action, phase, result, error)
-        VALUES (@projector_id, @table_id, @dish_id, @media_asset_id, @cue_id, @action, @phase, @result, @error)`),
+      byKey: db.prepare('SELECT * FROM projectors WHERE device_key = ?'),
+      firstProjector: db.prepare('SELECT * FROM projectors WHERE table_id = ? ORDER BY id LIMIT 1'),
+      touch: db.prepare('UPDATE projectors SET last_seen_at = ? WHERE id = ?'),
     };
   }
 
-  isOnline(projector) {
-    return this.drivers[projector.driver]?.isOnline(projector) ?? false;
+  // A player authenticates with its device key (header, query or socket auth).
+  projectorByKey(key) {
+    if (typeof key !== 'string' || key.length < 16 || key.length > 64) return null;
+    const projector = this.q.byKey.get(key);
+    return projector && safeEqual(key, projector.device_key) ? projector : null;
   }
 
-  // Play the projection a dish has for `phase` in front of `seatNo`
-  // (or across the whole table when no seat is given).
-  async playDish({ tableId, dishId, phase, seatNo = null }) {
-    const projection = this.stmt.dishProjection.get(dishId, phase);
-    if (!projection) return { status: 'no_projection', results: [] };
+  // ── Online status ────────────────────────────────────────────────
 
-    const targets = this.resolveTargets(tableId, seatNo);
-    if (!targets.length) return { status: 'no_projector', results: [] };
+  isOnline(projectorId) {
+    return (this.connections.get(projectorId)?.size ?? 0) > 0;
+  }
 
-    const results = await Promise.all(
-      targets.map(({ projector, layer, zone }) =>
-        this.send(
-          projector,
-          {
-            action: 'play',
-            layer,
-            zone,
-            media: mediaRef(projection),
-            loop: Boolean(projection.loop),
-            durationMs: projection.duration_ms,
-            scale: projection.scale,
-            fadeMs: 500,
-            meta: { dishId, dishName: projection.dish_name, phase },
-          },
-          { table_id: tableId, dish_id: dishId, media_asset_id: projection.media_asset_id, phase },
-        ),
+  playerConnected(socket, projector) {
+    const id = projector.id;
+    socket.data.projectorId = id;
+    socket.data.tableId = projector.table_id;
+    socket.join(projectorRoom(id));
+    if (projector.table_id) socket.join(tableRoom(projector.table_id));
+    const set = this.connections.get(id) ?? new Set();
+    const wasOnline = set.size > 0;
+    set.add(socket);
+    this.connections.set(id, set);
+    this.q.touch.run(nowIso(), id);
+    socket.emit('bootstrap', this.bootstrapFor(projector));
+    if (!wasOnline) this.live.staff('projector:status', { id, tableId: projector.table_id, online: true });
+  }
+
+  playerDisconnected(socket) {
+    const id = socket.data.projectorId;
+    const set = this.connections.get(id);
+    if (!set?.delete(socket)) return;
+    this.q.touch.run(nowIso(), id);
+    if (set.size === 0) {
+      this.connections.delete(id);
+      this.live.staff('projector:status', { id, tableId: socket.data.tableId ?? null, online: false });
+    }
+  }
+
+  // Player -> server 'status' {state, detail}.
+  playerStatus(socket, msg) {
+    if (!['ready', 'error'].includes(msg?.state)) return;
+    socket.data.state = msg.state;
+    socket.data.detail = msg.detail ? String(msg.detail).slice(0, 300) : null;
+    this.live.staff('projector:status', {
+      id: socket.data.projectorId,
+      tableId: socket.data.tableId ?? null,
+      online: true,
+      state: socket.data.state,
+      detail: socket.data.detail,
+    });
+  }
+
+  // ── Scenes ───────────────────────────────────────────────────────
+
+  // The stored scene of a table (no order snapshot).
+  storedScene(tableId) {
+    const scene = parseJson(this.q.scene.get(tableId)?.scene, null);
+    return scene && SCENE_TYPES.includes(scene.type) ? scene : { ...DEFAULT_SCENE };
+  }
+
+  storedScenes() {
+    const map = new Map();
+    for (const row of this.q.scenes.all()) {
+      const scene = parseJson(row.scene, null);
+      if (scene && SCENE_TYPES.includes(scene.type)) map.set(row.table_id, scene);
+    }
+    return map;
+  }
+
+  // What players render: an 'order' scene carries the live order with it.
+  resolve(scene) {
+    if (scene.type !== 'order') return scene;
+    return { ...scene, order: this.orders.get(scene.orderId) ?? null };
+  }
+
+  getScene(tableId) {
+    return this.resolve(this.storedScene(tableId));
+  }
+
+  validateScene(tableId, input) {
+    const type = input?.type;
+    if (!SCENE_TYPES.includes(type)) throw badRequest('نوع العرض غير صالح');
+    if (type === 'category') {
+      const categoryId = int(input.categoryId, 'التصنيف', { required: true, min: 1 });
+      const category = this.menu.categoryRow(categoryId);
+      if (!category) throw badRequest('التصنيف غير موجود');
+      if (!category.is_visible) throw badRequest(`التصنيف "${category.name_ar}" مخفي عن الضيوف. أظهره أولاً`);
+      return { type, categoryId };
+    }
+    if (type === 'dish') {
+      const dishId = int(input.dishId, 'الطبق', { required: true, min: 1 });
+      const dish = this.menu.dishRow(dishId);
+      if (!dish) throw badRequest('الطبق غير موجود');
+      if (!dish.is_available) throw badRequest(`"${dish.name_ar}" غير متوفر حالياً ولا يظهر للضيوف`);
+      const category = dish.category_id ? this.menu.categoryRow(dish.category_id) : null;
+      if (category && !category.is_visible) throw badRequest(`تصنيف "${dish.name_ar}" مخفي عن الضيوف`);
+      return { type, dishId };
+    }
+    if (type === 'order') {
+      const orderId = int(input.orderId, 'الطلب', { required: true, min: 1 });
+      const order = this.orders.get(orderId);
+      if (!order || order.table_id !== tableId) throw badRequest('الطلب غير موجود على هذه الطاولة');
+      return { type, orderId };
+    }
+    return { type };
+  }
+
+  // Validates, stores and delivers a scene. -> {scene, delivered:{online, acked}}
+  async setScene(tableId, input, user) {
+    const scene = { ...this.validateScene(tableId, input), at: nowIso(), by: user?.name ?? null };
+    this.q.saveScene.run(tableId, JSON.stringify(scene), scene.at, user?.id ?? null);
+    const resolved = this.resolve(scene);
+    this.live.staff('scene', { tableId, scene: resolved });
+    const delivered = await this.deliver(tableId, resolved);
+    return { scene: resolved, delivered };
+  }
+
+  // Sends 'scene' to every player of the table and counts the acks.
+  async deliver(tableId, scene) {
+    const sockets = this.tableSockets(tableId);
+    const acks = await Promise.all(
+      sockets.map((socket) =>
+        socket
+          .timeout(this.config.sceneAckTimeoutMs)
+          .emitWithAck('scene', { scene })
+          .then((reply) => reply?.ok === true)
+          .catch(() => false),
       ),
     );
-    return { status: results.some((r) => r.ok) ? 'sent' : 'failed', results };
+    return { online: sockets.length, acked: acks.filter(Boolean).length };
   }
 
-  // Clear a seat's layer (back to the idle loop underneath).
-  async stopSeat({ tableId, seatNo = null }) {
-    const targets = this.resolveTargets(tableId, seatNo);
-    const results = await Promise.all(
-      targets.map(({ projector, layer }) => this.send(projector, { action: 'stop', layer }, { table_id: tableId })),
-    );
-    return { status: results.some((r) => r.ok) ? 'sent' : 'failed', results };
+  // Re-sends a table's scene without waiting for acks (live order updates).
+  refresh(tableId) {
+    const scene = this.getScene(tableId);
+    // Players always get an ack callback for 'scene', even when nobody waits.
+    for (const socket of this.tableSockets(tableId)) socket.emit('scene', { scene }, () => {});
+    this.live.staff('scene', { tableId, scene });
   }
 
-  // Push calibration/zones/idle loop to one projector (after edits in the dashboard).
-  async pushConfig(projectorId) {
-    const projector = this.getProjector(projectorId);
-    return this.send(projector, this.configCue(projector), { table_id: projector.table_id });
+  // An order changed: tables showing it get the new snapshot.
+  orderChanged(order) {
+    if (order?.table_id && this.storedScene(order.table_id).type === 'order') {
+      const scene = this.storedScene(order.table_id);
+      if (scene.orderId === order.id) this.refresh(order.table_id);
+    }
   }
 
-  async command(projectorId, body) {
-    const projector = this.getProjector(projectorId);
-    return this.send(projector, body, { table_id: projector.table_id });
+  // After a dish/category/order disappears, tables showing it go back to
+  // welcome. The scene is stored at once; delivery is not awaited.
+  dropScenesWhere(predicate) {
+    for (const [tableId, scene] of this.storedScenes()) {
+      if (predicate(scene)) this.setScene(tableId, DEFAULT_SCENE, null).catch(() => {});
+    }
   }
 
-  configCue(projector) {
-    const idle = projector.idle_asset_id ? this.stmt.asset.get(projector.idle_asset_id) : null;
-    const calibration = parseJson(projector.calibration, {});
+  tableSockets(tableId) {
+    const ids = this.players?.adapter.rooms.get(tableRoom(tableId)) ?? new Set();
+    return [...ids].map((id) => this.players.sockets.get(id)).filter(Boolean);
+  }
+
+  projectorSockets(projectorId) {
+    return [...(this.connections.get(projectorId) ?? [])];
+  }
+
+  // ── Projector settings ───────────────────────────────────────────
+
+  projectorView(p) {
     return {
-      action: 'config',
-      projectorName: projector.name,
-      calibration: calibration.corners ? calibration : DEFAULT_CALIBRATION,
-      zones: parseJson(projector.zones, []),
-      idle: idle ? mediaRef(idle) : null,
+      id: p.id,
+      name: p.name,
+      rotation: p.rotation,
+      layout: p.layout,
+      calibration: readCalibration(p.calibration),
     };
   }
 
-  // Which projector(s) and which layer a seat maps to. A seat is covered by
-  // the projector whose zone list contains it; if no zone matches (or no seat
-  // was given) every projector of the table plays it full-surface.
-  resolveTargets(tableId, seatNo) {
-    const projectors = this.stmt.tableProjectors.all(tableId);
-    if (seatNo != null) {
-      const seatTargets = projectors.flatMap((projector) => {
-        const zone = parseJson(projector.zones, []).find((z) => z.seat === seatNo);
-        return zone ? [{ projector, layer: `seat-${seatNo}`, zone }] : [];
-      });
-      if (seatTargets.length) return seatTargets;
+  // Calibration / rotation / layout changed.
+  pushProjector(projectorId) {
+    const p = this.q.projector.get(projectorId);
+    if (!p) return 0;
+    const { rotation, layout, calibration } = this.projectorView(p);
+    const sockets = this.projectorSockets(projectorId);
+    for (const socket of sockets) socket.emit('projector', { rotation, layout, calibration });
+    return sockets.length;
+  }
+
+  testPattern(projectorId, on) {
+    const sockets = this.projectorSockets(projectorId);
+    for (const socket of sockets) socket.emit('test-pattern', { on: Boolean(on) });
+    return sockets.length;
+  }
+
+  // The projector moved to another table: switch rooms and start over.
+  rebootstrap(projectorId) {
+    const p = this.q.projector.get(projectorId);
+    if (!p) return;
+    for (const socket of this.projectorSockets(projectorId)) {
+      if (socket.data.tableId) socket.leave(tableRoom(socket.data.tableId));
+      socket.data.tableId = p.table_id;
+      if (p.table_id) socket.join(tableRoom(p.table_id));
+      socket.emit('bootstrap', this.bootstrapFor(p));
     }
-    return projectors.map((projector) => ({ projector, layer: 'full', zone: FULL_ZONE }));
   }
 
-  getProjector(projectorId) {
-    const projector = this.stmt.projector.get(projectorId);
-    if (!projector) throw notFound('جهاز العرض غير موجود');
-    return projector;
+  // Key rotated or projector deleted: its player must re-pair.
+  disconnectProjector(projectorId) {
+    for (const socket of this.projectorSockets(projectorId)) socket.disconnect(true);
   }
 
-  async send(projector, body, logCtx = {}) {
-    const cue = { cueId: crypto.randomUUID(), ...body };
-    const driver = this.drivers[projector.driver];
-    let outcome;
-    try {
-      outcome = driver
-        ? await driver.send(projector, cue)
-        : { ok: false, result: 'failed', error: `مشغل غير معروف: ${projector.driver}` };
-    } catch (err) {
-      outcome = { ok: false, result: 'failed', error: err.message };
-    }
-    this.log({
-      projector_id: projector.id,
-      cue_id: cue.cueId,
-      action: cue.action,
-      result: outcome.result,
-      error: outcome.error ?? null,
-      ...logCtx,
-    });
-    return { projectorId: projector.id, cueId: cue.cueId, ...outcome };
+  // ── Broadcasts to every player ───────────────────────────────────
+
+  menuChanged() {
+    this.players?.emit('menu:changed', {});
+    this.live.staff('menu:changed', {});
   }
 
-  log(entry) {
-    const row = {
-      projector_id: null,
-      table_id: null,
-      dish_id: null,
-      media_asset_id: null,
-      cue_id: null,
-      phase: null,
-      error: null,
-      ...entry,
+  settingsChanged() {
+    this.players?.emit('settings:changed', {});
+    this.live.staff('settings:changed', {});
+  }
+
+  // ── Bootstrap ────────────────────────────────────────────────────
+
+  bootstrapFor(projector) {
+    const table = projector.table_id ? this.q.table.get(projector.table_id) : null;
+    return {
+      projector: this.projectorView(projector),
+      table: table ? { id: table.id, number: table.number, area_name: table.area_name ?? null } : null,
+      settings: this.settings.all(),
+      menu: this.menu.getMenu({ forPlayer: true }),
+      scene: table ? this.getScene(table.id) : { ...DEFAULT_SCENE },
     };
-    this.stmt.log.run(row);
-    this.bus.emit('projection:log', { ...row, created_at: new Date().toISOString() });
+  }
+
+  // Staff preview of a table: its first projector, or a neutral default.
+  previewBootstrap(tableId) {
+    const projector = this.q.firstProjector.get(tableId) ?? {
+      id: null,
+      name: 'معاينة',
+      table_id: tableId,
+      rotation: 0,
+      layout: 'single',
+      calibration: JSON.stringify(defaultCalibration()),
+    };
+    return this.bootstrapFor({ ...projector, table_id: tableId });
   }
 }
-
-const mediaRef = (asset) => ({ kind: asset.kind, url: `/media/${asset.file_name}`, sha256: asset.sha256 });

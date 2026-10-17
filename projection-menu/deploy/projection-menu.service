@@ -1,18 +1,24 @@
 # systemd unit for the server (on the restaurant's local server / mini-PC).
 #   sudo cp deploy/projection-menu.service /etc/systemd/system/
 #   sudo systemctl enable --now projection-menu
+# First run: npm ci --omit=dev && npm run seed (sample menu) — or open /app/
+# and create the owner account. Upgrading from v1: npm run seed -- --reset.
 [Unit]
-Description=Projection mapping menu server
+Description=Projection menu server (staff app, projector players, mDNS)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 WorkingDirectory=/opt/projection-menu
-EnvironmentFile=/opt/projection-menu/.env
+EnvironmentFile=-/opt/projection-menu/.env
+Environment=NODE_ENV=production
 ExecStart=/usr/bin/node src/server.js
 Restart=always
 RestartSec=3
 User=projection
+# Data (SQLite + uploaded media) lives in WorkingDirectory/data by default.
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

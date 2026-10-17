@@ -1,101 +1,140 @@
-import { EventEmitter } from 'node:events';
 import http from 'node:http';
 import path from 'node:path';
 import express from 'express';
 import { Server } from 'socket.io';
-import { requireAdmin } from './lib/auth.js';
+import { createSessions } from './auth/sessions.js';
+import { errorHandler, requireJsonBody } from './lib/http.js';
 import { HttpError } from './lib/validate.js';
-import { agentRoutes } from './routes/agent.js';
-import { deviceRoutes } from './routes/devices.js';
+import { authRoutes } from './routes/auth.js';
+import { floorRoutes } from './routes/floor.js';
 import { mediaRoutes } from './routes/media.js';
 import { menuRoutes } from './routes/menu.js';
 import { orderRoutes } from './routes/orders.js';
+import { playerRoutes } from './routes/player.js';
+import { projectorRoutes } from './routes/projectors.js';
+import { reportRoutes } from './routes/reports.js';
+import { sceneRoutes } from './routes/scenes.js';
+import { settingsRoutes } from './routes/settings.js';
 import { apkDownload, systemRoutes } from './routes/system.js';
-import { tabletRoutes } from './routes/tablet.js';
-import { attachSockets } from './sockets.js';
-import { createBrowserDriver } from './services/drivers/browserDriver.js';
-import { createMpvAgentDriver } from './services/drivers/mpvAgentDriver.js';
+import { createActivity } from './services/activity.js';
+import { createFloor } from './services/floor.js';
+import { createLive } from './services/live.js';
+import { createMenu } from './services/menu.js';
+import { createOrders } from './services/orders.js';
 import { ProjectionService } from './services/projectionService.js';
+import { createSettings } from './services/settings.js';
+import { attachSockets } from './sockets.js';
 
+// Builds the HTTP server, Socket.IO and every service around one database.
+// Nothing listens yet and mDNS is not started (see server.js), so tests can
+// create as many isolated instances as they like.
 export function createApp({ db, config }) {
   const app = express();
   const server = http.createServer(app);
-  const io = new Server(server);
-  const bus = new EventEmitter();
+  const io = new Server(server, { serveClient: true });
 
-  const drivers = {
-    browser: createBrowserDriver({ nsp: io.of('/player'), timeoutMs: config.cueAckTimeoutMs }),
-    mpv_agent: createMpvAgentDriver({
-      publicBaseUrl: config.publicBaseUrl,
-      timeoutMs: config.cueAckTimeoutMs,
-      onlineWindowMs: config.agentOnlineWindowMs,
-    }),
+  const settings = createSettings(db);
+  settings.ensureDefaults();
+  const live = createLive(io.of('/live'));
+  const menu = createMenu(db);
+  const orders = createOrders(db);
+  const activity = createActivity(db);
+  const sessions = createSessions({ db, config });
+  const projection = new ProjectionService({ db, config, settings, menu, orders, live });
+  const floor = createFloor({ db, projection, orders });
+
+  const ctx = {
+    db,
+    config,
+    settings,
+    live,
+    menu,
+    orders,
+    activity,
+    sessions,
+    projection,
+    floor,
+    mdnsHandle: null,
+    mdns: () => ctx.mdnsHandle,
   };
-  const projection = new ProjectionService({ db, drivers, bus });
-  const deps = { db, config, projection, bus };
 
-  attachSockets(io, deps);
+  attachSockets(io, ctx);
 
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
+  app.set('trust proxy', false);
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    next();
+  });
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  // ── API ───────────────────────────────────────────────────────────
   app.use(
-    '/api/admin',
-    requireAdmin(config.adminToken),
-    menuRoutes(deps),
-    mediaRoutes(deps),
-    deviceRoutes(deps),
-    orderRoutes(deps),
-    systemRoutes(deps),
+    '/api',
+    requireJsonBody({ multipartPaths: [/^\/media\/?$/] }),
+    express.json({ limit: '1mb' }),
+    (req, _res, next) => {
+      if (req.body === null || typeof req.body !== 'object') req.body = {};
+      next();
+    },
+    sessions.middleware(),
+    (_req, res, next) => {
+      res.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+    systemRoutes(ctx),
+    authRoutes(ctx),
+    floorRoutes(ctx),
+    projectorRoutes(ctx),
+    sceneRoutes(ctx),
+    menuRoutes(ctx),
+    mediaRoutes(ctx),
+    settingsRoutes(ctx),
+    orderRoutes(ctx),
+    reportRoutes(ctx),
+    playerRoutes(ctx),
   );
-  app.use('/api/tablet', tabletRoutes(deps));
-  app.use('/api/agent', agentRoutes(deps));
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'المسار غير موجود')));
 
-  // Uploaded files get random names and never change, so they can be cached
-  // forever by players (important: videos must not re-download every play).
-  app.use(
-    '/media',
-    express.static(config.mediaDir, {
-      immutable: true,
-      maxAge: '365d',
-      fallthrough: false,
-      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
-    }),
-  );
-  // three.js for live .glb rendering on browser players (served locally:
-  // a restaurant LAN may have no internet).
-  app.use('/vendor/three', express.static(path.join(config.root, 'node_modules', 'three')));
-  // QR codes for pairing tablets/players in the dashboard.
-  app.use('/vendor/qrcode', express.static(path.join(config.root, 'node_modules', 'qrcode-generator', 'dist')));
-  // The Android app (tablet / player / dashboard), installed over the LAN.
-  app.get('/app.apk', apkDownload(deps));
-  app.use(express.static(path.join(config.root, 'public')));
-  app.get('/', (_req, res) => res.redirect('/admin/'));
+  // ── Files ─────────────────────────────────────────────────────────
+  // Uploaded files get random names and never change: cache them forever
+  // (players must not re-download videos on every loop).
+  app.use('/media', express.static(config.mediaDir, { immutable: true, maxAge: '365d', fallthrough: false, index: false }));
 
+  // '/app' and '/player' (query kept) -> the folder URL, so relative links work.
+  app.use((req, res, next) => {
+    const m = /^\/(app|player)(\?.*)?$/.exec(req.originalUrl);
+    if (m && (req.method === 'GET' || req.method === 'HEAD')) return res.redirect(301, `/${m[1]}/${m[2] ?? ''}`);
+    next();
+  });
+  // The web UIs: always revalidate so an update reaches tablets at once.
+  const pub = (dir) => express.static(path.join(config.root, 'public', dir), { maxAge: 0, setHeaders: noCache });
+  app.use('/app', pub('app'));
+  app.use('/player', pub('player'));
+  app.use('/shared', pub('shared'));
+
+  // Browser libraries, served locally: a restaurant LAN may have no internet.
+  const modules = path.join(config.root, 'node_modules');
+  const vendor = (dir) => express.static(path.join(modules, dir), { maxAge: '1d', index: false });
+  app.use('/vendor/preact', vendor('preact'));
+  app.use('/vendor/htm', vendor('htm'));
+  app.use('/vendor/three', vendor('three'));
+  app.use('/vendor/qrcode', vendor(path.join('qrcode-generator', 'dist')));
+
+  // The Android app (staff app / projector player), installed over the LAN.
+  app.get('/app.apk', apkDownload(ctx));
+
+  app.get('/', (_req, res) => res.redirect('/app/'));
+  // v1 bookmarks and QR codes.
+  app.get(['/admin', '/admin/', '/tablet', '/tablet/'], (_req, res) => res.redirect('/app/'));
+
+  app.use((_req, _res, next) => next(new HttpError(404, 'الصفحة غير موجودة')));
   app.use(errorHandler);
 
-  return { app, server, io, bus, projection };
+  return { app, server, io, ctx };
 }
 
-function errorHandler(err, _req, res, _next) {
-  let status = err instanceof HttpError ? err.status : (err.status ?? err.statusCode ?? 500);
-  let message = err.message;
-  if (err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-    status = 409;
-    message = 'لا يمكن تنفيذ العملية: العنصر مرتبط ببيانات أخرى (طلبات أو عروض)';
-  } else if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-    status = 409;
-    message = 'القيمة مستخدمة مسبقاً';
-  } else if (err.type === 'entity.parse.failed') {
-    status = 400;
-    message = 'JSON غير صالح';
-  } else if (status >= 500) {
-    console.error(err);
-    message = 'خطأ داخلي في الخادم';
-  }
-  // Missing /media files etc. come from express.static as plain 404s.
-  if (status === 404 && !(err instanceof HttpError)) message = 'غير موجود';
-  res.status(status).json({ error: message });
+function noCache(res) {
+  res.setHeader('Cache-Control', 'no-cache');
 }
