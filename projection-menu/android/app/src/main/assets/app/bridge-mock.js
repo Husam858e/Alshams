@@ -52,6 +52,12 @@ export function parseLink(raw) {
   let text = String(raw ?? '').trim();
   if (!text) return fail('empty');
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) text = `http://${text}`;
+  // Checked on the raw text like WebUrl.kt does: Chromium's URL() quietly
+  // percent-encodes a host such as "192.168.1.10 3000" instead of failing.
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(text)[1];
+  const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
+  const host = hostPort.startsWith('[') ? hostPort.slice(0, hostPort.indexOf(']') + 1) : hostPort.replace(/:\d*$/, '');
+  if (host && !/^[A-Za-z0-9._~%!$&'()*+,;=-]+$|^\[[0-9A-Fa-f:.]+\]$/.test(host)) return fail('malformed');
   let url;
   try {
     url = new URL(text);

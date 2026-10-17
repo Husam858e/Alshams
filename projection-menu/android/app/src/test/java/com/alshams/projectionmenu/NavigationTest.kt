@@ -83,6 +83,34 @@ class NavigationTest {
     }
 
     @Test
+    fun bundledMainFramesOnlyOpenWhenNativeExpectsThem() {
+        val gate = LocalLoadGate()
+        assertFalse(gate.claim("GET", "/app/setup.html", Screen.APP)) // a page script, not native
+        gate.expect("/app/setup.html")
+        assertFalse(gate.claim("POST", "/app/setup.html", Screen.SETUP))
+        assertFalse(gate.claim("GET", "/app/offline.html", Screen.SETUP))
+        assertTrue(gate.claim("GET", "/app/setup.html", Screen.SETUP))
+        assertFalse(gate.claim("GET", "/app/setup.html", Screen.SETUP)) // single use
+        gate.expect(null) // a server page
+        assertFalse(gate.claim("GET", "/app/setup.html", Screen.APP))
+    }
+
+    @Test
+    fun demoPagesMayOpenEachOther() {
+        val gate = LocalLoadGate()
+        assertTrue(gate.claim("GET", "/demo/staff.html", Screen.DEMO))
+        assertFalse(gate.claim("GET", "/app/setup.html", Screen.DEMO))
+        assertFalse(gate.claim("GET", "/app/index.html", Screen.DEMO))
+        assertFalse(gate.claim("GET", "/demo/../app/setup.html", Screen.DEMO))
+        assertFalse(gate.claim("POST", "/demo/index.html", Screen.DEMO))
+        assertFalse(gate.claim("GET", "/demo/index.html", Screen.SETUP))
+        assertFalse(gate.claim("GET", "/demo/index.html", Screen.APP))
+        assertTrue(LocalPages.isDemo("/demo/index.html"))
+        assertFalse(LocalPages.isDemo("/demo"))
+        assertFalse(LocalPages.isDemo(null))
+    }
+
+    @Test
     fun offlineUrlCarriesTheEncodedTarget() {
         assertEquals(
             "https://appassets.androidplatform.net/app/offline.html?url=" +

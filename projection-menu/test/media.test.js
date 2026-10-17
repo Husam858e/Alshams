@@ -30,6 +30,7 @@ test('upload: images, videos and .glb with metadata; served with immutable cachi
   assert.match(a.file_name, /^[0-9a-f-]{36}\.jpg$/);
   assert.equal(a.url, `/media/${a.file_name}`);
   assert.deepEqual(a.used_by, []);
+  assert.equal(a.uploaded_by_name, 'المصممة', 'the new asset names its uploader');
   if (a.width !== null) assert.deepEqual([a.width, a.height], [4, 4]); // ffprobe is optional
 
   const file = await fetch(t.base + a.url);

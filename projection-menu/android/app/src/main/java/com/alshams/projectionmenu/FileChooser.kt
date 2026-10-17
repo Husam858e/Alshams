@@ -10,7 +10,7 @@ import android.webkit.WebChromeClient.FileChooserParams
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 
-/** Backs `<input type="file">` (dashboard media uploads) with the system file picker. */
+/** Backs `<input type="file">` (the staff app's media uploads) with the system file picker. */
 class FileChooser(activity: ComponentActivity) {
     private var pending: ValueCallback<Array<Uri>>? = null
 

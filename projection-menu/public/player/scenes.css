@@ -1748,3 +1748,43 @@
   height: 1000px;
   margin: -500px 0 0 -500px;
 }
+
+/* Clipped text (line clamps, ellipses) also cuts whatever hangs below its
+   line boxes: the dots of a final ي and the bowls of ج/ع in Cairo reach about
+   0.47em under the baseline, further than tight heading line-heights leave
+   ("عراقي" was projected as "عراقى"). Bottom padding keeps them inside the
+   clip; the matching negative margin leaves the layout as it was. */
+.dc-name,
+.ds-name {
+  padding-bottom: 0.28em;
+  margin-bottom: -0.28em;
+}
+
+.dc-name {
+  max-height: calc(2.44em + 0.28em);
+}
+
+.ds-name {
+  margin-bottom: calc(6px - 0.28em); /* keeps its former 6px gap */
+}
+
+.od-dish {
+  padding-bottom: 0.2em;
+  margin-bottom: -0.2em;
+}
+
+.brand-name,
+.mn-tab-name,
+.mn-desc,
+.od-note {
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+.dc-desc,
+.wl-feature-desc,
+.ct-desc,
+.ds-desc {
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}

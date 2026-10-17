@@ -148,6 +148,8 @@ async function init() {
     .filter(Boolean)
     .join(' · ');
   document.body.classList.toggle('tv', Boolean(state.isTv));
+  // A remote has no pointer: show the focus ring from the first screen on.
+  if (state.isTv) document.documentElement.classList.add('keyboard');
   $('#scan').hidden = !state.hasCamera;
 
   if (state.config) showCurrent();

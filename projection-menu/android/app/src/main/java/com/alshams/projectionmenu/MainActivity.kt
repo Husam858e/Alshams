@@ -16,6 +16,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.WindowManager
+import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
@@ -65,9 +66,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile
     internal var mainFrameIsLocal = true
 
-    /** Path of the bundled page [navigate] is loading, until its request arrives. */
-    @Volatile
-    private var nativeLocalPath: String? = null
+    /** Lets through the bundled page [navigate] is loading (and demo-to-demo links). */
+    private val localGate = LocalLoadGate()
 
     private var lastMainFrameUrl: String? = null
     private var lockTaskPending = false
@@ -112,7 +112,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        webView?.onPause()
+        webView?.let {
+            it.onPause()
+            // The staff login is a cookie; WebView writes cookies to disk only now and
+            // then, so a tablet that is switched off could otherwise lose its session.
+            CookieManager.getInstance().flush()
+        }
         super.onPause()
     }
 
@@ -188,22 +193,12 @@ class MainActivity : AppCompatActivity() {
     internal fun navigate(url: String) {
         val view = webView ?: return
         applyScreen(Screen.forUrl(url, store.load()?.mode))
-        nativeLocalPath = WebUrl.parse(url)?.takeIf { it.isLocal }?.path
+        localGate.expect(WebUrl.parse(url)?.takeIf { it.isLocal }?.path)
         view.loadUrl(url)
     }
 
-    /**
-     * Whether a main-frame request for a bundled page may be served (WebView background
-     * thread). Only the app itself opens them: page scripts could otherwise reach setup
-     * without the PIN through POST forms or history.back(), which shouldOverrideUrlLoading
-     * never sees.
-     */
-    internal fun claimLocalLoad(method: String?, path: String?): Boolean {
-        val expected = nativeLocalPath ?: return false
-        if (method != "GET" || path != expected) return false
-        nativeLocalPath = null
-        return true
-    }
+    /** Whether a main-frame request for a bundled page may be served (WebView background thread). */
+    internal fun claimLocalLoad(method: String?, path: String?): Boolean = localGate.claim(method, path, screen)
 
     /** Navigates after the current callback (e.g. once a bridge reply is posted). */
     internal fun navigateSoon(url: String) {
@@ -367,20 +362,27 @@ class MainActivity : AppCompatActivity() {
         when (screen) {
             // A projector never leaves its menu: single presses are swallowed, three open settings.
             Screen.PLAYER -> if (backPresses.press(SystemClock.uptimeMillis())) openSettings()
-            // History never steps back into bundled pages (they only open via navigate()).
-            Screen.APP -> {
-                val view = webView ?: return openSettings()
-                val history = view.copyBackForwardList()
-                val previous = if (history.currentIndex > 0) history.getItemAtIndex(history.currentIndex - 1)?.url else null
-                if (previous != null && WebUrl.parse(previous)?.isLocal == false) view.goBack() else openSettings()
-            }
-            Screen.DEMO -> openSettings()
+            // History never steps back into setup (bundled pages only open via navigate()),
+            // only within the server's pages or within the demo.
+            Screen.APP -> if (!goBackIf { !it.isLocal }) openSettings()
+            Screen.DEMO -> if (!goBackIf { it.isLocal && LocalPages.isDemo(it.path) }) openSettings()
             // Leaving setup returns to the configured page (or closes a fresh install).
             Screen.SETUP -> {
                 val config = store.load()
                 if (config != null) navigate(config.url) else finish()
             }
         }
+    }
+
+    /** Steps back in the WebView's history when the previous entry passes [allowed]. */
+    private fun goBackIf(allowed: (WebUrl) -> Boolean): Boolean {
+        val view = webView ?: return false
+        val history = view.copyBackForwardList()
+        val previous = if (history.currentIndex > 0) history.getItemAtIndex(history.currentIndex - 1)?.url else null
+        val url = previous?.let(WebUrl::parse) ?: return false
+        if (!allowed(url)) return false
+        view.goBack()
+        return true
     }
 
     // MENU / SETTINGS keys (TV remotes) open settings before the WebView sees them.

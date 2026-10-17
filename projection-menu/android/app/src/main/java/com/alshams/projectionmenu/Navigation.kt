@@ -8,10 +8,40 @@ object LocalPages {
     const val SETUP = "$LOCAL_ORIGIN/app/setup.html"
     const val DEMO = "$LOCAL_ORIGIN/demo/index.html"
     private const val OFFLINE_PATH = "/app/offline.html"
+    private const val DEMO_DIR = "/demo/"
 
     fun offline(target: String) = "$LOCAL_ORIGIN$OFFLINE_PATH?url=${WebUrl.encodeComponent(target)}"
 
     fun isOffline(url: WebUrl) = url.isLocal && url.path == OFFLINE_PATH
+
+    /** A page of the offline demo (bundled under assets/demo/). */
+    fun isDemo(path: String?) = path != null && path.startsWith(DEMO_DIR) && ".." !in path
+}
+
+/**
+ * Which main-frame loads of bundled pages may be served (any thread). Only the app
+ * itself opens them ([expect] right before loadUrl): page scripts could otherwise
+ * reach setup without the PIN through POST forms or history.back(), which
+ * shouldOverrideUrlLoading never sees. The one exception: demo pages may open
+ * one another, since the demo is only ever reached from setup.
+ */
+class LocalLoadGate {
+    @Volatile
+    private var expected: String? = null
+
+    /** The bundled path native is about to load, or null for a server page. */
+    fun expect(path: String?) {
+        expected = path
+    }
+
+    fun claim(method: String?, path: String?, screen: Screen): Boolean {
+        if (method != "GET" || path == null) return false
+        if (path == expected) {
+            expected = null
+            return true
+        }
+        return screen == Screen.DEMO && LocalPages.isDemo(path)
+    }
 }
 
 /** What the WebView is showing; drives fullscreen, orientation, kiosk and key handling. */
@@ -45,7 +75,7 @@ enum class Screen {
             val configuredScreen = configured?.let(::of) ?: SETUP
             return when {
                 parsed == null || !parsed.isLocal -> configuredScreen
-                parsed.path.startsWith("/demo/") -> DEMO
+                LocalPages.isDemo(parsed.path) -> DEMO
                 LocalPages.isOffline(parsed) -> configuredScreen
                 else -> SETUP
             }

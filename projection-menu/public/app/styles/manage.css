@@ -2432,6 +2432,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap; /* "10 مقاعد" stays on one line */
 }
 
 .hall-status .dot {

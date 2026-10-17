@@ -1,56 +1,82 @@
-// Stand-in for the Socket.IO client in the offline demo. demo/player.html's
-// import map points '/socket.io/socket.io.esm.min.js' here, so the unchanged
-// /player/player.js "connects" and gets its cues from the demo tablet frame
-// (demo-backend.js) over a BroadcastChannel instead of from the server.
-//
-// Channel messages: {type:'cue', cue} in; {type:'ack', cueId, ok, error} and
-// {type:'event', event, payload} (what player.js emits, e.g. 'cue:status') out.
+// Stand-in for the Socket.IO client in the offline demo. demo/app.html's
+// import map points '/socket.io/socket.io.esm.min.js' here, so the staff
+// app's lib/live.js runs unchanged and receives the '/live' events of the
+// demo backend (window.__PM_DEMO__, set by frame-shim.js) instead of a server.
+// Only what live.js uses is implemented: on, off, onAny, emit, connect,
+// disconnect and the 'connect' / 'disconnect' / 'connect_error' events.
 
-import { CHANNEL, CONFIG_CUE, PROJECTOR } from './demo-data.js';
+export function io(namespace = '/', _options = {}) {
+  const host = globalThis.__PM_DEMO__ ?? null;
+  const handlers = new Map(); // event -> Set(fn)
+  const anyHandlers = new Set();
+  let unsubscribe = null;
 
-export function io(namespace, opts = {}) {
-  const handlers = new Map();
-  const channel = new BroadcastChannel(CHANNEL);
   const fire = (event, ...args) => {
-    for (const fn of handlers.get(event) ?? []) fn(...args);
+    for (const fn of [...(handlers.get(event) ?? [])]) fn(...args);
   };
-  const deliver = (cue, ack) => fire('cue', cue, ack);
+  // Payloads come from the parent page: copy them into this page.
+  const deliver = (event, payload) => {
+    const copy = structuredClone(payload);
+    for (const fn of [...anyHandlers]) fn(event, copy);
+    fire(event, copy);
+  };
 
   const socket = {
     connected: false,
+    active: true,
     on(event, fn) {
-      if (!handlers.has(event)) handlers.set(event, []);
-      handlers.get(event).push(fn);
+      if (!handlers.has(event)) handlers.set(event, new Set());
+      handlers.get(event).add(fn);
       return socket;
     },
-    emit(event, payload, ack) {
-      channel.postMessage({ type: 'event', event, payload });
-      ack?.({ ok: true });
+    off(event, fn) {
+      if (fn) handlers.get(event)?.delete(fn);
+      else handlers.delete(event);
+      return socket;
+    },
+    onAny(fn) {
+      anyHandlers.add(fn);
+      return socket;
+    },
+    // Staff clients never emit on '/live'; acknowledge anyway if asked.
+    emit(_event, ...args) {
+      const ack = args[args.length - 1];
+      if (typeof ack === 'function') setTimeout(() => ack({ ok: true }), 0);
+      return socket;
+    },
+    connect() {
+      if (socket.connected) return socket;
+      socket.active = true;
+      setTimeout(() => {
+        if (!socket.active || socket.connected) return;
+        if (!host || namespace !== '/live' || !host.currentUser()) {
+          fire('connect_error', new Error('unauthorized'));
+          return;
+        }
+        unsubscribe = host.subscribeLive(deliver);
+        socket.connected = true;
+        fire('connect');
+      }, 0);
+      return socket;
+    },
+    disconnect() {
+      socket.active = false;
+      unsubscribe?.();
+      unsubscribe = null;
+      if (socket.connected) {
+        socket.connected = false;
+        fire('disconnect', 'io client disconnect');
+      }
       return socket;
     },
     close() {
-      socket.connected = false;
-      channel.close();
-      return socket;
+      return socket.disconnect();
     },
   };
 
-  // After the caller has registered its handlers, like a real connection.
-  setTimeout(() => {
-    const { projectorId, key } = opts.auth ?? {};
-    if (namespace !== '/player' || String(projectorId) !== String(PROJECTOR.id) || key !== PROJECTOR.key) {
-      fire('connect_error', new Error('unauthorized'));
-      return;
-    }
-    socket.connected = true;
-    fire('connect');
-    // The server greets every player with its calibration, zones and idle loop.
-    deliver({ ...CONFIG_CUE });
-    channel.addEventListener('message', ({ data }) => {
-      if (data?.type !== 'cue' || !socket.connected) return;
-      deliver(data.cue, (result) => channel.postMessage({ type: 'ack', cueId: data.cue.cueId, ...result }));
-    });
-  }, 0);
-
-  return socket;
+  // The page goes away (reload, role switch): stop listening.
+  addEventListener('pagehide', () => socket.disconnect());
+  return socket.connect();
 }
+
+export default io;

@@ -101,7 +101,7 @@ export function mediaRoutes({ db, config, settings, activity }) {
         uploaded_by: req.user.id,
       }).lastInsertRowid;
       activity.log(req.user, 'media.upload', { title: originalName, kind: format.kind });
-      res.status(201).json(dto(q.get.get(id)));
+      res.status(201).json(dto(q.get.get(id), usageMap(), new Map([[req.user.id, req.user.name]])));
     } catch (err) {
       await fs.rm(filePath, { force: true });
       throw err;
@@ -112,7 +112,7 @@ export function mediaRoutes({ db, config, settings, activity }) {
     const asset = load(req.params.id);
     const title = str(req.body.title, 'العنوان', { required: true, max: 120 });
     db.prepare('UPDATE media_assets SET title = ? WHERE id = ?').run(title, asset.id);
-    res.json(dto(q.get.get(asset.id)));
+    res.json(dto(q.get.get(asset.id), usageMap(), new Map(q.uploaders.all().map((u) => [u.id, u.name]))));
   });
 
   // Refused while anything still uses the file; the message names the users.

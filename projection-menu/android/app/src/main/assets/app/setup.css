@@ -381,6 +381,8 @@ input[type='text'], input[type='password'] {
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 input::placeholder { color: rgba(246, 239, 228, 0.3); font-weight: 400; }
+/* An Arabic hint ("4 إلى 8 أرقام") in a dir=ltr field reads in the wrong order. */
+input.pin:placeholder-shown { direction: rtl; text-align: right; }
 input:focus { border-color: var(--gold); }
 input:disabled { opacity: 0.5; }
 .scan { width: 100%; }
@@ -542,6 +544,13 @@ input:disabled { opacity: 0.5; }
 .help ul { display: grid; gap: 8px; margin: 14px 0 0; padding-inline-start: 20px; color: var(--ink-2); line-height: 1.8; }
 .help strong { color: var(--ink); }
 .foot { color: var(--ink-3); font-size: 13px; text-align: center; }
+
+/* Controls with their own shadow (primary glow, flat demo card) would hide the
+   focus ring of the rules at the top: repeat it here with more weight. */
+.btn.primary:focus-visible,
+.role.demo:focus-visible { box-shadow: var(--ring); }
+.keyboard .btn.primary:focus,
+.keyboard .role.demo:focus { box-shadow: var(--ring); }
 
 /* ── TV (10-foot UI) ──────────────────────────────────────────── */
 .tv .keypad button { min-height: 68px; }
