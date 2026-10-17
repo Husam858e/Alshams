@@ -1,0 +1,331 @@
+{
+  "general": {
+    "restaurantName": "مطعم الشمس",
+    "restaurantNameEn": "Alshams",
+    "logoAssetId": null,
+    "currency": "د.ع",
+    "welcomeTitle": "أهلاً وسهلاً",
+    "welcomeText": "تفضّلوا، المنيو أمامكم على الطاولة",
+    "footerText": "نتمنى لكم وجبة شهية"
+  },
+  "theme": {
+    "preset": "noir",
+    "accent": "#d4a056",
+    "background": { "type": "preset", "assetId": null },
+    "font": "Cairo",
+    "cardStyle": "glass",
+    "showPrices": true,
+    "showCalories": false,
+    "showDescriptions": true,
+    "pageSeconds": 12,
+    "idleSeconds": 90
+  },
+  "areas": [
+    {
+      "name": "الصالة الرئيسية",
+      "tables": [
+        { "number": 1, "seats": 4 },
+        { "number": 2, "seats": 4 },
+        { "number": 3, "seats": 2 },
+        { "number": 4, "seats": 2 },
+        { "number": 5, "seats": 6 },
+        { "number": 6, "seats": 6 }
+      ]
+    },
+    {
+      "name": "التراس",
+      "tables": [
+        { "number": 7, "seats": 4 },
+        { "number": 8, "seats": 4 },
+        { "number": 9, "seats": 2 },
+        { "number": 10, "seats": 2 }
+      ]
+    },
+    {
+      "name": "VIP",
+      "tables": [
+        { "number": 11, "seats": 8 },
+        { "number": 12, "seats": 10 }
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "key": "appetizers",
+      "name_ar": "مقبلات",
+      "name_en": "Appetizers",
+      "icon": "🥗",
+      "description_ar": "بداية شهية: مقبلات شرقية طازجة تُحضَّر يومياً",
+      "cover": "cover-appetizers.jpg",
+      "dishes": [
+        {
+          "name_ar": "حمص بالطحينة",
+          "name_en": "Hummus",
+          "description_ar": "حمص ناعم مع طحينة وزيت زيتون بكر وحبات حمص كاملة ورشة بابريكا",
+          "price": 6000,
+          "image": "hummus.jpg",
+          "badges": ["نباتي"],
+          "calories": 320,
+          "prep_minutes": 5,
+          "is_featured": false
+        },
+        {
+          "name_ar": "فلافل مقرمشة",
+          "name_en": "Falafel",
+          "description_ar": "أقراص فلافل ذهبية مع طماطم ومخللات وصلصة الطحينة",
+          "price": 6500,
+          "image": "falafel.jpg",
+          "badges": ["نباتي", "مقرمش"],
+          "calories": 410,
+          "prep_minutes": 10,
+          "is_featured": false
+        },
+        {
+          "name_ar": "سمبوسة باللحم",
+          "name_en": "Meat Samosa",
+          "description_ar": "سمبوسة محشوة باللحم المفروم والبصل والبهارات، تُقدَّم مع صلصة النعناع",
+          "price": 7000,
+          "image": "samosa.jpg",
+          "badges": ["مقرمش"],
+          "calories": 450,
+          "prep_minutes": 12,
+          "is_featured": false
+        },
+        {
+          "name_ar": "سلطة الشيف",
+          "name_en": "Chef's Salad",
+          "description_ar": "خس وجزر وزيتون وجبنة بيضاء وجوز مع بصل أحمر وصلصة الليمون",
+          "price": 7500,
+          "image": "chef-salad.jpg",
+          "badges": ["صحي", "نباتي"],
+          "calories": 260,
+          "prep_minutes": 7,
+          "is_featured": false
+        }
+      ]
+    },
+    {
+      "key": "grills",
+      "name_ar": "مشاوي",
+      "name_en": "Grills",
+      "icon": "🔥",
+      "description_ar": "مشاوي على الفحم بتتبيلات البيت الخاصة",
+      "cover": "cover-grills.jpg",
+      "dishes": [
+        {
+          "name_ar": "مشاوي مشكلة",
+          "name_en": "Mixed Grill",
+          "description_ar": "تشكيلة من الكباب والتكة والأوصال وأجنحة الدجاج مع خضار مشوية وخبز التنور",
+          "price": 28000,
+          "image": "mixed-grill.jpg",
+          "video": "mixed-grill.webm",
+          "badges": ["الأكثر طلباً", "يكفي شخصين"],
+          "calories": 1450,
+          "prep_minutes": 25,
+          "is_featured": true
+        },
+        {
+          "name_ar": "كباب عراقي",
+          "name_en": "Iraqi Kebab",
+          "description_ar": "لحم غنم مفروم يدوياً بالبصل والبهارات، مشوي على الفحم مع بطاطا وطماطم مشوية",
+          "price": 14000,
+          "image": "kebab.jpg",
+          "badges": ["طبق البيت"],
+          "calories": 780,
+          "prep_minutes": 18,
+          "is_featured": true
+        },
+        {
+          "name_ar": "تكة دجاج",
+          "name_en": "Chicken Tikka",
+          "description_ar": "مكعبات دجاج متبّلة باللبن والليمون والثوم، مشوية على الفحم",
+          "price": 12000,
+          "image": "chicken-tikka.jpg",
+          "badges": ["حار قليلاً"],
+          "calories": 620,
+          "prep_minutes": 15,
+          "is_featured": false
+        },
+        {
+          "name_ar": "ستيك لحم مع بطاطا",
+          "name_en": "Steak & Fries",
+          "description_ar": "شريحة لحم بقري طرية مشوية حسب الرغبة مع بطاطا مقلية بالأعشاب",
+          "price": 24000,
+          "image": "steak.jpg",
+          "badges": ["مميز"],
+          "calories": 980,
+          "prep_minutes": 20,
+          "is_featured": false
+        }
+      ]
+    },
+    {
+      "key": "pizza",
+      "name_ar": "بيتزا",
+      "name_en": "Pizza",
+      "icon": "🍕",
+      "description_ar": "عجينة مخمّرة 48 ساعة تُخبز في فرن الحطب",
+      "cover": "cover-pizza.jpg",
+      "dishes": [
+        {
+          "name_ar": "بيتزا مارغريتا",
+          "name_en": "Margherita",
+          "description_ar": "صلصة طماطم إيطالية وموزاريلا طازجة وأوراق ريحان وزيت زيتون",
+          "price": 11000,
+          "image": "margherita.jpg",
+          "badges": ["كلاسيكي", "نباتي"],
+          "calories": 850,
+          "prep_minutes": 14,
+          "is_featured": true
+        },
+        {
+          "name_ar": "بيتزا ببروني",
+          "name_en": "Pepperoni",
+          "description_ar": "ببروني بقري وموزاريلا وصلصة طماطم حارة قليلاً",
+          "price": 13000,
+          "image": "pepperoni.jpg",
+          "badges": ["حار قليلاً"],
+          "calories": 980,
+          "prep_minutes": 14,
+          "is_featured": false
+        },
+        {
+          "name_ar": "بيتزا دجاج باربكيو",
+          "name_en": "BBQ Chicken",
+          "description_ar": "دجاج مشوي بصلصة الباربكيو مع أناناس وبصل أحمر وكزبرة",
+          "price": 14000,
+          "image": "bbq-chicken-pizza.jpg",
+          "badges": ["جديد"],
+          "calories": 1020,
+          "prep_minutes": 15,
+          "is_featured": false
+        },
+        {
+          "name_ar": "بيتزا أربع أجبان",
+          "name_en": "Four Cheese",
+          "description_ar": "موزاريلا وشيدر وبارميزان وجبنة زرقاء على عجينة رقيقة مقرمشة",
+          "price": 15000,
+          "image": "four-cheese-pizza.jpg",
+          "badges": ["نباتي"],
+          "calories": 1100,
+          "prep_minutes": 14,
+          "is_featured": false
+        }
+      ]
+    },
+    {
+      "key": "desserts",
+      "name_ar": "حلويات",
+      "name_en": "Desserts",
+      "icon": "🍰",
+      "description_ar": "ختامها حلو: حلويات شرقية وغربية من مطبخنا",
+      "cover": "cover-desserts.jpg",
+      "dishes": [
+        {
+          "name_ar": "بقلاوة بالفستق",
+          "name_en": "Pistachio Baklava",
+          "description_ar": "رقائق عجين هشة محشوة بالفستق الحلبي ومسقية بالقطر",
+          "price": 7000,
+          "image": "baklava.jpg",
+          "badges": ["شرقي"],
+          "calories": 480,
+          "prep_minutes": 3,
+          "is_featured": false
+        },
+        {
+          "name_ar": "تشيز كيك",
+          "name_en": "Cheesecake",
+          "description_ar": "تشيز كيك نيويورك كريمي مع توت طازج",
+          "price": 8000,
+          "image": "cheesecake.jpg",
+          "badges": [],
+          "calories": 520,
+          "prep_minutes": 3,
+          "is_featured": false
+        },
+        {
+          "name_ar": "براونيز مع آيس كريم",
+          "name_en": "Brownie à la Mode",
+          "description_ar": "براونيز دافئة بالشوكولاتة الداكنة مع كرتين من آيس كريم الفانيلا وصوص الشوكولاتة",
+          "price": 8500,
+          "image": "brownie.jpg",
+          "badges": ["الأكثر طلباً"],
+          "calories": 690,
+          "prep_minutes": 6,
+          "is_featured": true
+        },
+        {
+          "name_ar": "تيراميسو",
+          "name_en": "Tiramisu",
+          "description_ar": "طبقات من البسكويت المنقوع بالقهوة وكريمة الماسكاربوني والكاكاو",
+          "price": 9000,
+          "image": "tiramisu.jpg",
+          "badges": [],
+          "calories": 450,
+          "prep_minutes": 3,
+          "is_featured": false
+        }
+      ]
+    },
+    {
+      "key": "drinks",
+      "name_ar": "مشروبات",
+      "name_en": "Drinks",
+      "icon": "🥤",
+      "description_ar": "عصائر طازجة ومشروبات ساخنة وباردة",
+      "cover": "cover-drinks.jpg",
+      "dishes": [
+        {
+          "name_ar": "ليمون بالنعناع",
+          "name_en": "Lemon Mint",
+          "description_ar": "ليمون طازج مع أوراق النعناع والثلج المجروش",
+          "price": 4000,
+          "image": "lemon-mint.jpg",
+          "badges": ["منعش"],
+          "calories": 120,
+          "prep_minutes": 4,
+          "is_featured": false
+        },
+        {
+          "name_ar": "عصير برتقال طازج",
+          "name_en": "Fresh Orange Juice",
+          "description_ar": "برتقال معصور عند الطلب بدون سكر مضاف",
+          "price": 4500,
+          "image": "orange-juice.jpg",
+          "badges": ["طبيعي 100%"],
+          "calories": 140,
+          "prep_minutes": 4,
+          "is_featured": false
+        },
+        {
+          "name_ar": "كابتشينو",
+          "name_en": "Cappuccino",
+          "description_ar": "إسبريسو مزدوج مع حليب مبخّر ورغوة كثيفة",
+          "price": 5000,
+          "image": "latte.jpg",
+          "badges": ["ساخن"],
+          "calories": 130,
+          "prep_minutes": 5,
+          "is_featured": false
+        },
+        {
+          "name_ar": "شاي بالأعشاب",
+          "name_en": "Herbal Tea",
+          "description_ar": "مزيج أعشاب عطرية من البابونج والنعناع والزنجبيل",
+          "price": 3000,
+          "image": "herbal-tea.jpg",
+          "badges": ["ساخن"],
+          "calories": 5,
+          "prep_minutes": 5,
+          "is_featured": false
+        }
+      ]
+    }
+  ],
+  "users": [
+    { "name": "صاحب المطعم", "username": "owner", "password": "owner1234", "role": "owner" },
+    { "name": "المصمم", "username": "designer", "password": "design1234", "role": "designer" },
+    { "name": "علي", "username": "waiter1", "password": "1111", "role": "waiter" },
+    { "name": "حسن", "username": "waiter2", "password": "2222", "role": "waiter" }
+  ]
+}

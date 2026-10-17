@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0a09">
+  <title>عرض تجريبي — المنيو الضوئي</title>
+  <link rel="stylesheet" href="/shared/fonts.css">
+  <link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/demo/demo.css">
+</head>
+<body class="is-picking">
+  <!-- Icons (24px grid, the staff app's style). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f1d08f" />
+        <stop offset="0.55" stop-color="#d4a056" />
+        <stop offset="1" stop-color="#9c6d33" />
+      </linearGradient>
+      <symbol id="i-sun" viewBox="0 0 48 48">
+        <rect x="1" y="1" width="46" height="46" rx="14" fill="#15120d" stroke="rgba(212,160,86,0.35)" />
+        <circle cx="24" cy="24" r="7.5" fill="url(#gold)" />
+        <path d="M24 8.5v4M24 35.5v4M8.5 24h4M35.5 24h4M13 13l2.8 2.8M32.2 32.2L35 35M13 35l2.8-2.8M32.2 15.8L35 13" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round" fill="none" />
+      </symbol>
+      <symbol id="i-waiter" viewBox="0 0 24 24"><path d="M3 17h18M5 17a7 7 0 0 1 14 0" /><path d="M12 7v3M10.5 7h3" /></symbol>
+      <symbol id="i-designer" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z" /><circle cx="7.5" cy="11.5" r="1.3" fill="currentColor" stroke="none" /><circle cx="10" cy="7.5" r="1.3" fill="currentColor" stroke="none" /><circle cx="15" cy="7.8" r="1.3" fill="currentColor" stroke="none" /></symbol>
+      <symbol id="i-owner" viewBox="0 0 24 24"><path d="M3.5 8l4.2 3.5L12 5l4.3 6.5L20.5 8 19 18H5z" /><path d="M5 21h14" /></symbol>
+      <symbol id="i-exit" viewBox="0 0 24 24"><path d="M9.5 21H6a2.5 2.5 0 0 1-2.5-2.5v-13A2.5 2.5 0 0 1 6 3h3.5" /><path d="M15.5 16.5L20 12l-4.5-4.5M20 12H9" /></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></symbol>
+      <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7" /></symbol>
+      <symbol id="i-projector" viewBox="0 0 24 24"><rect x="2.5" y="8" width="19" height="9.5" rx="2.5" /><circle cx="15.5" cy="12.75" r="2.6" /><path d="M6 11.5h3.5M6 14h2M5.5 17.5v2M18.5 17.5v2M14 4.5l1.5 2.2M18.5 3.8l-.6 2.6M21.5 6.5l-2.2 1" /></symbol>
+      <symbol id="i-tablet" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M11 16.5h2" /></symbol>
+      <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M14.5 8.5l2 2" /></symbol>
+    </defs>
+  </svg>
+
+  <header class="demo-bar">
+    <div class="brand">
+      <svg class="mark" aria-hidden="true"><use href="#i-sun" /></svg>
+      <div class="brand-text">
+        <h1>العرض التجريبي</h1>
+        <p>المنيو الضوئي — يعمل على هذا الجهاز بدون خادم</p>
+      </div>
+    </div>
+    <div class="role-switch" role="group" aria-label="جرّب النظام بدور">
+      <button type="button" data-role="waiter"><svg aria-hidden="true"><use href="#i-waiter" /></svg><span>ويتر</span></button>
+      <button type="button" data-role="designer"><svg aria-hidden="true"><use href="#i-designer" /></svg><span>مصمم</span></button>
+      <button type="button" data-role="owner"><svg aria-hidden="true"><use href="#i-owner" /></svg><span>مالك</span></button>
+    </div>
+    <button type="button" class="exit" data-exit>
+      <svg aria-hidden="true"><use href="#i-exit" /></svg><span>خروج من العرض التجريبي</span>
+    </button>
+  </header>
+
+  <main class="demo-main">
+    <!-- The real staff app (/app/) on the in-memory backend, in a tablet. -->
+    <section class="pane app-pane" aria-label="تطبيق الموظفين">
+      <div class="pane-head">
+        <span class="pane-title"><svg aria-hidden="true"><use href="#i-tablet" /></svg>تابلت الموظفين</span>
+        <span id="who" class="who"></span>
+      </div>
+      <div class="device">
+        <iframe id="app-frame" title="تطبيق الموظفين" allow="autoplay; clipboard-write"></iframe>
+      </div>
+    </section>
+
+    <!-- The table seen from above. The real projector player is blended with
+         "screen": its black is no light, so only the menu lands on the wood. -->
+    <section class="pane table-pane" aria-label="الطاولة كما تُرى من الأعلى">
+      <div class="pane-head">
+        <span class="pane-title"><svg aria-hidden="true"><use href="#i-projector" /></svg><span id="table-title">الطاولة</span></span>
+        <span id="scene-label" class="scene-chip" aria-live="polite"></span>
+        <button type="button" id="zoom" class="icon-btn" aria-pressed="false" title="تكبير الطاولة">
+          <svg aria-hidden="true"><use href="#i-expand" /></svg><span class="sr-only">تكبير الطاولة</span>
+        </button>
+      </div>
+      <div class="room" id="room">
+        <div class="table-scene" id="table-scene">
+          <div class="chairs far" id="chairs-far"></div>
+          <div class="tabletop">
+            <div class="projection">
+              <iframe id="player-frame" title="ما يُسقطه جهاز العرض على الطاولة" tabindex="-1" allow="autoplay"></iframe>
+            </div>
+            <div class="sheen" aria-hidden="true"></div>
+            <div id="dark-note" class="dark-note" hidden></div>
+          </div>
+          <div class="chairs near" id="chairs-near"></div>
+        </div>
+        <div class="room-caption" id="room-caption" aria-live="polite"></div>
+      </div>
+      <div class="tips" id="tips-box">
+        <h2>جرّب الآن</h2>
+        <ol id="tips"></ol>
+        <div class="accounts" id="accounts" hidden>
+          <p><svg aria-hidden="true"><use href="#i-key" /></svg>سجّل الدخول بأحد الحسابات التجريبية:</p>
+          <ul>
+            <li><span>مالك</span><b dir="ltr">owner / owner1234</b></li>
+            <li><span>مصمم</span><b dir="ltr">designer / design1234</b></li>
+            <li><span>ويتر</span><b dir="ltr">waiter1 / 1111</b></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- First screen: what this is, and which role to try. -->
+  <div class="picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+    <div class="picker-card">
+      <svg class="picker-mark" aria-hidden="true"><use href="#i-sun" /></svg>
+      <h2 id="picker-title">جرّب المنيو الضوئي</h2>
+      <p class="picker-intro">
+        تطبيق الموظفين الحقيقي يعمل هنا على بيانات مطعم تجريبي، وبجانبه طاولة يُسقط عليها جهاز العرض المنيو كما يراه الضيوف.
+        كل ما تغيّره يبقى داخل هذا العرض ويُنسى عند الخروج.
+      </p>
+      <p class="picker-ask">اختر الدور الذي تريد تجربته:</p>
+      <div class="roles">
+        <button type="button" class="role-card" data-role="waiter">
+          <svg aria-hidden="true"><use href="#i-waiter" /></svg>
+          <strong>ويتر</strong>
+          <span>يختار الطاولة برقمها، يعرض المنيو أو طبقاً على سطحها، ويسجّل الطلب.</span>
+        </button>
+        <button type="button" class="role-card" data-role="designer">
+          <svg aria-hidden="true"><use href="#i-designer" /></svg>
+          <strong>مصمم</strong>
+          <span>يرفع الصور والفيديو، يحرّر الأطباق وتصميم العرض، ويعاير جهاز العرض.</span>
+        </button>
+        <button type="button" class="role-card" data-role="owner">
+          <svg aria-hidden="true"><use href="#i-owner" /></svg>
+          <strong>مالك</strong>
+          <span>كل الصلاحيات: الأسعار والمستخدمون والقاعة والتقارير والإعدادات.</span>
+        </button>
+      </div>
+      <button type="button" class="picker-exit" data-exit>
+        <svg aria-hidden="true"><use href="#i-exit" /></svg><span>خروج من العرض التجريبي</span>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/demo/demo.js"></script>
+</body>
+</html>
