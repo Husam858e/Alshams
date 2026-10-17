@@ -10,11 +10,13 @@ import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
 /**
  * Native side of `window.AndroidApp` for the bundled pages (setup, offline, demo).
+ * The message contract is documented in assets/app/bridge.js.
  * It is installed with addWebMessageListener for the local origin only, so pages
  * served by the restaurant server never get it. Every request carries an "id"
  * that the reply echoes; native never sends unsolicited messages.
@@ -43,6 +45,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         when (request.text("type")) {
             "getState" -> reply.send("state") { putState() }
             "validateLink" -> validateLink(request.text("url"), reply)
+            "discover" -> discover(request, reply)
             "scanQr" ->
                 if (DeviceInfo.hasCamera(activity)) activity.qrScanner.scan(reply) else reply.error(ERROR_NO_CAMERA)
             "saveConfig" -> saveConfig(request, reply)
@@ -82,6 +85,27 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         }
     }
 
+    private fun discover(request: JSONObject, reply: BridgeReply) {
+        val timeout = request.optLong("timeoutMs", ServerDiscovery.DEFAULT_TIMEOUT_MS)
+            .coerceIn(ServerDiscovery.MIN_TIMEOUT_MS, ServerDiscovery.MAX_TIMEOUT_MS)
+        activity.discovery.discover(timeout) { result ->
+            reply.send("servers") {
+                val servers = JSONArray()
+                for (server in result.servers) {
+                    servers.put(
+                        JSONObject()
+                            .put("name", server.name)
+                            .put("host", server.host)
+                            .put("port", server.port)
+                            .put("url", server.url),
+                    )
+                }
+                put("servers", servers)
+                result.error?.let { put("error", it) }
+            }
+        }
+    }
+
     private fun saveConfig(request: JSONObject, reply: BridgeReply) {
         val link = when (val parsed = PairingLink.parse(request.text("url"))) {
             is PairingLink.Valid -> parsed
@@ -95,10 +119,11 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         activity.store.save(
             mode = link.mode,
             url = link.normalizedUrl,
-            // Screen pinning only makes sense for the customer-facing modes.
-            kiosk = request.optBoolean("kiosk") && Screen.of(link.mode).isKiosk,
+            kiosk = request.optBoolean("kiosk") && Screen.of(link.mode).isLockable,
             launcher = launcher,
             pin = pin,
+            // Shown on the settings screen later; plain text, never a secret.
+            label = request.text("label").trim().take(MAX_LABEL),
         )
         DeviceInfo.setLauncherEnabled(activity, launcher)
         reply.send("saved")
@@ -116,6 +141,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
                     .put("hasPin", it.hasPin)
                     .put("kiosk", it.kiosk)
                     .put("launcher", it.launcher)
+                    .put("label", it.label)
             } ?: JSONObject.NULL,
         )
         val webViewVersion = DeviceInfo.webViewVersion(activity)
@@ -132,8 +158,9 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
     private companion object {
         const val TAG = "AppBridge"
         const val ERROR_NO_CONFIG = "لا توجد إعدادات محفوظة على هذا الجهاز"
-        const val ERROR_NO_CAMERA = "لا توجد كاميرا في هذا الجهاز — الصق الرابط بدلاً من ذلك"
+        const val ERROR_NO_CAMERA = "لا توجد كاميرا في هذا الجهاز — اكتب العنوان بدلاً من ذلك"
         const val ERROR_UNKNOWN_REQUEST = "طلب غير معروف"
+        const val MAX_LABEL = 80
     }
 }
 
@@ -180,6 +207,6 @@ class QrScanner(activity: ComponentActivity) {
     }
 
     private companion object {
-        const val PROMPT = "وجّه الكاميرا نحو رمز QR الظاهر في لوحة التحكم"
+        const val PROMPT = "وجّه الكاميرا نحو رمز QR الظاهر في تطبيق الموظفين"
     }
 }

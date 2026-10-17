@@ -14,7 +14,7 @@ const RING = 2 * Math.PI * 34; // circumference of the SVG ring
 
 const $ = (sel) => document.querySelector(sel);
 
-// Remote-control users need a focused button; on a touch screen (the table
+// Remote-control users need a focused button; on a touch screen (a waiter's
 // tablet) focus would only paint a ring around it for the whole outage.
 function focusForKeys(el) {
   if (!matchMedia('(any-pointer: coarse)').matches) el.focus();

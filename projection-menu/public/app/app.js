@@ -2,13 +2,13 @@
 // routing with lazily loaded screens.
 
 import { html } from 'htm/preact';
-import { useEffect, useState } from 'preact/hooks';
-import { BrandMark } from './components/icons.js';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ConfirmHost } from './components/overlay.js';
 import { Shell } from './components/Shell.js';
 import { ToastHost, toast } from './components/toast.js';
 import { Button, Empty, Skeleton } from './components/ui.js';
 import { onUnauthorized } from './lib/api.js';
+import { NOUNS, count } from './lib/format.js';
 import { connectLive, onLive, reconnectLive } from './lib/live.js';
 import { match, navigate, useRoute } from './lib/router.js';
 import { checkAuth, endSession } from './lib/session.js';
@@ -54,6 +54,7 @@ function ServerDown({ error }) {
 
 function LoggedIn({ user }) {
   const route = useRoute();
+  const announced = useMemo(() => new Set(), []);
 
   useEffect(() => {
     wireLive();
@@ -67,11 +68,12 @@ function LoggedIn({ user }) {
         if (still) reconnectLive();
       }),
       onLive('live:unauthorized', () => checkAuth()),
-      onOrderEvent((order, previous) => {
-        // Only brand-new orders taken by someone else.
-        const isNew = !previous && order.status === 'open' && order.created_at === order.updated_at;
-        if (!isNew || order.waiter_id === user.id) return;
-        toast.order(`${order.waiter_name ?? 'ويتر'} · ${order.items.length} صنف`, {
+      onOrderEvent((order, previous, known) => {
+        // Only brand-new orders (not in the active list we already had), taken by someone else.
+        if (!known || previous || announced.has(order.id) || order.status !== 'open') return;
+        announced.add(order.id);
+        if (order.waiter_id === user.id) return;
+        toast.order(`${order.waiter_name ?? 'ويتر'} · ${count(order.items.length, NOUNS.item)}`, {
           title: `طلب جديد — طاولة ${order.table_number}`,
           action: { label: 'فتح', onClick: () => navigate(`/table/${order.table_id}`) },
         });
@@ -123,7 +125,7 @@ function LazyScreen({ route, params, query, user }) {
   return html`<${Screen} params=${params} query=${query} user=${user} />`;
 }
 
-export function ScreenSkeleton() {
+function ScreenSkeleton() {
   return html`<div class="page" aria-busy="true">
     <div class="page-head"><${Skeleton} w=${220} h=${32} r="10px" /></div>
     <div class="skeleton-grid">
@@ -132,4 +134,3 @@ export function ScreenSkeleton() {
   </div>`;
 }
 
-export { BrandMark };

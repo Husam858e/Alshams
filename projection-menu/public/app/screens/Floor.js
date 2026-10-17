@@ -6,7 +6,7 @@ import { useMemo, useState } from 'preact/hooks';
 import { Icon } from '../components/icons.js';
 import { toast } from '../components/toast.js';
 import { Button, Chip, Empty, ErrorState, PageHeader, Skeleton, cx } from '../components/ui.js';
-import { money } from '../lib/format.js';
+import { NOUNS, count, money } from '../lib/format.js';
 import { useLocalPref } from '../lib/hooks.js';
 import { ORDER_STATUS, SCENES, TABLE_STATUS, sceneLabel } from '../lib/labels.js';
 import { navigate } from '../lib/router.js';
@@ -144,7 +144,7 @@ function GoToTable({ tables }) {
 function projectorState(projectors) {
   if (!projectors.length) return { tone: 'none', label: 'بدون جهاز عرض' };
   const online = projectors.filter((p) => p.online).length;
-  if (online === projectors.length) return { tone: 'on', label: projectors.length > 1 ? `${online} أجهزة متصلة` : 'جهاز العرض متصل' };
+  if (online === projectors.length) return { tone: 'on', label: projectors.length > 1 ? `كل الأجهزة متصلة (${online})` : 'جهاز العرض متصل' };
   if (online === 0) return { tone: 'off', label: 'جهاز العرض غير متصل' };
   return { tone: 'part', label: `${online}/${projectors.length} متصل` };
 }
@@ -168,7 +168,7 @@ export function TableTile({ table: t, menu }) {
       </span>
     </div>
     <div class="tile-number num">${t.number}</div>
-    <div class="tile-seats"><${Icon} name="users" size=${14} /> ${t.seats} مقاعد</div>
+    <div class="tile-seats"><${Icon} name="users" size=${14} /> ${count(t.seats, NOUNS.seat)}</div>
     <div class="tile-foot">
       <span class=${cx('tile-scene', scene.type === 'off' && 'is-off')} title="ما يُعرض الآن">
         <${Icon} name=${SCENES[scene.type]?.icon ?? 'sparkles'} size=${14} />
@@ -177,7 +177,7 @@ export function TableTile({ table: t, menu }) {
       ${order &&
       html`<span class="tile-order" style=${{ '--oc': ORDER_STATUS[order.status]?.color }}>
         <span class="num">${money(order.total)}</span>
-        <span class="tile-order-meta">${order.itemsCount} صنف · ${ORDER_STATUS[order.status]?.label}</span>
+        <span class="tile-order-meta">${count(order.itemsCount, NOUNS.item)} · ${ORDER_STATUS[order.status]?.label}</span>
       </span>`}
     </div>
   </a>`;

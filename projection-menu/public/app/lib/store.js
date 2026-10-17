@@ -154,9 +154,11 @@ export function wireLive() {
     patchResource('projectors', (list) => list.map((p) => (p.id === id ? { ...p, online } : p)));
   });
   onLive('order', (order) => {
+    // known: the active list was loaded, so "not in it" really means new.
+    const known = state.orders !== undefined;
     const previous = state.orders?.find((o) => o.id === order.id) ?? null;
     upsertOrder(order);
-    orderListeners.forEach((fn) => fn(order, previous));
+    orderListeners.forEach((fn) => fn(order, previous, known));
   });
   onLive('menu:changed', () => {
     refresh('menu');

@@ -2,143 +2,275 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#120d08">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d0d0f">
   <title>إعداد المنيو الضوئي</title>
-  <link rel="stylesheet" href="fonts.css">
+  <!-- /shared is the server's public/shared, copied into the APK at build time. -->
+  <link rel="stylesheet" href="../shared/fonts.css">
+  <link rel="stylesheet" href="../shared/tokens.css">
   <link rel="stylesheet" href="setup.css">
 </head>
 <body>
-  <main class="page">
-    <header class="brand">
-      <span class="logo" aria-hidden="true">☀</span>
-      <div>
-        <h1>المنيو الضوئي</h1>
-        <p class="muted">إعداد هذا الجهاز</p>
+  <!-- Line icons (24px grid), used as <svg class="icon"><use href="#i-…"></use></svg>. -->
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-gold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f3d9a6" />
+        <stop offset="0.5" stop-color="#d4a056" />
+        <stop offset="1" stop-color="#9c6f33" />
+      </linearGradient>
+    </defs>
+    <symbol id="i-staff" viewBox="0 0 24 24"><rect x="4.5" y="2.5" width="15" height="19" rx="2.6" /><circle cx="12" cy="9.2" r="2.4" /><path d="M8.2 15.8c.8-1.8 2.2-2.8 3.8-2.8s3 1 3.8 2.8M10.5 18.8h3" /></symbol>
+    <symbol id="i-projector" viewBox="0 0 24 24"><rect x="4" y="2.5" width="16" height="6.5" rx="2" /><circle cx="15.5" cy="5.75" r="1.6" /><path d="M7.5 5.75h3.5M8 9l-4.5 10.5M16 9l4.5 10.5M2.5 20.5h19" /><path d="M8.5 15.5h7" stroke-dasharray="1.6 2" /></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M10 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z" /><path d="M18 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" /></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5l5 5" /></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.2" /><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.2" /><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.2" /><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 20.5h2" /></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6" /></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="7" rx="2" /><rect x="3.5" y="13" width="17" height="7" rx="2" /><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6" /></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.8 12.4a9.2 9.2 0 0 1 12.4 0M9 15.7a4.6 4.6 0 0 1 6 0" /><circle cx="12" cy="19" r="1" /></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2.5" /></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l8.5-8.5M16 7l2.5 2.5M14 9l2 2" /></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6 9.5V20h12V9.5M10 20v-5h4v5" /></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2h.01" /></symbol>
+    <symbol id="i-erase" viewBox="0 0 24 24"><path d="M3.5 12l5-6.5h12v13h-12z" /><path d="M11.5 9.5l5 5M16.5 9.5l-5 5" /></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3.6-3.6a4 4 0 0 0-5.7-5.7l-1.1 1.1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3.6 3.6a4 4 0 0 0 5.7 5.7l1.1-1.1" /></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M15.5 6.5v11l-9-5.5z" /></symbol>
+  </svg>
+
+  <div class="ambient" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="top">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="21" class="mark-rim" />
+          <g class="mark-rays">
+            <path d="M24 5.5v4M24 38.5v4M5.5 24h4M38.5 24h4M10.9 10.9l2.8 2.8M34.3 34.3l2.8 2.8M37.1 10.9l-2.8 2.8M13.7 34.3l-2.8 2.8" />
+          </g>
+          <circle cx="24" cy="24" r="8.5" fill="url(#g-gold)" />
+        </svg>
+        <div class="brand-text">
+          <h1>المنيو الضوئي</h1>
+          <p>إعداد هذا الجهاز</p>
+        </div>
       </div>
+      <ol id="stepper" class="stepper" aria-label="خطوات الإعداد" hidden>
+        <li data-step="role"><span class="dot">1</span><span class="step-label">الدور</span></li>
+        <li data-step="server"><span class="dot">2</span><span class="step-label">الخادم</span></li>
+        <li data-step="finish"><span class="dot">3</span><span id="finish-step-label" class="step-label">الربط</span></li>
+      </ol>
     </header>
 
     <div id="webview-warning" class="notice warn" role="alert" hidden>
-      <strong>نسخة «Android System WebView» قديمة على هذا الجهاز<span id="webview-version"></span>.</strong>
-      حدّثها من متجر Google Play ثم أعد فتح التطبيق، وإلا قد لا تعمل الصفحات بشكل صحيح.
+      <svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg>
+      <div>
+        <strong>نسخة «Android System WebView» قديمة على هذا الجهاز<span id="webview-version"></span>.</strong>
+        حدّثها من متجر Google Play ثم أعد فتح التطبيق، وإلا قد لا تعمل الصفحات بشكل صحيح.
+      </div>
     </div>
 
-    <!-- Shown when the device is already configured (settings reopened). -->
-    <section id="current" class="panel" hidden>
-      <h2>الإعداد الحالي</h2>
-      <div class="current-info">
-        <span id="current-mode" class="mode-pill"></span>
-        <span id="current-detail"></span>
-        <code id="current-host" dir="ltr"></code>
+    <!-- Saved configuration (settings reopened). -->
+    <section id="view-current" class="view" hidden aria-labelledby="current-title">
+      <div class="card current">
+        <div class="current-head">
+          <span class="badge-icon"><svg class="icon" aria-hidden="true"><use id="current-icon" href="#i-staff"></use></svg></span>
+          <div class="current-text">
+            <p class="eyebrow">الإعداد الحالي</p>
+            <h2 id="current-title"></h2>
+            <p id="current-label" class="current-label"></p>
+            <p class="current-host"><svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg><bdi id="current-host" dir="ltr"></bdi></p>
+          </div>
+        </div>
+        <div id="current-tags" class="tags"></div>
+        <div class="actions">
+          <button id="resume" type="button" class="btn primary"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg>متابعة</button>
+          <button id="change" type="button" class="btn">تغيير الإعداد</button>
+          <button id="reset" type="button" class="btn ghost danger">حذف الإعداد</button>
+        </div>
+        <p id="current-status" class="status" aria-live="polite"></p>
       </div>
-      <div id="current-tags" class="tags"></div>
-      <div class="actions">
-        <button id="resume" type="button" class="btn primary">متابعة</button>
-        <button id="change" type="button" class="btn">تغيير الإعداد</button>
-        <button id="reset" type="button" class="btn danger">حذف الإعداد</button>
-      </div>
-      <p id="current-status" class="status" aria-live="polite"></p>
     </section>
 
-    <form id="wizard" novalidate>
-      <section class="panel">
-        <h2><span class="step-no">1</span>ماذا سيكون هذا الجهاز؟</h2>
-        <div class="modes" role="radiogroup" aria-label="نوع الجهاز">
-          <button type="button" class="mode" data-mode="TABLET" role="radio" aria-checked="false">
-            <span class="mode-icon" aria-hidden="true">📱</span>
-            <strong>تابلت طاولة</strong>
-            <small>منيو الطلب أمام الزبائن</small>
-          </button>
-          <button type="button" class="mode" data-mode="PLAYER" role="radio" aria-checked="false">
-            <span class="mode-icon" aria-hidden="true">📽️</span>
-            <strong>جهاز عرض</strong>
-            <small>يُوصل بالبروجكتر عبر HDMI</small>
-          </button>
-          <button type="button" class="mode" data-mode="ADMIN" role="radio" aria-checked="false">
-            <span class="mode-icon" aria-hidden="true">🖥️</span>
-            <strong>لوحة التحكم</strong>
-            <small>إدارة المنيو والطلبات</small>
-          </button>
-          <button type="button" id="demo" class="mode demo">
-            <span class="mode-icon" aria-hidden="true">✨</span>
-            <strong>عرض تجريبي بدون خادم</strong>
-            <small>جرّب الفكرة على هذا الجهاز فقط</small>
-          </button>
+    <!-- Step 1: what the device is. -->
+    <section id="view-role" class="view" hidden aria-labelledby="role-title">
+      <div class="view-head">
+        <div>
+          <h2 id="role-title">ما دور هذا الجهاز؟</h2>
+          <p class="sub">اختر مرة واحدة، ويمكنك تغييره لاحقاً من هذه الشاشة.</p>
         </div>
-        <p id="demo-status" class="status" aria-live="polite"></p>
-      </section>
+      </div>
+      <div class="roles" role="radiogroup" aria-labelledby="role-title">
+        <button type="button" class="role" data-role="APP" role="radio" aria-checked="false">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-staff"></use></svg></span>
+          <span class="role-text">
+            <strong>تطبيق الموظفين</strong>
+            <span class="role-who">ويتر · مصمم · مالك</span>
+            <small>الطاولات والطلبات والمنيو وتصميم العرض. يدخل كل موظف باسمه وصلاحياته.</small>
+          </span>
+        </button>
+        <button type="button" class="role" data-role="PLAYER" role="radio" aria-checked="false">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-projector"></use></svg></span>
+          <span class="role-text">
+            <strong>جهاز عرض على طاولة</strong>
+            <span class="role-who">موصول بالبروجكتر فوق الطاولة</span>
+            <small>يعرض المنيو على سطح الطاولة، ويُربط بطاولته برمز من 6 أرقام.</small>
+          </span>
+        </button>
+        <button type="button" class="role demo" data-role="DEMO">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"></use></svg></span>
+          <span class="role-text">
+            <strong>عرض تجريبي بدون خادم</strong>
+            <span class="role-who">على هذا الجهاز فقط</span>
+            <small>جرّب تطبيق الموظفين والعرض الضوئي ببيانات تجريبية.</small>
+          </span>
+        </button>
+      </div>
+      <p id="role-status" class="status" aria-live="polite"></p>
+    </section>
 
-      <section id="link-step" class="panel" hidden>
-        <h2><span class="step-no">2</span><span id="link-title"></span></h2>
-        <button id="scan" type="button" class="btn scan"><span aria-hidden="true">📷</span> امسح رمز QR</button>
-        <div id="or" class="or"><span>أو</span></div>
-        <label class="field">
-          <span id="link-label"></span>
-          <input id="link" type="url" dir="ltr" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false">
-        </label>
-        <p id="link-status" class="status" aria-live="polite"></p>
-        <p id="link-hint" class="hint"></p>
-      </section>
+    <!-- Step 2: which server. -->
+    <section id="view-server" class="view" hidden aria-labelledby="server-title">
+      <div class="view-head">
+        <button type="button" class="back" data-back="role" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
+        <div>
+          <h2 id="server-title">اختر الخادم</h2>
+          <p class="sub">كمبيوتر المطعم الذي يعمل عليه النظام، على نفس شبكة الواي فاي.</p>
+        </div>
+      </div>
 
-      <section id="options-step" class="panel" hidden>
-        <h2><span class="step-no">3</span>خيارات</h2>
-        <div id="pin-block">
-          <div class="pin-grid">
-            <label class="field">
-              <span>رمز PIN لفتح الإعدادات (اختياري)</span>
-              <input id="pin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="من 4 إلى 8 أرقام">
-            </label>
-            <label class="field">
-              <span>تأكيد الرمز</span>
-              <input id="pin2" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password">
+      <div class="server-grid">
+        <div class="card discover">
+          <div class="card-head">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-wifi"></use></svg>خوادم على الشبكة</h3>
+            <button id="search" type="button" class="btn small">
+              <span class="spinner" aria-hidden="true"></span>
+              <svg class="icon idle-icon" aria-hidden="true"><use href="#i-search"></use></svg>
+              <span id="search-label">بحث</span>
+            </button>
+          </div>
+          <ul id="servers" class="servers"></ul>
+          <div id="discover-empty" class="empty" hidden>
+            <svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg>
+            <p id="discover-empty-text"></p>
+          </div>
+          <p id="discover-status" class="status" aria-live="polite"></p>
+        </div>
+
+        <div class="card manual">
+          <h3><svg class="icon" aria-hidden="true"><use href="#i-link"></use></svg>أو أدخل العنوان</h3>
+          <form id="manual-form" class="field-row" novalidate>
+            <label class="sr-only" for="address">عنوان الخادم</label>
+            <input id="address" type="text" dir="ltr" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="192.168.1.10:3000">
+            <button id="connect" type="submit" class="btn"><span class="spinner" aria-hidden="true"></span>اتصال</button>
+          </form>
+          <p class="hint">العنوان يظهر على شاشة الخادم عند تشغيله، أو في تطبيق الموظفين ← الإعدادات.</p>
+          <button id="scan" type="button" class="btn ghost scan"><svg class="icon" aria-hidden="true"><use href="#i-qr"></use></svg>امسح رمز QR</button>
+          <p id="manual-status" class="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: pairing code (projector) and device options. -->
+    <section id="view-finish" class="view" hidden aria-labelledby="finish-title">
+      <div class="view-head">
+        <button type="button" class="back" data-back="server" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
+        <div>
+          <h2 id="finish-title"></h2>
+          <p id="finish-sub" class="sub"></p>
+        </div>
+      </div>
+      <p id="server-chip" class="server-chip"></p>
+
+      <div class="finish-grid">
+        <div id="pair" class="card pair" hidden>
+          <h3><svg class="icon" aria-hidden="true"><use href="#i-key"></use></svg>رمز الربط</h3>
+          <div id="code" class="code" role="textbox" aria-readonly="true" aria-label="رمز الربط" aria-live="polite" dir="ltr">
+            <span class="digit"></span><span class="digit"></span><span class="digit"></span><span class="digit"></span><span class="digit"></span><span class="digit"></span>
+          </div>
+          <div id="keypad" class="keypad" dir="ltr">
+            <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+            <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+            <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+            <button type="button" data-key="clear" class="key-soft">مسح</button><button type="button" data-key="0">0</button>
+            <button type="button" data-key="back" class="key-soft" aria-label="حذف آخر رقم"><svg class="icon" aria-hidden="true"><use href="#i-erase"></use></svg></button>
+          </div>
+          <p id="pair-status" class="status" aria-live="polite"></p>
+          <p class="hint">يُنشئ المالك الرمز من تطبيق الموظفين: «أجهزة العرض» ← «ربط جهاز برمز» أو «الأقسام والطاولات» ← «ربط جهاز عرض». صالح 10 دقائق ولمرة واحدة.</p>
+        </div>
+
+        <div id="linked" class="card linked" hidden>
+          <span class="badge-icon ok"><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg></span>
+          <div>
+            <h3 id="linked-title">هذا الجهاز مربوط بطاولته</h3>
+            <p id="linked-label" class="muted"></p>
+          </div>
+          <button id="relink" type="button" class="btn small">ربط بطاولة أخرى برمز جديد</button>
+        </div>
+
+        <div class="card options">
+          <h3>خيارات الجهاز</h3>
+          <div id="pin-block" class="pin-block">
+            <div class="pin-grid">
+              <label class="field">
+                <span>رمز PIN لفتح الإعدادات (اختياري)</span>
+                <input id="pin" class="pin" type="password" dir="ltr" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password" placeholder="4 إلى 8 أرقام">
+              </label>
+              <label class="field">
+                <span>تأكيد الرمز</span>
+                <input id="pin2" class="pin" type="password" dir="ltr" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="new-password">
+              </label>
+            </div>
+            <p id="pin-status" class="status" aria-live="polite"></p>
+            <!-- Shown when a PIN is saved: it is kept unless replaced or removed here. -->
+            <label id="pin-clear-row" class="toggle" hidden>
+              <input id="pin-clear" type="checkbox">
+              <span class="switch" aria-hidden="true"></span>
+              <span class="toggle-text">
+                <strong>إزالة رمز PIN الحالي</strong>
+                <small>بدون رمز يستطيع أي شخص فتح الإعدادات.</small>
+              </span>
             </label>
           </div>
-          <p id="pin-status" class="status" aria-live="polite"></p>
-          <!-- Shown when a PIN is saved: it is kept unless replaced or removed here. -->
-          <label id="pin-clear-row" class="toggle" hidden>
-            <input id="pin-clear" type="checkbox">
+          <label class="toggle">
+            <input id="kiosk" type="checkbox">
             <span class="switch" aria-hidden="true"></span>
             <span class="toggle-text">
-              <strong>إزالة رمز PIN الحالي</strong>
-              <small>بدون رمز يستطيع أي شخص فتح الإعدادات.</small>
+              <strong><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>قفل الجهاز على التطبيق</strong>
+              <small>تثبيت الشاشة: يمنع الخروج إلى بقية الجهاز. يطلب Android تأكيده مرة واحدة.</small>
+            </span>
+          </label>
+          <label class="toggle">
+            <input id="launcher" type="checkbox">
+            <span class="switch" aria-hidden="true"></span>
+            <span class="toggle-text">
+              <strong><svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg>يبدأ تلقائياً كشاشة رئيسية</strong>
+              <small>يفتح التطبيق وحده عند تشغيل الجهاز. سيطلب منك Android اختياره تطبيقاً للشاشة الرئيسية.</small>
             </span>
           </label>
         </div>
-        <label id="kiosk-row" class="toggle">
-          <input id="kiosk" type="checkbox">
-          <span class="switch" aria-hidden="true"></span>
-          <span class="toggle-text">
-            <strong>قفل الشاشة على التطبيق</strong>
-            <small>يمنع الخروج من الصفحة إلى بقية الجهاز (تثبيت الشاشة).</small>
-          </span>
-        </label>
-        <label class="toggle">
-          <input id="launcher" type="checkbox">
-          <span class="switch" aria-hidden="true"></span>
-          <span class="toggle-text">
-            <strong>تشغيل تلقائي كشاشة رئيسية</strong>
-            <small>يفتح التطبيق وحده عند تشغيل الجهاز. سيطلب منك Android اختياره تطبيقاً للشاشة الرئيسية.</small>
-          </span>
-        </label>
-      </section>
+      </div>
 
-      <div id="save-bar" class="save-bar" hidden>
-        <button id="save" type="submit" class="btn primary big">حفظ وتشغيل</button>
+      <div class="save-bar">
+        <button id="save" type="button" class="btn primary big"></button>
         <p id="save-status" class="status" aria-live="polite"></p>
       </div>
-    </form>
-
-    <section class="panel help">
-      <h2>من أين أحصل على الرابط؟</h2>
-      <ul>
-        <li>النظام يعمل من <strong>خادم</strong> على كمبيوتر داخل المطعم، وهذا الجهاز يجب أن يكون على نفس شبكة الواي فاي.</li>
-        <li>افتح لوحة التحكم على ذلك الكمبيوتر ثم <strong>«الطاولات والأجهزة»</strong>: لكل تابلت ولكل جهاز عرض رابط ورمز QR خاص به.</li>
-        <li>امسح الرمز بكاميرا هذا الجهاز أو انسخ الرابط والصقه هنا. للوحة التحكم يكفي عنوان الخادم مثل <code dir="ltr">192.168.1.10:3000</code>.</li>
-        <li>لفتح هذه الشاشة لاحقاً: المس الزاوية العلوية اليسرى 5 مرات بسرعة، أو اضغط زر الرجوع 3 مرات.</li>
-      </ul>
     </section>
 
-    <footer id="versions" class="foot muted" dir="ltr"></footer>
+    <details class="card help">
+      <summary>كيف يعمل؟</summary>
+      <ul>
+        <li>يعمل النظام من <strong>خادم</strong> على كمبيوتر داخل المطعم، ويجب أن يكون هذا الجهاز على نفس شبكة الواي فاي.</li>
+        <li><strong>تطبيق الموظفين:</strong> اختر الخادم، ثم يدخل كل موظف باسم المستخدم وكلمة المرور التي أنشأها له المالك.</li>
+        <li><strong>جهاز العرض:</strong> يُنشئ المالك رمز ربط للطاولة من تطبيق الموظفين، ثم تُدخل الرمز هنا خلال 10 دقائق.</li>
+        <li>لا يظهر الخادم في البحث؟ اكتب عنوانه كما يظهر عند تشغيله، مثل <bdi dir="ltr">192.168.1.10:3000</bdi>.</li>
+        <li>لفتح هذه الشاشة لاحقاً: المس الزاوية العلوية اليسرى 5 مرات بسرعة، أو اضغط زر القائمة في الريموت، أو زر الرجوع 3 مرات على جهاز العرض.</li>
+      </ul>
+    </details>
+
+    <footer id="versions" class="foot" dir="ltr"></footer>
   </main>
 
   <!-- An outdated WebView may not run the module below at all: say so instead of a dead page. -->

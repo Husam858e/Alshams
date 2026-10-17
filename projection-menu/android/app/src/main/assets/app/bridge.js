@@ -7,6 +7,17 @@
 // with the same id. In a desktop browser (no AndroidApp) a mock stands in so
 // the pages can be developed and tested without a device.
 //
+// Requests → replies (native: AppBridge.kt):
+//   getState                       → state {config: null | {mode: 'APP'|'PLAYER', url, hasPin, kiosk, launcher, label},
+//                                            appVersion, webViewVersion, webViewSupported, isTv, hasCamera}
+//   validateLink {url}             → validated {ok, mode, normalizedUrl} | {ok: false, error}
+//   discover {timeoutMs}           → servers {servers: [{name, host, port, url}], error?}
+//   scanQr                         → scanResult {text} | scanCancelled
+//   saveConfig {url, pin, kiosk, launcher, label} → saved (then native opens url)
+//   startDemo | resume | openSettings → ok (then native navigates)
+//   resetConfig                    → state
+// Any request may instead get {type: 'error', message} (Arabic).
+//
 // Keep this file to Chrome 80 syntax: on an outdated WebView the setup page
 // must still run far enough to say so.
 
@@ -68,9 +79,11 @@ function send(msg, timeoutMs) {
 export const bridge = {
   getState: () => request('getState'),
   validateLink: (url) => request('validateLink', { url }),
+  // mDNS search for servers on the LAN; native answers once the time is up.
+  discover: (timeoutMs) => request('discover', { timeoutMs }, { timeoutMs: timeoutMs + 5000 }),
   scanQr: () => request('scanQr', {}, { timeoutMs: 0 }),
-  // { url, pin: null | '' | '4-8 digits', kiosk, launcher } → native then opens the page.
-  // pin null (or missing) keeps the saved PIN, '' removes it.
+  // { url, pin: null | '' | '4-8 digits', kiosk, launcher, label } → native then opens the page.
+  // pin null (or missing) keeps the saved PIN, '' removes it. label: shown in setup later.
   saveConfig: (config) => request('saveConfig', config),
   startDemo: () => request('startDemo'),
   resume: () => request('resume'),

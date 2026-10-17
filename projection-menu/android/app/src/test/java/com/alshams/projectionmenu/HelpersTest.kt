@@ -77,6 +77,14 @@ class HelpersTest {
     }
 
     @Test
+    fun folderUrlsServeTheirIndexPage() {
+        assertEquals("/player/index.html", LocalContent.indexPath("/player/"))
+        assertEquals("/app/index.html", LocalContent.indexPath("/app/"))
+        assertEquals("/app/setup.html", LocalContent.indexPath("/app/setup.html"))
+        assertEquals("/vendor/three/build/three.module.js", LocalContent.indexPath("/vendor/three/build/three.module.js"))
+    }
+
+    @Test
     fun readsTheWebViewMajorVersion() {
         assertEquals(124, DeviceInfo.webViewMajor("124.0.6367.82"))
         assertEquals(89, DeviceInfo.webViewMajor("89"))

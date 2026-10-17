@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark only, no action bar; the navy window background avoids a white
+    <!-- Dark only, no action bar; the dark window background avoids a white
          flash before the WebView paints. -->
     <style name="Theme.ProjectionMenu" parent="Theme.AppCompat.NoActionBar">
         <item name="colorPrimary">@color/surface</item>
-        <item name="colorPrimaryDark">@color/navy</item>
+        <item name="colorPrimaryDark">@color/canvas</item>
         <item name="colorAccent">@color/gold</item>
-        <item name="android:windowBackground">@color/navy</item>
+        <item name="android:windowBackground">@color/canvas</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@color/navy</item>
+        <item name="android:navigationBarColor">@color/canvas</item>
         <item name="alertDialogTheme">@style/ThemeOverlay.ProjectionMenu.Dialog</item>
     </style>
 

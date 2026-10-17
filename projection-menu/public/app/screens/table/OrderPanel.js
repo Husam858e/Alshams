@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from '../../components/icons.js';
 import { confirmDialog } from '../../components/overlay.js';
 import { Button, Empty, StatusChip, Stepper, cx } from '../../components/ui.js';
-import { money, time } from '../../lib/format.js';
+import { NOUNS, count, money, time } from '../../lib/format.js';
 import { ORDER_CANCELLABLE, ORDER_EDITABLE, ORDER_NEXT, ORDER_STATUS } from '../../lib/labels.js';
 
 export function OrderPanel({
@@ -139,7 +139,7 @@ export function OrderPanel({
       ${order &&
       html`<div class="op-total-row"><span>إجمالي الطلب #${order.id}</span><strong class="num">${money(order.total)}</strong></div>`}
       ${draft.length > 0 &&
-      html`<div class="op-total-row op-total-draft"><span>${order ? 'الإضافات' : 'الإجمالي'} · ${draftCount} صنف</span><strong class="num">${money(draftTotal)}</strong></div>`}
+      html`<div class="op-total-row op-total-draft"><span>${order ? 'الإضافات' : 'الإجمالي'} · ${count(draftCount, NOUNS.item)}</span><strong class="num">${money(draftTotal)}</strong></div>`}
       ${draft.length > 0 && order && editable &&
       html`<div class="op-total-row op-total-grand"><span>الإجمالي بعد الإضافة</span><strong class="num">${money(order.total + draftTotal)}</strong></div>`}
 
@@ -198,7 +198,11 @@ function DraftLine({ line, dish, onQty, onNotes }) {
             placeholder="مثال: بدون بصل"
             value=${line.notes}
             aria-label="ملاحظة الصنف"
-            ref=${inputRef}
+            ref=${(el) => {
+              // Focus at once so the first typed letter is not lost.
+              if (el && inputRef.current !== el) el.focus();
+              inputRef.current = el;
+            }}
             onInput=${(e) => onNotes(e.currentTarget.value)}
             onBlur=${() => setEditing(false)}
             onKeyDown=${(e) => e.key === 'Enter' && e.currentTarget.blur()}

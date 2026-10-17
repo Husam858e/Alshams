@@ -2,23 +2,30 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#120d08">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d0d0f">
   <title>تعذر الاتصال بالخادم</title>
-  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="../shared/fonts.css">
+  <link rel="stylesheet" href="../shared/tokens.css">
   <link rel="stylesheet" href="setup.css">
 </head>
 <body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 6.2-3.6M12 4.8a14 14 0 0 1 9.5 4.2M5.8 12.4a9.2 9.2 0 0 1 4-2.2M15.2 10.6a9.2 9.2 0 0 1 3 1.8M9 15.7a4.6 4.6 0 0 1 6 0M3.5 3.5l17 17" /><circle cx="12" cy="19" r="1" /></symbol>
+  </svg>
+  <div class="ambient" aria-hidden="true"></div>
+
   <!-- Native opens this page as offline.html?url=<page that failed to load>. -->
   <main class="offline-page">
-    <section class="panel offline-card">
-      <div class="offline-icon" aria-hidden="true">📡</div>
-      <h1 id="title">تعذر الاتصال بالخادم</h1>
+    <section class="card offline-card">
+      <span class="badge-icon offline-icon"><svg class="icon" aria-hidden="true"><use href="#i-wifi-off"></use></svg></span>
+      <h1 id="title">تعذّر الاتصال بالخادم</h1>
       <p id="reason" class="muted"></p>
       <ul class="checklist">
         <li>تأكد أن كمبيوتر الخادم في المطعم يعمل وأن برنامج المنيو مُشغَّل عليه.</li>
         <li>تأكد أن هذا الجهاز متصل بنفس شبكة الواي فاي.</li>
-        <li>إذا تغيّر عنوان الخادم افتح الإعدادات واربط الجهاز من جديد.</li>
+        <li>إذا تغيّر عنوان الخادم افتح الإعدادات واختر الخادم من جديد.</li>
       </ul>
       <div id="countdown" class="countdown" aria-live="polite">
         <div class="ring">

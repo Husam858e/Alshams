@@ -5,7 +5,7 @@ import { html } from 'htm/preact';
 import { useCallback, useRef, useState } from 'preact/hooks';
 import { uploadMedia } from '../lib/api.js';
 import { bytes } from '../lib/format.js';
-import { patchResource } from '../lib/store.js';
+import { getState, patchResource } from '../lib/store.js';
 import { Icon } from './icons.js';
 import { Button, IconButton, cx } from './ui.js';
 
@@ -41,7 +41,8 @@ export function useUploader({ kind = 'all', onUploaded } = {}) {
       const { promise, abort } = uploadMedia(file, { onProgress: (p) => update(id, { progress: p }) });
       aborts.current.set(id, abort);
       promise
-        .then((asset) => {
+        .then((uploaded) => {
+          const asset = { ...uploaded, uploaded_by_name: uploaded.uploaded_by_name ?? getState().auth.user?.name ?? null };
           update(id, { status: 'done', progress: 1, asset });
           patchResource('media', (list) => [asset, ...list.filter((m) => m.id !== asset.id)]);
           onUploadedRef.current?.(asset);

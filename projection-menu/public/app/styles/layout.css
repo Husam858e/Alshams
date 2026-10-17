@@ -426,3 +426,32 @@
     padding: var(--sp-6) var(--sp-6) var(--sp-10);
   }
 }
+
+/* Short tablets (1280×800): the owner's 12 destinations must fit the rail. */
+@media (max-height: 880px) {
+  .sidebar-compact {
+    padding-top: var(--sp-3);
+  }
+
+  .sidebar-compact .sidebar-brand {
+    padding-bottom: var(--sp-3);
+  }
+
+  .sidebar-compact .sidebar-nav {
+    gap: var(--sp-1);
+  }
+
+  .sidebar-compact .nav-group {
+    gap: 0;
+  }
+
+  .sidebar-compact .nav-group + .nav-group {
+    padding-top: var(--sp-1);
+  }
+
+  .sidebar-compact .nav-item {
+    min-height: 50px;
+    padding: 4px 2px;
+    gap: 2px;
+  }
+}

@@ -12,9 +12,11 @@ import java.io.InputStream
 
 /**
  * Serves the APK's assets on https://appassets.androidplatform.net/ (asset path ==
- * URL path). Audio/video additionally answer HTTP Range requests: the stock
- * AssetsPathHandler always returns the whole file without Accept-Ranges, which
- * leaves Chromium unable to seek, so looping clips could stall.
+ * URL path, and "dir/" means "dir/index.html" like on the server, so the bundled
+ * copies of /app/ and /player/ work under their usual URLs). Audio/video
+ * additionally answer HTTP Range requests: the stock AssetsPathHandler always
+ * returns the whole file without Accept-Ranges, which leaves Chromium unable to
+ * seek, so looping clips could stall.
  */
 class LocalContent(context: Context) {
     private val assets: AssetManager = context.assets
@@ -24,13 +26,18 @@ class LocalContent(context: Context) {
         .build()
 
     fun serve(request: WebResourceRequest): WebResourceResponse? {
-        val path = request.url.path.orEmpty()
-        val mime = MEDIA_TYPES[path.substringAfterLast('.', "").lowercase()]
+        val path = indexPath(request.url.path.orEmpty())
+        val extension = path.substringAfterLast('.', "").lowercase()
+        val mime = MEDIA_TYPES[extension]
         if (mime != null && request.url.scheme == "https") {
             val range = request.requestHeaders.orEmpty().entries.firstOrNull { it.key.equals("Range", ignoreCase = true) }
             serveMedia(path.removePrefix("/"), mime, range?.value)?.let { return it }
         }
-        return loader.shouldInterceptRequest(request.url)
+        val uri = if (path == request.url.path) request.url else request.url.buildUpon().path(path).build()
+        val response = loader.shouldInterceptRequest(uri) ?: return null
+        // AssetsPathHandler guesses these as text/plain.
+        EXTRA_TYPES[extension]?.let { response.mimeType = it }
+        return response
     }
 
     private fun serveMedia(assetPath: String, mime: String, rangeHeader: String?): WebResourceResponse? {
@@ -57,6 +64,15 @@ class LocalContent(context: Context) {
     }
 
     companion object {
+        /** "/player/" → "/player/index.html"; other paths stay as they are. */
+        fun indexPath(path: String): String = if (path.endsWith("/")) "${path}index.html" else path
+
+        private val EXTRA_TYPES = mapOf(
+            "woff2" to "font/woff2",
+            "glb" to "model/gltf-binary",
+            "gltf" to "model/gltf+json",
+        )
+
         private val MEDIA_TYPES = mapOf(
             "webm" to "video/webm",
             "mp4" to "video/mp4",

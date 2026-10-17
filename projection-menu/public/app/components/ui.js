@@ -3,7 +3,6 @@
 
 import { html } from 'htm/preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { money as fmtMoney } from '../lib/format.js';
 import { Icon } from './icons.js';
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
@@ -124,10 +123,6 @@ export function StatusChip({ color, children, pulse, size = 'md' }) {
   </span>`;
 }
 
-export function Dot({ color, pulse, label }) {
-  return html`<span class=${cx('dot', pulse && 'dot-pulse')} style=${{ background: color }} role=${label ? 'img' : undefined} aria-label=${label} title=${label}></span>`;
-}
-
 export function Spinner({ size = 18 }) {
   return html`<span class="spinner" style=${{ width: `${size}px`, height: `${size}px` }} role="status" aria-label="جارٍ التحميل"></span>`;
 }
@@ -161,10 +156,6 @@ export function ErrorState({ error, onRetry }) {
 export function Avatar({ name = '', size = 36, tone }) {
   const letter = name.trim().charAt(0) || '؟';
   return html`<span class=${cx('avatar', tone && `avatar-${tone}`)} style=${{ width: `${size}px`, height: `${size}px`, fontSize: `${Math.round(size * 0.42)}px` }} aria-hidden="true">${letter}</span>`;
-}
-
-export function Money({ value, class: cls }) {
-  return html`<span class=${cx('num', cls)}>${fmtMoney(value)}</span>`;
 }
 
 export function PageHeader({ title, subtitle, actions, back, icon }) {
@@ -225,6 +216,3 @@ export function Img({ src, alt = '', class: cls, fallbackIcon = 'utensils', ...r
   </span>`;
 }
 
-export function Kbd({ children }) {
-  return html`<kbd class="kbd">${children}</kbd>`;
-}

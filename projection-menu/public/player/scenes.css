@@ -486,8 +486,8 @@
 }
 
 .brand-logo {
-  max-height: 72px;
-  max-width: 260px;
+  max-height: 80px;
+  max-width: 300px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -515,6 +515,8 @@
   position: relative;
   flex: 0 1 auto;
   min-width: 0;
+  /* One very long category name must not squeeze the other tabs. */
+  max-width: 400px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -1125,6 +1127,7 @@
 }
 
 .od-items-wrap {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1149,6 +1152,19 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Hidden copy of all rows, measured to split the order into pages. */
+.od-items.od-measure {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.od-items.od-measure li {
+  animation: none;
 }
 
 .od-items li {
@@ -1308,6 +1324,10 @@
 
 .shape-wide .mn-head {
   height: 64px;
+}
+
+.shape-wide .brand-logo {
+  max-height: 64px;
 }
 
 .shape-wide .mn-title-row {

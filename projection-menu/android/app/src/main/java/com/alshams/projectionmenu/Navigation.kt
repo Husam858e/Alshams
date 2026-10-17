@@ -16,19 +16,24 @@ object LocalPages {
 
 /** What the WebView is showing; drives fullscreen, orientation, kiosk and key handling. */
 enum class Screen {
-    SETUP, DEMO, TABLET, PLAYER, ADMIN;
+    SETUP, DEMO, APP, PLAYER;
 
-    /** Customer-facing modes that can be locked with screen pinning and a PIN. */
-    val isKiosk: Boolean get() = this == TABLET || this == PLAYER
+    /** The configured server modes: may be pinned (kiosk) and guard settings with the PIN. */
+    val isLockable: Boolean get() = this == APP || this == PLAYER
 
     /** Fullscreen without system bars, screen kept on. */
-    val isImmersive: Boolean get() = isKiosk || this == DEMO
+    val isImmersive: Boolean get() = this == PLAYER || this == DEMO
+
+    /** Pages people work in: downloads and links to other sites (opened outside). */
+    val isInteractive: Boolean get() = this == APP || this == SETUP
+
+    /** `<input type="file">` works everywhere but on a projector (the demo uploads too). */
+    val allowsUploads: Boolean get() = this != PLAYER
 
     companion object {
         fun of(mode: AppMode): Screen = when (mode) {
-            AppMode.TABLET -> TABLET
+            AppMode.APP -> APP
             AppMode.PLAYER -> PLAYER
-            AppMode.ADMIN -> ADMIN
         }
 
         /**
@@ -56,7 +61,7 @@ object NavigationPolicy {
      * @param target URL the page wants to open.
      * @param fromLocal whether the current page is a bundled one. Remote pages may
      *   never open bundled pages: that would bypass the settings PIN.
-     * @param serverUrl the configured pairing link (its origin is trusted).
+     * @param serverUrl the configured page (its origin is trusted).
      */
     fun decide(target: String, fromLocal: Boolean, screen: Screen, serverUrl: String?): NavDecision {
         if (target == "about:blank") return NavDecision.ALLOW
@@ -65,6 +70,7 @@ object NavigationPolicy {
         if (url.isLocal) return if (fromLocal) NavDecision.ALLOW else NavDecision.BLOCK
         val server = serverUrl?.let(WebUrl::parse)
         if (server != null && server.origin == url.origin) return NavDecision.ALLOW
-        return if (screen == Screen.ADMIN || screen == Screen.SETUP) NavDecision.OPEN_EXTERNALLY else NavDecision.BLOCK
+        // The staff app may link elsewhere (help, a supplier); a projector never leaves its menu.
+        return if (screen.isInteractive) NavDecision.OPEN_EXTERNALLY else NavDecision.BLOCK
     }
 }

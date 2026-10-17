@@ -9,6 +9,7 @@ import { confirmDialog } from '../components/overlay.js';
 import { toast } from '../components/toast.js';
 import { Button, Empty, ErrorState, IconButton, Segmented, Skeleton, cx } from '../components/ui.js';
 import { api } from '../lib/api.js';
+import { NOUNS, count } from '../lib/format.js';
 import { useMedia } from '../lib/hooks.js';
 import { TABLE_STATUS } from '../lib/labels.js';
 import { navigate } from '../lib/router.js';
@@ -120,6 +121,8 @@ export default function TableScreen({ params, user }) {
         order = await api.createOrder({ table_id: tableId, items, notes: orderNotes.trim() || undefined });
       }
       upsertOrder(order);
+      // The server marks a free table occupied; show it before the live refresh.
+      if (table.status === 'free') patchTable(tableId, { status: 'occupied' });
       setPicked(order.id);
       setDraft([]);
       setOrderNotes('');
@@ -269,7 +272,7 @@ function TableHeader({ table, area, onStatus, canOrder }) {
       <span class="ts-number num">${table.number}</span>
       <div class="ts-title-text">
         <h1>طاولة ${table.number}</h1>
-        <span class="muted">${area?.name ?? 'بدون قسم'} · ${table.seats} مقاعد</span>
+        <span class="muted">${area?.name ?? 'بدون قسم'} · ${count(table.seats, NOUNS.seat)}</span>
       </div>
     </div>
     <span class=${cx('ts-proj', !proj.length ? 'proj-none' : online === proj.length ? 'proj-on' : online ? 'proj-part' : 'proj-off')}>

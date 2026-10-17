@@ -1178,7 +1178,7 @@ dialog.drawer-lg {
   width: min(720px, 100vw);
 }
 
-dialog.drawer .modal-card {
+dialog.drawer > .modal-card {
   height: 100%;
   max-height: none;
   border-radius: var(--r-xl) 0 0 var(--r-xl);
@@ -1200,7 +1200,7 @@ dialog.drawer-bottom {
   max-height: 85dvh;
 }
 
-dialog.drawer-bottom .modal-card {
+dialog.drawer-bottom > .modal-card {
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   border-inline-end: 1px solid var(--line-2);
   animation: sheet-in var(--dur-3) var(--ease-emph);
@@ -1311,7 +1311,18 @@ dialog.drawer-bottom .modal-card {
 
 /* ── Toasts ──────────────────────────────────────────────────────── */
 
+/* The host is a manual popover (top layer, above open modals); these undo
+   the UA popover look (centered box with border and canvas background). */
 .toasts {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+  height: auto;
+  right: auto;
+  bottom: auto;
   position: fixed;
   z-index: 1000;
   top: max(16px, env(safe-area-inset-top));
@@ -1706,4 +1717,39 @@ dialog.drawer-bottom .modal-card {
 
 .notice-gold .icon {
   color: var(--gold);
+}
+
+/* ── Touch targets ───────────────────────────────────────────────── */
+/* Compact controls keep their look but get an invisible hit area of at
+   least 44px, so fingers on a busy floor do not miss them. */
+.stepper-btn,
+.toast-close,
+.tag-x,
+.segmented-item {
+  position: relative;
+}
+
+.icon-btn-sm::after,
+.btn-sm::after,
+.segmented-item::after,
+.stepper-btn::after,
+.search-clear::after,
+.toast-close::after,
+.tag-x::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.stepper-sm .stepper-btn::after,
+.toast-close::after {
+  inset: -7px;
+}
+
+.search-clear::after {
+  inset: -6px;
+}
+
+.tag-x::after {
+  inset: -11px;
 }

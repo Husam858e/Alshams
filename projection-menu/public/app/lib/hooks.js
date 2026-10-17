@@ -1,6 +1,6 @@
 // Small shared hooks.
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 
 export function useMedia(query) {
   const [matches, setMatches] = useState(() => matchMedia(query).matches);
@@ -29,35 +29,6 @@ export function useNow(ms = 30000) {
     return () => clearInterval(t);
   }, [ms]);
   return now;
-}
-
-// [run, busy]: run(...args) awaits fn and tracks a busy flag (ignores re-entry).
-export function useBusy(fn) {
-  const [busy, setBusy] = useState(false);
-  const busyRef = useRef(false);
-  const fnRef = useRef(fn);
-  fnRef.current = fn;
-  const run = useCallback(async (...args) => {
-    if (busyRef.current) return undefined;
-    busyRef.current = true;
-    setBusy(true);
-    try {
-      return await fnRef.current(...args);
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-    }
-  }, []);
-  return [run, busy];
-}
-
-export function useDebounced(value, ms = 200) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
 }
 
 // Per-device UI preference (remembered filters etc.); never required to work.

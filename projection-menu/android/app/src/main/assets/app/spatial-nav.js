@@ -3,7 +3,7 @@
 // left/right move the caret until it reaches the edge of the text, and
 // OK (Enter) toggles checkboxes.
 
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, a[href], [tabindex="0"]';
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, a[href], summary, [tabindex="0"]';
 const DIRECTIONS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
 const TEXT_TYPES = new Set(['text', 'url', 'password', 'number', 'search', 'tel', 'email']);
 

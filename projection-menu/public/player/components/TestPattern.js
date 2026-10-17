@@ -38,7 +38,7 @@ export function TestPattern({ tableNumber, projectorName, layout, rotation }) {
       <text x=${W / 2} y=${H / 2 - 30} class="tp-table">${tableNumber != null ? `طاولة ${tableNumber}` : 'جهاز عرض'}</text>
       ${projectorName && html`<text x=${W / 2} y=${H / 2 + 70} class="tp-name">${projectorName}</text>`}
       <text x=${W / 2} y=${H / 2 + 130} class="tp-hint">
-        ${`اسحب الزوايا الأربع في التطبيق حتى تنطبق على حواف الطاولة · تدوير \u2066${rotation}°\u2069 · ${layout === 'dual' ? 'عرض مزدوج' : 'عرض واحد'}`}
+        ${`اسحب الزوايا الأربع في التطبيق حتى تنطبق على حواف الطاولة · تدوير ${rotation} درجة · ${layout === 'dual' ? 'عرض مزدوج' : 'عرض واحد'}`}
       </text>
       <path d="M${W / 2} 150l-34 52h68z" fill="#fff" />
       <text x=${W / 2} y="250" class="tp-hint">أعلى الصورة</text>

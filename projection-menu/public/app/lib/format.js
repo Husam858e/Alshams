@@ -9,7 +9,6 @@ const relFmt = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
 const timeFmt = new Intl.DateTimeFormat(LOCALE, { hour: 'numeric', minute: '2-digit' });
 const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 const dayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
-const shortDayFmt = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'numeric' });
 
 export const currency = () => getState().settings?.general?.currency || 'د.ع';
 
@@ -31,7 +30,6 @@ export function toDate(value) {
 export const time = (v) => (toDate(v) ? timeFmt.format(toDate(v)) : '—');
 export const dateTime = (v) => (toDate(v) ? dateTimeFmt.format(toDate(v)) : '—');
 export const dayLabel = (v) => (toDate(v) ? dayFmt.format(toDate(v)) : '—');
-export const shortDay = (v) => (toDate(v) ? shortDayFmt.format(toDate(v)) : '—');
 
 export function timeAgo(value, now = Date.now()) {
   const d = toDate(value);
@@ -44,11 +42,14 @@ export function timeAgo(value, now = Date.now()) {
   return relFmt.format(Math.round(sec / 86400), 'day');
 }
 
+// Isolated left-to-right ("4.8 MB"), so RTL text around it cannot flip it.
 export function bytes(n) {
   if (!n && n !== 0) return '—';
-  if (n < 1024 * 1024) return `${num(Math.max(1, Math.round(n / 1024)))} KB`;
-  if (n < 1024 * 1024 * 1024) return `${num(Math.round((n / 1024 / 1024) * 10) / 10)} MB`;
-  return `${num(Math.round((n / 1024 / 1024 / 1024) * 100) / 100)} GB`;
+  let text;
+  if (n < 1024 * 1024) text = `${num(Math.max(1, Math.round(n / 1024)))} KB`;
+  else if (n < 1024 * 1024 * 1024) text = `${num(Math.round((n / 1024 / 1024) * 10) / 10)} MB`;
+  else text = `${num(Math.round((n / 1024 / 1024 / 1024) * 100) / 100)} GB`;
+  return `\u2066${text}\u2069`;
 }
 
 export function duration(ms) {
@@ -69,10 +70,29 @@ export function addDays(day, n) {
   return isoDay(d);
 }
 
-export const initials = (name = '') =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('') || '؟';
+// Arabic counted noun: count(25, ['ملف', 'ملفان', 'ملفات', 'ملفاً']) -> '25 ملفاً'.
+// forms: [singular, dual, plural (3-10), accusative singular (11+)].
+export function count(n, [one, two, few, many]) {
+  const v = Math.abs(Math.trunc(Number(n) || 0));
+  if (v === 0) return `0 ${few}`;
+  if (v === 1) return `${one} واحد`.replace(/ة واحد$/, 'ة واحدة');
+  if (v === 2) return two;
+  const mod = v % 100;
+  return `${int(v)} ${mod >= 3 && mod <= 10 ? few : many}`;
+}
+
+export const NOUNS = {
+  file: ['ملف', 'ملفان', 'ملفات', 'ملفاً'],
+  dish: ['طبق', 'طبقان', 'أطباق', 'طبقاً'],
+  category: ['تصنيف', 'تصنيفان', 'تصنيفات', 'تصنيفاً'],
+  table: ['طاولة', 'طاولتان', 'طاولات', 'طاولة'],
+  order: ['طلب', 'طلبان', 'طلبات', 'طلباً'],
+  item: ['صنف', 'صنفان', 'أصناف', 'صنفاً'],
+  user: ['مستخدم', 'مستخدمان', 'مستخدمين', 'مستخدماً'],
+  projector: ['جهاز عرض', 'جهازا عرض', 'أجهزة عرض', 'جهاز عرض'],
+  seat: ['مقعد', 'مقعدان', 'مقاعد', 'مقعداً'],
+  image: ['صورة', 'صورتان', 'صور', 'صورة'],
+  video: ['فيديو', 'فيديوهان', 'فيديوهات', 'فيديو'],
+  model: ['مجسم', 'مجسمان', 'مجسمات', 'مجسماً'],
+  section: ['قسم', 'قسمان', 'أقسام', 'قسماً'],
+};

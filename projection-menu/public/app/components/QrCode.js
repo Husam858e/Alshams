@@ -57,6 +57,3 @@ export function QrCode({ text, size = 200, label }) {
   </div>`;
 }
 
-export function qrDataUrl(canvasParent) {
-  return canvasParent?.querySelector('canvas')?.toDataURL('image/png') ?? null;
-}

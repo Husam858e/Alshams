@@ -7,7 +7,7 @@ import { Icon } from '../components/icons.js';
 import { toast } from '../components/toast.js';
 import { Button, Empty, ErrorState, PageHeader, Segmented, Skeleton, StatusChip, cx } from '../components/ui.js';
 import { api } from '../lib/api.js';
-import { money, timeAgo } from '../lib/format.js';
+import { NOUNS, count, money, timeAgo } from '../lib/format.js';
 import { useLocalPref, useNow } from '../lib/hooks.js';
 import { ORDER_NEXT, ORDER_STATUS } from '../lib/labels.js';
 import { navigate } from '../lib/router.js';
@@ -53,7 +53,7 @@ export default function OrdersScreen() {
   }, [active]);
   const activeTotal = (active ?? []).reduce((s, o) => s + o.total, 0);
 
-  const subtitle = active ? `${active.length} طلب نشط · ${money(activeTotal)}` : 'جارٍ التحميل…';
+  const subtitle = active ? `النشطة الآن: ${count(active.length, NOUNS.order)} · ${money(activeTotal)}` : 'جارٍ التحميل…';
 
   return html`<div class="page orders-page">
     <${PageHeader}
@@ -128,7 +128,7 @@ function OrderCard({ order: o, showStatus }) {
           <span class="oc-name">${i.dish_name}${i.notes && html`<small> — ${i.notes}</small>`}</span>
         </li>`,
       )}
-      ${more > 0 && html`<li class="muted">و ${more} أصناف أخرى…</li>`}
+      ${more > 0 && html`<li class="muted">+ ${count(more, NOUNS.item)}</li>`}
     </ul>
     ${o.notes && html`<div class="oc-notes"><${Icon} name="note" size=${13} />${o.notes}</div>`}
     <footer class="oc-foot">

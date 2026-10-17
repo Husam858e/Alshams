@@ -14,7 +14,9 @@
 // the same contract, they are used instead and no request leaves the page.
 // The Socket.IO client is imported lazily, so the demo needs no fake of it.
 
-const loadIo = () => import('/socket.io/socket.io.esm.min.js').then((m) => m.io);
+// A failed dynamic import stays failed for that URL, so a retry (server
+// still starting) asks for it with a fresh query string.
+const loadIo = (attempt) => import(`/socket.io/socket.io.esm.min.js${attempt ? `?retry=${attempt}` : ''}`).then((m) => m.io);
 
 function demoTransport() {
   try {
@@ -88,15 +90,22 @@ function keepConnecting(socket, delayMs) {
 // Opens the socket once the client module is loaded; `wire` adds handlers.
 function connect(on, namespace, options, wire) {
   let socket = null;
-  loadIo().then(
-    (io) => {
-      socket = io(namespace, { reconnectionDelay: 1000, reconnectionDelayMax: 5000, ...options });
-      socket.on('disconnect', () => on.online(false));
-      keepConnecting(socket, 8000);
-      wire(socket);
-    },
-    () => on.online(false),
-  );
+  let attempt = 0;
+  const start = () =>
+    loadIo(attempt).then(
+      (io) => {
+        socket = io(namespace, { reconnectionDelay: 1000, reconnectionDelayMax: 5000, ...options });
+        socket.on('disconnect', () => on.online(false));
+        keepConnecting(socket, 8000);
+        wire(socket);
+      },
+      () => {
+        on.online(false);
+        attempt += 1;
+        setTimeout(start, 5000);
+      },
+    );
+  start();
   return () => socket;
 }
 

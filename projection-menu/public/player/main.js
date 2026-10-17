@@ -232,9 +232,10 @@ function App() {
     if (MODE !== 'preview') return undefined;
     const onMessage = (event) => {
       if (event.origin !== location.origin || !event.data || typeof event.data !== 'object') return;
-      const { type } = event.data;
-      if (type === 'pm:theme') setOverride((o) => ({ ...o, theme: event.data.theme ?? null }));
-      else if (type === 'pm:general') setOverride((o) => ({ ...o, general: event.data.general ?? null }));
+      const { type, background_url: bg, logo_url: logo } = event.data;
+      // URLs of a newly picked (unsaved) background / logo come along.
+      if (type === 'pm:theme') setOverride((o) => ({ ...o, theme: event.data.theme ?? null, backgroundUrl: typeof bg === 'string' ? bg : undefined }));
+      else if (type === 'pm:general') setOverride((o) => ({ ...o, general: event.data.general ?? null, logoUrl: typeof logo === 'string' ? logo : undefined }));
       else if (type === 'pm:scene') show(event.data.scene);
       else if (type === 'pm:reset') setOverride(null);
     };
@@ -245,18 +246,22 @@ function App() {
   const settings = boot?.settings ?? {};
   const theme = useMemo(() => normalizeTheme({ ...settings.theme, ...(override?.theme ?? {}) }), [settings.theme, override]);
   const general = useMemo(() => normalizeGeneral({ ...settings.general, ...(override?.general ?? {}) }), [settings.general, override]);
+  // An unsaved "no logo" in the settings form hides the saved one.
+  const logoRemoved = override?.general && 'logoAssetId' in override.general && !override.general.logoAssetId;
+  const logoUrl = logoRemoved ? null : override?.logoUrl ?? settings.logo_url;
+  const backgroundUrl = override?.backgroundUrl ?? settings.background_url;
   const player = useMemo(
     () => ({
       theme,
       general,
       menu: boot?.menu ?? null,
       table: boot?.table ?? null,
-      logoUrl: mediaUrl(settings.logo_url),
-      backgroundUrl: mediaUrl(settings.background_url),
+      logoUrl: mediaUrl(logoUrl),
+      backgroundUrl: mediaUrl(backgroundUrl),
       orders,
       mode: MODE,
     }),
-    [theme, general, boot, orders],
+    [theme, general, boot, orders, logoUrl, backgroundUrl],
   );
 
   // The preview shows the table as guests see it, but not upside down.

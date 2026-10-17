@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val appVersionName = "0.1.0"
+val appVersionName = "2.0.0"
 
 // Release signing: android/keystore.properties (gitignored) with storeFile,
 // storePassword, keyAlias, keyPassword. Without it, release builds are signed
@@ -23,7 +23,7 @@ android {
         applicationId = "com.alshams.projectionmenu"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = appVersionName
     }
 
@@ -70,13 +70,60 @@ base {
     archivesName.set("ProjectionMenu-$appVersionName")
 }
 
-// The offline demo runs the real tablet/player code, so public/{shared,tablet,player}
-// is copied into the APK at build time (never committed under src/main/assets).
+// The offline demo runs the real staff app and projector player, so the web UIs
+// and the browser libraries they import are copied into the APK at build time
+// (never committed under src/main/assets). Asset paths mirror the server's URLs:
+// /shared, /app, /player, /vendor/{preact,htm,three,qrcode} (see src/app.js).
+val webRoot = rootProject.file("..")
+val nodeModules = File(webRoot, "node_modules")
+val nativeAssets = file("src/main/assets")
 val copyWebAssets = tasks.register<Sync>("copyWebAssets") {
-    from(rootProject.file("../public")) {
-        include("shared/**", "tablet/**", "player/**")
-    }
+    description = "Copies public/{shared,app,player} and their vendor libraries into the APK assets."
     into(layout.buildDirectory.dir("generated/webAssets"))
+    from(File(webRoot, "public")) {
+        include("shared/**", "app/**", "player/**")
+    }
+    from(File(nodeModules, "preact")) {
+        include("dist/**", "hooks/dist/**", "LICENSE")
+        into("vendor/preact")
+    }
+    from(File(nodeModules, "htm")) {
+        include("dist/**", "preact/**", "LICENSE")
+        into("vendor/htm")
+    }
+    // three.module.js re-exports three.core.js; GLTFLoader needs BufferGeometryUtils.
+    from(File(nodeModules, "three")) {
+        include(
+            "build/three.module.js",
+            "build/three.core.js",
+            "examples/jsm/loaders/GLTFLoader.js",
+            "examples/jsm/utils/BufferGeometryUtils.js",
+            "LICENSE",
+        )
+        into("vendor/three")
+    }
+    // MIT, with its licence header inside the file (the package ships no LICENSE).
+    from(File(nodeModules, "qrcode-generator/dist")) {
+        include("qrcode.mjs")
+        into("vendor/qrcode")
+    }
+    exclude("**/*.map", "**/*.d.ts", "**/.DS_Store")
+    doFirst {
+        val missing = listOf("preact", "htm", "three", "qrcode-generator").filterNot { File(nodeModules, "$it/package.json").isFile }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing node_modules: ${missing.joinToString()}. Run `npm install` in ${webRoot.canonicalPath} " +
+                    "first: the APK's offline demo bundles the web UIs and these libraries.",
+            )
+        }
+    }
+    // The setup/offline pages also live in assets/app/: a web file with the same
+    // path would silently replace one of them (or break asset merging).
+    eachFile {
+        if (File(nativeAssets, path).exists()) {
+            throw GradleException("public/$path collides with android/app/src/main/assets/$path: rename one of them.")
+        }
+    }
 }
 android.sourceSets.getByName("main").assets.srcDir(copyWebAssets)
 // Asset merging and the lint model read the assets dirs directly, for every

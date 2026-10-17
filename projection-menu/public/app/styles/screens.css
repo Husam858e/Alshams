@@ -392,7 +392,7 @@
   box-shadow: var(--shadow-1), var(--inset-hi);
   overflow: hidden;
   transition: transform var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
-  animation: rise-in var(--dur-3) var(--ease) both;
+  animation: rise-in var(--dur-3) var(--ease) backwards;
 }
 
 .table-tile::before {
@@ -1441,6 +1441,12 @@
   grid-template-columns: 1fr 1fr;
 }
 
+/* Portrait tablets: two dish columns in the narrow menu column. */
+.ts-medium .dish-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+
 /* ══ Orders board ═════════════════════════════════════════════════ */
 
 .order-board {
@@ -1517,7 +1523,7 @@
   background: var(--glass);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-1), var(--inset-hi);
-  animation: rise-in var(--dur-3) var(--ease) both;
+  animation: rise-in var(--dur-3) var(--ease) backwards;
   overflow: hidden;
 }
 

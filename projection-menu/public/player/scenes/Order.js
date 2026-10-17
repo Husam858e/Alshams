@@ -2,7 +2,7 @@
 // status chip with a small progress tracker.
 
 import { html } from 'htm/preact';
-import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { EmptyState, Ornament, PageDots, Price, Swap } from '../components/Bits.js';
 import { Icon } from '../components/Icons.js';
 import { SafeImage } from '../components/Media.js';
@@ -11,8 +11,45 @@ import { formatNumber, ORDER_STATUS, ORDER_STEPS } from '../lib/format.js';
 import { usePager } from '../lib/hooks.js';
 import { chunk, findDish } from '../lib/menu.js';
 
-// Rows per page to start from; fewer are used when they do not fit.
+// Rows per page until the rows have been measured.
 const ITEMS_PER_PAGE = { landscape: 5, wide: 4, square: 6, portrait: 10 };
+// Height the page dots take below the list (12px dots + 16px gap).
+const DOTS_SPACE = 30;
+
+// Splits rows of the given heights into pages that each fit `room` px;
+// returns [start, end) index pairs.
+function fitPages(heights, room) {
+  const total = heights.reduce((a, b) => a + b, 0);
+  if (total <= room + 1) return [[0, heights.length]];
+  const limit = room - DOTS_SPACE;
+  const ranges = [];
+  let start = 0;
+  let used = 0;
+  heights.forEach((h, i) => {
+    if (i > start && used + h > limit + 1) {
+      ranges.push([start, i]);
+      start = i;
+      used = 0;
+    }
+    used += h;
+  });
+  ranges.push([start, heights.length]);
+  return ranges;
+}
+
+function OrderRow({ item, index, menu }) {
+  return html`
+    <li style=${{ '--i': index }}>
+      <span class="od-qty"><bdi>${formatNumber(item.quantity)}</bdi>×</span>
+      <span class="od-name">
+        <span class="od-dish">${item.dish_name ?? findDish(menu, item.dish_id)?.dish.name_ar ?? ''}</span>
+        ${item.notes && html`<span class="od-note">${item.notes}</span>`}
+      </span>
+      <span class="od-leader"></span>
+      <${Price} always=${true} value=${(Number(item.quantity) || 0) * (Number(item.unit_price) || 0)} class="od-line" />
+    </li>
+  `;
+}
 
 export function resolveOrder(scene, orders) {
   if (scene?.order && String(scene.order.id) === String(scene.orderId)) return scene.order;
@@ -43,19 +80,35 @@ export function OrderScene({ scene, start }) {
   const order = resolveOrder(scene, orders);
   const items = Array.isArray(order?.items) ? order.items : [];
 
-  // Rows have different heights (notes), so measure: while the current page
-  // overflows the list area, put one row less on each page.
-  const root = useRef(null);
-  const fitKey = `${order?.id}:${items.length}:${shape}:${order?.status}:${order?.notes ?? ''}`;
-  const [fit, setFit] = useState({ key: '', per: 0 });
-  const perPage = fit.key === fitKey ? fit.per : ITEMS_PER_PAGE[shape] ?? 5;
-  const pages = useMemo(() => chunk(items, perPage), [items, perPage]);
+  // Rows differ in height (notes) and the free height depends on the frame
+  // and the status, so a hidden copy of the whole list is measured once per
+  // content and pages are filled greedily. offsetHeight is in stage pixels,
+  // unaffected by the stage scale/warp.
+  const measure = useRef(null);
+  const [fontsTick, setFontsTick] = useState(0);
+  const fitKey = `${order?.id}:${JSON.stringify(items.map((i) => [i.id, i.quantity, i.notes, i.dish_name]))}:${shape}:${order?.status}:${order?.notes ?? ''}:${fontsTick}`;
+  const [fit, setFit] = useState({ key: '', ranges: null });
+  const pages = useMemo(
+    () => (fit.key === fitKey && fit.ranges ? fit.ranges.map(([a, b]) => items.slice(a, b)) : chunk(items, ITEMS_PER_PAGE[shape] ?? 5)),
+    [items, fit, fitKey, shape],
+  );
   const index = usePager(start, theme.pageSeconds * 1000, pages.length);
   useLayoutEffect(() => {
-    const list = root.current?.querySelector('.od-swap > .swap.is-in > .od-items');
-    const box = list?.parentElement?.parentElement;
-    if (list && box && perPage > 1 && list.offsetHeight > box.clientHeight + 1) setFit({ key: fitKey, per: perPage - 1 });
+    if (fit.key === fitKey || !items.length) return;
+    const list = measure.current;
+    const room = list?.parentElement?.clientHeight;
+    if (!list || !room) return;
+    const heights = [...list.children].map((li) => li.offsetHeight);
+    setFit({ key: fitKey, ranges: fitPages(heights, room) });
   });
+  // Web fonts change line heights: measure again once they are in.
+  useEffect(() => {
+    let alive = true;
+    document.fonts?.ready.then(() => alive && setFontsTick(1));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Up to three photos of what was ordered, like plates on the table.
   const plates = useMemo(() => {
@@ -82,7 +135,7 @@ export function OrderScene({ scene, start }) {
   const status = ORDER_STATUS[order.status] ? order.status : 'open';
 
   return html`
-    <section class="scene order ${plates.length ? '' : 'no-plates'}" ref=${root}>
+    <section class="scene order ${plates.length ? '' : 'no-plates'}">
       ${plates.length > 0 && html`
         <div class="od-visual" aria-hidden="true">
           ${plates.map((url, i) => html`<div key=${url} class="od-plate p${i + 1}"><${SafeImage} src=${url} /></div>`)}
@@ -102,21 +155,16 @@ export function OrderScene({ scene, start }) {
         </header>
         <${Tracker} status=${status} />
         <div class="od-items-wrap">
+          ${items.length > 0 && html`
+            <ul class="od-items od-measure" ref=${measure} aria-hidden="true">
+              ${items.map((item, i) => html`<${OrderRow} key=${item.id ?? i} item=${item} index=${0} menu=${menu} />`)}
+            </ul>
+          `}
           ${items.length
             ? html`
                 <${Swap} k=${index} ms=${700} class="od-swap">
                   <ul class="od-items">
-                    ${(pages[index] ?? []).map((item, i) => html`
-                      <li key=${item.id ?? i} style=${{ '--i': i }}>
-                        <span class="od-qty"><bdi>${formatNumber(item.quantity)}</bdi>×</span>
-                        <span class="od-name">
-                          <span class="od-dish">${item.dish_name ?? findDish(menu, item.dish_id)?.dish.name_ar ?? ''}</span>
-                          ${item.notes && html`<span class="od-note">${item.notes}</span>`}
-                        </span>
-                        <span class="od-leader"></span>
-                        <${Price} always=${true} value=${(Number(item.quantity) || 0) * (Number(item.unit_price) || 0)} class="od-line" />
-                      </li>
-                    `)}
+                    ${(pages[index] ?? []).map((item, i) => html`<${OrderRow} key=${item.id ?? i} item=${item} index=${i} menu=${menu} />`)}
                   </ul>
                 </${Swap}>
               `

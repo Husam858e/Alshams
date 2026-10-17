@@ -109,8 +109,8 @@ class AppChromeClient(private val activity: MainActivity) : WebChromeClient() {
         filePathCallback: ValueCallback<Array<Uri>>,
         fileChooserParams: FileChooserParams,
     ): Boolean {
-        // Uploads belong to the dashboard; fullscreen customer screens never leave the app.
-        if (activity.screen.isImmersive) return false
+        // Uploads belong to the staff app (and its demo); a projector never leaves its menu.
+        if (!activity.screen.allowsUploads) return false
         return activity.fileChooser.show(filePathCallback, fileChooserParams)
     }
 

@@ -16,6 +16,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.WindowManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.activity.SystemBarStyle
@@ -33,9 +34,11 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
 /**
- * Hosts the single WebView and applies the behaviour of each mode:
- * TABLET / PLAYER (kiosk, fullscreen), ADMIN (normal browser), DEMO (bundled,
- * offline) and SETUP (bundled settings page talking to [AppBridge]).
+ * Hosts the single WebView and applies the behaviour of each mode: APP (the
+ * staff app, a normal browser window), PLAYER (a table's projector: fullscreen,
+ * landscape, black, screen kept on), DEMO (bundled, offline) and SETUP (bundled
+ * settings page talking to [AppBridge]). APP and PLAYER can be pinned (kiosk)
+ * and guard settings with a PIN.
  */
 class MainActivity : AppCompatActivity() {
     internal val store by lazy { ConfigStore(this) }
@@ -44,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private val pinDialog = PinDialog(this) { store.checkPin(it) }
     internal val fileChooser = FileChooser(this)
     internal val qrScanner = QrScanner(this)
+    internal val discovery by lazy { ServerDiscovery(this) }
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var container: FrameLayout
@@ -120,6 +124,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        discovery.cancel()
         pinDialog.dismiss()
         fileChooser.cancel()
         webView?.let(::destroyWebView)
@@ -130,6 +135,7 @@ class MainActivity : AppCompatActivity() {
 
     // JavaScript is the point of this app. Remote pages get no bridge, no file
     // access, and can only navigate within the configured server (AppWebViewClient).
+    // Mixed content: see applyMixedContent.
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(): Boolean {
         val view = try {
@@ -159,13 +165,13 @@ class MainActivity : AppCompatActivity() {
             textZoom = 100
             userAgentString = "$userAgentString ProjectionMenuApp/${BuildConfig.VERSION_NAME}"
         }
+        applyMixedContent(view)
         view.webViewClient = AppWebViewClient(this, local)
         view.webChromeClient = AppChromeClient(this)
-        // WebView cannot save files: the dashboard's downloads (e.g. its APK button) go to
-        // the browser, like other external links in ADMIN. Customer screens never download.
+        // WebView cannot save files: the staff app's downloads (e.g. the APK) go to the
+        // browser, like its other external links. Projectors never download.
         view.setDownloadListener { url, _, _, _, _ ->
-            val dashboard = screen == Screen.ADMIN || screen == Screen.SETUP
-            if (dashboard && WebUrl.parse(url)?.isHttp == true) openExternally(url)
+            if (screen.isInteractive && WebUrl.parse(url)?.isHttp == true) openExternally(url)
         }
         container.addView(view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         view.requestFocus()
@@ -255,7 +261,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
-        webView?.setBackgroundColor(backgroundFor(next))
+        webView?.let {
+            it.setBackgroundColor(backgroundFor(next))
+            applyMixedContent(it)
+        }
         applySystemBars()
         ViewCompat.requestApplyInsets(container)
         cornerTaps.reset()
@@ -264,7 +273,19 @@ class MainActivity : AppCompatActivity() {
         if (wantsLockTask()) requestLockTask() else lockTaskPending = false
     }
 
-    private fun backgroundFor(screen: Screen) = if (screen == Screen.PLAYER) Color.BLACK else getColor(R.color.navy)
+    // Black is "no light" on the table; everything else uses the app's dark canvas.
+    private fun backgroundFor(screen: Screen) = if (screen == Screen.PLAYER) Color.BLACK else getColor(R.color.canvas)
+
+    /**
+     * The setup page (https, bundled) checks plain-http LAN servers with fetch():
+     * /api/info and the projector pairing-code claim. WebView blocks such mixed
+     * content by default, so it is allowed on setup only; server pages are
+     * themselves http on a LAN, or https with nothing insecure to load.
+     */
+    private fun applyMixedContent(view: WebView) {
+        view.settings.mixedContentMode =
+            if (screen == Screen.SETUP) WebSettings.MIXED_CONTENT_ALWAYS_ALLOW else WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    }
 
     private fun applySystemBars() {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -278,7 +299,7 @@ class MainActivity : AppCompatActivity() {
 
     // ── Kiosk (screen pinning) ─────────────────────────────────────
 
-    private fun wantsLockTask() = screen.isKiosk && store.load()?.kiosk == true
+    private fun wantsLockTask() = screen.isLockable && store.load()?.kiosk == true
 
     private fun isInLockTask() =
         getSystemService(ActivityManager::class.java)?.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
@@ -316,10 +337,10 @@ class MainActivity : AppCompatActivity() {
 
     // ── Settings ───────────────────────────────────────────────────
 
-    /** Hidden gesture, MENU key, triple BACK or the bridge: go to setup.html (PIN first in kiosk modes). */
+    /** Hidden gesture, MENU key, BACK or the bridge: go to setup.html (PIN first when one is set). */
     internal fun openSettings() {
         if (screen == Screen.SETUP) return
-        if (screen.isKiosk && store.load()?.hasPin == true) pinDialog.ask(::showSetup) else showSetup()
+        if (screen.isLockable && store.load()?.hasPin == true) pinDialog.ask(::showSetup) else showSetup()
     }
 
     private fun showSetup() {
@@ -344,10 +365,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun onBack() {
         when (screen) {
-            // Customers must not leave: single presses are swallowed, three open settings.
-            Screen.TABLET, Screen.PLAYER -> if (backPresses.press(SystemClock.uptimeMillis())) openSettings()
+            // A projector never leaves its menu: single presses are swallowed, three open settings.
+            Screen.PLAYER -> if (backPresses.press(SystemClock.uptimeMillis())) openSettings()
             // History never steps back into bundled pages (they only open via navigate()).
-            Screen.ADMIN -> {
+            Screen.APP -> {
                 val view = webView ?: return openSettings()
                 val history = view.copyBackForwardList()
                 val previous = if (history.currentIndex > 0) history.getItemAtIndex(history.currentIndex - 1)?.url else null

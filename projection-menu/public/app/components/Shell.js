@@ -7,7 +7,6 @@ import { api } from '../lib/api.js';
 import { useViewport } from '../lib/hooks.js';
 import { ROLES } from '../lib/labels.js';
 import { liveStatus, onLiveStatus } from '../lib/live.js';
-import { navigate } from '../lib/router.js';
 import { logout } from '../lib/session.js';
 import { useStore } from '../lib/store.js';
 import { GROUPS, navFor, phoneNav } from '../routes.js';
@@ -202,4 +201,3 @@ function ChangePassword({ onClose }) {
   <//>`;
 }
 
-export { navigate };
