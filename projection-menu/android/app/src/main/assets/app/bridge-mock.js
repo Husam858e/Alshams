@@ -10,6 +10,7 @@
 // Query flags for trying UI variants:
 //   ?mock-servers=مطعم الشمس@127.0.0.1:3000,192.168.1.20:3000   servers "found" by discover
 //   ?mock-camera=0   ?mock-tv=1   ?mock-webview=80   ?mock-discover-error=1
+//   ?mock-debug=1   a debug build (setup offers the Firebase emulators)
 
 const STORAGE_KEY = 'projection-menu:mock-config';
 const MIN_WEBVIEW = 89; // import maps (used by the web UIs)
@@ -22,6 +23,11 @@ const LINK_ERRORS = {
   player: 'رابط جهاز العرض ناقص: يجب أن يحتوي على مفتاح الجهاز (device)',
   playerV1: 'هذا رابط جهاز عرض من النسخة السابقة — اربط الجهاز برمز الربط من تطبيق الموظفين',
   unknown: 'الرابط غير معروف — استخدم عنوان الخادم أو رمز QR من تطبيق الموظفين',
+};
+const CLOUD_ERRORS = {
+  player: 'رابط جهاز العرض السحابي ناقص: يجب أن يحتوي على مفتاح الجهاز (device)',
+  emulators: 'محاكيات Firebase متاحة في نسخة التطوير فقط',
+  firebase: 'إعدادات Firebase غير صالحة',
 };
 const DISCOVER_FAILED = 'تعذّر البحث في الشبكة — تأكد من اتصال الواي فاي أو اكتب العنوان يدوياً';
 
@@ -81,6 +87,34 @@ export function parseLink(raw) {
   return fail('unknown');
 }
 
+// Same rules as CloudPages.parse on the native side: the bundled cloud pages,
+// with only the parameters they understand. Null when `raw` is not one.
+export function parseCloudUrl(raw, debug) {
+  let url;
+  try {
+    url = new URL(String(raw ?? '').trim());
+  } catch {
+    return null;
+  }
+  if (url.origin !== location.origin || url.username || url.password) return null;
+  const mode = { '/cloud/app.html': 'APP', '/cloud/player.html': 'PLAYER' }[url.pathname];
+  if (!mode) return null;
+  const params = new URLSearchParams();
+  const device = url.searchParams.get('device')?.trim();
+  if (mode === 'PLAYER') {
+    if (!device) return { ok: false, error: CLOUD_ERRORS.player };
+    params.set('device', device);
+  }
+  const emulators = url.searchParams.get('emulators')?.trim();
+  if (emulators) {
+    if (!debug) return { ok: false, error: CLOUD_ERRORS.emulators };
+    if (!/^([A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\])$/.test(emulators)) return { ok: false, error: CLOUD_ERRORS.emulators };
+    params.set('emulators', emulators);
+  }
+  const query = params.toString();
+  return { ok: true, mode, normalizedUrl: `${url.origin}${url.pathname}${query ? `?${query}` : ''}` };
+}
+
 // "name@host:port" entries of ?mock-servers.
 function mockServers() {
   return (flags.get('mock-servers') || '')
@@ -101,6 +135,16 @@ function webViewInfo() {
   return { webViewVersion: flags.has('mock-webview') ? `${major}.0.0.0` : version, webViewSupported: major >= MIN_WEBVIEW };
 }
 
+// Remembered across pages: the flag is only on the setup page's URL.
+function isDebug() {
+  try {
+    if (flags.get('mock-debug') === '1') sessionStorage.setItem('projection-menu:mock-debug', '1');
+    return sessionStorage.getItem('projection-menu:mock-debug') === '1';
+  } catch {
+    return flags.get('mock-debug') === '1';
+  }
+}
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Navigation happens after the reply, like native does.
@@ -118,11 +162,13 @@ export function createMockBridge() {
         kiosk: Boolean(config.kiosk),
         launcher: Boolean(config.launcher),
         label: config.label || '',
+        firebase: config.firebase || null,
       },
       appVersion: '2.0.0 (محاكاة المتصفح)',
       ...webViewInfo(),
       isTv: flags.get('mock-tv') === '1',
       hasCamera: flags.get('mock-camera') !== '0',
+      debug: isDebug(),
     };
   };
 
@@ -145,8 +191,13 @@ export function createMockBridge() {
       return text ? { type: 'scanResult', text } : { type: 'scanCancelled' };
     },
     saveConfig: (msg) => {
-      const link = parseLink(msg.url);
+      const cloud = parseCloudUrl(msg.url, isDebug());
+      const link = cloud || parseLink(msg.url);
       if (!link.ok) return { type: 'error', message: link.error };
+      const firebase = cloud && msg.firebase ? msg.firebase : null;
+      if (firebase && (typeof firebase !== 'object' || !firebase.apiKey || !firebase.projectId || !firebase.appId || !firebase.storageBucket)) {
+        return { type: 'error', message: CLOUD_ERRORS.firebase };
+      }
       if (msg.pin && !/^\d{4,8}$/.test(msg.pin)) return { type: 'error', message: 'رمز PIN يجب أن يكون من 4 إلى 8 أرقام' };
       storeConfig({
         mode: link.mode,
@@ -155,6 +206,7 @@ export function createMockBridge() {
         kiosk: Boolean(msg.kiosk),
         launcher: Boolean(msg.launcher),
         label: String(msg.label || '').trim().slice(0, 80),
+        firebase,
       });
       navigate(link.normalizedUrl);
       return { type: 'saved' };
@@ -173,8 +225,8 @@ export function createMockBridge() {
       storeConfig(null);
       return state();
     },
-    openSettings: () => {
-      navigate('/app/setup.html');
+    openSettings: (msg) => {
+      navigate(msg.reason === 'unpaired' ? '/app/setup.html?unpaired=1' : '/app/setup.html');
       return { type: 'ok' };
     },
   };

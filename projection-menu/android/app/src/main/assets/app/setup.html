@@ -10,6 +10,24 @@
   <link rel="stylesheet" href="../shared/fonts.css">
   <link rel="stylesheet" href="../shared/tokens.css">
   <link rel="stylesheet" href="setup.css">
+  <!-- Cloud mode: the setup checks the Firebase project and trades the pairing
+       code through the cloud backend (../cloud/backend/), which imports the SDK
+       bundled in the APK. An outdated WebView ignores the map (the cloud
+       choice then reports it); the local-server setup does not need it. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "/vendor/firebase/firebase-app.js",
+        "firebase/auth": "/vendor/firebase/firebase-auth.js",
+        "firebase/firestore": "/vendor/firebase/firebase-firestore.js",
+        "firebase/storage": "/vendor/firebase/firebase-storage.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js": "/vendor/firebase/firebase-app.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js": "/vendor/firebase/firebase-auth.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js": "/vendor/firebase/firebase-firestore.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-storage.js": "/vendor/firebase/firebase-storage.js"
+      }
+    }
+  </script>
 </head>
 <body>
   <!-- Line icons (24px grid), used as <svg class="icon"><use href="#i-…"></use></svg>. -->
@@ -36,6 +54,8 @@
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5M6 9.5V20h12V9.5M10 20v-5h4v5" /></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z" /><path d="M12 10v4.5M12 17.2h.01" /></symbol>
     <symbol id="i-erase" viewBox="0 0 24 24"><path d="M3.5 12l5-6.5h12v13h-12z" /><path d="M11.5 9.5l5 5M16.5 9.5l-5 5" /></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.6 9.06 4.75 4.75 0 0 0 7 18.5z" /></symbol>
+    <symbol id="i-paste" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="2.2" /><path d="M9 4.5V3.8c0-.7.6-1.3 1.3-1.3h3.4c.7 0 1.3.6 1.3 1.3v.7M9 10.5h6M9 14h6M9 17.5h3.5" /></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3.6-3.6a4 4 0 0 0-5.7-5.7l-1.1 1.1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3.6 3.6a4 4 0 0 0 5.7 5.7l1.1-1.1" /></symbol>
     <!-- Media icons keep their direction in RTL. -->
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 6.5v11l9-5.5z" /></symbol>
@@ -58,10 +78,12 @@
           <p>إعداد هذا الجهاز</p>
         </div>
       </div>
+      <!-- Labels per connection: setup.js (STEPS). -->
       <ol id="stepper" class="stepper" aria-label="خطوات الإعداد" hidden>
-        <li data-step="role"><span class="dot">1</span><span class="step-label">الدور</span></li>
-        <li data-step="server"><span class="dot">2</span><span class="step-label">الخادم</span></li>
-        <li data-step="finish"><span class="dot">3</span><span id="finish-step-label" class="step-label">الربط</span></li>
+        <li><span class="dot">1</span><span class="step-label">الاتصال</span></li>
+        <li><span class="dot">2</span><span class="step-label"></span></li>
+        <li><span class="dot">3</span><span class="step-label"></span></li>
+        <li><span class="dot">4</span><span class="step-label"></span></li>
       </ol>
     </header>
 
@@ -70,6 +92,15 @@
       <div>
         <strong>نسخة «Android System WebView» قديمة على هذا الجهاز<span id="webview-version"></span>.</strong>
         حدّثها من متجر Google Play ثم أعد فتح التطبيق، وإلا قد لا تعمل الصفحات بشكل صحيح.
+      </div>
+    </div>
+
+    <!-- A cloud projector whose pairing was removed (setup.html?unpaired=1). -->
+    <div id="unpaired-notice" class="notice warn" role="alert" hidden>
+      <svg class="icon" aria-hidden="true"><use href="#i-alert"></use></svg>
+      <div>
+        <strong>أُلغي ربط جهاز العرض هذا بطاولته.</strong>
+        أنشئ رمز ربط جديداً من تطبيق الموظفين وأدخله هنا لإعادة تشغيل العرض.
       </div>
     </div>
 
@@ -82,7 +113,7 @@
             <p class="eyebrow">الإعداد الحالي</p>
             <h2 id="current-title"></h2>
             <p id="current-label" class="current-label"></p>
-            <p class="current-host"><svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg><bdi id="current-host" dir="ltr"></bdi></p>
+            <p class="current-host"><svg class="icon" aria-hidden="true"><use id="current-host-icon" href="#i-server"></use></svg><bdi id="current-host" dir="ltr"></bdi></p>
           </div>
         </div>
         <div id="current-tags" class="tags"></div>
@@ -95,15 +126,93 @@
       </div>
     </section>
 
-    <!-- Step 1: what the device is. -->
+    <!-- Step 1: how the device reaches the system (or the demo). -->
+    <section id="view-connection" class="view" hidden aria-labelledby="connection-title">
+      <div class="view-head">
+        <div>
+          <h2 id="connection-title">كيف يتصل هذا الجهاز بالنظام؟</h2>
+          <p class="sub">اختر نفس طريقة الاتصال على كل أجهزة المطعم.</p>
+        </div>
+      </div>
+      <div class="roles" role="radiogroup" aria-labelledby="connection-title">
+        <button type="button" class="role" data-connection="cloud" role="radio" aria-checked="false">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-cloud"></use></svg></span>
+          <span class="role-text">
+            <strong>سحابي (Firebase) — بدون خادم</strong>
+            <span class="role-who">عبر الإنترنت · مشروع المطعم</span>
+            <small>كل الأجهزة تتصل بمشروع Firebase الخاص بالمطعم، دون كمبيوتر خادم داخل المطعم. يستمر العمل عند انقطاع الإنترنت ويتزامن عند عودته.</small>
+          </span>
+        </button>
+        <button type="button" class="role" data-connection="local" role="radio" aria-checked="false">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-server"></use></svg></span>
+          <span class="role-text">
+            <strong>خادم محلي على الشبكة</strong>
+            <span class="role-who">كمبيوتر داخل المطعم · نفس الواي فاي</span>
+            <small>يعمل النظام من برنامج المنيو على كمبيوتر المطعم، ولا يحتاج إلى الإنترنت.</small>
+          </span>
+        </button>
+        <button type="button" class="role demo" data-role="DEMO">
+          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"></use></svg></span>
+          <span class="role-text">
+            <strong>عرض تجريبي بدون خادم</strong>
+            <span class="role-who">على هذا الجهاز فقط</span>
+            <small>جرّب تطبيق الموظفين والعرض الضوئي ببيانات تجريبية.</small>
+          </span>
+        </button>
+      </div>
+      <p id="connection-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <!-- Cloud step 2: the restaurant's Firebase project. -->
+    <section id="view-cloud" class="view" hidden aria-labelledby="cloud-title">
+      <div class="view-head">
+        <button type="button" class="back" data-back="connection" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
+        <div>
+          <h2 id="cloud-title">مشروع Firebase الخاص بالمطعم</h2>
+          <p class="sub">كل أجهزة المطعم تتصل بنفس المشروع: الموظفون وأجهزة العرض.</p>
+        </div>
+      </div>
+
+      <div class="server-grid">
+        <div class="card discover">
+          <div class="card-head">
+            <h3><svg class="icon" aria-hidden="true"><use href="#i-cloud"></use></svg>مشاريع جاهزة</h3>
+          </div>
+          <ul id="projects" class="servers"></ul>
+          <div id="projects-empty" class="empty" hidden>
+            <svg class="icon" aria-hidden="true"><use href="#i-cloud"></use></svg>
+            <p>لا يحتوي هذا التطبيق على مشروع مدمج بعد. الصق إعدادات مشروع المطعم في الخانة المجاورة.</p>
+          </div>
+          <p id="projects-status" class="status" aria-live="polite"></p>
+        </div>
+
+        <div class="card manual">
+          <h3><svg class="icon" aria-hidden="true"><use href="#i-paste"></use></svg>أو الصق إعدادات المشروع</h3>
+          <label class="sr-only" for="firebase-config">إعدادات Firebase</label>
+          <textarea id="firebase-config" dir="ltr" rows="7" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;…&quot;,&#10;  projectId: &quot;…&quot;,&#10;  …&#10;};"></textarea>
+          <p class="hint">من Firebase console: إعدادات المشروع ← تطبيقاتك ← تطبيق الويب ← Config. يكفي نسخ الكائن firebaseConfig كما يظهر.</p>
+          <!-- Debug builds only (state.debug): local Firebase emulators. -->
+          <label id="emulators-row" class="field" hidden>
+            <span>محاكيات Firebase — نسخة التطوير فقط</span>
+            <input id="emulators" type="text" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="10.0.2.2">
+          </label>
+          <button id="cloud-check" type="button" class="btn"><span class="spinner" aria-hidden="true"></span>تحقق ومتابعة</button>
+          <p id="cloud-status" class="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- What the device is. -->
     <section id="view-role" class="view" hidden aria-labelledby="role-title">
       <div class="view-head">
+        <button type="button" id="role-back" class="back" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
         <div>
           <h2 id="role-title">ما دور هذا الجهاز؟</h2>
           <p class="sub">اختر مرة واحدة، ويمكنك تغييره لاحقاً من هذه الشاشة.</p>
         </div>
       </div>
-      <div class="roles" role="radiogroup" aria-labelledby="role-title">
+      <!-- Texts for the local server; setup.js swaps in the cloud ones (ROLE_TEXT). -->
+      <div class="roles two" role="radiogroup" aria-labelledby="role-title">
         <button type="button" class="role" data-role="APP" role="radio" aria-checked="false">
           <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-staff"></use></svg></span>
           <span class="role-text">
@@ -120,19 +229,11 @@
             <small>يعرض المنيو على سطح الطاولة، ويُربط بطاولته برمز من 6 أرقام.</small>
           </span>
         </button>
-        <button type="button" class="role demo" data-role="DEMO">
-          <span class="role-art"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"></use></svg></span>
-          <span class="role-text">
-            <strong>عرض تجريبي بدون خادم</strong>
-            <span class="role-who">على هذا الجهاز فقط</span>
-            <small>جرّب تطبيق الموظفين والعرض الضوئي ببيانات تجريبية.</small>
-          </span>
-        </button>
       </div>
       <p id="role-status" class="status" aria-live="polite"></p>
     </section>
 
-    <!-- Step 2: which server. -->
+    <!-- Local step 3: which server. -->
     <section id="view-server" class="view" hidden aria-labelledby="server-title">
       <div class="view-head">
         <button type="button" class="back" data-back="role" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
@@ -174,10 +275,10 @@
       </div>
     </section>
 
-    <!-- Step 3: pairing code (projector) and device options. -->
+    <!-- Last step: pairing code (projector) and device options. -->
     <section id="view-finish" class="view" hidden aria-labelledby="finish-title">
       <div class="view-head">
-        <button type="button" class="back" data-back="server" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
+        <button type="button" id="finish-back" class="back" aria-label="رجوع"><svg class="icon" aria-hidden="true"><use href="#i-back"></use></svg></button>
         <div>
           <h2 id="finish-title"></h2>
           <p id="finish-sub" class="sub"></p>
@@ -263,8 +364,9 @@
     <details class="card help">
       <summary>كيف يعمل؟</summary>
       <ul>
-        <li>يعمل النظام من <strong>خادم</strong> على كمبيوتر داخل المطعم، ويجب أن يكون هذا الجهاز على نفس شبكة الواي فاي.</li>
-        <li><strong>تطبيق الموظفين:</strong> اختر الخادم، ثم يدخل كل موظف باسم المستخدم وكلمة المرور التي أنشأها له المالك.</li>
+        <li><strong>سحابي:</strong> كل الأجهزة تتصل بمشروع Firebase الخاص بالمطعم عبر الإنترنت، بدون كمبيوتر خادم. اختر نفس المشروع على كل جهاز.</li>
+        <li><strong>خادم محلي:</strong> يعمل النظام من برنامج المنيو على كمبيوتر داخل المطعم، ويجب أن يكون هذا الجهاز على نفس شبكة الواي فاي.</li>
+        <li><strong>تطبيق الموظفين:</strong> يدخل كل موظف باسم المستخدم وكلمة المرور التي أنشأها له المالك. في مشروع سحابي جديد ينشئ أول مستخدم حساب المالك.</li>
         <li><strong>جهاز العرض:</strong> يُنشئ المالك رمز ربط للطاولة من تطبيق الموظفين، ثم تُدخل الرمز هنا خلال 10 دقائق.</li>
         <li>لا يظهر الخادم في البحث؟ اكتب عنوانه كما يظهر عند تشغيله، مثل <bdi dir="ltr">192.168.1.10:3000</bdi>.</li>
         <li>لفتح هذه الشاشة لاحقاً: المس الزاوية العلوية اليسرى 5 مرات بسرعة، أو اضغط زر القائمة في الريموت، أو زر الرجوع 3 مرات على جهاز العرض.</li>

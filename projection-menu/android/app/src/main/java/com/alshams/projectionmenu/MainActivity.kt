@@ -39,11 +39,13 @@ import androidx.webkit.WebViewFeature
  * staff app, a normal browser window), PLAYER (a table's projector: fullscreen,
  * landscape, black, screen kept on), DEMO (bundled, offline) and SETUP (bundled
  * settings page talking to [AppBridge]). APP and PLAYER can be pinned (kiosk)
- * and guard settings with a PIN.
+ * and guard settings with a PIN. In cloud mode APP and PLAYER are bundled pages
+ * too ([CloudPages]), whose Firebase Storage media go through [MediaProxy].
  */
 class MainActivity : AppCompatActivity() {
     internal val store by lazy { ConfigStore(this) }
     private val local by lazy { LocalContent(this) }
+    private val media by lazy { MediaProxy(this) }
     private val bridge = AppBridge(this)
     private val pinDialog = PinDialog(this) { store.checkPin(it) }
     internal val fileChooser = FileChooser(this)
@@ -171,7 +173,7 @@ class MainActivity : AppCompatActivity() {
             userAgentString = "$userAgentString ProjectionMenuApp/${BuildConfig.VERSION_NAME}"
         }
         applyMixedContent(view)
-        view.webViewClient = AppWebViewClient(this, local)
+        view.webViewClient = AppWebViewClient(this, local, media)
         view.webChromeClient = AppChromeClient(this)
         // WebView cannot save files: the staff app's downloads (e.g. the APK) go to the
         // browser, like its other external links. Projectors never download.
@@ -198,7 +200,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Whether a main-frame request for a bundled page may be served (WebView background thread). */
-    internal fun claimLocalLoad(method: String?, path: String?): Boolean = localGate.claim(method, path, screen)
+    internal fun claimLocalLoad(method: String?, path: String?, query: String?): Boolean =
+        localGate.claim(method, path, screen, query, store.load()?.url)
 
     /** Navigates after the current callback (e.g. once a bridge reply is posted). */
     internal fun navigateSoon(url: String) {
@@ -275,11 +278,14 @@ class MainActivity : AppCompatActivity() {
      * The setup page (https, bundled) checks plain-http LAN servers with fetch():
      * /api/info and the projector pairing-code claim. WebView blocks such mixed
      * content by default, so it is allowed on setup only; server pages are
-     * themselves http on a LAN, or https with nothing insecure to load.
+     * themselves http on a LAN, or https with nothing insecure to load, and cloud
+     * pages only talk to Google over https. The exception: a debug build pointed
+     * at the Firebase emulators (plain http on the developer's machine).
      */
     private fun applyMixedContent(view: WebView) {
+        val emulators = BuildConfig.DEBUG && screen.isLockable && CloudPages.usesEmulators(store.load()?.url)
         view.settings.mixedContentMode =
-            if (screen == Screen.SETUP) WebSettings.MIXED_CONTENT_ALWAYS_ALLOW else WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            if (screen == Screen.SETUP || emulators) WebSettings.MIXED_CONTENT_ALWAYS_ALLOW else WebSettings.MIXED_CONTENT_NEVER_ALLOW
     }
 
     private fun applySystemBars() {
@@ -332,15 +338,19 @@ class MainActivity : AppCompatActivity() {
 
     // ── Settings ───────────────────────────────────────────────────
 
-    /** Hidden gesture, MENU key, BACK or the bridge: go to setup.html (PIN first when one is set). */
-    internal fun openSettings() {
+    /**
+     * Hidden gesture, MENU key, BACK or the bridge: go to setup.html (PIN first when
+     * one is set). [unpaired]: a cloud player lost its pairing, setup opens on the code.
+     */
+    internal fun openSettings(unpaired: Boolean = false) {
         if (screen == Screen.SETUP) return
-        if (screen.isLockable && store.load()?.hasPin == true) pinDialog.ask(::showSetup) else showSetup()
+        val target = if (unpaired) LocalPages.SETUP_UNPAIRED else LocalPages.SETUP
+        if (screen.isLockable && store.load()?.hasPin == true) pinDialog.ask { showSetup(target) } else showSetup(target)
     }
 
-    private fun showSetup() {
+    private fun showSetup(target: String = LocalPages.SETUP) {
         stopLockTaskSafely()
-        navigate(LocalPages.SETUP)
+        navigate(target)
     }
 
     internal fun onConfigSaved(url: String, launcher: Boolean) {
@@ -363,8 +373,8 @@ class MainActivity : AppCompatActivity() {
             // A projector never leaves its menu: single presses are swallowed, three open settings.
             Screen.PLAYER -> if (backPresses.press(SystemClock.uptimeMillis())) openSettings()
             // History never steps back into setup (bundled pages only open via navigate()),
-            // only within the server's pages or within the demo.
-            Screen.APP -> if (!goBackIf { !it.isLocal }) openSettings()
+            // only within the server's pages (or the cloud staff app) or within the demo.
+            Screen.APP -> if (!goBackIf { !it.isLocal || CloudPages.modeOf(it) == AppMode.APP }) openSettings()
             Screen.DEMO -> if (!goBackIf { it.isLocal && LocalPages.isDemo(it.path) }) openSettings()
             // Leaving setup returns to the configured page (or closes a fresh install).
             Screen.SETUP -> {

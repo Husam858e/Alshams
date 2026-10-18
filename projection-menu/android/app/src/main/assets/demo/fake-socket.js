@@ -4,12 +4,16 @@
 // demo backend (window.__PM_DEMO__, set by frame-shim.js) instead of a server.
 // Only what live.js uses is implemented: on, off, onAny, emit, connect,
 // disconnect and the 'connect' / 'disconnect' / 'connect_error' events.
+// Cloud mode (cloud/app.html) maps the same specifier here; its host also
+// reports the internet connection (onConnection), which becomes
+// 'disconnect' / 'connect' so the app shows that it is offline.
 
 export function io(namespace = '/', _options = {}) {
   const host = globalThis.__PM_DEMO__ ?? null;
   const handlers = new Map(); // event -> Set(fn)
   const anyHandlers = new Set();
   let unsubscribe = null;
+  let unwatch = null;
 
   const fire = (event, ...args) => {
     for (const fn of [...(handlers.get(event) ?? [])]) fn(...args);
@@ -56,6 +60,13 @@ export function io(namespace = '/', _options = {}) {
         unsubscribe = host.subscribeLive(deliver);
         socket.connected = true;
         fire('connect');
+        unwatch =
+          host.onConnection?.((online) => {
+            if (!socket.active || online === socket.connected) return;
+            socket.connected = online;
+            if (online) fire('connect');
+            else fire('disconnect', 'transport close');
+          }) ?? null;
       }, 0);
       return socket;
     },
@@ -63,6 +74,8 @@ export function io(namespace = '/', _options = {}) {
       socket.active = false;
       unsubscribe?.();
       unsubscribe = null;
+      unwatch?.();
+      unwatch = null;
       if (socket.connected) {
         socket.connected = false;
         fire('disconnect', 'io client disconnect');

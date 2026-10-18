@@ -1,7 +1,7 @@
 // Arrow-key / D-pad focus movement for Android TV remotes: moves focus to
 // the nearest focusable control in the pressed direction. In text fields
-// left/right move the caret until it reaches the edge of the text, and
-// OK (Enter) toggles checkboxes.
+// left/right move the caret until it reaches the edge of the text (up/down
+// too, line by line, in a textarea), and OK (Enter) toggles checkboxes.
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, a[href], summary, [tabindex="0"]';
 const DIRECTIONS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
@@ -17,6 +17,13 @@ function caretCanMove(el, dx) {
   if (start !== end) return true;
   const towardsStart = (dx < 0) !== (getComputedStyle(el).direction === 'rtl');
   return towardsStart ? start > 0 : end < value.length;
+}
+
+// True while up/down still has lines to move the caret over (multi-line fields).
+function caretCanChangeLine(el, dy) {
+  const { selectionStart: start, selectionEnd: end, value } = el;
+  if (start == null) return false;
+  return dy < 0 ? start > 0 && value.lastIndexOf('\n', start - 1) >= 0 : value.indexOf('\n', end) >= 0;
 }
 
 function visible(el) {
@@ -67,6 +74,7 @@ export function enableArrowNavigation() {
     const dir = DIRECTIONS[e.key];
     if (!dir) return;
     if (dir[0] !== 0 && isTextField(current) && caretCanMove(current, dir[0])) return;
+    if (dir[1] !== 0 && current?.tagName === 'TEXTAREA' && caretCanChangeLine(current, dir[1])) return;
 
     const next = current ? findNext(current, dir) : [...document.querySelectorAll(FOCUSABLE)].find(visible);
     if (!next) return;

@@ -8,6 +8,15 @@ import { VERSION } from '../../data.js';
 // An address that looks like a restaurant LAN, for the QR codes the owner sees.
 const EXAMPLE_SERVER = 'http://192.168.1.10:3000';
 
+// Username + password of a new account, checked like the server does.
+export function credentials(body) {
+  const username = str(body.username, 'اسم المستخدم', { required: true, max: 40 });
+  if (!/^[\p{L}\p{N}._-]+$/u.test(username)) throw badRequest('اسم المستخدم يحتوي أحرفاً غير مسموحة (بدون مسافات)');
+  const problem = validatePassword(body.password);
+  if (problem) throw badRequest(problem);
+  return { username, password: body.password };
+}
+
 export function authRoutes(route, { state: s, user, setSessionUser, log, live, nowIso, dto }) {
   const userDto = (u) => ({
     id: u.id,
@@ -18,16 +27,9 @@ export function authRoutes(route, { state: s, user, setSessionUser, log, live, n
     created_at: u.created_at,
     last_login_at: u.last_login_at,
   });
+  dto.user = userDto;
   const byUsername = (name) => s.users.find((u) => u.username.toLowerCase() === String(name).toLowerCase());
   const activeOwners = () => s.users.filter((u) => u.role === 'owner' && u.is_active).length;
-
-  const credentials = (body) => {
-    const username = str(body.username, 'اسم المستخدم', { required: true, max: 40 });
-    if (!/^[\p{L}\p{N}._-]+$/u.test(username)) throw badRequest('اسم المستخدم يحتوي أحرفاً غير مسموحة (بدون مسافات)');
-    const problem = validatePassword(body.password);
-    if (problem) throw badRequest(problem);
-    return { username, password: body.password };
-  };
 
   const loadUser = (id) => {
     const u = s.users.find((x) => x.id === idParam(id, 'المستخدم'));

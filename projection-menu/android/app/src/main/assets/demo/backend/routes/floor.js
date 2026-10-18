@@ -3,6 +3,7 @@
 // projectors.js, scenes.js and player.js).
 
 import { anyStaff, contentTeam, floorTeam, ownerOnly } from '../roles.js';
+import { sceneFor } from '../model.js';
 import { DEFAULT_CALIBRATION } from '../seed.js';
 import { HttpError, badRequest, bool, conflict, forbidden, has, idParam, int, notFound, oneOf, str } from '../validate.js';
 
@@ -151,6 +152,7 @@ export function floorRoutes(route, ctx) {
     player_url: playerUrl(p.device_key),
     test_pattern: projection.testPatternOn(p.id),
   });
+  dto.projector = projectorDto; // for backends that replace some of these routes
   const loadProjector = (id) => {
     const p = s.projectors.find((x) => x.id === idParam(id, 'جهاز العرض'));
     if (!p) throw notFound('جهاز العرض غير موجود');
@@ -327,7 +329,7 @@ export function floorRoutes(route, ctx) {
 
   const sceneTable = (id) => loadTable(id).id;
 
-  route('GET', '/tables/:id/scene', anyStaff, ({ params }) => ({ scene: projection.getScene(sceneTable(params.id)) }));
+  route('GET', '/tables/:id/scene', anyStaff, ({ params, user }) => ({ scene: sceneFor(projection.getScene(sceneTable(params.id)), user.role) }));
 
   route('PUT', '/tables/:id/scene', anyStaff, ({ params, body, user }) => {
     const id = sceneTable(params.id);
@@ -336,7 +338,10 @@ export function floorRoutes(route, ctx) {
     return projection.setScene(id, scene, user);
   });
 
-  route('GET', '/tables/:id/preview-bootstrap', anyStaff, ({ params }) => projection.previewBootstrap(sceneTable(params.id)));
+  route('GET', '/tables/:id/preview-bootstrap', anyStaff, ({ params, user }) => {
+    const boot = projection.previewBootstrap(sceneTable(params.id));
+    return { ...boot, scene: sceneFor(boot.scene, user.role) };
+  });
 }
 
 // Same rules as src/lib/calibration.js.

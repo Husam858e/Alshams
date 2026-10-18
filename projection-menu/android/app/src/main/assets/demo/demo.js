@@ -6,6 +6,7 @@
 
 import { bridge } from '/app/bridge.js';
 import { DEMO_DEVICE_KEY, createBackend } from './backend/index.js';
+import { probe } from './backend/probe.js';
 import { MEDIA, SAMPLE, TABLE_TEXTURE } from './data.js';
 
 const HOME = { waiter: '/floor', designer: '/menu', owner: '/floor' };
@@ -36,43 +37,6 @@ const appFrame = $('#app-frame');
 const playerFrame = $('#player-frame');
 
 // ── Backend ────────────────────────────────────────────────────────
-
-// Size / duration of an uploaded file, like the server's ffprobe.
-async function probe(blob, kind) {
-  if (kind === 'image') {
-    try {
-      const bitmap = await createImageBitmap(blob);
-      const size = { width: bitmap.width, height: bitmap.height };
-      bitmap.close?.();
-      return size;
-    } catch {
-      return {};
-    }
-  }
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(blob);
-    let done = false;
-    const finish = (info) => {
-      if (done) return;
-      done = true;
-      URL.revokeObjectURL(url);
-      video.removeAttribute('src');
-      resolve(info);
-    };
-    video.muted = true;
-    video.preload = 'metadata';
-    video.onloadedmetadata = () =>
-      finish({
-        width: video.videoWidth || null,
-        height: video.videoHeight || null,
-        duration_ms: Number.isFinite(video.duration) ? Math.round(video.duration * 1000) : null,
-      });
-    video.onerror = () => finish({});
-    setTimeout(() => finish({}), 4000);
-    video.src = url;
-  });
-}
 
 const backend = createBackend({ sample: SAMPLE, media: MEDIA, probe });
 

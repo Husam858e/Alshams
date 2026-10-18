@@ -12,6 +12,12 @@ data class AppConfig(
     val launcher: Boolean,
     /** What setup shows about it, e.g. "طاولة 7 · مطعم الشمس" (may be empty). */
     val label: String,
+    /**
+     * Cloud mode: the Firebase project config pasted in setup, as JSON (checked
+     * with [FirebaseProject.sanitize]); null for server links and for the
+     * project built into the APK. Identifies the project, not a secret.
+     */
+    val firebase: String? = null,
 )
 
 class ConfigStore(context: Context) {
@@ -32,20 +38,23 @@ class ConfigStore(context: Context) {
             kiosk = prefs.getBoolean(KEY_KIOSK, false),
             launcher = prefs.getBoolean(KEY_LAUNCHER, false),
             label = prefs.getString(KEY_LABEL, null).orEmpty(),
+            firebase = prefs.getString(KEY_FIREBASE, null),
         )
     }
 
     /**
      * Saves synchronously (a kiosk may lose power right after setup).
      * @param pin a valid normalized PIN, "" for no PIN, or null to keep the current one.
+     * @param firebase see [AppConfig.firebase]; null removes a saved one.
      */
-    fun save(mode: AppMode, url: String, kiosk: Boolean, launcher: Boolean, pin: String?, label: String) {
+    fun save(mode: AppMode, url: String, kiosk: Boolean, launcher: Boolean, pin: String?, label: String, firebase: String? = null) {
         prefs.edit(commit = true) {
             putString(KEY_MODE, mode.name)
             putString(KEY_URL, url)
             putBoolean(KEY_KIOSK, kiosk)
             putBoolean(KEY_LAUNCHER, launcher)
             if (label.isEmpty()) remove(KEY_LABEL) else putString(KEY_LABEL, label)
+            if (firebase == null) remove(KEY_FIREBASE) else putString(KEY_FIREBASE, firebase)
             when {
                 pin == null -> Unit
                 pin.isEmpty() -> {
@@ -93,6 +102,7 @@ class ConfigStore(context: Context) {
         const val KEY_KIOSK = "kiosk"
         const val KEY_LAUNCHER = "launcher"
         const val KEY_LABEL = "label"
+        const val KEY_FIREBASE = "firebase"
         const val KEY_PIN_HASH = "pin_sha256"
         const val KEY_PIN_SALT = "pin_salt"
     }

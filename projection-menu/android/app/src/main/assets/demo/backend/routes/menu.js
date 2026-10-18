@@ -8,8 +8,9 @@ import { HttpError, badRequest, bool, conflict, forbidden, has, idList, idParam,
 const PRICE_FORBIDDEN = 'تعديل الأسعار من صلاحيات المالك';
 const MAX_PRICE = 100_000_000;
 const KIND_AR = { image: 'الصور', video: 'الفيديو', model3d: 'ملفات ‎.glb' };
-// Uploads live in this device's memory: keep them reasonable.
-const MAX_UPLOAD_MB = 100;
+// Uploads live in this device's memory (demo) or go over the restaurant's
+// internet line (cloud): keep them reasonable.
+export const MAX_UPLOAD_MB = 100;
 
 const FORMATS = {
   '.mp4': { kind: 'video', mime: 'video/mp4' },
@@ -29,6 +30,24 @@ const SIGNATURES = {
   'video/webm': (b) => [0x1a, 0x45, 0xdf, 0xa3].every((v, i) => b[i] === v),
   'model/gltf-binary': (b) => latin(b, 0, 4) === 'glTF',
 };
+
+// An uploaded file (Blob/File) checked like the server does: allowed
+// extension, size, and content that matches the extension.
+// -> {name, ext, kind, mime, blob (typed with the right MIME)}
+export async function inspectUpload(file) {
+  if (!file) throw badRequest('لم يتم إرفاق ملف (الحقل file)');
+  const name = String(file.name || 'file');
+  const ext = (/\.[^.]+$/.exec(name)?.[0] ?? '').toLowerCase();
+  const format = FORMATS[ext];
+  if (!format) throw badRequest(`نوع الملف غير مدعوم. الأنواع المسموحة: ${Object.keys(FORMATS).join(' ')}`);
+  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) throw new HttpError(413, `حجم الملف أكبر من ${MAX_UPLOAD_MB} ميغابايت`);
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (head.length < 12 || !SIGNATURES[format.mime](head)) {
+    throw badRequest('محتوى الملف لا يطابق امتداده (قد يكون الملف تالفاً أو بصيغة أخرى)');
+  }
+  const blob = file.type === format.mime ? file : file.slice(0, file.size, format.mime);
+  return { name, ext, kind: format.kind, mime: format.mime, blob };
+}
 
 const PRESETS = ['noir', 'marble', 'garden', 'royal'];
 const FONTS = ['Cairo', 'Tajawal'];
@@ -235,6 +254,7 @@ export function menuRoutes(route, ctx) {
     const { url, ...row } = a;
     return { ...row, url, uploaded_by_name: find.user(a.uploaded_by)?.name ?? null, used_by: usage.get(a.id) ?? [] };
   };
+  dto.media = mediaDto; // for backends that replace some of these routes
   const loadAsset = (id) => {
     const a = find.asset(idParam(id, 'الملف'));
     if (!a) throw notFound('الملف غير موجود');
@@ -248,37 +268,27 @@ export function menuRoutes(route, ctx) {
 
   // multipart 'file' (+ optional 'title'), one file per request like the server.
   route('POST', '/media', contentTeam, async ({ file, fields, user }) => {
-    if (!file) throw badRequest('لم يتم إرفاق ملف (الحقل file)');
-    const name = String(file.name || 'file');
-    const ext = (/\.[^.]+$/.exec(name)?.[0] ?? '').toLowerCase();
-    const format = FORMATS[ext];
-    if (!format) throw badRequest(`نوع الملف غير مدعوم. الأنواع المسموحة: ${Object.keys(FORMATS).join(' ')}`);
-    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) throw new HttpError(413, `حجم الملف أكبر من ${MAX_UPLOAD_MB} ميغابايت`);
-    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-    if (head.length < 12 || !SIGNATURES[format.mime](head)) {
-      throw badRequest('محتوى الملف لا يطابق امتداده (قد يكون الملف تالفاً أو بصيغة أخرى)');
-    }
-    const blob = file.type === format.mime ? file : file.slice(0, file.size, format.mime);
-    const info = format.kind === 'model3d' ? {} : ((await ctx.probe?.(blob, format.kind)) ?? {});
+    const { name, ext, kind, mime, blob } = await inspectUpload(file);
+    const info = kind === 'model3d' ? {} : ((await ctx.probe?.(blob, kind)) ?? {});
     const id = s.nextId('asset');
     const asset = {
       id,
-      kind: format.kind,
+      kind,
       title: str(fields?.title, 'العنوان', { max: 120 }) ?? name.replace(/\.[^.]+$/, '').slice(0, 120),
       original_name: name.slice(0, 255),
       file_name: `upload-${id}${ext}`,
       url: URL.createObjectURL(blob),
-      mime_type: format.mime,
+      mime_type: mime,
       size_bytes: file.size,
       sha256: null,
       width: info.width ?? null,
       height: info.height ?? null,
-      duration_ms: format.kind === 'video' ? (info.duration_ms ?? null) : null,
+      duration_ms: kind === 'video' ? (info.duration_ms ?? null) : null,
       uploaded_by: user.id,
       created_at: nowIso(),
     };
     s.assets.push(asset);
-    log(user, 'media.upload', { title: name, kind: format.kind });
+    log(user, 'media.upload', { title: name, kind });
     return ctx.created(mediaDto(asset));
   });
 

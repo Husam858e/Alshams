@@ -2,10 +2,10 @@ package com.alshams.projectionmenu
 
 /** What a saved configuration turns the device into. */
 enum class AppMode {
-    /** The staff app (waiter / designer / owner) at `<server>/app/`. */
+    /** The staff app (waiter / designer / owner) at `<server>/app/` (cloud: [CloudPages.APP_PATH]). */
     APP,
 
-    /** A table's projector player at `<server>/player/?device=<key>`. */
+    /** A table's projector player at `<server>/player/?device=<key>` (cloud: [CloudPages.PLAYER_PATH]). */
     PLAYER,
 }
 
@@ -71,7 +71,8 @@ object PairingLink {
  * Turns a configuration saved by any app version into a v2 one. v1 saved
  * TABLET / ADMIN / PLAYER: tablets and dashboards become the staff app on the
  * same server; a v1 player link (projector + key) cannot be converted, so that
- * device goes back to setup to be paired again with a code.
+ * device goes back to setup to be paired again with a code. Cloud pages
+ * (bundled, see [CloudPages]) are kept as they are when they match their mode.
  */
 object ConfigMigration {
     data class Saved(val mode: AppMode, val url: String)
@@ -81,6 +82,11 @@ object ConfigMigration {
     /** The v2 configuration, or null when there is none (or it must be set up again). */
     fun migrate(mode: String?, url: String?): Saved? {
         if (mode == null || url.isNullOrBlank()) return null
+        // Not PairingLink: it would turn the bundled page into "<appassets>/app/".
+        // Emulator links were only ever saved by a debug build: keep them.
+        CloudPages.parse(url, allowEmulators = true)?.let { cloud ->
+            return (cloud as? PairingLink.Valid)?.takeIf { it.mode.name == mode }?.let { Saved(it.mode, it.normalizedUrl) }
+        }
         val link = PairingLink.parse(url) as? PairingLink.Valid
         return when {
             mode in STAFF_MODES -> {

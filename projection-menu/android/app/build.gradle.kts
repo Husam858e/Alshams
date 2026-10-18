@@ -73,10 +73,39 @@ base {
 // The offline demo runs the real staff app and projector player, so the web UIs
 // and the browser libraries they import are copied into the APK at build time
 // (never committed under src/main/assets). Asset paths mirror the server's URLs:
-// /shared, /app, /player, /vendor/{preact,htm,three,qrcode} (see src/app.js).
+// /shared, /app, /player, /vendor/{preact,htm,three,qrcode} (see src/app.js),
+// plus /vendor/firebase for cloud mode.
 val webRoot = rootProject.file("..")
 val nodeModules = File(webRoot, "node_modules")
 val nativeAssets = file("src/main/assets")
+
+// Firebase SDK modules the cloud backend imports (assets/cloud/backend/).
+val firebaseModules = listOf("app", "auth", "firestore", "storage")
+
+/**
+ * The cloud pages' import maps are static HTML, so they name the SDK version in
+ * the gstatic URLs the SDK files import each other with. Fail the build when an
+ * `npm install` moved node_modules/firebase to another version than the one the
+ * pages map (test/android-cloud-assets.test.js checks the same, in more detail).
+ */
+fun checkFirebaseImportMaps() {
+    val version = Regex("\"version\"\\s*:\\s*\"([^\"]+)\"")
+        .find(File(nodeModules, "firebase/package.json").readText())?.groupValues?.get(1)
+        ?: throw GradleException("node_modules/firebase/package.json has no version")
+    for (page in listOf("cloud/app.html", "cloud/player.html")) {
+        val html = File(nativeAssets, page).readText()
+        for (module in firebaseModules) {
+            val url = "https://www.gstatic.com/firebasejs/$version/firebase-$module.js"
+            if (!html.contains("\"$url\": \"/vendor/firebase/firebase-$module.js\"")) {
+                throw GradleException(
+                    "assets/$page does not map $url to /vendor/firebase/firebase-$module.js: " +
+                        "update its import map to firebase $version (node_modules/firebase).",
+                )
+            }
+        }
+    }
+}
+
 val copyWebAssets = tasks.register<Sync>("copyWebAssets") {
     description = "Copies public/{shared,app,player} and their vendor libraries into the APK assets."
     into(layout.buildDirectory.dir("generated/webAssets"))
@@ -107,15 +136,26 @@ val copyWebAssets = tasks.register<Sync>("copyWebAssets") {
         include("qrcode.mjs")
         into("vendor/qrcode")
     }
+    // Cloud mode (assets/cloud/): the Firebase SDK's browser ES modules (the files
+    // gstatic.com serves). They import each other by their gstatic URL, which the
+    // cloud pages' import maps send back to these copies: nothing loads from gstatic.
+    from(File(nodeModules, "firebase")) {
+        // Apache-2.0, with the licence header inside each file (no LICENSE in the package).
+        include(firebaseModules.map { "firebase-$it.js" })
+        into("vendor/firebase")
+    }
     exclude("**/*.map", "**/*.d.ts", "**/.DS_Store")
+    // checkFirebaseImportMaps reads them: a changed page must re-run this task.
+    inputs.files(File(nativeAssets, "cloud/app.html"), File(nativeAssets, "cloud/player.html"))
     doFirst {
-        val missing = listOf("preact", "htm", "three", "qrcode-generator").filterNot { File(nodeModules, "$it/package.json").isFile }
+        val missing = listOf("preact", "htm", "three", "qrcode-generator", "firebase").filterNot { File(nodeModules, "$it/package.json").isFile }
         if (missing.isNotEmpty()) {
             throw GradleException(
                 "Missing node_modules: ${missing.joinToString()}. Run `npm install` in ${webRoot.canonicalPath} " +
                     "first: the APK's offline demo bundles the web UIs and these libraries.",
             )
         }
+        checkFirebaseImportMaps()
     }
     // The setup/offline pages also live in assets/app/: a web file with the same
     // path would silently replace one of them (or break asset merging).

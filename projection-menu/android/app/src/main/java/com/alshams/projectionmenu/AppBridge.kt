@@ -15,8 +15,8 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Native side of `window.AndroidApp` for the bundled pages (setup, offline, demo).
- * The message contract is documented in assets/app/bridge.js.
+ * Native side of `window.AndroidApp` for the bundled pages (setup, offline, demo,
+ * and the cloud pages). The message contract is documented in assets/app/bridge.js.
  * It is installed with addWebMessageListener for the local origin only, so pages
  * served by the restaurant server never get it. Every request carries an "id"
  * that the reply echoes; native never sends unsolicited messages.
@@ -42,7 +42,12 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
             return
         }
         val reply = BridgeReply(request.text("id"), replyProxy)
-        when (request.text("type")) {
+        val type = request.text("type")
+        // The staff app and the players (cloud pages are bundled, so they have the
+        // bridge) render the restaurant's data: they may read the state and ask for
+        // settings, never change them past the PIN.
+        if (activity.screen.isLockable && type !in CONFIGURED_SCREEN_REQUESTS) return reply.error(ERROR_NOT_HERE)
+        when (type) {
             "getState" -> reply.send("state") { putState() }
             "validateLink" -> validateLink(request.text("url"), reply)
             "discover" -> discover(request, reply)
@@ -65,7 +70,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
             }
             "openSettings" -> {
                 reply.send("ok")
-                activity.openSettings()
+                activity.openSettings(unpaired = request.text("reason") == "unpaired")
             }
             else -> reply.error(ERROR_UNKNOWN_REQUEST)
         }
@@ -107,9 +112,19 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
     }
 
     private fun saveConfig(request: JSONObject, reply: BridgeReply) {
-        val link = when (val parsed = PairingLink.parse(request.text("url"))) {
+        val cloud = CloudPages.parse(request.text("url"), allowEmulators = BuildConfig.DEBUG)
+        val link = when (val parsed = cloud ?: PairingLink.parse(request.text("url"))) {
             is PairingLink.Valid -> parsed
             is PairingLink.Invalid -> return reply.error(parsed.error)
+        }
+        // Cloud only: the pasted project (none = the APK's built-in one).
+        val firebase = if (cloud == null || request.isNull("firebase")) {
+            null
+        } else {
+            val values = request.optJSONObject("firebase") ?: return reply.error(FirebaseProject.ERROR_INVALID)
+            val entries = values.keys().asSequence().associateWith { key -> values.opt(key).takeUnless { it == JSONObject.NULL } }
+            val project = FirebaseProject.sanitize(entries) ?: return reply.error(FirebaseProject.ERROR_INVALID)
+            JSONObject(project).toString()
         }
         // A missing or null pin keeps the saved one (re-pairing after a key change must
         // not silently unlock the device); "" removes it.
@@ -124,6 +139,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
             pin = pin,
             // Shown on the settings screen later; plain text, never a secret.
             label = request.text("label").trim().take(MAX_LABEL),
+            firebase = firebase,
         )
         DeviceInfo.setLauncherEnabled(activity, launcher)
         reply.send("saved")
@@ -142,6 +158,7 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
                     .put("kiosk", it.kiosk)
                     .put("launcher", it.launcher)
                     .put("label", it.label)
+                    .put("firebase", it.firebase?.let(::jsonOrNull) ?: JSONObject.NULL)
             } ?: JSONObject.NULL,
         )
         val webViewVersion = DeviceInfo.webViewVersion(activity)
@@ -150,6 +167,14 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         put("webViewSupported", (DeviceInfo.webViewMajor(webViewVersion) ?: 0) >= DeviceInfo.MIN_WEBVIEW_MAJOR)
         put("isTv", DeviceInfo.isTv(activity))
         put("hasCamera", DeviceInfo.hasCamera(activity))
+        // Setup offers the Firebase emulators in debug builds only.
+        put("debug", BuildConfig.DEBUG)
+    }
+
+    private fun jsonOrNull(text: String): JSONObject? = try {
+        JSONObject(text)
+    } catch (_: JSONException) {
+        null
     }
 
     /** JSON null and missing keys both read as "". */
@@ -160,6 +185,8 @@ class AppBridge(private val activity: MainActivity) : WebViewCompat.WebMessageLi
         const val ERROR_NO_CONFIG = "لا توجد إعدادات محفوظة على هذا الجهاز"
         const val ERROR_NO_CAMERA = "لا توجد كاميرا في هذا الجهاز — اكتب العنوان بدلاً من ذلك"
         const val ERROR_UNKNOWN_REQUEST = "طلب غير معروف"
+        const val ERROR_NOT_HERE = "غير متاح من هذه الشاشة — افتح الإعدادات"
+        val CONFIGURED_SCREEN_REQUESTS = setOf("getState", "resume", "openSettings")
         const val MAX_LABEL = 80
     }
 }

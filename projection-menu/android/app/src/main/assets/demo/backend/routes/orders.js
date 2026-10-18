@@ -75,7 +75,7 @@ const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 const addDays = (day, n) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 const round2 = (n) => Math.round(Number(n ?? 0) * 100) / 100;
 
-function dateParam(value, label) {
+export function dateParam(value, label) {
   if (value === undefined || value === '') return null;
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
     throw badRequest(`تاريخ "${label}" يجب أن يكون بصيغة YYYY-MM-DD`);
@@ -110,7 +110,10 @@ export function orderRoutes(route, ctx) {
       if (same.quantity + quantity > 999) throw badRequest('الكمية كبيرة جداً');
       same.quantity += quantity;
     } else {
-      o.items.push({ id: s.nextId('item'), dish_id: dish.id, dish_name: dish.name_ar, quantity, unit_price: dish.price, notes });
+      // Item ids: global in the demo (like the server); the cloud host
+      // numbers them within their order (ctx.nextItemId).
+      const id = ctx.nextItemId ? ctx.nextItemId(o) : s.nextId('item');
+      o.items.push({ id, dish_id: dish.id, dish_name: dish.name_ar, quantity, unit_price: dish.price, notes });
     }
   };
   const touch = (o) => {
@@ -234,75 +237,99 @@ export function orderRoutes(route, ctx) {
 
   // ── Reports (owner): served and paid orders count as revenue ──
 
-  route('GET', '/reports/summary', ownerOnly, ({ query }) => {
-    const today = localDate(new Date(now()));
-    const to = dateParam(query.to, 'إلى') ?? today;
-    const from = dateParam(query.from, 'من') ?? addDays(to, -6);
-    if (from > to) throw badRequest('تاريخ البداية بعد تاريخ النهاية');
-    const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS) + 1;
-    if (days > 366) throw badRequest('أقصى مدة للتقرير سنة واحدة');
-
-    const inRange = s.orders
-      .filter((o) => ['served', 'paid'].includes(o.status))
-      .map((o) => ({ o, day: localDate(new Date(o.created_at)) }))
-      .filter(({ day }) => day >= from && day <= to);
-    const revenue = inRange.reduce((sum, { o }) => sum + o.total, 0);
-
-    const perDay = new Map();
-    for (const { o, day } of inRange) {
-      const d = perDay.get(day) ?? { day, orders: 0, revenue: 0 };
-      d.orders += 1;
-      d.revenue += o.total;
-      perDay.set(day, d);
-    }
-    const dishes = new Map();
-    for (const { o } of inRange) {
-      for (const i of o.items) {
-        const key = i.dish_id ?? `n:${i.dish_name}`;
-        const d = dishes.get(key) ?? { dish_id: i.dish_id, name: i.dish_name, quantity: 0, revenue: 0 };
-        d.quantity += i.quantity;
-        d.revenue += i.quantity * i.unit_price;
-        dishes.set(key, d);
-      }
-    }
-    const waiters = new Map();
-    for (const { o } of inRange) {
-      const w = waiters.get(o.waiter_id) ?? { waiter_id: o.waiter_id, name: find.user(o.waiter_id)?.name ?? 'غير معروف', orders: 0, revenue: 0 };
-      w.orders += 1;
-      w.revenue += o.total;
-      waiters.set(o.waiter_id, w);
-    }
-    return {
-      from,
-      to,
-      totals: { orders: inRange.length, revenue: round2(revenue), avgTicket: inRange.length ? round2(revenue / inRange.length) : 0 },
-      byDay: Array.from({ length: days }, (_, i) => {
-        const day = addDays(from, i);
-        const d = perDay.get(day) ?? { day, orders: 0, revenue: 0 };
-        return { ...d, revenue: round2(d.revenue) };
-      }),
-      topDishes: [...dishes.values()]
-        .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
-        .slice(0, 10)
-        .map((d) => ({ ...d, revenue: round2(d.revenue) })),
-      byWaiter: [...waiters.values()].sort((a, b) => b.revenue - a.revenue).map((w) => ({ ...w, revenue: round2(w.revenue) })),
-    };
-  });
+  route('GET', '/reports/summary', ownerOnly, ({ query }) => reportSummary(s.orders, reportRange(query, now), find.user));
 
   route('GET', '/activity', ownerOnly, ({ query }) => {
     const limit = int(query.limit, 'العدد', { min: 1, max: 1000 }) ?? 100;
     return [...s.activity]
       .sort((a, b) => b.id - a.id)
       .slice(0, limit)
-      .map((row) => ({
-        id: row.id,
-        user_id: row.user_id,
-        user_name: find.user(row.user_id)?.name ?? 'النظام',
-        action: ACTIVITY_LABELS[row.action] ?? row.action,
-        code: row.action,
-        details: row.details,
-        summary: summarize(row.action, row.details),
-        created_at: row.created_at,
-      }));
+      .map((row) => activityDto(row, find.user));
   });
+}
+
+// ── Reports and the activity log (shared with the cloud host, which feeds
+// them the orders / rows of a Firestore query) ──
+
+// The days a report covers: ?from&to (YYYY-MM-DD, this device's time zone),
+// the last 7 days by default. -> {from, to, days}
+export function reportRange(query, now) {
+  const today = localDate(new Date(now()));
+  const to = dateParam(query.to, 'إلى') ?? today;
+  const from = dateParam(query.from, 'من') ?? addDays(to, -6);
+  if (from > to) throw badRequest('تاريخ البداية بعد تاريخ النهاية');
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS) + 1;
+  if (days > 366) throw badRequest('أقصى مدة للتقرير سنة واحدة');
+  return { from, to, days };
+}
+
+// Local midnight at the start of `from` and the end of `to`, as ISO
+// instants (the bounds of a query on orders.created_at).
+export function rangeBounds({ from, to }) {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${addDays(to, 1)}T00:00:00`);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+// Served and paid orders count as revenue.
+export function reportSummary(orders, { from, to, days }, findUser) {
+  const inRange = orders
+    .filter((o) => ['served', 'paid'].includes(o.status))
+    .map((o) => ({ o, day: localDate(new Date(o.created_at)) }))
+    .filter(({ day }) => day >= from && day <= to);
+  const revenue = inRange.reduce((sum, { o }) => sum + o.total, 0);
+
+  const perDay = new Map();
+  for (const { o, day } of inRange) {
+    const d = perDay.get(day) ?? { day, orders: 0, revenue: 0 };
+    d.orders += 1;
+    d.revenue += o.total;
+    perDay.set(day, d);
+  }
+  const dishes = new Map();
+  for (const { o } of inRange) {
+    for (const i of o.items) {
+      const key = i.dish_id ?? `n:${i.dish_name}`;
+      const d = dishes.get(key) ?? { dish_id: i.dish_id, name: i.dish_name, quantity: 0, revenue: 0 };
+      d.quantity += i.quantity;
+      d.revenue += i.quantity * i.unit_price;
+      dishes.set(key, d);
+    }
+  }
+  const waiters = new Map();
+  for (const { o } of inRange) {
+    const w = waiters.get(o.waiter_id) ?? { waiter_id: o.waiter_id, name: findUser(o.waiter_id)?.name ?? 'غير معروف', orders: 0, revenue: 0 };
+    w.orders += 1;
+    w.revenue += o.total;
+    waiters.set(o.waiter_id, w);
+  }
+  return {
+    from,
+    to,
+    totals: { orders: inRange.length, revenue: round2(revenue), avgTicket: inRange.length ? round2(revenue / inRange.length) : 0 },
+    byDay: Array.from({ length: days }, (_, i) => {
+      const day = addDays(from, i);
+      const d = perDay.get(day) ?? { day, orders: 0, revenue: 0 };
+      return { ...d, revenue: round2(d.revenue) };
+    }),
+    topDishes: [...dishes.values()]
+      .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
+      .slice(0, 10)
+      .map((d) => ({ ...d, revenue: round2(d.revenue) })),
+    byWaiter: [...waiters.values()].sort((a, b) => b.revenue - a.revenue).map((w) => ({ ...w, revenue: round2(w.revenue) })),
+  };
+}
+
+// One activity row as GET /activity answers it.
+export function activityDto(row, findUser) {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    user_name: findUser(row.user_id)?.name ?? 'النظام',
+    action: ACTIVITY_LABELS[row.action] ?? row.action,
+    code: row.action,
+    details: row.details,
+    summary: summarize(row.action, row.details),
+    created_at: row.created_at,
+  };
 }

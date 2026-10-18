@@ -292,8 +292,9 @@ bdi[dir='ltr'], code { font-variant-numeric: tabular-nums; }
 }
 .tag .icon { width: 16px; height: 16px; color: var(--gold); }
 
-/* ── Step 1: roles ────────────────────────────────────────────── */
+/* ── Connection and role cards ────────────────────────────────── */
 .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.8vw, 20px); }
+.roles.two { grid-template-columns: repeat(2, 1fr); }
 .role {
   display: grid;
   align-content: start;
@@ -383,7 +384,23 @@ input[type='text'], input[type='password'] {
 input::placeholder { color: rgba(246, 239, 228, 0.3); font-weight: 400; }
 /* An Arabic hint ("4 إلى 8 أرقام") in a dir=ltr field reads in the wrong order. */
 input.pin:placeholder-shown { direction: rtl; text-align: right; }
-input:focus { border-color: var(--gold); }
+/* The pasted Firebase config: code, left to right. */
+textarea {
+  min-height: 168px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  font: 500 14.5px/1.6 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  text-align: left;
+  white-space: pre;
+  overflow: auto;
+  resize: vertical;
+  color: inherit;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+textarea::placeholder { color: rgba(246, 239, 228, 0.3); }
+input:focus, textarea:focus { border-color: var(--gold); }
 input:disabled { opacity: 0.5; }
 .scan { width: 100%; }
 
@@ -562,7 +579,7 @@ input:disabled { opacity: 0.5; }
   .server-grid, .finish-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .roles { grid-template-columns: 1fr; }
+  .roles, .roles.two { grid-template-columns: 1fr; }
   .role { display: flex; align-items: center; min-height: 0; gap: 16px; }
   .role-art { width: 60px; height: 60px; border-radius: 18px; }
   .role-art .icon { width: 32px; height: 32px; }

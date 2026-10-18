@@ -9,54 +9,17 @@
 //
 // No DOM here (tests run it in Node); demo.js wires it to the page.
 
-import { DEFAULT_CALIBRATION, seedState } from './seed.js';
-import { ACTIVE_STATUSES, SCENE_TYPES, publicUser } from './roles.js';
-import { HttpError, notFound } from './validate.js';
+import { seedState } from './seed.js';
+import { publicUser } from './roles.js';
+import { frameTarget, sameRealm } from './frames.js';
+import { DEFAULT_SCENE, createModel, sceneFor } from './model.js';
+import { authorize, createRouter, errorReply, parseUrl, reply } from './router.js';
 import { authRoutes } from './routes/auth.js';
 import { floorRoutes } from './routes/floor.js';
 import { menuRoutes } from './routes/menu.js';
 import { orderRoutes } from './routes/orders.js';
 
 export const DEMO_DEVICE_KEY = 'demo';
-const DEFAULT_SCENE = Object.freeze({ type: 'welcome' });
-
-// The global of the realm a function was created in (a player iframe), so
-// payloads can be cloned into it and a closed frame can be noticed.
-function realmOf(fn) {
-  try {
-    return fn.constructor('return globalThis')();
-  } catch {
-    return null;
-  }
-}
-
-// A subscriber living in another frame: calls are dropped (and the
-// subscription forgotten) once that frame is gone or navigated away.
-function frameTarget(fn) {
-  const realm = realmOf(fn);
-  let doc;
-  try {
-    doc = realm?.document;
-  } catch {
-    doc = undefined;
-  }
-  return {
-    alive() {
-      try {
-        return !realm || (!realm.closed && realm.document === doc);
-      } catch {
-        return false;
-      }
-    },
-    clone(value) {
-      try {
-        return (realm?.structuredClone ?? structuredClone)(value);
-      } catch {
-        return structuredClone(value);
-      }
-    },
-  };
-}
 
 export function createBackend({ sample, media, now = () => Date.now(), probe = null, schedule = setTimeout } = {}) {
   const s = seedState({ sample, media, now });
@@ -79,6 +42,8 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
     staff(event, payload = {}) {
       prune();
       if (!user()) return;
+      // Designers get order scenes without the order (like the server).
+      if (event === 'scene') payload = { ...payload, scene: sceneFor(payload.scene, user().role) };
       for (const [fn, target] of [...liveSubs]) {
         if (!target.alive()) {
           liveSubs.delete(fn);
@@ -101,113 +66,12 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
   };
 
   // ── DTOs (same shapes as the server) ───────────────────────────
-  const assetById = (id) => (id ? s.assets.find((a) => a.id === id) ?? null : null);
-  const urlOf = (id) => assetById(id)?.url ?? null;
-  const tableById = (id) => s.tables.find((t) => t.id === id) ?? null;
-  const areaById = (id) => s.areas.find((a) => a.id === id) ?? null;
-  const userById = (id) => s.users.find((u) => u.id === id) ?? null;
-  const bySort = (a, b) => a.sort_order - b.sort_order || a.id - b.id;
-
-  const dishDto = (d) => ({
-    ...structuredClone(d),
-    image_url: urlOf(d.image_asset_id),
-    video_url: urlOf(d.video_asset_id),
-    model_url: urlOf(d.model_asset_id),
-  });
-  const categoryDto = (c) => ({ ...structuredClone(c), cover_url: urlOf(c.cover_asset_id) });
-
-  function menu({ forPlayer = false } = {}) {
-    const dishes = [...s.dishes].sort(bySort).filter((d) => !forPlayer || d.is_available).map(dishDto);
-    const categories = [...s.categories]
-      .sort(bySort)
-      .filter((c) => !forPlayer || c.is_visible)
-      .map((c) => ({ ...categoryDto(c), dishes: dishes.filter((d) => d.category_id === c.id) }));
-    return { categories, uncategorized: dishes.filter((d) => d.category_id == null) };
-  }
-
-  function settingsAll() {
-    const { general, theme } = s.settings;
-    const bgId = theme.background?.type === 'preset' ? null : theme.background?.assetId;
-    return { general: structuredClone(general), theme: structuredClone(theme), logo_url: urlOf(general.logoAssetId), background_url: urlOf(bgId) };
-  }
-
-  const orderDto = (o) => ({
-    id: o.id,
-    table_id: o.table_id,
-    table_number: tableById(o.table_id)?.number ?? o.table_number,
-    waiter_id: o.waiter_id,
-    waiter_name: userById(o.waiter_id)?.name ?? null,
-    status: o.status,
-    notes: o.notes,
-    total: o.total,
-    created_at: o.created_at,
-    updated_at: o.updated_at,
-    items: o.items.map((i) => ({ ...i })),
-  });
-  const orderById = (id) => s.orders.find((o) => o.id === id) ?? null;
-
+  const model = createModel(s);
+  const { dto, find, sortedTables, storedScene, getScene, projectorView, bootstrapFor, neutralProjector, previewBootstrap } = model;
+  const { table: tableById, area: areaById, order: orderById } = find;
+  const orderDto = dto.order;
   const isOnline = (projectorId) => Boolean(s.projectors.find((p) => p.id === projectorId)?.online);
-
-  function activeByTable() {
-    const map = new Map();
-    for (const o of [...s.orders].sort((a, b) => b.id - a.id)) {
-      if (!ACTIVE_STATUSES.includes(o.status)) continue;
-      const entry = map.get(o.table_id);
-      if (entry) entry.activeCount += 1;
-      else {
-        const itemsCount = o.items.reduce((n, i) => n + i.quantity, 0);
-        map.set(o.table_id, { activeOrder: { id: o.id, status: o.status, total: o.total, itemsCount }, activeCount: 1 });
-      }
-    }
-    return map;
-  }
-
-  function tableDto(t, active = activeByTable()) {
-    return {
-      id: t.id,
-      number: t.number,
-      seats: t.seats,
-      status: t.status,
-      area_id: t.area_id,
-      sort_order: t.sort_order,
-      projectors: s.projectors.filter((p) => p.table_id === t.id).sort((a, b) => a.id - b.id).map((p) => ({ id: p.id, name: p.name, online: p.online })),
-      scene: structuredClone(s.scenes.get(t.id) ?? DEFAULT_SCENE),
-      activeOrder: active.get(t.id)?.activeOrder ?? null,
-      activeOrdersCount: active.get(t.id)?.activeCount ?? 0,
-    };
-  }
-  const sortedTables = () => [...s.tables].sort((a, b) => a.sort_order - b.sort_order || a.number - b.number);
-
-  function floor() {
-    const active = activeByTable();
-    const tables = sortedTables().map((t) => tableDto(t, active));
-    const areas = [...s.areas].sort(bySort).map((a) => ({ id: a.id, name: a.name, sort_order: a.sort_order, tables: tables.filter((t) => t.area_id === a.id) }));
-    const areaIds = new Set(areas.map((a) => a.id));
-    return { areas, unassigned: tables.filter((t) => !areaIds.has(t.area_id)) };
-  }
-
-  // ── Projection: scenes, players, previews ──────────────────────
-  const storedScene = (tableId) => s.scenes.get(tableId) ?? { ...DEFAULT_SCENE };
-  const resolve = (scene) => (scene.type === 'order' ? { ...scene, order: orderById(scene.orderId) ? orderDto(orderById(scene.orderId)) : null } : { ...scene });
-  const getScene = (tableId) => resolve(storedScene(tableId));
-
-  const projectorView = (p) => ({ id: p.id, name: p.name, rotation: p.rotation, layout: p.layout, calibration: structuredClone(p.calibration) });
   const testPatterns = new Set(); // projector ids showing the test pattern
-
-  function bootstrapFor(p, tableId = p?.table_id) {
-    const t = tableId ? tableById(tableId) : null;
-    return {
-      projector: projectorView(p),
-      table: t ? { id: t.id, number: t.number, area_name: areaById(t.area_id)?.name ?? null } : null,
-      settings: settingsAll(),
-      menu: menu({ forPlayer: true }),
-      scene: t ? getScene(t.id) : { ...DEFAULT_SCENE },
-    };
-  }
-
-  const neutralProjector = (tableId) => ({ id: null, name: 'معاينة', table_id: tableId, rotation: 0, layout: 'single', calibration: DEFAULT_CALIBRATION() });
-  const firstProjector = (tableId) => s.projectors.filter((p) => p.table_id === tableId).sort((a, b) => a.id - b.id)[0] ?? null;
-  const previewBootstrap = (tableId) => bootstrapFor(firstProjector(tableId) ?? neutralProjector(tableId), tableId);
 
   // The demo's projector pane looks at one table at a time (the one being
   // worked on); it shows that table's first switched-on projector.
@@ -272,7 +136,7 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
       else if (event === 'order') deliver(sub, 'order', payload);
       else if (['menu:changed', 'settings:changed', 'floor:changed'].includes(event)) refetchLater(sub);
     }
-  }, { alive: () => true });
+  }, sameRealm);
 
   function sendToTable(tableId, scene) {
     let online = 0;
@@ -287,45 +151,13 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
     isOnline,
     previewBootstrap,
 
-    validateScene(tableId, input) {
-      const type = input?.type;
-      if (!SCENE_TYPES.includes(type)) throw new HttpError(400, 'نوع العرض غير صالح');
-      const id = (value, label) => {
-        const n = Number(value);
-        if (!Number.isInteger(n) || n < 1) throw new HttpError(400, `قيمة غير صالحة للحقل "${label}"`);
-        return n;
-      };
-      if (type === 'category') {
-        const categoryId = id(input.categoryId, 'التصنيف');
-        const category = s.categories.find((c) => c.id === categoryId);
-        if (!category) throw new HttpError(400, 'التصنيف غير موجود');
-        if (!category.is_visible) throw new HttpError(400, `التصنيف "${category.name_ar}" مخفي عن الضيوف. أظهره أولاً`);
-        return { type, categoryId };
-      }
-      if (type === 'dish') {
-        const dishId = id(input.dishId, 'الطبق');
-        const dish = s.dishes.find((d) => d.id === dishId);
-        if (!dish) throw new HttpError(400, 'الطبق غير موجود');
-        if (!dish.is_available) throw new HttpError(400, `"${dish.name_ar}" غير متوفر حالياً ولا يظهر للضيوف`);
-        const category = dish.category_id ? s.categories.find((c) => c.id === dish.category_id) : null;
-        if (category && !category.is_visible) throw new HttpError(400, `تصنيف "${dish.name_ar}" مخفي عن الضيوف`);
-        return { type, dishId };
-      }
-      if (type === 'order') {
-        const orderId = id(input.orderId, 'الطلب');
-        const order = orderById(orderId);
-        if (!order || order.table_id !== tableId) throw new HttpError(400, 'الطلب غير موجود على هذه الطاولة');
-        if (!ACTIVE_STATUSES.includes(order.status)) throw new HttpError(400, 'هذا الطلب منتهٍ ولا يُعرض على الطاولة');
-        return { type, orderId };
-      }
-      return { type };
-    },
+    validateScene: model.validateScene,
 
     // -> {scene, delivered:{online, acked}}; every switched-on demo projector acks at once.
     setScene(tableId, input, by) {
       const scene = { ...projection.validateScene(tableId, input), at: nowIso(), by: by?.name ?? null };
       s.scenes.set(tableId, scene);
-      const resolved = resolve(scene);
+      const resolved = model.resolve(scene);
       live.staff('scene', { tableId, scene: resolved });
       const online = sendToTable(tableId, resolved);
       if (by) focus(tableId);
@@ -439,23 +271,7 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
   }
 
   // ── Router ─────────────────────────────────────────────────────
-  const routes = [];
-  const route = (method, pattern, roles, handler) => {
-    const parts = pattern.split('/').filter(Boolean);
-    routes.push({ method, pattern, parts, roles, handler });
-  };
-  const matchRoute = (method, path) => {
-    const segs = path.split('/').filter(Boolean);
-    let pathMatched = false;
-    for (const r of routes) {
-      if (r.parts.length !== segs.length) continue;
-      const params = {};
-      if (!r.parts.every((p, i) => (p.startsWith(':') ? ((params[p.slice(1)] = decodeURIComponent(segs[i])), true) : p === segs[i]))) continue;
-      pathMatched = true;
-      if (r.method === method) return { route: r, params };
-    }
-    return pathMatched ? 'method' : null;
-  };
+  const router = createRouter();
 
   const ctx = {
     state: s,
@@ -471,45 +287,35 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
     projection,
     probe,
     schedule,
-    dto: { dish: dishDto, category: categoryDto, menu, settings: settingsAll, order: orderDto, table: tableDto, floor, publicUser },
-    find: { table: tableById, area: areaById, user: userById, asset: assetById, order: orderById },
+    dto,
+    find,
   };
   ctx.created = (data) => ({ __status: 201, data });
   ctx.focus = focus;
 
-  authRoutes(route, ctx);
-  floorRoutes(route, ctx);
-  menuRoutes(route, ctx);
-  orderRoutes(route, ctx);
+  authRoutes(router.route, ctx);
+  floorRoutes(router.route, ctx);
+  menuRoutes(router.route, ctx);
+  orderRoutes(router.route, ctx);
 
   // One API call: {method, url ('/api/...?...'), body, file} -> {status, data}.
   async function request({ method = 'GET', url, body = null, file = null, fields = {} }) {
-    const parsed = new URL(url, 'http://demo.local');
-    const path = parsed.pathname.replace(/^\/api(?=\/|$)/, '') || '/';
-    const query = Object.fromEntries(parsed.searchParams);
+    const { path, query } = parseUrl(url);
     try {
-      const found = matchRoute(method.toUpperCase(), path);
-      if (!found || found === 'method') throw notFound('المسار غير موجود');
-      const { route: r, params } = found;
+      const { route: r, params } = router.match(method.toUpperCase(), path);
       const me = user();
-      if (r.roles) {
-        if (!me) throw new HttpError(401, 'يجب تسجيل الدخول أولاً');
-        if (!r.roles.includes(me.role)) throw new HttpError(403, 'ليست لديك صلاحية لهذا الإجراء');
-      }
+      authorize(r, me);
       const out = await r.handler({ params, query, body: body && typeof body === 'object' ? body : {}, user: me, file, fields });
       if (method.toUpperCase() !== 'GET') notifyView();
-      if (out && out.__status) return { status: out.__status, data: structuredClone(out.data) };
-      return { status: 200, data: structuredClone(out ?? null) };
+      return reply(out);
     } catch (err) {
-      if (err instanceof HttpError) return { status: err.status, data: { error: err.message } };
-      console.error(err);
-      return { status: 500, data: { error: 'حدث خطأ في الخادم' } };
+      return errorReply(err);
     }
   }
 
   return {
     request,
-    routes: () => routes.map((r) => `${r.method} ${r.pattern}`),
+    routes: router.list,
 
     // The demo signs in as the chosen role (or nobody: the login screen).
     signInAs(role) {

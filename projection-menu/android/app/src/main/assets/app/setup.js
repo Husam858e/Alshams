@@ -1,21 +1,37 @@
 // First-run and settings screen of the Android app:
-//   1. what this device is: the staff app, a table's projector, or the offline demo;
-//   2. which restaurant server: found on the LAN (mDNS through native), typed
+//   1. how the device reaches the system: the cloud (the restaurant's Firebase
+//      project), a local server, or the offline demo;
+//   local server:
+//   2. what this device is: the staff app or a table's projector;
+//   3. which restaurant server: found on the LAN (mDNS through native), typed
 //      in, or scanned from a QR code, then checked with GET <server>/api/info;
-//   3. for a projector, the 6-digit pairing code from the staff app, traded for
+//   4. for a projector, the 6-digit pairing code from the staff app, traded for
 //      the player link with POST <server>/api/projectors/claim; then options
 //      (PIN, screen pinning, start as home screen) and save.
+//   cloud:
+//   2. which Firebase project: the one built into the APK (cloud/firebase-config.js),
+//      the one saved on the device, or a config pasted from the Firebase console,
+//      checked with the cloud backend's probeProject();
+//   3. what this device is: staff tablet or projector;
+//   4. for a projector, the pairing code traded with claimProjector() (the
+//      device signs in to the project anonymously and binds itself to the
+//      projector); then the same options, and save. The device then opens the
+//      bundled cloud pages (cloud/app.html, cloud/player.html?device=…).
 // Native validates links and stores the config (see bridge.js for the contract).
 // The server grants CORS to this page's origin (https://appassets.androidplatform.net).
 //
-// Chrome 80 syntax and APIs only (see bridge.js).
+// Chrome 80 syntax and APIs only (see bridge.js); the cloud backend is only
+// loaded once the cloud is chosen.
 
 import { BridgeError, bridge, isNative } from './bridge.js';
 import { enableArrowNavigation } from './spatial-nav.js';
+import { ConfigError, emulatorOptions, parseFirebaseConfig, validateFirebaseConfig } from '../cloud/config.js';
+import builtInFirebase from '../cloud/firebase-config.js';
 
 const DISCOVER_MS = 4000;
 const INFO_TIMEOUT_MS = 6000;
 const CLAIM_TIMEOUT_MS = 10000;
+const PROBE_TIMEOUT_MS = 20000;
 const CODE_LENGTH = 6;
 
 const ROLES = {
@@ -23,14 +39,46 @@ const ROLES = {
   PLAYER: { title: 'جهاز عرض على طاولة', icon: 'i-projector', opening: 'العرض على الطاولة' },
 };
 
+// Role cards in the cloud flow; the local texts are the page's own (read at start).
+const ROLE_TEXT = {
+  cloud: {
+    APP: ['تابلت الموظفين', 'ويتر · مصمم · مالك', 'الطاولات والطلبات والمنيو وتصميم العرض، من مشروع المطعم السحابي. يدخل كل موظف باسمه وصلاحياته.'],
+    PLAYER: ['جهاز عرض (بروجكتر)', 'موصول بالبروجكتر فوق الطاولة', 'يعرض المنيو على سطح الطاولة، ويُربط بطاولته برمز من 6 أرقام من تطبيق الموظفين.'],
+  },
+};
+
+// Step labels per connection (the stepper is hidden on the first screen's siblings).
+const STEPS = {
+  local: [
+    ['connection', 'الاتصال'],
+    ['role', 'الدور'],
+    ['server', 'الخادم'],
+    ['finish', null],
+  ],
+  cloud: [
+    ['connection', 'الاتصال'],
+    ['cloud', 'المشروع'],
+    ['role', 'الدور'],
+    ['finish', null],
+  ],
+};
+
+// The bundled cloud pages (same origin as this page); native checks them again (CloudPages.kt).
+const CLOUD_APP = '/cloud/app.html';
+const CLOUD_PLAYER = '/cloud/player.html';
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.prototype.slice.call(document.querySelectorAll(sel));
 
 let state = null; // last getState reply
-let view = null; // 'current' | 'role' | 'server' | 'finish'
+let view = null; // 'current' | 'connection' | 'cloud' | 'role' | 'server' | 'finish'
 
 // Everything the wizard has collected so far.
 const flow = {
+  kind: null, // 'cloud' | 'local'
+  // cloud: { config, source: 'builtin'|'saved'|'pasted', emulators, restaurantName, needsSetup, verified }
+  cloud: null,
+  unpaired: false, // a cloud projector sent back here to be paired again
   role: null, // 'APP' | 'PLAYER'
   server: null, // { origin, name, verified }
   current: null, // origin of the saved config's server, listed first in step 2
@@ -110,20 +158,20 @@ function focusForRemote(el) {
 }
 
 // ── Views ──────────────────────────────────────────────────────────
-const STEPS = ['role', 'server', 'finish'];
-
 function show(next) {
   view = next;
-  for (const name of ['current', 'role', 'server', 'finish']) $(`#view-${name}`).hidden = name !== next;
-  const stepper = $('#stepper');
-  const index = STEPS.indexOf(next);
-  stepper.hidden = index < 0;
+  for (const name of ['current', 'connection', 'cloud', 'role', 'server', 'finish']) $(`#view-${name}`).hidden = name !== next;
+  const steps = STEPS[flow.kind || 'local'];
+  const index = steps.findIndex((step) => step[0] === next);
+  $('#stepper').hidden = index < 0;
   $$('#stepper li').forEach((li, i) => {
     li.dataset.state = i < index ? 'done' : i === index ? 'current' : '';
+    li.dataset.step = steps[i][0];
+    li.querySelector('.step-label').textContent = steps[i][1] || (flow.role === 'APP' ? 'الخيارات' : 'الربط');
     if (i === index) li.setAttribute('aria-current', 'step');
     else li.removeAttribute('aria-current');
   });
-  $('#finish-step-label').textContent = flow.role === 'APP' ? 'الخيارات' : 'الربط';
+  $('#unpaired-notice').hidden = !(flow.unpaired && next === 'finish');
   window.scrollTo(0, 0);
 }
 
@@ -151,9 +199,102 @@ async function init() {
   // A remote has no pointer: show the focus ring from the first screen on.
   if (state.isTv) document.documentElement.classList.add('keyboard');
   $('#scan').hidden = !state.hasCamera;
+  $('#emulators-row').hidden = !state.debug;
 
-  if (state.config) showCurrent();
-  else showRoles();
+  if (state.config && new URLSearchParams(location.search).get('unpaired') === '1' && isCloudUrl(state.config.url, CLOUD_PLAYER)) {
+    startRepairing();
+  } else if (state.config) {
+    showCurrent();
+  } else {
+    showConnection();
+  }
+}
+
+// ── Cloud helpers ──────────────────────────────────────────────────
+function isCloudUrl(url, path) {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === location.origin && (path ? parsed.pathname === path : parsed.pathname.indexOf('/cloud/') === 0);
+  } catch {
+    return false;
+  }
+}
+
+function urlParam(url, name) {
+  try {
+    return new URL(url).searchParams.get(name);
+  } catch {
+    return null;
+  }
+}
+
+function validBuiltIn() {
+  try {
+    return builtInFirebase ? validateFirebaseConfig(builtInFirebase) : null;
+  } catch {
+    return null; // a broken built-in project is simply not offered
+  }
+}
+
+// The project a saved cloud config uses: {config, source} or null.
+function savedProject(config) {
+  if (!config || !isCloudUrl(config.url)) return null;
+  if (config.firebase) {
+    try {
+      return { config: validateFirebaseConfig(config.firebase), source: 'saved' };
+    } catch {
+      return null;
+    }
+  }
+  const builtIn = validBuiltIn();
+  return builtIn ? { config: builtIn, source: 'builtin' } : null;
+}
+
+// "<page>?device=…&emulators=…" on this origin.
+function cloudUrl(path, params) {
+  const query = Object.keys(params)
+    .filter((key) => params[key])
+    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  return `${location.origin}${path}${query ? `?${query}` : ''}`;
+}
+
+// The cloud backend: loaded on first use (Firebase SDK, import map, Chrome 89+).
+let backendModule = null;
+function cloudBackend() {
+  if (!backendModule) {
+    backendModule = import('../cloud/backend/index.js').catch((err) => {
+      backendModule = null;
+      console.error(err);
+      throw new SetupError(
+        state && state.webViewSupported === false
+          ? 'الوضع السحابي يحتاج نسخة أحدث من «Android System WebView» — حدّثها من Google Play'
+          : 'تعذّر تحميل الوضع السحابي في هذه النسخة من التطبيق',
+      );
+    });
+  }
+  return backendModule;
+}
+
+// A cloud call with a time limit and its Arabic error as a SetupError.
+async function cloudCall(run, timeoutMs, timeoutMessage) {
+  let timer = null;
+  const timeout = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new SetupError(timeoutMessage)), timeoutMs);
+  });
+  try {
+    return await Promise.race([run(await cloudBackend()), timeout]);
+  } catch (err) {
+    if (err instanceof SetupError) throw err;
+    console.warn(err); // the message is shown; the stack helps over remote debugging
+    throw new SetupError((err && err.message) || 'تعذّر الاتصال بمشروع Firebase');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function projectLabel(cloud) {
+  return cloud.restaurantName || `Firebase · ${cloud.config.projectId}`;
 }
 
 // ── Saved configuration ────────────────────────────────────────────
@@ -163,7 +304,20 @@ function showCurrent() {
   $('#current-icon').setAttribute('href', `#${role.icon}`);
   $('#current-title').textContent = role.title;
   $('#current-label').textContent = config.label || '';
-  $('#current-host').textContent = hostOf(config.url);
+  if (isCloudUrl(config.url)) {
+    const project = savedProject(config);
+    const emulators = urlParam(config.url, 'emulators');
+    $('#current-host-icon').setAttribute('href', '#i-cloud');
+    $('#current-host').textContent = [
+      `Firebase · ${project ? project.config.projectId : '—'}`,
+      emulators && `emulators @ ${emulators}`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  } else {
+    $('#current-host-icon').setAttribute('href', '#i-server');
+    $('#current-host').textContent = hostOf(config.url);
+  }
   setChildren(
     $('#current-tags'),
     ...[
@@ -188,18 +342,23 @@ $('#resume').addEventListener('click', async () => {
   }
 });
 
-// Change: the wizard starts from the saved setup (same role, server listed first).
+// Change: the wizard starts from the saved setup (same connection and role,
+// the saved server or project listed first).
 $('#change').addEventListener('click', () => {
   const { config } = state;
+  const cloud = isCloudUrl(config.url);
+  flow.kind = cloud ? 'cloud' : 'local';
+  flow.cloud = null;
+  flow.unpaired = false;
   flow.role = config.mode;
-  flow.current = originOf(config.url);
+  flow.current = cloud ? null : originOf(config.url);
   flow.server = null;
   flow.playerUrl = config.mode === 'PLAYER' ? config.url : null;
   flow.linkedLabel = config.mode === 'PLAYER' ? config.label : '';
   flow.claimed = null;
   setOptions({ kiosk: config.kiosk, launcher: config.launcher });
   flow.optionsFor = config.mode;
-  showRoles();
+  showConnection();
 });
 
 // Two-step delete instead of confirm(): works the same with a TV remote.
@@ -219,49 +378,248 @@ $('#reset').addEventListener('click', async () => {
   button.textContent = 'حذف الإعداد';
   try {
     state = await bridge.resetConfig();
-    Object.assign(flow, { role: null, server: null, current: null, playerUrl: null, linkedLabel: '', claimed: null, code: '', optionsFor: null });
+    Object.assign(flow, {
+      kind: null,
+      cloud: null,
+      unpaired: false,
+      role: null,
+      server: null,
+      current: null,
+      playerUrl: null,
+      linkedLabel: '',
+      claimed: null,
+      code: '',
+      optionsFor: null,
+    });
     clearPin();
-    showRoles();
+    showConnection();
   } catch (err) {
     setStatus($('#current-status'), 'error', errorText(err));
   }
 });
 
-// ── Step 1: role ───────────────────────────────────────────────────
-function showRoles() {
-  for (const card of $$('.role[data-role]')) {
-    if (card.hasAttribute('aria-checked')) card.setAttribute('aria-checked', String(card.dataset.role === flow.role));
-  }
-  setStatus($('#role-status'), '', '');
-  show('role');
-  // A TV box is almost always a projector's player.
-  focusForRemote($(`.role[data-role="${flow.role || (state?.isTv ? 'PLAYER' : 'APP')}"]`));
+// ── Step 1: connection ─────────────────────────────────────────────
+function showConnection() {
+  for (const card of $$('.role[data-connection]')) card.setAttribute('aria-checked', String(card.dataset.connection === flow.kind));
+  setStatus($('#connection-status'), '', '');
+  show('connection');
+  focusForRemote($(`.role[data-connection="${flow.kind || 'cloud'}"]`));
 }
 
-for (const card of $$('.role[data-role]')) {
+for (const card of $$('.role[data-connection]')) {
+  card.addEventListener('click', () => chooseConnection(card.dataset.connection));
+}
+
+function chooseConnection(kind) {
+  if (flow.kind !== kind) {
+    flow.kind = kind;
+    // A link or a claim of the other connection means nothing here.
+    flow.server = null;
+    flow.cloud = null;
+    flow.playerUrl = null;
+    flow.linkedLabel = '';
+    flow.claimed = null;
+  }
+  if (kind === 'cloud') showCloud();
+  else showRoles();
+}
+
+$('.role[data-role="DEMO"]').addEventListener('click', async () => {
+  setStatus($('#connection-status'), 'busy', 'جارٍ فتح العرض التجريبي…');
+  try {
+    await bridge.startDemo();
+  } catch (err) {
+    setStatus($('#connection-status'), 'error', errorText(err));
+  }
+});
+
+// ── Cloud step 2: the Firebase project ─────────────────────────────
+function showCloud() {
+  setStatus($('#projects-status'), '', '');
+  setStatus($('#cloud-status'), '', '');
+  if (state.config && isCloudUrl(state.config.url)) {
+    const emulators = urlParam(state.config.url, 'emulators');
+    if (emulators && !$('#emulators').value) $('#emulators').value = emulators;
+  }
+  renderProjects();
+  show('cloud');
+  focusForRemote($('#projects .server-item') || $('#firebase-config'));
+}
+
+$('[data-back="connection"]').addEventListener('click', showConnection);
+
+// The built-in project and the one saved on this device (when another).
+function renderProjects() {
+  const items = [];
+  const saved = savedProject(state.config);
+  if (saved && saved.source === 'saved') {
+    items.push({ config: saved.config, source: 'saved', tag: 'المشروع الحالي', name: '' });
+  }
+  const builtIn = validBuiltIn();
+  if (builtIn && !items.some((item) => item.config.projectId === builtIn.projectId)) {
+    items.push({ config: builtIn, source: 'builtin', tag: saved && saved.source === 'builtin' ? 'المشروع الحالي · مدمج في التطبيق' : 'مدمج في التطبيق', name: '' });
+  }
+  setChildren(
+    $('#projects'),
+    ...items.map((item) => {
+      const button = h(
+        'button',
+        { type: 'button', class: 'server-item' },
+        h('span', { class: 'server-icon' }, icon('i-cloud')),
+        h(
+          'span',
+          { class: 'server-text' },
+          h('span', { class: 'server-tag' }, item.tag),
+          h('strong', null, item.name || 'مشروع المطعم'),
+          h('span', { class: 'server-host' }, ltr(`Firebase · ${item.config.projectId}`)),
+        ),
+        h('span', { class: 'spinner', 'aria-hidden': 'true' }),
+        icon('i-chevron', 'icon chevron'),
+      );
+      button.addEventListener('click', () => chooseProject(item.config, item.source, { from: button }));
+      return h('li', null, button);
+    }),
+  );
+  $('#projects-empty').hidden = items.length > 0;
+}
+
+$('#cloud-check').addEventListener('click', () => {
+  let config;
+  try {
+    config = parseFirebaseConfig($('#firebase-config').value);
+  } catch (err) {
+    setStatus($('#cloud-status'), 'error', err instanceof ConfigError ? err.message : errorText(err));
+    $('#firebase-config').focus();
+    return;
+  }
+  chooseProject(config, 'pasted', { from: null });
+});
+
+function emulatorsValue() {
+  if (!state.debug) return null;
+  const value = $('#emulators').value.trim();
+  return value || null;
+}
+
+// Checks the project with probeProject(), then continues to the role.
+let probing = false;
+async function chooseProject(config, source, { from }) {
+  if (probing) return;
+  const emulators = emulatorsValue();
+  if (emulators && !/^([A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\])$/.test(emulators)) {
+    setStatus($('#cloud-status'), 'error', 'عنوان المحاكيات غير صالح — اكتب اسم الكمبيوتر أو عنوان IP فقط');
+    return;
+  }
+  probing = true;
+  const status = from ? $('#projects-status') : $('#cloud-status');
+  const busyEl = from || $('#cloud-check');
+  busyEl.setAttribute('aria-busy', 'true');
+  setStatus($('#projects-status'), '', '');
+  setStatus($('#cloud-status'), '', '');
+  setStatus(status, 'busy', 'جارٍ الاتصال بمشروع ', ltr(config.projectId), '…');
+  try {
+    const info = await cloudCall(
+      (backend) => backend.probeProject(config, { emulators: emulatorOptions(emulators) }),
+      PROBE_TIMEOUT_MS,
+      'انتهت مهلة الاتصال بمشروع Firebase — تأكد من اتصال الإنترنت',
+    );
+    if (!info || info.ok === false) throw new SetupError('لم يقبل مشروع Firebase الاتصال — تأكد من الإعدادات');
+    useProject({ config, source, emulators, restaurantName: info.restaurantName || '', needsSetup: Boolean(info.needsSetup), verified: true });
+  } catch (err) {
+    // The staff app can still be opened unchecked: its own page shows what is wrong.
+    const force = h('button', { type: 'button', class: 'btn ghost small force' }, 'المتابعة دون التحقق');
+    force.addEventListener('click', () => useProject({ config, source, emulators, restaurantName: '', needsSetup: false, verified: false }));
+    setStatus(status, 'error', h('span', null, errorText(err)), force);
+  } finally {
+    busyEl.removeAttribute('aria-busy');
+    probing = false;
+  }
+}
+
+function useProject(cloud) {
+  // A saved projector link only counts for the project it was paired with.
+  const saved = savedProject(state.config);
+  const sameProject = saved && saved.config.projectId === cloud.config.projectId;
+  if (flow.playerUrl && !(sameProject && isCloudUrl(flow.playerUrl, CLOUD_PLAYER))) {
+    flow.playerUrl = null;
+    flow.linkedLabel = '';
+  }
+  if (flow.cloud && flow.cloud.config.projectId !== cloud.config.projectId) flow.claimed = null;
+  flow.cloud = cloud;
+  showRoles();
+}
+
+// ── Role ───────────────────────────────────────────────────────────
+// The local texts, as written in the page.
+const LOCAL_ROLE_TEXT = {};
+for (const card of $$('#view-role .role[data-role]')) {
+  LOCAL_ROLE_TEXT[card.dataset.role] = ['strong', '.role-who', 'small'].map((sel) => card.querySelector(sel).textContent);
+}
+
+function showRoles() {
+  const texts = flow.kind === 'cloud' ? ROLE_TEXT.cloud : LOCAL_ROLE_TEXT;
+  for (const card of $$('#view-role .role[data-role]')) {
+    card.setAttribute('aria-checked', String(card.dataset.role === flow.role));
+    const [title, who, text] = texts[card.dataset.role];
+    card.querySelector('strong').textContent = title;
+    card.querySelector('.role-who').textContent = who;
+    card.querySelector('small').textContent = text;
+  }
+  // A new cloud project has no owner yet: only the staff app can create one.
+  if (flow.kind === 'cloud' && flow.cloud && flow.cloud.needsSetup) {
+    setStatus($('#role-status'), '', 'المشروع جديد: ابدأ بتابلت الموظفين لإنشاء حساب المالك، ثم اربط أجهزة العرض.');
+  } else {
+    setStatus($('#role-status'), '', '');
+  }
+  show('role');
+  // A TV box is almost always a projector's player.
+  focusForRemote($(`#view-role .role[data-role="${flow.role || (state?.isTv ? 'PLAYER' : 'APP')}"]`));
+}
+
+$('#role-back').addEventListener('click', () => (flow.kind === 'cloud' ? showCloud() : showConnection()));
+
+for (const card of $$('#view-role .role[data-role]')) {
   card.addEventListener('click', () => chooseRole(card.dataset.role));
 }
 
-async function chooseRole(role) {
-  if (role === 'DEMO') {
-    setStatus($('#role-status'), 'busy', 'جارٍ فتح العرض التجريبي…');
-    try {
-      await bridge.startDemo();
-    } catch (err) {
-      setStatus($('#role-status'), 'error', errorText(err));
-    }
-    return;
-  }
+function chooseRole(role) {
   if (flow.role !== role) {
     flow.role = role;
     flow.server = null;
     flow.playerUrl = null;
     flow.claimed = null;
   }
-  showServers();
+  if (flow.kind === 'cloud') showFinish();
+  else showServers();
 }
 
-// ── Step 2: server ─────────────────────────────────────────────────
+// A cloud projector whose pairing was removed: straight to a new code.
+function startRepairing() {
+  const { config } = state;
+  const project = savedProject(config);
+  if (!project) return showCurrent();
+  Object.assign(flow, {
+    kind: 'cloud',
+    cloud: {
+      config: project.config,
+      source: project.source,
+      emulators: urlParam(config.url, 'emulators'),
+      restaurantName: '',
+      needsSetup: false,
+      verified: false,
+    },
+    unpaired: true,
+    role: 'PLAYER',
+    playerUrl: null,
+    linkedLabel: '',
+    claimed: null,
+  });
+  setOptions({ kiosk: config.kiosk, launcher: config.launcher });
+  flow.optionsFor = 'PLAYER';
+  showFinish();
+}
+
+// ── Local step 3: server ───────────────────────────────────────────
 let found = []; // last discovery result
 let searching = false;
 
@@ -458,8 +816,8 @@ async function useLink(text) {
   await chooseServer({ origin, name: '' });
 }
 
-// ── Step 3: pairing code + options ─────────────────────────────────
-$('[data-back="server"]').addEventListener('click', showServers);
+// ── Last step: pairing code + options ──────────────────────────────
+$('#finish-back').addEventListener('click', () => (flow.kind === 'cloud' ? showRoles() : showServers()));
 
 function needsCode() {
   return flow.role === 'PLAYER' && !flow.playerUrl && !flow.claimed;
@@ -467,7 +825,7 @@ function needsCode() {
 
 function showFinish() {
   const player = flow.role === 'PLAYER';
-  const { server } = flow;
+  const cloud = flow.kind === 'cloud';
   if (flow.optionsFor !== flow.role) {
     // Projectors are locked by default; staff tablets are not.
     setOptions({ kiosk: player, launcher: false });
@@ -478,18 +836,35 @@ function showFinish() {
     ? needsCode()
       ? 'أدخل رمز الربط المكوّن من 6 أرقام الظاهر في تطبيق الموظفين.'
       : 'راجع خيارات الجهاز ثم ابدأ العرض.'
-    : 'سيفتح تطبيق الموظفين، ويدخل كل موظف باسم المستخدم وكلمة المرور الخاصة به.';
+    : cloud && flow.cloud.needsSetup
+      ? 'سيفتح تطبيق الموظفين على المشروع السحابي الجديد لإنشاء حساب المالك أولاً.'
+      : 'سيفتح تطبيق الموظفين، ويدخل كل موظف باسم المستخدم وكلمة المرور الخاصة به.';
 
   const chip = $('#server-chip');
-  chip.classList.toggle('unverified', !server.verified);
-  setChildren(
-    chip,
-    icon(server.verified ? 'i-check' : 'i-alert'),
-    server.name ? h('strong', null, server.name) : null,
-    server.name ? ' · ' : null,
-    ltr(hostOf(server.origin)),
-    server.verified ? null : ' — لم يتم التحقق من الخادم',
-  );
+  if (cloud) {
+    const project = flow.cloud;
+    chip.classList.toggle('unverified', !project.verified);
+    setChildren(
+      chip,
+      icon(project.verified ? 'i-check' : 'i-cloud'),
+      project.restaurantName ? h('strong', null, project.restaurantName) : null,
+      project.restaurantName ? ' · ' : null,
+      ltr(`Firebase · ${project.config.projectId}`),
+      project.emulators ? ltr(` · emulators @ ${project.emulators}`) : null,
+      project.verified ? null : ' — لم يتم التحقق من المشروع',
+    );
+  } else {
+    const { server } = flow;
+    chip.classList.toggle('unverified', !server.verified);
+    setChildren(
+      chip,
+      icon(server.verified ? 'i-check' : 'i-alert'),
+      server.name ? h('strong', null, server.name) : null,
+      server.name ? ' · ' : null,
+      ltr(hostOf(server.origin)),
+      server.verified ? null : ' — لم يتم التحقق من الخادم',
+    );
+  }
 
   $('#pair').hidden = !needsCode();
   $('#linked').hidden = !player || needsCode();
@@ -497,7 +872,8 @@ function showFinish() {
   if (player && !needsCode()) {
     const label = flow.claimed ? flow.claimed.label : flow.linkedLabel;
     $('#linked-title').textContent = flow.claimed ? 'تم ربط الجهاز' : 'هذا الجهاز مربوط برابط جاهز';
-    $('#linked-label').textContent = label || 'رابط جهاز العرض من الخادم ' + hostOf(server.origin);
+    $('#linked-label').textContent =
+      label || (cloud ? `جهاز عرض في مشروع ${flow.cloud.config.projectId}` : 'رابط جهاز العرض من الخادم ' + hostOf(flow.server.origin));
     $('#relink').hidden = Boolean(flow.claimed);
   }
   setCode('');
@@ -634,6 +1010,9 @@ $('#save').addEventListener('click', async () => {
       pin: clearingPin() ? '' : $('#pin').value || null,
       kiosk: $('#kiosk').checked,
       launcher: $('#launcher').checked,
+      // Cloud: the project's config, or null for the APK's built-in one (it then
+      // follows the installed app).
+      firebase: flow.kind === 'cloud' && flow.cloud.source !== 'builtin' ? flow.cloud.config : null,
     });
     setStatus($('#save-status'), 'ok', `✓ تم الحفظ — جارٍ فتح ${ROLES[flow.role].opening}…`);
   } catch (err) {
@@ -645,17 +1024,23 @@ $('#save').addEventListener('click', async () => {
 });
 
 function appTarget() {
+  if (flow.kind === 'cloud') {
+    return { url: cloudUrl(CLOUD_APP, { emulators: flow.cloud.emulators }), label: projectLabel(flow.cloud) };
+  }
   return { url: `${flow.server.origin}/app/`, label: flow.server.name || '' };
 }
 
-function tableLabel(number) {
-  return [`طاولة ${number}`, flow.server.name].filter(Boolean).join(' · ');
+function tableLabel(number, name) {
+  return [`طاولة ${number}`, name].filter(Boolean).join(' · ');
 }
 
 // The player link: already known, or traded for the pairing code now.
 async function playerTarget() {
   if (flow.claimed) return flow.claimed;
-  if (flow.playerUrl) return { url: flow.playerUrl, label: flow.linkedLabel || flow.server.name || '' };
+  if (flow.playerUrl) {
+    const fallback = flow.kind === 'cloud' ? projectLabel(flow.cloud) : flow.server.name || '';
+    return { url: flow.playerUrl, label: flow.linkedLabel || fallback };
+  }
   const status = $('#pair-status');
   if (flow.code.length !== CODE_LENGTH) {
     setStatus(status, 'error', 'أدخل رمز الربط المكوّن من 6 أرقام');
@@ -663,10 +1048,9 @@ async function playerTarget() {
     focusForRemote($('#keypad [data-key="1"]'));
     return null;
   }
-  setStatus(status, 'busy', 'جارٍ الربط بالخادم…');
+  setStatus(status, 'busy', flow.kind === 'cloud' ? 'جارٍ الربط بمشروع المطعم…' : 'جارٍ الربط بالخادم…');
   try {
-    const result = await claim(flow.server.origin, flow.code);
-    flow.claimed = { url: new URL(result.playerUrl, `${flow.server.origin}/`).href, label: tableLabel(result.table.number) };
+    flow.claimed = flow.kind === 'cloud' ? await claimCloud(flow.code) : await claimLocal(flow.code);
   } catch (err) {
     setStatus(status, 'error', errorText(err));
     setCode('');
@@ -677,6 +1061,31 @@ async function playerTarget() {
   // The code is spent: from now on this device keeps the link it got.
   setStatus(status, 'ok', `✓ تم الربط بـ${flow.claimed.label}`);
   return flow.claimed;
+}
+
+async function claimLocal(code) {
+  const result = await claim(flow.server.origin, code);
+  return { url: new URL(result.playerUrl, `${flow.server.origin}/`).href, label: tableLabel(result.table.number, flow.server.name) };
+}
+
+// The device signs in to the project and binds itself to the projector of the
+// code; its player page then needs no key (device=<projector> only keeps the
+// player's cached menu apart from another table's).
+async function claimCloud(code) {
+  const { config, emulators } = flow.cloud;
+  const result = await cloudCall(
+    (backend) => backend.claimProjector(config, code, { emulators: emulatorOptions(emulators) }),
+    CLAIM_TIMEOUT_MS * 2,
+    'انتهت مهلة الاتصال بمشروع Firebase — تأكد من اتصال الإنترنت ثم أعد المحاولة',
+  );
+  if (!result || !result.projector || result.projector.id == null) throw new SetupError('ردّ غير متوقع من مشروع Firebase');
+  if (result.restaurantName) flow.cloud.restaurantName = result.restaurantName;
+  const name = flow.cloud.restaurantName;
+  return {
+    url: cloudUrl(CLOUD_PLAYER, { device: `p${result.projector.id}`, emulators }),
+    // A projector not on a table yet (the owner places it later) is named instead.
+    label: result.table ? tableLabel(result.table.number, name) : [result.projector.name, name].filter(Boolean).join(' · '),
+  };
 }
 
 async function claim(origin, code) {

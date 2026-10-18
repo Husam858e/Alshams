@@ -6,6 +6,9 @@ const val LOCAL_ORIGIN = "https://$LOCAL_HOST"
 
 object LocalPages {
     const val SETUP = "$LOCAL_ORIGIN/app/setup.html"
+
+    /** Setup for a cloud projector whose pairing was removed (opens on the pairing code). */
+    const val SETUP_UNPAIRED = "$SETUP?unpaired=1"
     const val DEMO = "$LOCAL_ORIGIN/demo/index.html"
     private const val OFFLINE_PATH = "/app/offline.html"
     private const val DEMO_DIR = "/demo/"
@@ -22,8 +25,9 @@ object LocalPages {
  * Which main-frame loads of bundled pages may be served (any thread). Only the app
  * itself opens them ([expect] right before loadUrl): page scripts could otherwise
  * reach setup without the PIN through POST forms or history.back(), which
- * shouldOverrideUrlLoading never sees. The one exception: demo pages may open
- * one another, since the demo is only ever reached from setup.
+ * shouldOverrideUrlLoading never sees. The exceptions: demo pages may open
+ * one another, since the demo is only ever reached from setup, and a configured
+ * cloud page may load itself again (a reload, see [CloudPages.isHomeReload]).
  */
 class LocalLoadGate {
     @Volatile
@@ -34,12 +38,13 @@ class LocalLoadGate {
         expected = path
     }
 
-    fun claim(method: String?, path: String?, screen: Screen): Boolean {
+    fun claim(method: String?, path: String?, screen: Screen, query: String? = null, configUrl: String? = null): Boolean {
         if (method != "GET" || path == null) return false
         if (path == expected) {
             expected = null
             return true
         }
+        if (CloudPages.isHomeReload(method, path, query, screen, configUrl)) return true
         return screen == Screen.DEMO && LocalPages.isDemo(path)
     }
 }
@@ -48,7 +53,7 @@ class LocalLoadGate {
 enum class Screen {
     SETUP, DEMO, APP, PLAYER;
 
-    /** The configured server modes: may be pinned (kiosk) and guard settings with the PIN. */
+    /** The configured modes (server or cloud): may be pinned (kiosk) and guard settings with the PIN. */
     val isLockable: Boolean get() = this == APP || this == PLAYER
 
     /** Fullscreen without system bars, screen kept on. */
@@ -68,13 +73,16 @@ enum class Screen {
 
         /**
          * The screen for a main-frame URL. Remote pages and the offline page
-         * belong to the configured mode; other bundled pages are setup or demo.
+         * belong to the configured mode; the cloud pages are the staff app or a
+         * player; other bundled pages are setup or demo.
          */
         fun forUrl(url: String?, configured: AppMode?): Screen {
             val parsed = url?.let(WebUrl::parse)
             val configuredScreen = configured?.let(::of) ?: SETUP
+            val cloud = CloudPages.modeOf(parsed)
             return when {
                 parsed == null || !parsed.isLocal -> configuredScreen
+                cloud != null -> of(cloud)
                 LocalPages.isDemo(parsed.path) -> DEMO
                 LocalPages.isOffline(parsed) -> configuredScreen
                 else -> SETUP

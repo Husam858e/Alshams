@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Storage rules of cloud mode: the media library (media/{assetId}/{file}).
+// Owners and designers upload (same types and size limit as the server's
+// media route); every signed-in user and device may read (the players load
+// files by their download URL). Roles come from Firestore roles/{uid}.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function contentTeam() {
+      let roles = /databases/(default)/documents/roles/$(request.auth.uid);
+      return request.auth != null
+        && firestore.exists(roles)
+        && firestore.get(roles).data.active == true
+        && firestore.get(roles).data.role in ['owner', 'designer'];
+    }
+
+    match /media/{assetId}/{file} {
+      allow read: if request.auth != null;
+      // Files never change under their name (they are cached for a year).
+      allow create: if contentTeam()
+        && assetId.matches('^[0-9]+$')
+        && request.resource.size <= 100 * 1024 * 1024
+        && request.resource.contentType.matches('^(image/(png|jpeg|webp)|video/(mp4|webm)|model/gltf-binary)$');
+      allow update: if false;
+      allow delete: if contentTeam();
+    }
+  }
+}
