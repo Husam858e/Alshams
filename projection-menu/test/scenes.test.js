@@ -216,8 +216,22 @@ test('order scenes: only active orders, never from designers; a paid order alway
   assert.equal(designer.status, 403, 'designers do not see orders');
   assert.equal((await put('designer', { type: 'menu' })).status, 200, 'but test the menu scenes');
 
-  // The waiter shows it, then frees the table by hand before payment.
+  // The waiter shows it; designers learn the scene type but never the order itself.
+  const designerLive = t.live(t.as.designer);
+  const waiterLive = t.live(t.as.waiter);
+  await Promise.all([connected(designerLive), connected(waiterLive)]);
+  const toDesigner = nextEvent(designerLive, 'scene');
+  const toWaiter = nextEvent(waiterLive, 'scene');
   assert.equal((await put('waiter', { type: 'order', orderId: order.id })).status, 200);
+  assert.equal((await toWaiter).scene.order.id, order.id);
+  const seen = (await toDesigner).scene;
+  assert.equal(seen.type, 'order');
+  assert.ok(!('order' in seen), 'live scene without the order for designers');
+  assert.ok(!('order' in (await t.as.designer.get(`/api/tables/${own.tableId}/scene`)).body.scene));
+  assert.ok(!('order' in (await t.as.designer.get(`/api/tables/${own.tableId}/preview-bootstrap`)).body.scene));
+  assert.equal((await t.as.waiter.get(`/api/tables/${own.tableId}/scene`)).body.scene.order.id, order.id);
+
+  // Then the table is freed by hand before payment.
   await t.as.waiter.patch(`/api/tables/${own.tableId}/status`, { status: 'free' });
   for (const status of ['served', 'paid']) await t.as.waiter.patch(`/api/orders/${order.id}`, { status });
   assert.equal((await t.as.waiter.get(`/api/tables/${own.tableId}/scene`)).body.scene.type, 'welcome', 'the next guests never see it');

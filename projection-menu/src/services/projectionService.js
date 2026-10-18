@@ -8,6 +8,13 @@ export const SCENE_TYPES = ['welcome', 'menu', 'category', 'dish', 'order', 'off
 export const DEFAULT_SCENE = Object.freeze({ type: 'welcome' });
 
 export const tableRoom = (tableId) => `table:${tableId}`;
+
+// Designers get no orders: an 'order' scene reaches them without its snapshot.
+export const sceneFor = (scene, role) => {
+  if (role !== 'designer' || scene?.type !== 'order') return scene;
+  const { order, ...rest } = scene;
+  return rest;
+};
 export const projectorRoom = (projectorId) => `projector:${projectorId}`;
 
 // ProjectionService decides what each table's projector shows:
@@ -160,7 +167,7 @@ export class ProjectionService {
     const scene = { ...this.validateScene(tableId, input), at: nowIso(), by: user?.name ?? null };
     this.q.saveScene.run(tableId, JSON.stringify(scene), scene.at, user?.id ?? null);
     const resolved = this.resolve(scene);
-    this.live.staff('scene', { tableId, scene: resolved });
+    this.broadcastScene(tableId, resolved);
     const delivered = await this.deliver(tableId, resolved);
     return { scene: resolved, delivered };
   }
@@ -187,7 +194,13 @@ export class ProjectionService {
     const scene = this.getScene(tableId);
     // Players always get an ack callback for 'scene', even when nobody waits.
     for (const socket of this.tableSockets(tableId)) socket.emit('scene', { scene }, () => {});
-    this.live.staff('scene', { tableId, scene });
+    this.broadcastScene(tableId, scene);
+  }
+
+  // Tells the staff apps; designers get it without the order snapshot.
+  broadcastScene(tableId, scene) {
+    this.live.roles(['owner', 'waiter'], 'scene', { tableId, scene });
+    this.live.roles(['designer'], 'scene', { tableId, scene: sceneFor(scene, 'designer') });
   }
 
   // An order changed: tables showing it get the new snapshot.
