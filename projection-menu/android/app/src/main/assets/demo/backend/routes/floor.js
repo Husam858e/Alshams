@@ -4,7 +4,7 @@
 
 import { anyStaff, contentTeam, floorTeam, ownerOnly } from '../roles.js';
 import { DEFAULT_CALIBRATION } from '../seed.js';
-import { HttpError, badRequest, bool, conflict, has, idParam, int, notFound, oneOf, str } from '../validate.js';
+import { HttpError, badRequest, bool, conflict, forbidden, has, idParam, int, notFound, oneOf, str } from '../validate.js';
 
 const TABLE_STATUSES = ['free', 'occupied', 'reserved'];
 const PAIRING_TTL_MS = 10 * 60 * 1000;
@@ -149,6 +149,7 @@ export function floorRoutes(route, ctx) {
     last_seen_at: p.last_seen_at,
     created_at: p.created_at,
     player_url: playerUrl(p.device_key),
+    test_pattern: projection.testPatternOn(p.id),
   });
   const loadProjector = (id) => {
     const p = s.projectors.find((x) => x.id === idParam(id, 'جهاز العرض'));
@@ -330,7 +331,9 @@ export function floorRoutes(route, ctx) {
 
   route('PUT', '/tables/:id/scene', anyStaff, ({ params, body, user }) => {
     const id = sceneTable(params.id);
-    return projection.setScene(id, body.scene ?? body, user);
+    const scene = body.scene ?? body;
+    if (user.role === 'designer' && scene?.type === 'order') throw forbidden('عرض الطلبات من صلاحيات المالك والويتر');
+    return projection.setScene(id, scene, user);
   });
 
   route('GET', '/tables/:id/preview-bootstrap', anyStaff, ({ params }) => projection.previewBootstrap(sceneTable(params.id)));

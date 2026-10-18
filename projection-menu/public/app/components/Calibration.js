@@ -48,7 +48,13 @@ export function CalibrationDialog({ projector, onClose }) {
   useEffect(() => {
     api.testPattern(projector.id, pattern).catch(() => {});
   }, [pattern]);
-  useEffect(() => () => api.testPattern(projector.id, false).catch(() => {}), []);
+  useEffect(
+    () => () => {
+      api.testPattern(projector.id, false).catch(() => {});
+      patchResource('projectors', (list) => list?.map((x) => (x.id === projector.id ? { ...x, test_pattern: false } : x)) ?? list);
+    },
+    [],
+  );
 
   // Throttled save: one request in flight, always ending on the latest corners.
   const pending = useRef(null);

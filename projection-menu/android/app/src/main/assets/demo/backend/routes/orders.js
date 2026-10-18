@@ -43,7 +43,7 @@ const ACTIVITY_LABELS = {
   'order.status': 'تغيير حالة طلب',
   'order.item-remove': 'حذف صنف من طلب',
 };
-const STATUS_AR = { open: 'مفتوح', preparing: 'قيد التحضير', served: 'تم التقديم', paid: 'مدفوع', cancelled: 'ملغى' };
+const STATUS_AR = { open: 'جديد', preparing: 'قيد التحضير', served: 'تم التقديم', paid: 'مدفوع', cancelled: 'ملغى' };
 const PRESET_AR = { noir: 'نوار', marble: 'رخام', garden: 'حديقة', royal: 'ملكي' };
 
 function summarize(code, d) {
@@ -225,7 +225,8 @@ export function orderRoutes(route, ctx) {
           tableFreed = true;
         }
         log(user, 'order.status', { orderId: o.id, tableNumber: o.table_number, from, to: status, total: o.total });
-        if (status === 'cancelled' || tableFreed) projection.dropScenesWhere((sc) => sc.type === 'order' && sc.orderId === o.id);
+        // A paid or cancelled order stops showing on the table, whatever the table status.
+        if (status === 'paid' || status === 'cancelled') projection.dropScenesWhere((sc) => sc.type === 'order' && sc.orderId === o.id);
       }
     }
     return broadcast(o);

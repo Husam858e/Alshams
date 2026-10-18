@@ -206,3 +206,68 @@ test('moving a projector to another table re-bootstraps it; rotating its key dis
   await gone;
   assert.equal((await fetch(`${t.base}/api/player/bootstrap?key=${table.deviceKey}`)).status, 401);
 });
+
+test('order scenes: only active orders, never from designers; a paid order always leaves the table', async () => {
+  const own = makeTable(t, { number: 21, projector: false });
+  const order = (await t.as.waiter.post('/api/orders', { table_id: own.tableId, items: [{ dish_id: menu.dishIds[0], quantity: 1 }] })).body;
+  const put = (who, scene) => t.as[who].put(`/api/tables/${own.tableId}/scene`, { scene });
+
+  const designer = await put('designer', { type: 'order', orderId: order.id });
+  assert.equal(designer.status, 403, 'designers do not see orders');
+  assert.equal((await put('designer', { type: 'menu' })).status, 200, 'but test the menu scenes');
+
+  // The waiter shows it, then frees the table by hand before payment.
+  assert.equal((await put('waiter', { type: 'order', orderId: order.id })).status, 200);
+  await t.as.waiter.patch(`/api/tables/${own.tableId}/status`, { status: 'free' });
+  for (const status of ['served', 'paid']) await t.as.waiter.patch(`/api/orders/${order.id}`, { status });
+  assert.equal((await t.as.waiter.get(`/api/tables/${own.tableId}/scene`)).body.scene.type, 'welcome', 'the next guests never see it');
+
+  const again = await put('owner', { type: 'order', orderId: order.id });
+  assert.equal(again.status, 400, 'a paid order cannot be put back on the table');
+});
+
+test('renumbering a table re-bootstraps its projector with the new number', async () => {
+  const own = makeTable(t, { number: 22 });
+  const player = ackingPlayer(own.deviceKey);
+  await nextEvent(player, 'bootstrap');
+  const reboot = nextEvent(player, 'bootstrap');
+  assert.equal((await t.as.owner.patch(`/api/tables/${own.tableId}`, { number: 23 })).status, 200);
+  assert.equal((await reboot).table.number, 23);
+});
+
+test('a dish moved into a hidden category stops showing on the table', async () => {
+  const own = makeTable(t, { number: 24, projector: false });
+  const hidden = makeMenu(t, { visible: false, dishes: [] });
+  const res = await t.as.waiter.put(`/api/tables/${own.tableId}/scene`, { scene: { type: 'dish', dishId: menu.dishIds[0] } });
+  assert.equal(res.status, 200);
+  assert.equal((await t.as.designer.patch(`/api/dishes/${menu.dishIds[0]}`, { category_id: hidden.categoryId })).status, 200);
+  assert.equal((await t.as.waiter.get(`/api/tables/${own.tableId}/scene`)).body.scene.type, 'welcome');
+  await t.as.designer.patch(`/api/dishes/${menu.dishIds[0]}`, { category_id: menu.categoryId });
+});
+
+test('delivery counts projectors, not sockets (a stale second socket of the same projector)', async () => {
+  const own = makeTable(t, { number: 25 });
+  const first = ackingPlayer(own.deviceKey);
+  await nextEvent(first, 'bootstrap');
+  const second = ackingPlayer(own.deviceKey);
+  await nextEvent(second, 'bootstrap');
+  const res = await t.as.waiter.put(`/api/tables/${own.tableId}/scene`, { scene: { type: 'menu' } });
+  assert.deepEqual(res.body.delivered, { online: 1, acked: 1 });
+});
+
+test('the test pattern is remembered for a projector that connects later', async () => {
+  const own = makeTable(t, { number: 26 });
+  const tp = await t.as.designer.post(`/api/projectors/${own.projectorId}/test-pattern`, { on: true });
+  assert.deepEqual(tp.body, { on: true, delivered: { online: 0 } });
+  assert.equal((await t.as.designer.get(`/api/projectors/${own.projectorId}`)).body.test_pattern, true);
+
+  const player = ackingPlayer(own.deviceKey);
+  const pattern = nextEvent(player, 'test-pattern');
+  await nextEvent(player, 'bootstrap');
+  assert.deepEqual(await pattern, { on: true });
+
+  const off = nextEvent(player, 'test-pattern');
+  await t.as.designer.post(`/api/projectors/${own.projectorId}/test-pattern`, { on: false });
+  assert.deepEqual(await off, { on: false });
+  assert.equal((await t.as.designer.get(`/api/projectors/${own.projectorId}`)).body.test_pattern, false);
+});

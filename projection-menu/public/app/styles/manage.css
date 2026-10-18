@@ -1104,7 +1104,7 @@
   padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--line);
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .me-main {
@@ -1480,6 +1480,11 @@
 
 .theme-page {
   padding-bottom: 96px;
+}
+
+/* Beats `.shell-phone .page` so the last setting clears the fixed savebar. */
+.shell-phone .theme-page {
+  padding-bottom: 112px;
 }
 
 .theme-layout {
@@ -2273,9 +2278,20 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  /* Laid out like the stage beside it: 1 top-left, 2 top-right, 3 bottom-right, 4 bottom-left. */
+  direction: ltr;
+}
+
+.corner-pick .corner-btn:nth-child(3) {
+  grid-area: 2 / 2;
+}
+
+.corner-pick .corner-btn:nth-child(4) {
+  grid-area: 2 / 1;
 }
 
 .corner-btn {
+  direction: rtl;
   display: flex;
   align-items: center;
   gap: 8px;

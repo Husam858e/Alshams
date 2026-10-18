@@ -3,7 +3,7 @@
 import { html } from 'htm/preact';
 import { useEffect, useErrorBoundary, useRef, useState } from 'preact/hooks';
 import { usePlayer } from '../lib/context.js';
-import { formatNumber, hasPrice } from '../lib/format.js';
+import { NOUNS, counted, formatNumber, hasPrice } from '../lib/format.js';
 import { Icon } from './Icons.js';
 
 // `always` shows it even when the theme hides menu prices (order totals).
@@ -39,12 +39,18 @@ export function Badges({ badges, max = 3, class: cls = '' }) {
 export function Calories({ value, class: cls = '' }) {
   const { theme } = usePlayer();
   if (!theme.showCalories || !(Number(value) > 0)) return null;
-  return html`<span class="meta ${cls}"><${Icon} name="flame" /><bdi>${formatNumber(value)}</bdi> سعرة</span>`;
+  return html`<span class="meta ${cls}"><${Icon} name="flame" /><${Count} value=${value} noun=${NOUNS.calorie} /></span>`;
 }
 
 export function PrepTime({ value, class: cls = '' }) {
   if (!(Number(value) > 0)) return null;
-  return html`<span class="meta ${cls}"><${Icon} name="clock" /><bdi>${formatNumber(value)}</bdi> دقيقة</span>`;
+  return html`<span class="meta ${cls}"><${Icon} name="clock" /><${Count} value=${value} noun=${NOUNS.minute} /></span>`;
+}
+
+// '3 دقائق', '15 دقيقة', 'دقيقتان', 'صنف واحد' (number and word kept together).
+export function Count({ value, noun }) {
+  const { n, word } = counted(value, noun);
+  return n == null ? word : html`<bdi>${formatNumber(n)}</bdi>${'\u00a0'}${word}`;
 }
 
 // Hairline - diamond - hairline.

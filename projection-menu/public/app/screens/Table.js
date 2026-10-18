@@ -111,20 +111,27 @@ export default function TableScreen({ params, user }) {
   const send = async () => {
     if (!draft.length || sending) return;
     setSending(true);
-    const items = draft.map((l) => ({ dish_id: l.dish_id, quantity: l.quantity, notes: l.notes.trim() || undefined }));
+    const lines = draft;
+    const item = (l) => ({ dish_id: l.dish_id, quantity: l.quantity, notes: l.notes.trim() || undefined });
     const target = tableOrders.find((o) => o.id === selected && ['open', 'preparing'].includes(o.status));
     try {
       let order;
       if (target) {
-        for (const item of items) order = await api.addOrderItem(target.id, item);
+        // One request per line: each saved line leaves the draft at once, so
+        // a retry after a failure sends only what is still missing.
+        for (const line of lines) {
+          order = await api.addOrderItem(target.id, item(line));
+          upsertOrder(order);
+          setDraft((ls) => ls.filter((l) => l.key !== line.key));
+        }
       } else {
-        order = await api.createOrder({ table_id: tableId, items, notes: orderNotes.trim() || undefined });
+        order = await api.createOrder({ table_id: tableId, items: lines.map(item), notes: orderNotes.trim() || undefined });
+        setDraft([]);
       }
       upsertOrder(order);
       // The server marks a free table occupied; show it before the live refresh.
       if (table.status === 'free') patchTable(tableId, { status: 'occupied' });
       setPicked(order.id);
-      setDraft([]);
       setOrderNotes('');
       toast.ok(target ? `أُضيفت الأصناف إلى الطلب #${order.id}` : `أُرسل الطلب #${order.id} لطاولة ${table.number}`, {
         action: { label: 'اعرضه على الطاولة', onClick: () => show({ type: 'order', orderId: order.id }) },

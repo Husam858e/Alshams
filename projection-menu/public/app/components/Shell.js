@@ -86,7 +86,7 @@ function UserMenu({ user, compact, onPassword, up }) {
     </button>`}
     header=${html`<div class="menu-header">
       <${Avatar} name=${user.name} size=${36} />
-      <div><strong>${user.name}</strong><span>@${user.username} · ${ROLES[user.role]?.label}</span></div>
+      <div><strong>${user.name}</strong><span><bdi dir="ltr">@${user.username}</bdi> · ${ROLES[user.role]?.label}</span></div>
     </div>`}
     items=${[
       { label: 'تغيير كلمة المرور', icon: 'key', onSelect: onPassword },

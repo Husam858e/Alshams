@@ -71,16 +71,18 @@ export function authRoutes({ db, sessions, activity, live }) {
     const username = typeof req.body.username === 'string' ? req.body.username.trim() : '';
     const password = typeof req.body.password === 'string' ? req.body.password : '';
     if (!username || !password) throw badRequest('أدخل اسم المستخدم وكلمة المرور');
+    // No account has a longer name; keeps limiter keys small.
+    if (username.length > 40) throw new HttpError(401, 'اسم المستخدم أو كلمة المرور غير صحيحة');
     const key = `${username.toLowerCase()}|${req.ip}`;
     if (failures.isLimited(key)) {
       throw new HttpError(429, 'محاولات دخول فاشلة كثيرة. انتظر 10 دقائق ثم حاول مجدداً.');
     }
+    // Count the attempt before the slow hash check, so parallel requests
+    // cannot all slip past the limit; a success clears it again.
+    failures.hit(key);
     const user = q.byUsername.get(username);
     const ok = user ? user.is_active && (await verifyPassword(password, user.password_hash)) : await burnPasswordCheck(password);
-    if (!ok) {
-      failures.hit(key);
-      throw new HttpError(401, 'اسم المستخدم أو كلمة المرور غير صحيحة');
-    }
+    if (!ok) throw new HttpError(401, 'اسم المستخدم أو كلمة المرور غير صحيحة');
     failures.reset(key);
     sessions.start(req, res, user.id);
     q.loggedIn.run(nowIso(), user.id);
@@ -160,7 +162,9 @@ export function authRoutes({ db, sessions, activity, live }) {
     if (revoke) {
       const keep = user.id === req.user.id ? req.sessionHash : null;
       sessions.endAllForUser(user.id, keep);
-      live.disconnectUser(user.id, keep);
+      // A role change also drops the caller's own sockets: they reconnect
+      // with the same cookie and join the new role's rooms.
+      live.disconnectUser(user.id, next.role !== user.role ? null : keep);
     }
     activity.log(req.user, next.is_active || !user.is_active ? 'user.update' : 'user.deactivate', {
       name: next.name,

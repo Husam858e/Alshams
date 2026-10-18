@@ -2,6 +2,7 @@ import { nowIso, parseJson } from '../db/index.js';
 import { defaultCalibration, readCalibration } from '../lib/calibration.js';
 import { safeEqual } from '../lib/keys.js';
 import { badRequest, int } from '../lib/validate.js';
+import { ACTIVE_STATUSES } from './orders.js';
 
 export const SCENE_TYPES = ['welcome', 'menu', 'category', 'dish', 'order', 'off'];
 export const DEFAULT_SCENE = Object.freeze({ type: 'welcome' });
@@ -25,6 +26,7 @@ export class ProjectionService {
     this.live = live;
     this.players = null; // Socket.IO '/player' namespace, set by attachSockets()
     this.connections = new Map(); // projectorId -> Set<socket>
+    this.testPatterns = new Set(); // projector ids told to show the test pattern
     this.q = {
       scene: db.prepare('SELECT scene FROM table_scenes WHERE table_id = ?'),
       scenes: db.prepare('SELECT table_id, scene FROM table_scenes'),
@@ -67,6 +69,7 @@ export class ProjectionService {
     this.connections.set(id, set);
     this.q.touch.run(nowIso(), id);
     socket.emit('bootstrap', this.bootstrapFor(projector));
+    socket.emit('test-pattern', { on: this.testPatterns.has(id) });
     if (!wasOnline) this.live.staff('projector:status', { id, tableId: projector.table_id, online: true });
   }
 
@@ -145,6 +148,8 @@ export class ProjectionService {
       const orderId = int(input.orderId, 'الطلب', { required: true, min: 1 });
       const order = this.orders.get(orderId);
       if (!order || order.table_id !== tableId) throw badRequest('الطلب غير موجود على هذه الطاولة');
+      // A paid/cancelled order belongs to guests who already left.
+      if (!ACTIVE_STATUSES.includes(order.status)) throw badRequest('هذا الطلب منتهٍ ولا يُعرض على الطاولة');
       return { type, orderId };
     }
     return { type };
@@ -160,19 +165,21 @@ export class ProjectionService {
     return { scene: resolved, delivered };
   }
 
-  // Sends 'scene' to every player of the table and counts the acks.
+  // Sends 'scene' to every player of the table and counts the projectors
+  // that acked (a projector may briefly hold a stale second socket).
   async deliver(tableId, scene) {
     const sockets = this.tableSockets(tableId);
-    const acks = await Promise.all(
+    const acked = new Set();
+    await Promise.all(
       sockets.map((socket) =>
         socket
           .timeout(this.config.sceneAckTimeoutMs)
           .emitWithAck('scene', { scene })
-          .then((reply) => reply?.ok === true)
-          .catch(() => false),
+          .then((reply) => reply?.ok === true && acked.add(socket.data.projectorId))
+          .catch(() => {}),
       ),
     );
-    return { online: sockets.length, acked: acks.filter(Boolean).length };
+    return { online: new Set(sockets.map((s) => s.data.projectorId)).size, acked: acked.size };
   }
 
   // Re-sends a table's scene without waiting for acks (live order updates).
@@ -227,13 +234,20 @@ export class ProjectionService {
     const { rotation, layout, calibration } = this.projectorView(p);
     const sockets = this.projectorSockets(projectorId);
     for (const socket of sockets) socket.emit('projector', { rotation, layout, calibration });
-    return sockets.length;
+    return sockets.length > 0 ? 1 : 0;
   }
 
+  // Remembered, so a projector that connects later shows it too.
   testPattern(projectorId, on) {
+    if (on) this.testPatterns.add(projectorId);
+    else this.testPatterns.delete(projectorId);
     const sockets = this.projectorSockets(projectorId);
     for (const socket of sockets) socket.emit('test-pattern', { on: Boolean(on) });
-    return sockets.length;
+    return sockets.length > 0 ? 1 : 0;
+  }
+
+  testPatternOn(projectorId) {
+    return this.testPatterns.has(projectorId);
   }
 
   // The projector moved to another table: switch rooms and start over.
@@ -250,6 +264,7 @@ export class ProjectionService {
 
   // Key rotated or projector deleted: its player must re-pair.
   disconnectProjector(projectorId) {
+    this.testPatterns.delete(projectorId);
     for (const socket of this.projectorSockets(projectorId)) socket.disconnect(true);
   }
 

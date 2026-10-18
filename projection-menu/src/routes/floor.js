@@ -14,6 +14,7 @@ export function floorRoutes({ db, floor, live, activity, projection }) {
     nextAreaOrder: db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 FROM areas').pluck(),
     tableByNumber: db.prepare('SELECT id FROM restaurant_tables WHERE number = ?'),
     nextTableOrder: db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 FROM restaurant_tables').pluck(),
+    projectorIds: db.prepare('SELECT id FROM projectors WHERE table_id = ?').pluck(),
   };
 
   const loadArea = (id) => {
@@ -109,6 +110,10 @@ export function floorRoutes({ db, floor, live, activity, projection }) {
     if (next.number !== table.number || next.area_id !== table.area_id || next.seats !== table.seats) {
       activity.log(req.user, 'table.update', { number: next.number, from: table.number });
     }
+    // The projected surface shows the table number (and section) from the bootstrap.
+    if (next.number !== table.number || next.area_id !== table.area_id) {
+      for (const id of q.projectorIds.all(table.id)) projection.rebootstrap(id);
+    }
     live.floorChanged();
     res.json(floor.table(table.id));
   });
@@ -116,7 +121,7 @@ export function floorRoutes({ db, floor, live, activity, projection }) {
   // Its projectors go with it; past orders keep the table number.
   r.delete('/tables/:id', ownerOnly, (req, res) => {
     const table = loadTable(req.params.id);
-    const projectorIds = db.prepare('SELECT id FROM projectors WHERE table_id = ?').pluck().all(table.id);
+    const projectorIds = q.projectorIds.all(table.id);
     db.prepare('DELETE FROM restaurant_tables WHERE id = ?').run(table.id);
     for (const id of projectorIds) projection.disconnectProjector(id);
     activity.log(req.user, 'table.delete', { number: table.number });

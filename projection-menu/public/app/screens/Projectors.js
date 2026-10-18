@@ -87,13 +87,14 @@ export default function ProjectorsScreen({ user }) {
 }
 
 function ProjectorCard({ projector: p, isOwner, onDialog }) {
-  const [pattern, setPattern] = useState(false);
+  // The server remembers the test pattern, so the card shows its real state.
+  const pattern = Boolean(p.test_pattern);
   const [power, setPower] = useState(null); // null | 'loading' | state string
   const togglePattern = async () => {
     const on = !pattern;
     try {
       const res = await api.testPattern(p.id, on);
-      setPattern(on);
+      setTestPattern(p.id, on);
       if (on && !res.delivered?.online) toast.info('الجهاز غير متصل؛ ستظهر شاشة الاختبار عند اتصاله.');
     } catch (err) {
       toast.error(err);
@@ -341,4 +342,8 @@ function ProjectorSettings({ projector: p, onClose }) {
       </div>
     </form>
   <//>`;
+}
+
+function setTestPattern(id, on) {
+  patchResource('projectors', (list) => list?.map((x) => (x.id === id ? { ...x, test_pattern: on } : x)) ?? list);
 }

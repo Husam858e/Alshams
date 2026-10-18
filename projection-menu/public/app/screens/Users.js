@@ -182,7 +182,7 @@ function UserDialog({ user, me, onClose }) {
     size="lg"
     icon=${editing ? 'edit' : 'user-plus'}
     title=${editing ? `تعديل ${user.name}` : 'مستخدم جديد'}
-    subtitle=${editing ? `@${user.username}` : 'أعطِ كل موظف حسابه الخاص؛ الصلاحيات حسب الدور.'}
+    subtitle=${editing ? html`<bdi dir="ltr">@${user.username}</bdi>` : 'أعطِ كل موظف حسابه الخاص؛ الصلاحيات حسب الدور.'}
     onClose=${onClose}
     footer=${html`<${Button} variant="ghost" onClick=${onClose}>إلغاء<//><${Button} variant="primary" icon="check" loading=${busy} disabled=${!ready} onClick=${save}>${editing ? 'حفظ' : 'إنشاء الحساب'}<//>`}
   >
@@ -230,7 +230,7 @@ function PasswordDialog({ user, onClose }) {
     size="sm"
     icon="key"
     title="إعادة تعيين كلمة المرور"
-    subtitle=${`${user.name} · @${user.username}`}
+    subtitle=${html`${user.name} · <bdi dir="ltr">@${user.username}</bdi>`}
     onClose=${onClose}
     footer=${html`<${Button} variant="ghost" onClick=${onClose}>إلغاء<//><${Button} variant="primary" icon="check" loading=${busy} disabled=${!password} onClick=${save}>تعيين<//>`}
   >

@@ -1,4 +1,5 @@
 import { parseJson } from '../db/index.js';
+import { STATUS_LABELS as STATUS_AR } from './orders.js';
 
 // Activity log of important staff actions (not scene changes: too frequent).
 // The DB keeps a stable code; the API adds Arabic text for the owner.
@@ -35,7 +36,6 @@ const LABELS = {
   'order.item-remove': 'حذف صنف من طلب',
 };
 
-const STATUS_AR = { open: 'مفتوح', preparing: 'قيد التحضير', served: 'تم التقديم', paid: 'مدفوع', cancelled: 'ملغى' };
 // Theme presets as the staff app names them (the log stores the key).
 const PRESET_AR = { noir: 'نوار', marble: 'رخام', garden: 'حديقة', royal: 'ملكي' };
 

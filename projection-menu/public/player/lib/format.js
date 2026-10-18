@@ -24,6 +24,23 @@ export const ORDER_STEPS = [
   { status: 'served', label: 'التقديم' },
 ];
 
+// Arabic counted nouns: [singular, dual, plural (3-10), accusative (11+)].
+export const NOUNS = {
+  item: ['صنف', 'صنفان', 'أصناف', 'صنفاً'],
+  minute: ['دقيقة', 'دقيقتان', 'دقائق', 'دقيقة'],
+  calorie: ['سعرة', 'سعرتان', 'سعرات', 'سعرة'],
+};
+
+// -> {n, word}: n is the number to show before the word, or null when the
+// word says it alone ('صنف واحد', 'دقيقتان').
+export function counted(value, [one, two, few, many]) {
+  const v = Math.abs(Math.trunc(Number(value) || 0));
+  if (v === 1) return { n: null, word: `${one} ${one.endsWith('ة') ? 'واحدة' : 'واحد'}` };
+  if (v === 2) return { n: null, word: two };
+  const mod = v % 100;
+  return { n: v, word: v === 0 || (mod >= 3 && mod <= 10) ? few : many };
+}
+
 export const tableLabel = (number) => (number != null ? `طاولة ${number}` : '');
 
 // Shrink very long titles a step at a time instead of overflowing.

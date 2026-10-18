@@ -154,7 +154,8 @@ export function ErrorState({ error, onRetry }) {
 }
 
 export function Avatar({ name = '', size = 36, tone }) {
-  const letter = name.trim().charAt(0) || '؟';
+  // 'المصمم' shows 'م', not a bare alif that reads like a Latin 'I'.
+  const letter = name.trim().replace(/^ال(?=\S\S)/, '').charAt(0) || '؟';
   return html`<span class=${cx('avatar', tone && `avatar-${tone}`)} style=${{ width: `${size}px`, height: `${size}px`, fontSize: `${Math.round(size * 0.42)}px` }} aria-hidden="true">${letter}</span>`;
 }
 
@@ -206,12 +207,22 @@ export function Stepper({ value, onChange, min = 1, max = 99, size = 'md', disab
 }
 
 // Image that fades in and never shows a broken-image icon.
+// The state is derived per src (not reset in an effect, which runs after a
+// cached image has already fired its load event).
 export function Img({ src, alt = '', class: cls, fallbackIcon = 'utensils', ...rest }) {
-  const [state, setState] = useState(src ? 'loading' : 'error');
-  useEffect(() => setState(src ? 'loading' : 'error'), [src]);
+  const [res, setRes] = useState({ src: null, state: 'loading' });
+  const state = !src ? 'error' : res.src === src ? res.state : 'loading';
   return html`<span class=${cx('img', `img-${state}`, cls)}>
     ${state !== 'error' &&
-    html`<img src=${src} alt=${alt} loading="lazy" decoding="async" onLoad=${() => setState('ok')} onError=${() => setState('error')} ...${rest} />`}
+    html`<img
+      src=${src}
+      alt=${alt}
+      loading="lazy"
+      decoding="async"
+      onLoad=${() => setRes({ src, state: 'ok' })}
+      onError=${() => setRes({ src, state: 'error' })}
+      ...${rest}
+    />`}
     ${state === 'error' && html`<span class="img-fallback"><${Icon} name=${fallbackIcon} size=${26} /></span>`}
   </span>`;
 }

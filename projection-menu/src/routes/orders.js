@@ -75,8 +75,8 @@ export function orderRoutes({ orders, floor, projection, live, activity }) {
           total: order.total,
         });
       }
-      // A cancelled order, or a table that just emptied, stops showing the order.
-      if (order.status === 'cancelled' || result.tableFreed) {
+      // A paid or cancelled order stops showing on the table, whatever the table status.
+      if (order.status === 'paid' || order.status === 'cancelled') {
         projection.dropScenesWhere((s) => s.type === 'order' && s.orderId === order.id);
       }
     }

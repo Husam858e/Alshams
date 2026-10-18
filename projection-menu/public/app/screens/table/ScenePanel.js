@@ -34,7 +34,8 @@ export function ScenePanel({ table, menu, scene, onShow, delivery, busy, activeO
     {
       scene: activeOrder ? { type: 'order', orderId: activeOrder.id } : null,
       ...SCENES.order,
-      label: activeOrder ? `عرض الطلب #${activeOrder.id}` : 'عرض الطلب',
+      // "الطلب #N" stays on one line in narrow buttons.
+      label: activeOrder ? html`عرض <span class="nowrap">الطلب <bdi>#${activeOrder.id}</bdi></span>` : 'عرض الطلب',
       disabled: !activeOrder,
       hint: activeOrder ? null : 'لا يوجد طلب نشط',
     },

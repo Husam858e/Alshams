@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import { config as baseConfig } from '../src/config.js';
 import { OutdatedDatabaseError, openDb } from '../src/db/index.js';
 import { lanAddresses, lanUrls } from '../src/lib/network.js';
-import { startMdns } from '../src/services/mdns.js';
+import { serviceLabel, startMdns } from '../src/services/mdns.js';
 import { startServer } from './helpers.js';
 
 const APK_BYTES = Buffer.from('PK\x03\x04 fake apk');
@@ -100,6 +100,17 @@ test('mDNS is off when disabled (tests, MDNS=0) and never started by createApp',
   assert.equal(startMdns({ config: { ...baseConfig, mdns: false }, name: 'x' }), null);
   assert.equal(t.config.mdns, false);
   assert.equal(t.ctx.mdns(), null);
+});
+
+test('mDNS instance names fit one DNS label (63 bytes), cut on whole characters', () => {
+  const long = 'مطعم الشمس للمأكولات الشرقية والمشاوي العراقية'; // 46 characters, 87 bytes
+  const label = serviceLabel(long);
+  assert.ok(Buffer.byteLength(label) <= 63, label);
+  assert.ok(long.startsWith(label));
+  const second = serviceLabel(long, ' (2)');
+  assert.ok(Buffer.byteLength(second) <= 63 && second.endsWith(' (2)'), second);
+  assert.equal(serviceLabel('Alshams.iq'), 'Alshams-iq');
+  assert.equal(serviceLabel('  '), 'Projection Menu');
 });
 
 test('a v1 database is detected and the user is told to reset it', () => {

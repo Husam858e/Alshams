@@ -197,7 +197,9 @@ export function menuRoutes({ db, menu, projection, activity }) {
       activity.log(req.user, 'dish.price', { dishId: current.id, name: fields.name_ar, from: current.price, to: fields.price });
     }
     changed();
-    if (current.is_available && !fields.is_available) {
+    // Unavailable, or moved into a hidden category: tables showing it go back to welcome.
+    const guestsSee = (d) => Boolean(d.is_available) && (!d.category_id || Boolean(menu.categoryRow(d.category_id)?.is_visible));
+    if (guestsSee(current) && !guestsSee(fields)) {
       await projection.dropScenesWhere((s) => s.type === 'dish' && s.dishId === current.id);
     }
     res.json(menu.dish(current.id));

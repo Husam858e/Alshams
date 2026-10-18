@@ -101,7 +101,7 @@
    the photo takes whatever height is left. */
 .dc-body {
   flex: none;
-  height: 318px;
+  height: 346px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -109,15 +109,17 @@
 }
 
 .dish-card.no-desc .dc-body {
-  height: 232px;
+  height: 260px;
 }
 
+/* Clamped to two lines; the line height and clip are tuned further down
+   (see "Clipped text") so no marks of a hidden third line peek out. */
 .dc-name {
   font-size: 46px;
-  line-height: 1.22;
+  line-height: 1.5;
   font-weight: 700;
   color: var(--ink);
-  max-height: 2.44em;
+  max-height: 3em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -732,6 +734,8 @@
 .ct-name {
   font-size: 104px;
   line-height: 1.1;
+  /* Room for Cairo's deep descenders (dots of a final ي) above the English line. */
+  padding-bottom: 0.3em;
   font-weight: 800;
   color: var(--ink);
   text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
@@ -1760,8 +1764,21 @@
   margin-bottom: -0.28em;
 }
 
+/* A clamped dish name still paints its third line under the clip, so the
+   clip must fall between line 2's lowest marks and line 3's highest ones.
+   Measured (weight 700): Cairo reaches 0.47em below the baseline and 1.0em
+   above it (hamza on alef), Tajawal 0.42em / 0.88em; with 1.5 lines the gap
+   lies at 3.09-3.12em for Cairo and 2.81-3.01em for Tajawal. */
 .dc-name {
-  max-height: calc(2.44em + 0.28em);
+  padding-bottom: 0.13em;
+  margin-bottom: -0.13em;
+  max-height: 3.13em;
+}
+
+.font-tajawal .dc-name {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  max-height: 2.9em;
 }
 
 .ds-name {

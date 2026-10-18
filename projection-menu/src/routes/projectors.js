@@ -47,6 +47,7 @@ export function projectorRoutes({ db, projection, live, activity }) {
     last_seen_at: p.last_seen_at,
     created_at: p.created_at,
     player_url: playerUrl(p.device_key),
+    test_pattern: projection.testPatternOn(p.id),
   });
 
   const load = (id) => {

@@ -3,11 +3,11 @@
 
 import { html } from 'htm/preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { EmptyState, Ornament, PageDots, Price, Swap } from '../components/Bits.js';
+import { Count, EmptyState, Ornament, PageDots, Price, Swap } from '../components/Bits.js';
 import { Icon } from '../components/Icons.js';
 import { SafeImage } from '../components/Media.js';
 import { useFrame, usePlayer } from '../lib/context.js';
-import { formatNumber, ORDER_STATUS, ORDER_STEPS } from '../lib/format.js';
+import { formatNumber, NOUNS, ORDER_STATUS, ORDER_STEPS } from '../lib/format.js';
 import { usePager } from '../lib/hooks.js';
 import { chunk, findDish } from '../lib/menu.js';
 
@@ -148,7 +148,7 @@ export function OrderScene({ scene, start }) {
             <div class="od-sub">
               <span>طلب رقم <bdi>${order.id}</bdi></span>
               <span class="od-sep">·</span>
-              <span><bdi>${formatNumber(count)}</bdi> ${count === 1 ? 'صنف' : 'أصناف'}</span>
+              <span><${Count} value=${count} noun=${NOUNS.item} /></span>
             </div>
           </div>
           <span class="od-chip st-${status}">${ORDER_STATUS[status]}</span>

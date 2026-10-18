@@ -183,12 +183,12 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--fs-12);
 }
 
 .auth-foot {
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--fs-12);
 }
 
@@ -340,9 +340,22 @@
 }
 
 .floor-status-filter .chip {
+  position: relative;
   min-height: 34px;
   font-size: var(--fs-13);
   background: transparent;
+}
+
+/* Compact look, 44px hit area (the scroller gets room so it is not clipped). */
+.floor-status-filter {
+  padding-block: 5px;
+  margin-block: -5px;
+}
+
+.floor-status-filter .chip::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
 }
 
 .floor-status-filter .chip.is-active {
@@ -522,7 +535,7 @@
 }
 
 .tile-scene.is-off {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .tile-scene.is-off .icon {
@@ -694,7 +707,7 @@
 
 .scene-now-by {
   margin-inline-start: auto;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: var(--fs-12);
 }
 
@@ -1088,9 +1101,10 @@
   margin-top: auto;
   padding-top: 8px;
   display: flex;
+  flex-wrap: wrap; /* a wide stepper drops under the price instead of splitting it */
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-2);
+  gap: 6px var(--sp-2);
   min-height: 44px;
 }
 
@@ -1098,6 +1112,7 @@
   font-weight: 800;
   color: var(--gold-hi);
   font-size: var(--fs-15);
+  white-space: nowrap;
 }
 
 .dish-add {

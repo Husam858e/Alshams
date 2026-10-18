@@ -315,6 +315,7 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
         const orderId = id(input.orderId, 'الطلب');
         const order = orderById(orderId);
         if (!order || order.table_id !== tableId) throw new HttpError(400, 'الطلب غير موجود على هذه الطاولة');
+        if (!ACTIVE_STATUSES.includes(order.status)) throw new HttpError(400, 'هذا الطلب منتهٍ ولا يُعرض على الطاولة');
         return { type, orderId };
       }
       return { type };
@@ -366,6 +367,8 @@ export function createBackend({ sample, media, now = () => Date.now(), probe = n
       for (const sub of devices) if (sub.projectorId === projectorId) deliver(sub, 'testPattern', Boolean(on));
       return p?.online ? 1 : 0;
     },
+
+    testPatternOn: (projectorId) => testPatterns.has(projectorId),
 
     // Projector moved, switched off, deleted or added: players start over.
     rebootstrap() {

@@ -196,10 +196,12 @@ export function menuRoutes(route, ctx) {
     }
     if (fields.category_id !== current.category_id && !has(body, 'sort_order')) fields.sort_order = nextOrder(dishesIn(fields.category_id));
     if (price !== current.price) log(user, 'dish.price', { dishId: current.id, name: fields.name_ar, from: current.price, to: price });
-    const wasAvailable = current.is_available;
+    // Unavailable, or moved into a hidden category: tables showing it go back to welcome.
+    const guestsSee = (d) => Boolean(d.is_available) && (!d.category_id || Boolean(s.categories.find((c) => c.id === d.category_id)?.is_visible));
+    const wasShown = guestsSee(current);
     Object.assign(current, fields, { price, updated_at: nowIso() });
     projection.menuChanged();
-    if (wasAvailable && !current.is_available) projection.dropScenesWhere((sc) => sc.type === 'dish' && sc.dishId === current.id);
+    if (wasShown && !guestsSee(current)) projection.dropScenesWhere((sc) => sc.type === 'dish' && sc.dishId === current.id);
     return dto.dish(current);
   });
 

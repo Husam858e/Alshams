@@ -76,6 +76,24 @@ test('login rate limit: 10 failures per username+IP, then 429 even with the righ
   assert.equal((await t.client().post('/api/auth/login', { username: 'boss', password: 'secret-1' })).status, 200);
 });
 
+test('login rate limit holds for parallel attempts, and huge usernames are refused early', async () => {
+  const owner = t.client();
+  await owner.login('boss', 'secret-1');
+  await owner.post('/api/users', { name: 'رمز', username: 'pin', password: '4321', role: 'waiter' });
+
+  // All sent at once: the limit is counted before the slow hash check.
+  const c = t.client();
+  const results = await Promise.all(Array.from({ length: 16 }, (_, i) => c.post('/api/auth/login', { username: 'pin', password: `${1000 + i}` })));
+  const statuses = results.map((r) => r.status);
+  assert.equal(statuses.filter((s) => s === 401).length, 10, statuses.join(','));
+  assert.equal(statuses.filter((s) => s === 429).length, 6, statuses.join(','));
+  assert.equal((await c.post('/api/auth/login', { username: 'pin', password: '4321' })).status, 429);
+
+  const huge = await t.client().post('/api/auth/login', { username: 'x'.repeat(5000), password: 'whatever' });
+  assert.equal(huge.status, 401);
+  assert.equal(huge.body.error, 'اسم المستخدم أو كلمة المرور غير صحيحة');
+});
+
 test('logout ends the session server-side and clears the cookie', async () => {
   const c = t.client();
   await c.login('boss', 'secret-1');
@@ -142,6 +160,20 @@ test('users: last active owner cannot be demoted or removed, nor can you remove 
 
   const log = (await owner.get('/api/activity')).body.map((a) => a.code);
   for (const code of ['auth.setup', 'auth.login', 'user.create', 'user.deactivate', 'auth.password']) assert.ok(log.includes(code), code);
+});
+
+test('changing your own role moves your live socket to the new role', async () => {
+  const owner = t.client();
+  await owner.login('boss', 'secret-2');
+  const u = (await owner.post('/api/users', { name: 'شريك ثانٍ', username: 'owner2', password: 'owner2-pass', role: 'owner' })).body;
+  const self = t.client();
+  await self.login('owner2', 'owner2-pass');
+  const socket = t.live(self);
+  await connected(socket);
+  const dropped = nextEvent(socket, 'disconnect');
+  assert.equal((await self.patch(`/api/users/${u.id}`, { role: 'designer' })).status, 200);
+  assert.equal((await dropped)[0], 'io server disconnect');
+  assert.equal((await self.get('/api/auth/state')).body.user.role, 'designer', 'the cookie session stays valid');
 });
 
 test('a deactivated user is logged out everywhere at once', async () => {
