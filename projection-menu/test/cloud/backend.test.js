@@ -210,6 +210,27 @@ test('order flow: waiter orders, the table shows the order, the projector acks',
   await waitFor(async () => (await owner.call('GET', '/orders')).data.length === 0, { label: 'no active orders on the owner' });
 });
 
+test('the player preview in the staff app follows the table (designers without orders)', async () => {
+  const preview = playerRecorder();
+  owner.host.openPreview(ids.table1, preview.on);
+  const boot = await waitFor(() => preview.last('bootstrap'), { label: 'preview bootstrap' });
+  assert.equal(boot.table.number, 1);
+  assert.equal(boot.projector.id, ids.projector);
+  assert.equal(preview.last('online'), true);
+  await owner.call('PUT', `/tables/${ids.table1}/scene`, { scene: { type: 'menu' } });
+  await waitFor(() => preview.last('scene')?.type === 'menu', { label: 'preview scene' });
+
+  const designerPreview = playerRecorder();
+  designer.host.openPreview(ids.table1, designerPreview.on);
+  await waitFor(() => designerPreview.last('bootstrap'), { label: 'designer preview bootstrap' });
+  assert.equal(await designer.host.openPreview(ids.table1, playerRecorder().on).fetchOrder(ids.order), null);
+
+  const missing = playerRecorder();
+  owner.host.openPreview(999, missing.on);
+  await waitFor(() => missing.last('fatal') === 'missing', { label: 'preview of a missing table' });
+  await owner.call('PUT', `/tables/${ids.table1}/scene`, { scene: { type: 'welcome' } });
+});
+
 test('test pattern and calibration reach the projector', async () => {
   const on = await designer.call('POST', `/projectors/${ids.projector}/test-pattern`, { on: true });
   assert.deepEqual(on.data, { on: true, delivered: { online: 1 } });
@@ -331,4 +352,8 @@ test('unpairing ("rotate key") cuts the projector off', async () => {
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.online, false);
   await waitFor(() => player.last('fatal') === 'unauthorized', { label: 'device fatal' });
+  await waitFor(() => owner.saw('projector:status', (p) => p.id === ids.projector && p.online === false), { label: 'projector:status offline' });
+  // Nobody acks a table without an online projector.
+  const shown = await owner.call('PUT', `/tables/${ids.table1}/scene`, { scene: { type: 'menu' } });
+  assert.deepEqual(shown.data.delivered, { online: 0, acked: 0 });
 });

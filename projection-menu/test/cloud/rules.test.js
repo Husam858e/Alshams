@@ -6,7 +6,7 @@ import path from 'node:path';
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { Timestamp, deleteDoc, doc, getDoc, getDocs, collection, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
-import { ref, uploadBytes, getBytes } from 'firebase/storage';
+import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 import { EMULATORS, PROJECT, ROOT, resetEmulators } from './helpers.js';
 
 const rules = (file) => fs.readFileSync(path.join(ROOT, 'firebase', file), 'utf8');
@@ -252,22 +252,30 @@ describe('projector devices', () => {
   });
 });
 
+// Cross-service rules (Storage asking Firestore for roles/{uid}): the
+// Storage emulator must run in the same `firebase emulators:exec` as the
+// Firestore emulator. Behind an HTTP proxy, start the emulators with
+// HTTPS_PROXY=undefined: firebase-tools sends its emulator-to-emulator calls
+// through HTTPS_PROXY (it ignores NO_PROXY), and every role check then fails.
 describe('storage', () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  // Storage keeps files between runs (no reset that is safe while it runs): fresh ids per run.
+  const run = Date.now();
+  const path = (n, ext = 'png') => `media/${run}${n}/upload-${n}.${ext}`;
   const put = (uid, p, type = 'image/png', bytes = png) => uploadBytes(ref(env.authenticatedContext(uid).storage(), p), bytes, { contentType: type });
 
   test('owners and designers upload media; others cannot', async () => {
-    await env.clearStorage();
-    await assertSucceeds(put('des', 'media/1/upload-1.png'));
-    await assertSucceeds(put('own', 'media/2/upload-2.mp4', 'video/mp4'));
-    await assertFails(put('wai', 'media/3/upload-3.png'));
-    await assertFails(put('old', 'media/3/upload-3.png'));
-    await assertFails(put('own', 'media/4/x.txt', 'text/plain'));
-    await assertFails(put('own', 'other/1.png'));
-    await assertFails(put('own', 'media/1/upload-1.png'), 'files are never replaced');
-    await assertSucceeds(getBytes(ref(env.authenticatedContext('wai').storage(), 'media/1/upload-1.png')));
-    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), 'media/1/upload-1.png')));
-    const del = (uid) => import('firebase/storage').then(({ deleteObject }) => deleteObject(ref(env.authenticatedContext(uid).storage(), 'media/2/upload-2.mp4')));
+    await assertSucceeds(put('des', path(1)));
+    await assertSucceeds(put('own', path(2, 'mp4'), 'video/mp4'));
+    await assertFails(put('wai', path(3)));
+    await assertFails(put('old', path(3)));
+    await assertFails(put('stranger', path(3)));
+    await assertFails(put('own', path(4, 'txt'), 'text/plain'));
+    await assertFails(put('own', `other/${run}.png`));
+    await assertFails(put('own', path(1)), 'files are never replaced');
+    await assertSucceeds(getBytes(ref(env.authenticatedContext('wai').storage(), path(1))));
+    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), path(1))));
+    const del = (uid) => deleteObject(ref(env.authenticatedContext(uid).storage(), path(2, 'mp4')));
     await assertFails(del('wai'));
     await assertSucceeds(del('des'));
   });

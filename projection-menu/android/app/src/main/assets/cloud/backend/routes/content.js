@@ -11,10 +11,12 @@ import { httpErrorOf } from '../firebase.js';
 
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
-// Uploads with progress (0..1). -> Promise
-function upload(target, blob, contentType, onProgress) {
+// Uploads with progress (0..1); an aborted `signal` cancels the upload. -> Promise
+function upload(target, blob, contentType, { onProgress, signal }) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new HttpError(499, 'أُلغي الرفع'));
     const task = uploadBytesResumable(target, blob, { contentType, cacheControl: CACHE_CONTROL });
+    signal?.addEventListener('abort', () => task.cancel(), { once: true });
     task.on(
       'state_changed',
       (snap) => {
@@ -30,7 +32,8 @@ export function contentRoutes(route, cloud) {
   const { s, ctx, services, nowIso } = cloud;
   const demoDelete = cloud.demo('DELETE', '/media/:id');
 
-  // multipart 'file' (+ optional 'title'); fields.onProgress(0..1) from the page's XHR shim.
+  // multipart 'file' (+ optional 'title'); from the page's XHR shim:
+  // fields.onProgress(0..1) and fields.signal (AbortSignal, cancels the upload).
   route('POST', '/media', contentTeam, async ({ file, fields, user }) => {
     const { name, ext, kind, mime, blob } = await inspectUpload(file);
     const title = str(fields?.title, 'العنوان', { max: 120 }) ?? name.replace(/\.[^.]+$/, '').slice(0, 120);
@@ -41,14 +44,19 @@ export function contentRoutes(route, cloud) {
     const storagePath = `media/${id}/${fileName}`;
     const target = ref(services.storage, storagePath);
     const onProgress = typeof fields?.onProgress === 'function' ? fields.onProgress : null;
+    const signal = fields?.signal && typeof fields.signal.addEventListener === 'function' ? fields.signal : null;
     let url;
     try {
-      await upload(target, blob, mime, onProgress);
+      await upload(target, blob, mime, { onProgress, signal });
       url = await getDownloadURL(target);
     } catch (err) {
       throw httpErrorOf(err);
     }
     onProgress?.(1);
+    if (signal?.aborted) {
+      deleteObject(target).catch(() => {});
+      throw new HttpError(499, 'أُلغي الرفع');
+    }
     try {
       return await cloud.mutate(() => {
         const asset = {

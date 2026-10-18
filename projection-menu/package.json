@@ -14,7 +14,8 @@
     "dev": "node --watch src/server.js",
     "seed": "node src/db/seed.js",
     "seed:reset": "node src/db/seed.js --reset",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "test:cloud": "npx --yes firebase-tools@15.34.0 emulators:exec --project demo-pm --config firebase/firebase.json \"node --test --test-concurrency=1 'test/cloud/*.test.js'\""
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

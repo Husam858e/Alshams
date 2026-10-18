@@ -20,6 +20,7 @@ service firebase.storage {
       allow read: if request.auth != null;
       // Files never change under their name (they are cached for a year).
       allow create: if contentTeam()
+        && resource == null
         && assetId.matches('^[0-9]+$')
         && request.resource.size <= 100 * 1024 * 1024
         && request.resource.contentType.matches('^(image/(png|jpeg|webp)|video/(mp4|webm)|model/gltf-binary)$');

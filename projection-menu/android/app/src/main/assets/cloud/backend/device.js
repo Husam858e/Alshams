@@ -7,7 +7,7 @@
 // and scene acks (acked_at = the scene's `at`).
 
 import { signInAnonymously } from 'firebase/auth';
-import { collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { frameTarget } from '../../demo/backend/frames.js';
 import { DEFAULT_SCENE, createModel } from '../../demo/backend/model.js';
 import { NETWORK_ERROR, httpErrorOf, watchConnection, withTimeout } from './firebase.js';
@@ -106,6 +106,12 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
     const s = emptyState();
     const model = createModel(s);
     const replica = createReplica({ db, s, decorate: (key, row) => (key === 'projectors' ? { ...row, online: true } : row), onChange });
+    // A refused listener usually means this device was unpaired (it then
+    // reads nothing); the server says for sure.
+    const onError = (err) => {
+      if (err?.code === 'permission-denied') confirmUnbound();
+      else console.error('cloud: device listener failed', err);
+    };
     let closed = false;
     let uid = null;
     let projectorId = null;
@@ -167,7 +173,8 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
     function beat(fields = {}) {
       if (!projectorId || fatal || closed) return;
       updateDoc(doc(db, 'projectors', String(projectorId)), { last_seen_at: serverTimestamp(), ...fields }).catch((err) => {
-        if (err?.code !== 'permission-denied') console.warn('cloud: heartbeat failed', err);
+        if (err?.code === 'permission-denied') confirmUnbound(); // unpaired while no listener said so
+        else console.warn('cloud: heartbeat failed', err);
       });
     }
     function ack() {
@@ -184,6 +191,7 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
       if (want === orderId) return;
       orderId = want;
       if (!want) return replica.unlisten('order');
+      // Refused when the order is not on this table (any more): no order shown.
       await replica.listen('order', 'orders', doc(db, 'orders', String(want)), { onError: () => replica.unlisten('order') });
     }
 
@@ -196,22 +204,21 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
       orderId = null;
       if (!tableId) return;
       await Promise.all([
-        replica.listen('table', 'tables', doc(db, 'tables', String(tableId))),
-        replica.listen('scene', 'scenes', doc(db, 'scenes', String(tableId))),
+        replica.listen('table', 'tables', doc(db, 'tables', String(tableId)), { onError }),
+        replica.listen('scene', 'scenes', doc(db, 'scenes', String(tableId)), { onError }),
       ]);
       await followOrder();
     }
 
-    async function onChange(key, changes, { initial, fromCache }) {
+    async function onChange(key, changes, { initial }) {
       if (closed || fatal) return;
       if (key === 'projectors') {
         const change = changes[0];
-        if (change && !change.after) {
-          if (!fromCache) unauthorized(); // the projector was deleted
-          return;
-        }
+        if (change && !change.after) return confirmGone(['projectors', String(projectorId)]); // deleted
         const p = projector();
         if (!p || !ready) return;
+        // Unbound by the owner ("rotate key"), or paired to another device.
+        if (p.device_uid !== uid) return confirmGone(['projectors', String(projectorId)], (data) => data?.device_uid !== uid);
         if (p.table_id !== tableId) {
           await setTable(p.table_id);
           lastAck = null;
@@ -244,14 +251,14 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
       projectorId = nextProjectorId;
       ready = false;
       const firsts = [
-        replica.listen('projector', 'projectors', doc(db, 'projectors', String(projectorId))),
+        replica.listen('projector', 'projectors', doc(db, 'projectors', String(projectorId)), { onError }),
         ...[
           ['areas', 'areas'],
           ['assets', 'media'],
           ['categories', 'categories'],
           ['dishes', 'dishes'],
           ['settings', 'settings'],
-        ].map(([key, path]) => (replica.loaded(path) ? null : replica.listen(path, key, collection(db, path)))),
+        ].map(([key, path]) => (replica.loaded(path) ? null : replica.listen(path, key, collection(db, path), { onError }))),
       ];
       const [snap] = await Promise.all(firsts);
       if (closed || fatal || projectorId !== nextProjectorId) return;
@@ -291,7 +298,10 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
         (snap) => {
           if (closed || fatal) return;
           if (!snap.exists()) {
+            // Gone: unpaired. A snapshot can say "from cache" right after
+            // access was revoked, so ask the server before giving up.
             if (!snap.metadata.fromCache) unauthorized();
+            else confirmUnbound();
             return;
           }
           const next = Number(snap.data().projectorId);
@@ -300,6 +310,19 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
         () => unauthorized(),
       );
     }
+
+    // Asks the server whether `path` is gone (or `lost(data)`): then this
+    // device is no longer paired. A refused read means the same.
+    async function confirmGone(path, lost = () => false) {
+      try {
+        const snap = await getDocFromServer(doc(db, ...path));
+        if (!snap.exists() || lost(snap.data())) unauthorized();
+      } catch (err) {
+        if (err?.code === 'permission-denied') unauthorized();
+        // offline: the listeners tell once the server is back
+      }
+    }
+    const confirmUnbound = () => confirmGone(['devices', uid]);
 
     async function fetchOrder(id) {
       const wanted = Number(id);

@@ -22,7 +22,9 @@ export class NeedIds extends Error {
   }
 }
 
-export function createIds(db) {
+// wantsSpare(kind): whether this device keeps spares of `kind` now (a
+// designer never takes orders; nobody reserves while offline).
+export function createIds(db, { wantsSpare = () => true } = {}) {
   const pools = new Map(); // kind -> [id, ...]
   const inflight = new Map(); // kind -> Promise
   const ref = doc(db, 'meta', 'counters');
@@ -77,7 +79,7 @@ export function createIds(db) {
   // After a request: refill the spares in the background (when online).
   function refill() {
     for (const [kind, spare] of Object.entries(SPARE)) {
-      if (pool(kind).length < spare && !inflight.has(kind)) reserve(kind, spare).catch(() => {});
+      if (pool(kind).length < spare && !inflight.has(kind) && wantsSpare(kind)) reserve(kind, spare).catch(() => {});
     }
   }
 

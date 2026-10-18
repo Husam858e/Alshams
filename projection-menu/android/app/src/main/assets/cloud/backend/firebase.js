@@ -138,6 +138,8 @@ export function httpErrorOf(err) {
     case 'permission-denied':
     case 'unauthorized':
     case 'unauthenticated':
+      // The app checks roles first: a refusal by the security rules is worth a log line.
+      console.warn('cloud: refused by Firebase', err?.code, err?.message);
       return new HttpError(403, 'ليست لديك صلاحية لهذا الإجراء');
     case 'unavailable':
     case 'deadline-exceeded':

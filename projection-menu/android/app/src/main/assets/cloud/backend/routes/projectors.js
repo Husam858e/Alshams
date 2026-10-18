@@ -74,7 +74,7 @@ export function projectorRoutes(route, cloud) {
       let projectorId = existingId;
       if (projectorId) {
         const p = loadProjector(projectorId);
-        p.device_uid = null; // the old device stops at once (extraWrites deletes devices/{uid})
+        p.device_uid = null; // the old device stops at once (extraWrites then deletes devices/{uid})
       } else {
         projectorId = s.nextId('projector');
         const row = {

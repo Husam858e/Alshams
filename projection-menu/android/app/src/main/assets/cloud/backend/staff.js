@@ -49,7 +49,7 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
   const nowIso = () => new Date(now()).toISOString();
   const model = createModel(s);
   const { dto, find } = model;
-  const ids = createIds(db);
+  const ids = createIds(db, { wantsSpare: (kind) => connected && (kind !== 'order' || ORDER_ROLES.includes(session?.role)) });
   s.nextId = (kind) => ids.next(kind);
 
   // ── Session: Firebase Auth user + roles/{uid} ──────────────────
@@ -230,8 +230,10 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
   // Users: their Auth account's role and login live in roles/ and logins/.
   function extraWrites(key, { before, after }) {
     if (key === 'projectors') {
-      // A deleted projector (or a projector of a deleted table) unbinds its device.
-      if (before?.device_uid && (!after || after.device_uid !== before.device_uid)) return [{ op: 'delete', path: ['devices', before.device_uid] }];
+      // A deleted or unbound projector (or one of a deleted table) cuts its
+      // device off. The device must first see the projector change (it stops
+      // and shows the pairing screen); its access goes in a second commit.
+      if (before?.device_uid && (!after || after.device_uid !== before.device_uid)) return [{ op: 'delete', path: ['devices', before.device_uid], later: true }];
       return [];
     }
     if (key !== 'users' || !after?.uid) return [];

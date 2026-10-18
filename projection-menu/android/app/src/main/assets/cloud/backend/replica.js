@@ -33,7 +33,8 @@ const json = (value) => JSON.stringify(value ?? null);
 //   db, s, ids                Firestore, the state to keep, the id pools
 //   hidden(key, data)         true: keep the doc in the mirror only (pending projectors)
 //   decorate(key, row)        adds derived fields (a projector's `online`)
-//   extraWrites(key, change)  writes that go with a row's change (e.g. roles of a user)
+//   extraWrites(key, change)  writes that go with a row's change (e.g. roles of a user);
+//                             {later: true} ones are committed after the others
 //   onChange(key, changes, {initial, fromCache})  after snapshots were applied
 //   isOnline()                whether to wait for the server to accept writes
 //   onLateFailure(err)        writes rejected after the request had answered
@@ -247,9 +248,14 @@ export function createReplica({ db, s, ids = null, hidden = () => false, decorat
         }
         throw err;
       }
-      const writes = [...diff(before), ...extra];
+      const all = [...diff(before), ...extra];
       clearOutbox();
+      // Writes marked `later` go in a second commit, after the first one
+      // (e.g. revoking a device's access only once it has seen its unbinding).
+      const writes = all.filter((w) => !w.later);
+      const later = all.filter((w) => w.later);
       if (writes.length) await commit(writes);
+      if (later.length) await commit(later);
       ids?.refill();
       return out;
     }
