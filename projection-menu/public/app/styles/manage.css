@@ -205,6 +205,59 @@
   color: var(--gold);
 }
 
+/* Phones and short screens: one footer row (status shrinks, buttons stay),
+ * a slimmer drop zone, and smaller tiles so several fit on screen. */
+@media (max-width: 600px), (max-height: 600px) {
+  .picker .modal-foot {
+    flex-wrap: nowrap;
+  }
+
+  .picker .modal-foot .spacer {
+    display: none;
+  }
+
+  .picker .modal-foot .btn {
+    flex: none;
+  }
+
+  .picker-chosen {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .picker .dropzone-compact {
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+  }
+
+  .picker .dropzone-compact .dropzone-icon {
+    display: none;
+  }
+
+  .picker .dropzone-compact .dropzone-text {
+    display: none;
+  }
+
+  .picker .dropzone-compact .btn {
+    flex: 1;
+  }
+
+  .picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--sp-2);
+  }
+}
+
+/* Very short screens: the whole dialog scrolls, so the upload bar scrolls
+ * away with it instead of covering the files. */
+@media (max-height: 600px) {
+  .picker-top {
+    position: static;
+    background: none;
+  }
+}
+
 /* ══ Media library ═══════════════════════════════════════════════ */
 
 .media-upload {

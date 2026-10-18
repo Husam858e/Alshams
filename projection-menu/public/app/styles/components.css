@@ -1159,6 +1159,87 @@ dialog.modal-xl {
   background: rgba(0, 0, 0, 0.18);
 }
 
+/* Phones and short screens (and the demo's small tablet): the dialog fills
+ * the screen and its header gets compact, so the body keeps room. */
+@media (max-width: 600px), (max-height: 600px) {
+  dialog.modal,
+  dialog.modal-sm,
+  dialog.modal-lg,
+  dialog.modal-xl {
+    width: calc(100vw - 16px);
+  }
+
+  dialog.modal > .modal-card {
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--r-lg);
+  }
+
+  .modal-head {
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .modal-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .modal-titles {
+    padding-top: 4px;
+  }
+
+  .modal-title {
+    font-size: var(--fs-18);
+    line-height: 1.4;
+  }
+
+  .modal-subtitle {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: var(--fs-13);
+  }
+
+  .modal-body {
+    padding: var(--sp-1) var(--sp-4) var(--sp-4);
+  }
+
+  .modal-foot {
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+}
+
+/* Very short screens: header, body and footer scroll as one page, with the
+ * footer pinned, so the body never shrinks to nothing. */
+@media (max-height: 600px) {
+  dialog.modal > .modal-card {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  dialog.modal > .modal-card > * {
+    flex-shrink: 0;
+  }
+
+  dialog.modal .modal-body {
+    overflow: visible;
+  }
+
+  dialog.modal .modal-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: rgba(20, 20, 22, 0.98);
+  }
+
+  .modal-subtitle {
+    -webkit-line-clamp: 1;
+  }
+}
+
 .confirm-text {
   color: var(--ink-2);
   font-size: var(--fs-15);

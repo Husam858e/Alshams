@@ -811,7 +811,7 @@ body.is-picking .picker {
 
   .demo-main {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 38fr) minmax(0, 62fr);
+    grid-template-rows: minmax(0, 33fr) minmax(0, 67fr);
   }
 
   .table-pane {
