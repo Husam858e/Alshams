@@ -23,12 +23,16 @@ export function PreviewFrame({ tableId, pinnedScene, theme, backgroundUrl, gener
   };
   useEffect(post, [theme, backgroundUrl, general, logoUrl, scene]);
   useEffect(() => setLoaded(false), [src]);
+  // The delayed re-sends must carry the newest edits, not the ones from load
+  // time (an edit made right after load was otherwise undone in the preview).
+  const latestPost = useRef(post);
+  latestPost.current = post;
 
   const onLoad = () => {
     setLoaded(true);
     post();
-    setTimeout(post, 400);
-    setTimeout(post, 1500);
+    setTimeout(() => latestPost.current(), 400);
+    setTimeout(() => latestPost.current(), 1500);
   };
 
   return html`<div class=${cx('preview', cls)}>

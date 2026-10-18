@@ -36,6 +36,8 @@ const LABELS = {
 };
 
 const STATUS_AR = { open: 'مفتوح', preparing: 'قيد التحضير', served: 'تم التقديم', paid: 'مدفوع', cancelled: 'ملغى' };
+// Theme presets as the staff app names them (the log stores the key).
+const PRESET_AR = { noir: 'نوار', marble: 'رخام', garden: 'حديقة', royal: 'ملكي' };
 
 export function createActivity(db) {
   const insert = db.prepare('INSERT INTO activity_log (user_id, action, details) VALUES (?, ?, ?)');
@@ -81,6 +83,8 @@ function summarize(code, d) {
     case 'projector.claim':
     case 'projector.pairing-code':
       return `طاولة ${d.tableNumber}${d.name ? ` — ${d.name}` : ''}`;
+    case 'settings.theme':
+      return `${LABELS[code]}: نمط ${PRESET_AR[d.name] ?? d.name}`;
     default: {
       const name = d.name ?? d.title ?? d.username ?? (d.number != null ? `طاولة ${d.number}` : null);
       return name ? `${LABELS[code] ?? code}: ${name}` : (LABELS[code] ?? code);

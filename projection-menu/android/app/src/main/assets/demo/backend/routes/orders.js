@@ -44,6 +44,7 @@ const ACTIVITY_LABELS = {
   'order.item-remove': 'حذف صنف من طلب',
 };
 const STATUS_AR = { open: 'مفتوح', preparing: 'قيد التحضير', served: 'تم التقديم', paid: 'مدفوع', cancelled: 'ملغى' };
+const PRESET_AR = { noir: 'نوار', marble: 'رخام', garden: 'حديقة', royal: 'ملكي' };
 
 function summarize(code, d) {
   if (!d) return ACTIVITY_LABELS[code] ?? code;
@@ -59,6 +60,8 @@ function summarize(code, d) {
     case 'projector.claim':
     case 'projector.pairing-code':
       return `طاولة ${d.tableNumber}${d.name ? ` — ${d.name}` : ''}`;
+    case 'settings.theme':
+      return `${ACTIVITY_LABELS[code]}: نمط ${PRESET_AR[d.name] ?? d.name}`;
     default: {
       const name = d.name ?? d.title ?? d.username ?? (d.number != null ? `طاولة ${d.number}` : null);
       return name ? `${ACTIVITY_LABELS[code] ?? code}: ${name}` : (ACTIVITY_LABELS[code] ?? code);

@@ -59,8 +59,10 @@ test('general (owner) and theme (owner + designer): partial updates with validat
   }
   assert.equal((await t.as.waiter.put('/api/settings/theme', { preset: 'noir' })).status, 403);
   assert.equal((await t.as.waiter.get('/api/activity')).status, 403);
-  const codes = (await t.as.owner.get('/api/activity')).body.map((a) => a.code);
+  const log = (await t.as.owner.get('/api/activity')).body;
+  const codes = log.map((a) => a.code);
   assert.ok(codes.includes('settings.general') && codes.includes('settings.theme'));
+  assert.equal(log.find((a) => a.code === 'settings.theme').summary, 'تعديل تصميم العرض: نمط ملكي', 'the preset is named in Arabic');
 });
 
 test('every change is broadcast as settings:changed to staff and projectors', async () => {

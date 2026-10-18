@@ -531,12 +531,18 @@
 
 .tile-order {
   display: flex;
+  flex-wrap: wrap; /* narrow phone tiles: the status goes under the total */
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--sp-2);
+  column-gap: var(--sp-2);
+  row-gap: 2px;
   font-size: var(--fs-15);
   font-weight: 800;
   color: var(--ink);
+}
+
+.tile-order .num {
+  white-space: nowrap; /* "52,000 د.ع" never splits */
 }
 
 .tile-order-meta {
