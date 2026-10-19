@@ -17,8 +17,10 @@ import java.net.URL
 import java.security.MessageDigest
 
 /**
- * Cloud mode's menu media (photos, videos, 3D models) come from Firebase Storage
- * download URLs. [MediaProxy] answers those requests itself:
+ * Cloud mode keeps menu media in Firestore by default, and the pages cache those
+ * files themselves (Cache API, assets/cloud/backend/media.js). A project set to
+ * `media: 'storage'` (Blaze plan) serves them as Firebase Storage download URLs
+ * instead; [MediaProxy] answers those requests itself:
  *  - from a disk cache, so a projector does not download every photo again on
  *    each start, and keeps showing them while the internet is down;
  *  - with `Access-Control-Allow-Origin: *`: the 3D model loader uses fetch/XHR,

@@ -14,6 +14,9 @@
 export const REQUIRED_KEYS = ['apiKey', 'projectId', 'appId', 'storageBucket'];
 // What initializeApp() understands; anything else in the paste is ignored.
 const KNOWN_KEYS = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
+// Ours, next to them: where media files go. 'firestore' (the default, free
+// Spark plan) or 'storage' (Firebase Storage, for a project on Blaze).
+export const MEDIA_MODES = ['firestore', 'storage'];
 const MAX_TEXT = 20000;
 const MAX_VALUE = 300;
 
@@ -146,6 +149,11 @@ export function validateFirebaseConfig(input) {
     if (!text) continue;
     if (text.length > MAX_VALUE || /\s/.test(text)) throw new ConfigError(`قيمة "${key}" غير صالحة`);
     config[key] = text;
+  }
+  if (input.media != null && input.media !== '') {
+    const media = String(input.media).trim();
+    if (MEDIA_MODES.indexOf(media) < 0) throw new ConfigError(`قيمة "media" غير صالحة (المسموح: ${MEDIA_MODES.join(' أو ')})`);
+    if (media !== 'firestore') config.media = media; // absent = the default
   }
   const missing = REQUIRED_KEYS.filter((key) => !config[key]);
   if (missing.length) {

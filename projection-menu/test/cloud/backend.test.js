@@ -5,7 +5,8 @@
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { CONFIG, EMULATORS, closeAllApps, loadCloud, loginAs, playerRecorder, resetEmulators, staffHost, waitFor } from './helpers.js';
+import { resolveObjectURL } from 'node:buffer';
+import { CONFIG, EMULATORS, STORAGE_CONFIG, adminList, closeAllApps, loadCloud, loginAs, playerRecorder, resetEmulators, staffHost, waitFor } from './helpers.js';
 
 let cloud;
 let owner;
@@ -287,13 +288,146 @@ test('reports, history and activity come from on-demand queries', async () => {
   assert.equal((await waiter.call('GET', '/reports/summary')).status, 403);
 });
 
-test('media upload to Storage and delete', async () => {
-  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 1, 2, 3, 4]);
+// Media files of a test, made without a codec: valid signatures + filler.
+const filler = (n, seed) => Uint8Array.from({ length: n }, (_, i) => (i * 13 + seed) & 255);
+const withHead = (head, n, seed = 1) => {
+  const bytes = filler(n, seed);
+  bytes.set(head);
+  return bytes;
+};
+const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52];
+const WEBP_HEAD = [...'RIFF'].map((c) => c.charCodeAt(0)).concat([0, 0, 0, 0], [...'WEBP'].map((c) => c.charCodeAt(0)));
+const WEBM_HEAD = [0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0, 0, 0, 0, 0];
+const blobBytes = async (url) => new Uint8Array(await resolveObjectURL(url).arrayBuffer());
+const chunksOf = async (assetId) => (await adminList('mediaChunks')).filter((d) => d.id.startsWith(`${assetId}_`));
+
+// What a browser does before uploading a photo (media.js browserImageEncoder):
+// here a "4000×3000 photo" becomes a 1600×1200 WebP of 300 KB.
+const encoded = withHead(WEBP_HEAD, 300 * 1024, 5);
+const fakeEncoder = async () => ({ blob: new Blob([encoded], { type: 'image/webp' }), width: 1600, height: 1200, scaled: true });
+
+let studio; // the designer's laptop, with an image encoder
+test('media in Firestore: photos are compressed, then stored in chunks with the library entry last', async () => {
+  studio = track(await staffHost(cloud, 'studio', { imageEncoder: fakeEncoder }));
+  await loginAs(studio, 'designer1', '1111');
+  const photo = new File([withHead(PNG_HEAD, 2 * 1024 * 1024)], 'kebab.png', { type: 'image/png' });
   const progress = [];
-  const up = await designer.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'logo.png', { type: 'image/png' }), fields: { title: 'الشعار', onProgress: (p) => progress.push(p) } });
+  const up = await studio.host.request({ method: 'POST', url: '/api/media', file: photo, fields: { title: 'كباب', onProgress: (p) => progress.push(p) } });
+  assert.equal(up.status, 201, JSON.stringify(up.data));
+  const a = up.data;
+  ids.photo = a.id;
+  assert.deepEqual([a.kind, a.title, a.storage, a.chunks, a.mime_type, a.size_bytes, a.width, a.height], ['image', 'كباب', 'firestore', 1, 'image/webp', encoded.length, 1600, 1200]);
+  assert.equal(a.file_name, `upload-${a.id}.webp`);
+  assert.equal(a.original_name, 'kebab.png');
+  assert.match(a.sha256, /^[0-9a-f]{64}$/);
+  assert.equal(a.rev, a.sha256.slice(0, 16));
+  assert.equal(progress.at(-1), 1);
+  // The uploading device shows it at once (its own bytes, no download).
+  assert.match(a.url, /^blob:/);
+  assert.deepEqual(await blobBytes(a.url), encoded);
+  const chunks = await chunksOf(a.id);
+  assert.deepEqual(chunks.map((c) => c.id), [`${a.id}_0`]);
+  assert.equal(chunks[0].fields.assetId.integerValue, String(a.id));
+  assert.ok('bytesValue' in chunks[0].fields.data, 'Firestore Bytes, not base64 text');
+  assert.equal((await adminList('media')).find((d) => d.id === String(a.id)).fields.url.nullValue, null);
+});
+
+test('media in Firestore: a video of several chunks reaches the projector as a working blob', async () => {
+  const clip = withHead(WEBM_HEAD, Math.round(2.2 * 1024 * 1024), 9); // 3 chunks of ≤ 900 KB
+  const progress = [];
+  const up = await studio.host.request({ method: 'POST', url: '/api/media', file: new File([clip], 'grill.webm'), fields: { onProgress: (p) => progress.push(p) } });
+  assert.equal(up.status, 201, JSON.stringify(up.data));
+  ids.clip = up.data.id;
+  ids.clipRev = up.data.rev;
+  assert.deepEqual([up.data.kind, up.data.chunks, up.data.size_bytes, up.data.mime_type], ['video', 3, clip.length, 'video/webm']);
+  assert.deepEqual(progress.map((p) => p.toFixed(2)), ['0.33', '0.67', '1.00'], 'real progress: chunks written / total');
+  assert.equal((await chunksOf(ids.clip)).length, 3);
+
+  // The designer puts both on a dish; the projector (another device) loads
+  // them from Firestore and is re-bootstrapped when they are there.
+  assert.equal((await studio.call('PATCH', `/dishes/${ids.dish}`, { image_asset_id: ids.photo, video_asset_id: ids.clip })).status, 200);
+  const dishOnPlayer = () => player.last('bootstrap')?.menu.categories[0].dishes.find((d) => d.id === ids.dish);
+  const shown = await waitFor(() => dishOnPlayer()?.video_url && dishOnPlayer()?.image_url && dishOnPlayer(), { label: 'media URLs on the player', timeout: 15000 });
+  assert.match(shown.video_url, /^blob:/);
+  assert.deepEqual(await blobBytes(shown.video_url), clip, 'the video, byte for byte');
+  assert.deepEqual(await blobBytes(shown.image_url), encoded);
+  // Kept on the projector: asked again, no second download.
+  assert.equal(device.media.url({ id: ids.clip, storage: 'firestore', rev: up.data.rev }), shown.video_url);
+
+  // Other staff devices get the file lazily, when a screen needs it, and
+  // their screens are refreshed when it is there.
+  waiter.clear();
+  const dishOnWaiter = async () => (await waiter.call('GET', '/menu')).data.categories[0].dishes.find((d) => d.id === ids.dish);
+  assert.equal((await dishOnWaiter()).video_asset_id, ids.clip);
+  await waitFor(async () => (await dishOnWaiter()).video_url?.startsWith('blob:'), { label: 'the video on the waiter', timeout: 15000 });
+  await waitFor(() => waiter.saw('menu:changed'), { label: 'menu:changed when the file arrived' });
+  await waitFor(async () => (await owner.call('GET', '/media')).data.find((m) => m.id === ids.clip)?.url?.startsWith('blob:'), { label: 'the file in the owner library', timeout: 15000 });
+});
+
+test('media in Firestore: cancel, limits and roles', async () => {
+  const before = (await adminList('mediaChunks')).length;
+  const clip = () => new File([withHead(WEBM_HEAD, 2 * 1024 * 1024, 3)], 'c.webm');
+  const early = new AbortController();
+  early.abort();
+  assert.equal((await studio.host.request({ method: 'POST', url: '/api/media', file: clip(), fields: { signal: early.signal } })).status, 499);
+  // Cancelled after the first chunk: 499, no library entry, its chunks deleted.
+  const during = new AbortController();
+  const midway = await studio.host.request({ method: 'POST', url: '/api/media', file: clip(), fields: { signal: during.signal, onProgress: () => during.abort() } });
+  assert.deepEqual([midway.status, midway.data.error], [499, 'أُلغي الرفع']);
+  assert.ok(!(await studio.call('GET', '/media')).data.some((m) => m.original_name === 'c.webm'));
+  await waitFor(async () => (await adminList('mediaChunks')).length === before, { label: 'chunks of the cancelled upload deleted' });
+
+  const big = await studio.host.request({ method: 'POST', url: '/api/media', file: new File([withHead(WEBM_HEAD, 21 * 1024 * 1024)], 'long.webm'), fields: {} });
+  assert.equal(big.status, 413);
+  assert.match(big.data.error, /الحد الأقصى 20 ميغابايت/);
+  const model = await studio.host.request({ method: 'POST', url: '/api/media', file: new File([withHead([0x67, 0x6c, 0x54, 0x46], 16 * 1024 * 1024)], 'm.glb'), fields: {} });
+  assert.equal(model.status, 413);
+  assert.match(model.data.error, /الحد الأقصى 15 ميغابايت/);
+
+  const png = withHead(PNG_HEAD, 64);
+  assert.equal((await studio.host.request({ method: 'POST', url: '/api/media', file: new File([new Uint8Array(20)], 'x.png'), fields: {} })).status, 400);
+  assert.equal((await waiter.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'a.png'), fields: {} })).status, 403);
+  assert.equal((await adminList('mediaChunks')).length, before, 'refused uploads write nothing');
+});
+
+test('media in Firestore: the logo shows everywhere; delete removes the file and its chunks', async () => {
+  // No encoder on this device (as in Node): the PNG is stored as it is.
+  const png = withHead(PNG_HEAD, 4096, 4);
+  const up = await designer.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'logo.png', { type: 'image/png' }), fields: { title: 'الشعار' } });
+  assert.equal(up.status, 201, JSON.stringify(up.data));
+  assert.deepEqual([up.data.mime_type, up.data.size_bytes, up.data.file_name], ['image/png', png.length, `upload-${up.data.id}.png`]);
+  await waitFor(async () => (await owner.call('GET', '/media')).data.some((m) => m.id === up.data.id), { label: 'the new file on the owner' });
+  owner.clear();
+  assert.equal((await owner.call('PUT', '/settings/general', { logoAssetId: up.data.id })).status, 200);
+  await waitFor(() => owner.saw('settings:changed'), { label: 'settings:changed when the logo arrives on the owner' });
+  const logo = (await owner.call('GET', '/settings')).data.logo_url;
+  assert.match(logo, /^blob:/);
+  assert.deepEqual(await blobBytes(logo), png);
+  await waitFor(() => player.last('bootstrap')?.settings.logo_url?.startsWith('blob:'), { label: 'the logo on the projector' });
+
+  assert.equal((await designer.call('DELETE', `/media/${up.data.id}`)).status, 409, 'a used file cannot be deleted');
+  await owner.call('PUT', '/settings/general', { logoAssetId: null });
+  await waitFor(async () => (await designer.call('GET', '/settings')).data.logo_url === null, { label: 'no logo on the designer' });
+  assert.equal((await designer.call('DELETE', `/media/${up.data.id}`)).status, 200);
+  assert.deepEqual(await chunksOf(up.data.id), [], 'chunks deleted with the library entry');
+
+  // The dish's video too, once it is no longer used.
+  assert.equal((await studio.call('PATCH', `/dishes/${ids.dish}`, { video_asset_id: null })).status, 200);
+  assert.equal((await studio.call('DELETE', `/media/${ids.clip}`)).status, 200);
+  assert.deepEqual(await chunksOf(ids.clip), []);
+  await waitFor(() => device.media.status({ id: ids.clip, storage: 'firestore', rev: ids.clipRev }) === null && !player.last('bootstrap')?.menu.categories[0].dishes.find((d) => d.id === ids.dish)?.video_url, { label: 'the projector drops the deleted video' });
+});
+
+test('media in Firebase Storage (a Blaze project with media: storage) still works', async () => {
+  const blaze = track(await staffHost(cloud, 'blaze', { config: STORAGE_CONFIG }));
+  await loginAs(blaze, 'designer1', '1111');
+  const png = new Uint8Array(PNG_HEAD.concat([1, 2, 3, 4]));
+  const progress = [];
+  const up = await blaze.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'logo.png', { type: 'image/png' }), fields: { title: 'الشعار', onProgress: (p) => progress.push(p) } });
   assert.equal(up.status, 201, JSON.stringify(up.data));
   assert.equal(up.data.title, 'الشعار');
   assert.equal(up.data.kind, 'image');
+  assert.equal(up.data.storage, undefined);
   assert.match(up.data.url, /^http:\/\/127\.0\.0\.1:9199\/.+media%2F\d+%2Fupload-\d+\.png/);
   assert.equal(progress.at(-1), 1);
   const res = await fetch(up.data.url);
@@ -301,27 +435,19 @@ test('media upload to Storage and delete', async () => {
   assert.equal(res.headers.get('cache-control'), 'public, max-age=31536000, immutable');
 
   // Cancelled from the app (the XHR shim's abort() -> fields.signal): 499, no library entry.
-  const before = (await designer.call('GET', '/media')).data.length;
+  const before = (await blaze.call('GET', '/media')).data.length;
   const early = new AbortController();
   early.abort();
-  const cancel = (fields) => designer.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'c.png', { type: 'image/png' }), fields });
+  const cancel = (fields) => blaze.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'c.png', { type: 'image/png' }), fields });
   assert.equal((await cancel({ signal: early.signal })).status, 499);
   const during = new AbortController();
   const midway = await cancel({ signal: during.signal, onProgress: () => during.abort() });
   assert.deepEqual([midway.status, midway.data.error], [499, 'أُلغي الرفع']);
-  assert.equal((await designer.call('GET', '/media')).data.length, before);
+  assert.equal((await blaze.call('GET', '/media')).data.length, before);
 
-  const fake = await designer.host.request({ method: 'POST', url: '/api/media', file: new File([new Uint8Array(20)], 'x.png'), fields: {} });
-  assert.equal(fake.status, 400);
-  assert.equal((await waiter.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'a.png'), fields: {} })).status, 403);
-
-  await waitFor(async () => (await owner.call('GET', '/media')).data.length === 1, { label: 'media on the owner' });
-  assert.equal((await owner.call('PUT', '/settings/general', { logoAssetId: up.data.id })).status, 200);
-  await waitFor(async () => (await designer.call('GET', '/settings')).data.logo_url === up.data.url, { label: 'the logo on the designer' });
-  assert.equal((await designer.call('DELETE', `/media/${up.data.id}`)).status, 409, 'a used file cannot be deleted');
-  await owner.call('PUT', '/settings/general', { logoAssetId: null });
-  await waitFor(async () => (await designer.call('GET', '/settings')).data.logo_url === null, { label: 'no logo on the designer' });
-  assert.equal((await designer.call('DELETE', `/media/${up.data.id}`)).status, 200);
+  // Other devices (Firestore mode or not) show a Storage file by its URL.
+  await waitFor(async () => (await owner.call('GET', '/media')).data.find((m) => m.id === up.data.id)?.url === up.data.url, { label: 'the Storage file on the owner' });
+  assert.equal((await blaze.call('DELETE', `/media/${up.data.id}`)).status, 200);
   // Gone from Storage (the emulator answers 403 for a deleted object's URL, production 404).
   await waitFor(async () => [403, 404].includes((await fetch(up.data.url)).status), { label: 'Storage object deleted' });
 });

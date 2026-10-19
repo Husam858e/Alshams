@@ -36,7 +36,8 @@ that is kept in sync with Firestore.**
                                                   ├─ demo route handlers run on `s`
                                                   │    ▼ diff before/after → batched writes (s → Firestore)
                                                   ├─ Firebase Auth (staff: email/password, projectors: anonymous)
-                                                  └─ Firebase Storage (media uploads)
+                                                  └─ media files: Firestore chunks + a per-device cache
+                                                     (Firebase Storage only with `media: 'storage'`)
 ```
 
 ### Rules of the replica
@@ -74,7 +75,7 @@ that is kept in sync with Firestore.**
    Order item IDs are unique within their order (`item_seq` on the order).
 6. **Handlers stay synchronous**: every mutating demo handler runs between a
    snapshot and a diff of `s` with no `await` in between, so remote snapshots
-   never interleave with a request. Routes that need Auth, Storage, queries
+   never interleave with a request. Routes that need Auth, media files, queries
    or acks have cloud versions (`cloud/backend/routes/`) that do their async
    work first and then call `mutate(fn)`.
 7. **Writes wait for the server only when online**: a request waits up to
@@ -96,16 +97,116 @@ that is kept in sync with Firestore.**
 | `projectors/{id}` | as the demo + `last_seen_at`, `acked_at`, `test_pattern`, `device_uid`, `pending` (+ `pairing_code`, `pairing_expires_at` while pending); no PJLink password | active staff and paired projectors | owner (structure), designer (calibration, rotation, layout, test pattern), the bound device (only `last_seen_at`, `acked_at`, `power`, and `pending`/`device_uid` when it claims) |
 | `devices/{uid}` | `{projectorId, code, at}` — binds an anonymous projector device | self, owner | self (claim with a valid, unexpired code that the same batch deletes), owner (unbind) |
 | `pairing/{code}` | `{projectorId, tableId, expiresAt (Timestamp), createdBy}` | `get` by anyone signed in | owner create; claiming device delete |
-| `categories/{id}`, `dishes/{id}`, `media/{id}` | as the demo; media has `storage_path`, `url` | active staff and paired projectors | owner/designer; **designer cannot change `price`** (new dish by a designer: price 0) |
+| `categories/{id}`, `dishes/{id}` | as the demo | active staff and paired projectors | owner/designer; **designer cannot change `price`** (new dish by a designer: price 0) |
+| `media/{id}` | as the demo + where the file is: `storage: 'firestore'`, `chunks`, `rev`, `sha256` (`url: null`); or `storage_path` + `url` (Storage) | active staff and paired projectors | owner/designer; a Firestore file only once its first and last chunk exist; afterwards only the title changes |
+| `mediaChunks/{assetId}_{index}` | `{assetId, index, data}` — `data` is Firestore Bytes, ≤ 900 KB | active staff and paired projectors | owner/designer create (shape and size checked, never for a published asset) and delete; never updated |
 | `settings/general`, `settings/theme` | as the demo | anyone (name and theme are public; the sign-in screen shows the name) | general: owner; theme: owner/designer |
 | `scenes/{tableId}` | `{type, categoryId?, dishId?, orderId?, at, by}` | active staff and paired projectors | staff; never an `order` scene by a designer |
 | `orders/{id}` | demo order (items embedded) | owner/waiter, and (one by one) the projector bound to that order's table | owner/waiter |
 | `activity/{id}` | demo activity row | owner | staff create only |
 
-Storage: `media/{assetId}/{file}`; write by owner/designer (role read with
-`firestore.get` from storage rules), content-type and size limits as the
-server (images, video, GLB; `maxUploadMb`), read by signed-in users.
-Uploads set `cacheControl: 'public, max-age=31536000, immutable'`.
+Firebase Storage is not used by default (see "Media in Firestore"). A
+project on the Blaze plan may set `media: 'storage'`: then uploads go to
+`media/{assetId}/{file}`; write by owner/designer (role read with
+`firestore.get` from `storage.rules`), content-type and size limits as the
+server (images, video, GLB; `maxUploadMb`), read by signed-in users, with
+`cacheControl: 'public, max-age=31536000, immutable'`.
+
+## Media in Firestore (default)
+
+The restaurant's project is on the free **Spark** plan, where Firebase
+Storage is not available (new projects need Blaze and a payment card). So
+media files live in Firestore itself (`cloud/backend/media.js`):
+
+**Upload** (`POST /media`, `cloud/backend/routes/content.js`):
+
+1. `inspectUpload` (extension, signature, 100 MB input limit) as before.
+2. **Images** (JPEG/PNG/WebP, photos, covers, logo and backgrounds alike) are
+   decoded and re-encoded in the browser: longest side ≤ **1600 px** (never
+   upscaled), **WebP quality 0.82** through `OffscreenCanvas.convertToBlob`
+   (a `<canvas>` without it), alpha kept. Without a WebP encoder: JPEG for
+   opaque images, PNG when any pixel is transparent. A file that is already
+   small enough and would not get smaller is kept as it is. EXIF orientation
+   is applied (`createImageBitmap`). `width`/`height` are those stored. In
+   Node (tests) there is no decoder: an encoder can be injected
+   (`createCloudHost(…, {imageEncoder})`), else images are stored as uploaded.
+3. **Videos** (MP4/WebM) and **GLB models** are stored as they are, within
+   **20 MB** and **15 MB** (`LIMIT_MB` in `media.js`, one place; compressed
+   images ≤ 10 MB). Above, a 413 in Arabic says the size, the limit and how
+   to shrink the file (shorter clip / 720p, smaller textures).
+4. The bytes are cut into **≤ 900 KB chunks** (under Firestore's 1 MiB per
+   document) and written as **Firestore Bytes** (no base64) to
+   `mediaChunks/{assetId}_{index}` `{assetId, index, data}`, two at a time,
+   each write acknowledged by the server: `fields.onProgress(written/total)`
+   is real progress. Upload needs the internet (refused offline at once; a
+   chunk unacknowledged for 60 s fails the upload).
+5. The **media doc comes last**, through the replica (`mutate`):
+   `{storage: 'firestore', chunks, size_bytes, mime_type, sha256, rev
+   (= sha256[0..16]), width, height, duration_ms, url: null, …}`. Readers only
+   look for chunks of assets in `media/`, and the rules refuse a media doc
+   whose first or last chunk is missing, so nobody sees half a file.
+6. **Cancel** (`fields.signal`, the XHR shim's `abort()`): no new chunk is
+   started, the chunks of that id are deleted in one batch (sent after the
+   writes, so applied after them) and the request answers 499. A failed or
+   refused upload cleans up the same way.
+
+**Delete** (`DELETE /media/:id`): the demo's checks (a used file cannot be
+deleted), then the media doc and all its chunks in **one batch**
+(`chunkDeletes` in the replica's `extra` writes). A Storage file (older entry
+or Blaze project) is deleted from Storage afterwards, as before.
+
+**Display.** The shared model's DTOs take a URL synchronously
+(`createModel(s, {assetUrl})`, demo/server: `asset.url`). In cloud mode
+`assetUrl` is the device's **media cache** (`createMediaCache`):
+
+- a ready file → its `blob:` URL (`URL.createObjectURL`), usable by `<img>`,
+  `<video>`, the three.js GLB loader, the staff app's preview iframes (same
+  origin) and the projector player;
+- otherwise `null` (the screens show their placeholder) and the file starts
+  loading: from the **Cache API** (`caches.open('pm-media-v1')`, key
+  `<assetId>-<rev>`), else from Firestore (chunk reads, a few at a time,
+  reassembled into a Blob, size checked) and then stored in the cache.
+  Images load before models, models before videos; two files at a time.
+- when files arrive (debounced, ≤ 1.5 s) the host refreshes what shows them:
+  staff hosts emit `menu:changed` (menu, library, previews; plus
+  `settings:changed` when it is the logo or the background), device hosts
+  re-bootstrap the player. A failed load is retried when asked again after
+  30 s and when the connection comes back.
+- the uploading device puts its own bytes in the cache: the upload's answer
+  already has a working URL.
+- URLs of deleted/replaced files are revoked; after a server (not cache)
+  snapshot of `media/`, cached files no longer in the library are deleted
+  from the Cache API.
+
+**Projectors prefetch** every file their menu and settings use (dish
+photos/videos/models, category covers, logo, theme background) at every
+bootstrap, so a table has everything on the device and keeps showing it
+offline (also after a restart: Firestore's own cache has the docs, the Cache
+API the files). **Staff devices load lazily**: a file is read when a screen
+needs its URL.
+
+The player's URL policy (`public/player/lib/media.js`) accepts `blob:` URLs of
+its own origin only (`blob:<page origin>/<uuid>`), next to `/media/…` server
+files and Storage download URLs; it never shows a URL of another site. A
+player saves its last bootstrap in `localStorage` with `blob:` URLs removed
+(they die with the page), so a reloaded projector shows placeholders until
+the cache hands it fresh URLs (immediately when the files are cached).
+
+**Free-tier capacity (Spark).** Firestore storage is 1 GiB in total: a
+compressed photo is typically 100–300 KB (thousands fit), a short clip a few
+MB. Reads are counted per document: a file costs one read per 900 KB chunk,
+**once per device** (then it comes from the device's cache). Free each day:
+50,000 reads, 20,000 writes, 20,000 deletes; and 10 GiB of outbound traffic
+a month. Each device keeps its files in its own storage (no cache shared
+between devices), so ten projectors read a new 6 MB clip ten times.
+
+**Firebase Storage (optional).** A project on Blaze can keep media in Storage
+with `media: 'storage'` in its Firebase config (built-in
+`cloud/firebase-config.js`, or pasted in setup; native `FirebaseProject` and
+`cloud/config.js` keep the key): uploads then go to Storage as described
+above, the Android app caches those downloads (`MediaProxy`), and
+`storage.rules` must be published. Existing library entries keep working
+whichever mode is set (each entry says where its file is).
 
 ## Accounts
 
@@ -167,8 +268,8 @@ Uploads set `cacheControl: 'public, max-age=31536000, immutable'`.
 
 Firestore's persistent local cache (IndexedDB) is on: a device that loses
 the internet keeps working on its cached data, queues its writes and syncs
-when back. A projector keeps showing its last menu; media files are cached
-on the device by the Android app (see below).
+when back. A projector keeps showing its last menu; its media files are in
+its Cache API storage (see "Media in Firestore"). Uploads need the internet.
 
 ## Android integration
 
@@ -179,9 +280,11 @@ on the device by the Android app (see below).
 - Firebase project config: built-in default `cloud/firebase-config.js`
   (empty until the restaurant's project is known) or pasted in setup
   (stored on the device).
-- Media cache: the WebView intercepts `firebasestorage.googleapis.com`
-  downloads, serves them from a disk cache (Range supported) and adds CORS
-  headers (the 3D model loader uses XHR).
+- Media cache: by default the pages keep media files in the Cache API
+  (`pm-media-v1`, per app origin). For `media: 'storage'` projects the
+  WebView intercepts `firebasestorage.googleapis.com` downloads, serves them
+  from a disk cache (Range supported) and adds CORS headers (the 3D model
+  loader uses XHR).
 
 ## Implementation map
 
@@ -197,8 +300,10 @@ on the device by the Android app (see below).
   events, previews), `device.js` (projector), `replica.js` (mirror, diff,
   commit), `ids.js`, `schema.js` (collections, conversions, constants),
   `firebase.js` (app instances `pm-staff` / `pm-device`, emulators,
-  persistent cache, errors), `routes/` (cloud versions of the routes that
-  need Auth, Storage, queries or acks).
+  persistent cache, errors; the Storage SDK only for `media: 'storage'`),
+  `media.js` (limits, image re-encoding, chunks, the device media cache),
+  `routes/` (cloud versions of the routes that need Auth, media files,
+  queries or acks).
 - Firestore reads stay small: order history = replica + one cached query of
   older orders (500, refreshed at most every 10 minutes); reports = one range
   query on `created_at`; activity = `orderBy(created_at) + limit`. Every
@@ -208,15 +313,19 @@ on the device by the Android app (see below).
 
 ## Project setup and tests
 
-- Firebase console: enable Authentication → Email/Password and Anonymous;
-  create Firestore; Storage needs the Blaze plan for new projects (its
-  free quota still applies). Deploy the rules with
-  `npx firebase-tools deploy --only firestore:rules,storage --project <id>
-  --config firebase/firebase.json`; Storage's role check reads Firestore
-  (cross-service rules), which the first deploy asks to allow.
+- Firebase console (Spark plan is enough): enable Authentication →
+  Email/Password and Anonymous; create Firestore; publish
+  `firebase/firestore.rules` (console, or `npx firebase-tools deploy --only
+  firestore:rules --project <id> --config firebase/firebase.json`). Only a
+  `media: 'storage'` project also needs Storage (Blaze) and `storage.rules`
+  (`--only firestore:rules,storage`; Storage's role check reads Firestore,
+  which the first deploy asks to allow).
 - `npm run test:cloud` runs `test/cloud/*.test.js` (security rules and the
-  hosts end to end) on the emulators (`demo-pm`, no real project). Behind an
-  HTTP proxy, set `HTTPS_PROXY=undefined` for that command: firebase-tools
-  sends its emulator-to-emulator calls through `HTTPS_PROXY` (ignoring
-  `NO_PROXY`), which breaks Storage's role check.
+  hosts end to end, media in Firestore and in Storage) on the emulators
+  (`demo-pm`, no real project). Behind an HTTP proxy, set
+  `HTTPS_PROXY=undefined` for that command: firebase-tools sends its
+  emulator-to-emulator calls through `HTTPS_PROXY` (ignoring `NO_PROXY`),
+  which breaks Storage's role check. `npm test` covers chunking, image
+  sizing, limits and the media cache without emulators
+  (`test/cloud-media.test.js`).
 

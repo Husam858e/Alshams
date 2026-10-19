@@ -128,4 +128,14 @@ class CloudTest {
         assertNull(FirebaseProject.sanitize(good + ("projectId" to "Demo_PM")))
         assertNull(FirebaseProject.sanitize(good + ("appId" to "x".repeat(301))))
     }
+
+    @Test
+    fun firebaseProjectKeepsTheMediaMode() {
+        val good = mapOf("apiKey" to "k", "projectId" to "demo-pm", "appId" to "1:2:web:3", "storageBucket" to "b")
+        // Firestore is the default: the key is left out.
+        assertEquals(good, FirebaseProject.sanitize(good + ("media" to "firestore")))
+        assertEquals(good + ("media" to "storage"), FirebaseProject.sanitize(good + ("media" to " storage ")))
+        assertNull(FirebaseProject.sanitize(good + ("media" to "s3")))
+        assertNull(FirebaseProject.sanitize(good + ("media" to 1)))
+    }
 }

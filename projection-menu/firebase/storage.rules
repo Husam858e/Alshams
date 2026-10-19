@@ -1,9 +1,14 @@
 rules_version = '2';
 
-// Storage rules of cloud mode: the media library (media/{assetId}/{file}).
-// Owners and designers upload (same types and size limit as the server's
-// media route); every signed-in user and device may read (the players load
-// files by their download URL). Roles come from Firestore roles/{uid}.
+// Storage rules of cloud mode, ONLY for a project that keeps its media in
+// Firebase Storage (`media: 'storage'` in its config; needs the Blaze plan).
+// By default media files live in Firestore (mediaChunks/, see
+// firestore.rules) and these rules are not needed.
+//
+// The media library (media/{assetId}/{file}): owners and designers upload
+// (same types and size limit as the server's media route); every signed-in
+// user and device may read (the players load files by their download URL).
+// Roles come from Firestore roles/{uid}.
 
 service firebase.storage {
   match /b/{bucket}/o {

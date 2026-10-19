@@ -78,6 +78,9 @@ object CloudPages {
 object FirebaseProject {
     val REQUIRED = listOf("apiKey", "projectId", "appId", "storageBucket")
     private val KNOWN = listOf("apiKey", "authDomain", "databaseURL", "projectId", "storageBucket", "messagingSenderId", "appId", "measurementId")
+    // Ours, next to Firebase's keys: where media files go. "firestore" is the
+    // default (kept by leaving the key out); "storage" = Firebase Storage (Blaze plan).
+    private val MEDIA_MODES = listOf("firestore", "storage")
     private val PROJECT_ID = Regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$")
     private val WHITESPACE = Regex("\\s")
     private const val MAX_VALUE = 300
@@ -94,6 +97,11 @@ object FirebaseProject {
             if (text.isEmpty()) continue
             if (text.length > MAX_VALUE || WHITESPACE.containsMatchIn(text)) return null
             out[key] = text
+        }
+        values["media"]?.let { media ->
+            val mode = (media as? String)?.trim() ?: return null
+            if (mode.isNotEmpty() && mode !in MEDIA_MODES) return null
+            if (mode == "storage") out["media"] = mode
         }
         if (REQUIRED.any { it !in out }) return null
         if (!PROJECT_ID.matches(out.getValue("projectId"))) return null

@@ -4,6 +4,10 @@
 // (IndexedDB in the browser: a device keeps working on its cached data when
 // the internet drops; memory in Node), and Firebase errors -> the API's
 // Arabic HTTP errors.
+//
+// Media files live in Firestore by default (media.js). Firebase Storage is
+// opened only for a project whose config says `media: 'storage'` (it needs the
+// Blaze plan), so the default never loads the Storage SDK.
 
 import { deleteApp, getApps, initializeApp } from 'firebase/app';
 import {
@@ -23,8 +27,8 @@ import {
   persistentMultipleTabManager,
   terminate,
 } from 'firebase/firestore';
-import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { HttpError } from '../../demo/backend/validate.js';
+import { mediaMode } from './media.js';
 
 const inBrowser = () => typeof indexedDB !== 'undefined' && typeof window !== 'undefined';
 
@@ -39,13 +43,13 @@ export function checkConfig(config) {
   }
 }
 
-const sameConfig = (a, b) => ['apiKey', 'projectId', 'appId', 'storageBucket', 'authDomain'].every((k) => (a?.[k] ?? null) === (b?.[k] ?? null));
+const sameConfig = (a, b) => ['apiKey', 'projectId', 'appId', 'storageBucket', 'authDomain', 'media'].every((k) => (a?.[k] ?? null) === (b?.[k] ?? null));
 
 // Services opened on this page, by app name (initializeFirestore may only
 // run once per app, and the device setup screen and the player share one).
 const opened = new Map();
 
-// -> {app, auth, db, storage, config, emulators}
+// -> {app, auth, db, media: 'firestore'|'storage', storage, storageSdk, config, emulators}
 // persistent: Firestore's IndexedDB cache (browser only; off for one-off probes)
 export async function openFirebase(config, { name, emulators = null, persistent = inBrowser() } = {}) {
   checkConfig(config);
@@ -53,23 +57,27 @@ export async function openFirebase(config, { name, emulators = null, persistent 
   if (current && sameConfig(current.config, config) && JSON.stringify(current.emulators) === JSON.stringify(emulators)) return current;
   if (current) await closeFirebase(current); // the project was changed in setup
 
-  const app = getApps().find((a) => a.name === name) ?? initializeApp(config, name);
+  // `media` is ours, not a Firebase option.
+  const { media: _media, ...options } = config;
+  const media = mediaMode(config);
+  const app = getApps().find((a) => a.name === name) ?? initializeApp(options, name);
   const browser = inBrowser();
   const auth = initializeAuth(app, { persistence: browser && persistent ? [indexedDBLocalPersistence, browserLocalPersistence] : inMemoryPersistence });
   const db = initializeFirestore(app, {
     localCache: browser && persistent ? persistentLocalCache({ tabManager: persistentMultipleTabManager() }) : memoryLocalCache(),
     ignoreUndefinedProperties: true,
   });
-  const storage = config.storageBucket || emulators ? getStorage(app) : null;
+  const storageSdk = media === 'storage' && (config.storageBucket || emulators) ? await import('firebase/storage') : null;
+  const storage = storageSdk ? storageSdk.getStorage(app) : null;
   // An upload over a dead connection fails after this long instead of 10 minutes.
   if (storage) storage.maxUploadRetryTime = 2 * 60 * 1000;
   if (emulators) {
     const host = emulators.host ?? '127.0.0.1';
     if (emulators.auth) connectAuthEmulator(auth, `http://${host}:${emulators.auth}`, { disableWarnings: true });
     if (emulators.firestore) connectFirestoreEmulator(db, host, emulators.firestore);
-    if (emulators.storage && storage) connectStorageEmulator(storage, host, emulators.storage);
+    if (emulators.storage && storage) storageSdk.connectStorageEmulator(storage, host, emulators.storage);
   }
-  const services = { app, auth, db, storage, config, emulators, name };
+  const services = { app, auth, db, media, storage, storageSdk, config, options, emulators, name };
   opened.set(name, services);
   return services;
 }
@@ -92,7 +100,7 @@ export async function closeFirebase(services) {
 // accounts with it and stays signed in on the main one.
 let secondaryCount = 0;
 export async function withSecondaryAuth(services, fn) {
-  const app = initializeApp(services.config, `${services.name}-accounts-${++secondaryCount}`);
+  const app = initializeApp(services.options ?? services.config, `${services.name}-accounts-${++secondaryCount}`);
   try {
     const auth = initializeAuth(app, { persistence: inMemoryPersistence });
     const emu = services.emulators;

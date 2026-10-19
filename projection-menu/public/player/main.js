@@ -81,9 +81,13 @@ function loadCached() {
     return null;
   }
 }
+// blob: URLs (cloud mode's media cache, demo uploads) die with the page that
+// made them: saved as null, the reloaded player shows placeholders until the
+// backend hands it fresh ones, instead of requests for dead URLs.
+const noBlobUrls = (_key, value) => (typeof value === 'string' && value.startsWith('blob:') ? null : value);
 function saveCached(boot, scene) {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ key: deviceKey, boot, scene }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ key: deviceKey, boot, scene }, noBlobUrls));
   } catch {
     // storage full or disabled: not critical
   }

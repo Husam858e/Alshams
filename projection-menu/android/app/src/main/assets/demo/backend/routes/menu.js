@@ -251,8 +251,8 @@ export function menuRoutes(route, ctx) {
     return map;
   };
   const mediaDto = (a, usage = usageMap()) => {
-    const { url, ...row } = a;
-    return { ...row, url, uploaded_by_name: find.user(a.uploaded_by)?.name ?? null, used_by: usage.get(a.id) ?? [] };
+    const { url: _url, ...row } = a;
+    return { ...row, url: dto.assetUrl ? dto.assetUrl(a) : a.url, uploaded_by_name: find.user(a.uploaded_by)?.name ?? null, used_by: usage.get(a.id) ?? [] };
   };
   dto.media = mediaDto; // for backends that replace some of these routes
   const loadAsset = (id) => {
@@ -303,7 +303,7 @@ export function menuRoutes(route, ctx) {
     const users = usageMap().get(a.id) ?? [];
     if (users.length) throw conflict(`لا يمكن حذف الملف لأنه مستخدم في: ${users.map((u) => u.label).join('، ')}`);
     s.assets.splice(s.assets.indexOf(a), 1);
-    if (a.url.startsWith('blob:')) URL.revokeObjectURL(a.url);
+    if (a.url?.startsWith('blob:')) URL.revokeObjectURL(a.url);
     log(user, 'media.delete', { title: a.title });
     return { ok: true };
   });

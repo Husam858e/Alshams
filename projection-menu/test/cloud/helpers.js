@@ -40,10 +40,14 @@ export async function waitFor(fn, { timeout = 8000, label = 'condition' } = {}) 
   }
 }
 
+// A project that keeps media in Firebase Storage (Blaze plan) instead of Firestore.
+export const STORAGE_CONFIG = { ...CONFIG, media: 'storage' };
+
 let hosts = 0;
 // A staff host with its own Firebase app (= its own device and session).
-export async function staffHost(cloud, name = 'staff') {
-  const host = await cloud.createCloudHost(CONFIG, { role: 'staff', emulators: EMULATORS, appName: `${name}-${++hosts}` });
+// options: config (default CONFIG), imageEncoder, mediaStore (createCloudHost's)
+export async function staffHost(cloud, name = 'staff', { config = CONFIG, ...options } = {}) {
+  const host = await cloud.createCloudHost(config, { role: 'staff', emulators: EMULATORS, appName: `${name}-${++hosts}`, ...options });
   const call = async (method, url, body) => host.request({ method, url: `/api${url}`, body });
   const events = [];
   host.subscribeLive((event, payload) => events.push({ event, payload }));
@@ -70,4 +74,14 @@ export const loginAs = async (staff, username, password) => {
 // test process can exit.
 export async function closeAllApps() {
   await Promise.all(getApps().map((app) => deleteApp(app).catch(() => {})));
+}
+
+// Documents of a collection, read past the security rules (the emulator's
+// admin access). -> [{id, fields}]
+export async function adminList(collectionPath) {
+  const { host, firestore } = EMULATORS;
+  const res = await fetch(`http://${host}:${firestore}/v1/projects/${PROJECT}/databases/(default)/documents/${collectionPath}?pageSize=300`, { headers: { authorization: 'Bearer owner' } });
+  if (!res.ok) throw new Error(`admin list ${collectionPath}: ${res.status} ${await res.text()}`);
+  const body = await res.json();
+  return (body.documents ?? []).map((d) => ({ id: d.name.split('/').pop(), fields: d.fields }));
 }

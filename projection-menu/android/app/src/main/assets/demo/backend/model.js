@@ -7,6 +7,11 @@
 // `s`: users, areas, tables, projectors, assets, categories, dishes, orders
 // (items embedded), activity, scenes (Map tableId -> scene), settings
 // {general, theme}.
+//
+// `assetUrl(asset)` gives a library file's URL, synchronously: the demo and
+// the server keep it on the row (`asset.url`); cloud mode with media in
+// Firestore resolves it from the device's media cache (a blob: URL once the
+// file is there, null while it loads; the host refreshes the screens then).
 
 import { ACTIVE_STATUSES, SCENE_TYPES, publicUser } from './roles.js';
 import { DEFAULT_CALIBRATION } from './seed.js';
@@ -22,10 +27,15 @@ export const sceneFor = (scene, role) => {
   return rest;
 };
 
-export function createModel(s) {
+const rowUrl = (asset) => asset?.url ?? null;
+
+export function createModel(s, { assetUrl = rowUrl } = {}) {
   // ── Lookups ────────────────────────────────────────────────────
   const assetById = (id) => (id ? s.assets.find((a) => a.id === id) ?? null : null);
-  const urlOf = (id) => assetById(id)?.url ?? null;
+  const urlOf = (id) => {
+    const asset = assetById(id);
+    return asset ? assetUrl(asset) : null;
+  };
   const tableById = (id) => s.tables.find((t) => t.id === id) ?? null;
   const areaById = (id) => s.areas.find((a) => a.id === id) ?? null;
   const userById = (id) => s.users.find((u) => u.id === id) ?? null;
@@ -170,7 +180,7 @@ export function createModel(s) {
 
   return {
     find: { table: tableById, area: areaById, user: userById, asset: assetById, order: orderById },
-    dto: { dish: dishDto, category: categoryDto, menu, settings: settingsAll, order: orderDto, table: tableDto, floor, publicUser },
+    dto: { dish: dishDto, category: categoryDto, menu, settings: settingsAll, order: orderDto, table: tableDto, floor, publicUser, assetUrl },
     sortedTables,
     storedScene,
     resolve,

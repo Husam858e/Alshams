@@ -18,6 +18,7 @@ import { menuRoutes } from '../../demo/backend/routes/menu.js';
 import { orderRoutes } from '../../demo/backend/routes/orders.js';
 import { httpErrorOf, watchConnection } from './firebase.js';
 import { createIds } from './ids.js';
+import { browserImageEncoder, createMediaCache } from './media.js';
 import { createReplica } from './replica.js';
 import { ACK_WAIT_MS, ONLINE_CHECK_MS, ONLINE_MS, ORDER_WINDOW_MS, emptyState, loginKey } from './schema.js';
 import { accountRoutes } from './routes/accounts.js';
@@ -43,11 +44,27 @@ const sameExcept = (a, b, skip) => {
   return strip(a) === strip(b);
 };
 
-export function createStaffHost(services, { now = () => Date.now() } = {}) {
+// options: now, imageEncoder (uploads; default: the browser's, none in Node),
+//          mediaStore (where this device keeps media files; default: Cache API)
+export function createStaffHost(services, { now = () => Date.now(), imageEncoder = browserImageEncoder(), mediaStore = undefined } = {}) {
   const { auth, db } = services;
   const s = emptyState();
   const nowIso = () => new Date(now()).toISOString();
-  const model = createModel(s);
+  // Media files in Firestore: loaded when a screen needs them (lazily; a
+  // projector prefetches instead), then from this device's cache. When files
+  // arrive, the screens that show media are refreshed.
+  const media = createMediaCache({
+    db,
+    store: mediaStore,
+    onReady: (arrived) => {
+      if (!liveReady) return;
+      emit('menu:changed', {}); // menu, library and previews
+      const { general, theme } = s.settings;
+      const shownBySettings = new Set([general.logoAssetId, theme.background?.assetId].filter(Boolean));
+      if (arrived.some((a) => shownBySettings.has(a.id))) emit('settings:changed', {});
+    },
+  });
+  const model = createModel(s, { assetUrl: (asset) => media.url(asset) });
   const { dto, find } = model;
   const ids = createIds(db, { wantsSpare: (kind) => connected && (kind !== 'order' || ORDER_ROLES.includes(session?.role)) });
   s.nextId = (kind) => ids.next(kind);
@@ -300,7 +317,8 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
   }
 
   // ── Snapshots -> live events ───────────────────────────────────
-  function onChange(key, changes, { initial }) {
+  function onChange(key, changes, { initial, fromCache }) {
+    if (key === 'assets') media.sync(s.assets, { complete: !fromCache });
     if (key === 'projectors') {
       checkOnline({ quiet: initial || !liveReady });
       for (const w of [...ackWaiters]) w();
@@ -397,6 +415,7 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
     connected = value;
     for (const fn of [...connectionListeners]) fn(value);
     for (const sub of [...previews]) deliver(sub, 'online', value);
+    if (back) media.retry();
     if (back && liveReady) emit('live:connected', {}); // catch up on what was missed
   });
 
@@ -472,6 +491,9 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
     model,
     services,
     ids,
+    media,
+    imageEncoder,
+    isOnline: () => connected,
     user,
     now,
     nowIso,
@@ -584,8 +606,10 @@ export function createStaffHost(services, { now = () => Date.now() } = {}) {
       stopSession();
       subscribers.clear();
       previews.clear();
+      media.close();
     },
 
     routes: router.list,
+    media,
   };
 }

@@ -16,7 +16,12 @@
 //   };
 //
 // These values identify the project; they are not secrets (access is guarded
-// by the Firestore / Storage security rules and Firebase Auth).
+// by the Firestore security rules and Firebase Auth).
+//
+// Media files (photos, videos, 3D models) are kept in Firestore, which the
+// free Spark plan covers. A project on the Blaze plan may keep them in Firebase
+// Storage instead by adding `media: 'storage'` (and publishing
+// firebase/storage.rules); see docs/cloud-architecture.md.
 
 export default {
   apiKey: 'AIzaSyACc7ANpHwrBKYcty2UZKJbFRkzCARduWo',

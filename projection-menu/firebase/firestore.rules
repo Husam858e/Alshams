@@ -274,10 +274,46 @@ service cloud.firestore {
       allow delete: if isContentTeam();
     }
 
+    // The media library. A file kept in Firestore (storage == 'firestore',
+    // the default) is published only once its chunks are written (the first
+    // and the last must exist); a library entry's file never changes after,
+    // only its title. Older entries / Blaze projects keep files in Firebase
+    // Storage (storage_path + url).
     match /media/{id} {
+      function chunksWritten() {
+        return data().chunks is int && data().chunks >= 1 && data().chunks <= 32
+          && data().size_bytes is int && data().size_bytes > 0 && data().size_bytes <= data().chunks * 921600
+          && data().rev is string && data().rev.size() <= 64
+          && data().mime_type in ['image/webp', 'image/jpeg', 'image/png', 'video/mp4', 'video/webm', 'model/gltf-binary']
+          && exists(docPath('mediaChunks', id + '_0'))
+          && exists(docPath('mediaChunks', id + '_' + string(data().chunks - 1)));
+      }
       allow read: if isMember();
-      allow create, update: if isContentTeam() && idMatches(id);
+      allow create: if isContentTeam() && idMatches(id)
+        && data().kind in ['image', 'video', 'model3d']
+        && (data().get('storage', null) != 'firestore' || chunksWritten());
+      allow update: if isContentTeam() && idMatches(id)
+        && !changed().hasAny(['kind', 'storage', 'chunks', 'rev', 'sha256', 'size_bytes', 'mime_type', 'url', 'storage_path', 'file_name']);
       allow delete: if isContentTeam();
+    }
+
+    // Media files kept in Firestore: ≤ 900 KB pieces of one file, Firestore
+    // Bytes, id "<assetId>_<index>". Written before their media doc, never
+    // changed (nor added to a published file), deleted with it.
+    match /mediaChunks/{chunk} {
+      function validChunk() {
+        let d = data();
+        return d.keys().hasOnly(['assetId', 'index', 'data'])
+          && d.assetId is int && d.assetId > 0
+          && d.index is int && d.index >= 0 && d.index < 32
+          && d.data is bytes && d.data.size() > 0 && d.data.size() <= 921600
+          && chunk == string(d.assetId) + '_' + string(d.index)
+          && !exists(docPath('media', string(d.assetId)));
+      }
+      allow read: if isMember();
+      allow create: if isContentTeam() && validChunk();
+      allow update: if false;
+      allow delete: if isContentTeam() && chunk.matches('^[0-9]+_[0-9]+$');
     }
 
     // Public: the restaurant's name and theme are shown on every table (and

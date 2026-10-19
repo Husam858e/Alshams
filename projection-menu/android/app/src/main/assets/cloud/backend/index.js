@@ -13,8 +13,11 @@
 //   claimProjector(config, code, {emulators})  binds this device to a projector
 //   probeProject(config, {emulators})          checks a pasted Firebase config
 //
-// `config` is the Firebase web app config; `emulators` ({host, auth,
-// firestore, storage} ports) points everything at the local emulators.
+// `config` is the Firebase web app config (+ optional `media: 'storage'` for
+// a project that keeps media in Firebase Storage; default: Firestore, see
+// media.js); `emulators` ({host, auth, firestore, storage} ports) points
+// everything at the local emulators. Tests may pass `imageEncoder` (uploads)
+// and `mediaStore` (the device's media cache) instead of the browser's.
 
 import { doc, getDocFromServer } from 'firebase/firestore';
 import { HttpError } from '../../demo/backend/validate.js';
@@ -29,17 +32,18 @@ export const DEVICE_APP = 'pm-device';
 
 const SIGNED_OUT = { status: 401, data: { error: 'يجب تسجيل الدخول أولاً' } };
 
-export async function createCloudHost(config, { role = 'staff', emulators = null, appName = null } = {}) {
+export async function createCloudHost(config, { role = 'staff', emulators = null, appName = null, imageEncoder, mediaStore } = {}) {
   if (role !== 'staff' && role !== 'device') throw new Error(`createCloudHost: unknown role ${role}`);
   const services = await openFirebase(config, { name: appName ?? (role === 'device' ? DEVICE_APP : STAFF_APP), emulators });
 
   if (role === 'device') {
-    const host = createDeviceHost(services);
+    const host = createDeviceHost(services, { mediaStore });
     return {
       role,
       openDevice: host.openDevice,
       onConnection: host.onConnection,
       deviceId: host.deviceId,
+      media: host.media,
       // Staff calls have no session on a projector.
       request: async () => structuredClone(SIGNED_OUT),
       subscribeLive: () => () => {},
@@ -55,9 +59,10 @@ export async function createCloudHost(config, { role = 'staff', emulators = null
     };
   }
 
-  const host = createStaffHost(services);
+  const host = createStaffHost(services, { imageEncoder, mediaStore });
   return {
     role,
+    media: host.media,
     request: host.request,
     subscribeLive: host.subscribeLive,
     currentUser: host.currentUser,

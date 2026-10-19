@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { Timestamp, deleteDoc, doc, getDoc, getDocs, collection, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { Bytes, Timestamp, deleteDoc, doc, getDoc, getDocs, collection, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 import { EMULATORS, PROJECT, ROOT, resetEmulators } from './helpers.js';
 
@@ -249,6 +249,76 @@ describe('projector devices', () => {
     await assertFails(updateDoc(d(as('dev'), 'projectors/1'), { last_seen_at: Timestamp.now() }));
     await assertFails(getDoc(d(as('dev'), 'orders/1')));
     await assertFails(getDoc(d(as('dev'), 'dishes/1')));
+  });
+});
+
+describe('media in Firestore', () => {
+  const bytes = (n) => Bytes.fromUint8Array(new Uint8Array(n).fill(7));
+  const chunk = (assetId, index, extra = {}) => ({ assetId, index, data: bytes(1000), ...extra });
+  const putChunk = (uid, id, data) => setDoc(d(as(uid), `mediaChunks/${id}`), data);
+  const asset = (id, extra = {}) => ({ id, kind: 'video', title: 't', storage: 'firestore', chunks: 2, rev: 'abc', size_bytes: 1500000, mime_type: 'video/webm', url: null, ...extra });
+
+  test('owners and designers write chunks; nobody changes one', async () => {
+    await assertSucceeds(putChunk('des', '7_0', chunk(7, 0)));
+    await assertSucceeds(putChunk('own', '7_1', chunk(7, 1, { data: bytes(900 * 1024) })));
+    await assertFails(putChunk('wai', '8_0', chunk(8, 0)));
+    await assertFails(putChunk('old', '8_0', chunk(8, 0)));
+    await assertFails(putChunk('dev', '8_0', chunk(8, 0)), 'a projector writes no media');
+    await assertFails(putChunk('stranger', '8_0', chunk(8, 0)));
+    await assertFails(putChunk('des', '7_0', chunk(7, 0)), 'chunks are immutable');
+    await assertFails(updateDoc(d(as('des'), 'mediaChunks/7_0'), { data: bytes(10) }));
+  });
+
+  test('chunks are checked: id, index, Bytes, size, nothing else', async () => {
+    await assertFails(putChunk('des', '8_0', chunk(8, 1)), 'id must be <assetId>_<index>');
+    await assertFails(putChunk('des', '9_0', chunk(8, 0)));
+    await assertFails(putChunk('des', '8_32', chunk(8, 32)), 'at most 32 chunks');
+    await assertFails(putChunk('des', '8_-1', chunk(8, -1)));
+    await assertFails(putChunk('des', '0_0', chunk(0, 0)));
+    await assertFails(putChunk('des', '8_0', chunk(8, 0, { data: 'AAAA' })), 'Bytes, not text');
+    await assertFails(putChunk('des', '8_0', chunk(8, 0, { data: bytes(900 * 1024 + 1) })), '≤ 900 KB');
+    await assertFails(putChunk('des', '8_0', chunk(8, 0, { data: bytes(0) })));
+    await assertFails(putChunk('des', '8_0', chunk(8, 0, { note: 'x' })));
+    await assertFails(putChunk('des', '8_0', chunk('8', 0)));
+    await assertSucceeds(putChunk('des', '8_0', chunk(8, 0)));
+  });
+
+  test('a library entry is published after its chunks, and its file never changes', async () => {
+    const db = as('des');
+    await assertSucceeds(putChunk('des', '7_0', chunk(7, 0)));
+    await assertFails(setDoc(d(db, 'media/7'), asset(7)), 'the last chunk is missing');
+    await assertSucceeds(putChunk('des', '7_1', chunk(7, 1)));
+    await assertFails(setDoc(d(db, 'media/7'), asset(7, { chunks: 3 })));
+    await assertFails(setDoc(d(db, 'media/7'), asset(7, { size_bytes: 2 * 921600 + 1 })), 'more bytes than chunks hold');
+    await assertFails(setDoc(d(db, 'media/7'), asset(7, { mime_type: 'text/html' })));
+    await assertFails(setDoc(d(as('wai'), 'media/7'), asset(7)));
+    await assertSucceeds(setDoc(d(db, 'media/7'), asset(7)));
+    await assertFails(putChunk('des', '7_2', chunk(7, 2)), 'no chunks added to a published file');
+    await assertSucceeds(updateDoc(d(db, 'media/7'), { title: 'جديد' }));
+    await assertFails(updateDoc(d(db, 'media/7'), { chunks: 1 }));
+    await assertFails(updateDoc(d(db, 'media/7'), { rev: 'other' }));
+    await assertFails(updateDoc(d(db, 'media/7'), { size_bytes: 1 }));
+    // Files in Firebase Storage (Blaze projects, older entries) need no chunks.
+    await assertSucceeds(setDoc(d(db, 'media/9'), { id: 9, kind: 'image', title: 'x', url: 'https://x', storage_path: 'media/9/upload-9.png' }));
+  });
+
+  test('staff and paired projectors read chunks; deletes are the content team\'s', async () => {
+    await assertSucceeds(putChunk('des', '7_0', chunk(7, 0)));
+    for (const uid of ['own', 'des', 'wai', 'dev']) await assertSucceeds(getDoc(d(as(uid), 'mediaChunks/7_0')));
+    for (const uid of [null, 'stranger', 'old']) await assertFails(getDoc(d(as(uid), 'mediaChunks/7_0')));
+    await assertFails(deleteDoc(d(as('wai'), 'mediaChunks/7_0')));
+    await assertFails(deleteDoc(d(as('dev'), 'mediaChunks/7_0')));
+    await assertSucceeds(deleteDoc(d(as('des'), 'mediaChunks/7_0')));
+    // A library entry and its chunks go in one batch.
+    await assertSucceeds(putChunk('des', '7_0', chunk(7, 0)));
+    await assertSucceeds(putChunk('des', '7_1', chunk(7, 1)));
+    await assertSucceeds(setDoc(d(as('des'), 'media/7'), asset(7)));
+    const db = as('own');
+    const b = writeBatch(db);
+    b.delete(d(db, 'media/7'));
+    b.delete(d(db, 'mediaChunks/7_0'));
+    b.delete(d(db, 'mediaChunks/7_1'));
+    await assertSucceeds(b.commit());
   });
 });
 

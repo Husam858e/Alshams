@@ -202,13 +202,14 @@
 
 بدلاً من كمبيوتر الخادم، تتصل كل الأجهزة عبر الإنترنت بمشروع **Firebase** (من Google) يملكه المطعم. التطبيق نفسه وشاشاته نفسها، والفرق في شاشة الإعداد: اختر **سحابي (Firebase) — بدون خادم** والصق إعدادات المشروع.
 
-**الدليل الكامل خطوة بخطوة:** [docs/firebase-setup.md](docs/firebase-setup.md) — إنشاء المشروع، تفعيل الدخول، قاعدة البيانات والملفات، نشر قواعد الأمان بالنسخ واللصق، ثم تابلت المالك وربط أجهزة العرض.
+**الدليل الكامل خطوة بخطوة:** [docs/firebase-setup.md](docs/firebase-setup.md) — إنشاء المشروع، تفعيل الدخول، قاعدة البيانات، نشر قواعد الأمان (`firestore.rules`) بالنسخ واللصق، ثم تابلت المالك وربط أجهزة العرض. الخطة المجانية **Spark** تكفي: لا Storage ولا Blaze ولا بطاقة دفع.
 
 باختصار عن الحدود:
 
 - **الإنترنت مطلوب للتغييرات الحية** بين الأجهزة. عند انقطاعه يكمل كل جهاز ببياناته المحفوظة (جهاز العرض يبقي آخر ما عرضه وصوره)، وتُرسل التعديلات عند عودة الاتصال. التشغيل الأول لكل جهاز يحتاج الإنترنت.
 - **التشغيل والإطفاء عبر الشبكة (PJLink) غير متاح** سحابياً، ولا روابط مشغّل للمتصفح ولا تنزيل للتطبيق من خادم: أجهزة العرض تُربط بالتطبيق ورمز من 6 أرقام، وملف التطبيق تنقله بنفسك.
-- يحتاج رفع الصور والفيديو خطة **Blaze** في Firebase (الحصة المجانية تكفي مطعماً عادة؛ ضع تنبيه ميزانية).
+- **الصور والفيديو تُحفظ في قاعدة البيانات (Firestore) نفسها:** الصور تُضغط تلقائياً قبل الرفع (أطول ضلع 1600 بكسل، WebP)، والفيديو حتى **20 ميغابايت** والمجسمات GLB حتى **15 ميغابايت**. كل جهاز يحمّل الملف مرة واحدة ويحفظه على ذاكرته (يبقى ظاهراً دون إنترنت). سعة الخطة المجانية 1 جيجابايت.
+- **محدِّث من 2.1.x؟** أعد نشر `firebase/firestore.rules` فقط.
 
 ## 5. الاستخدام اليومي
 
@@ -475,7 +476,7 @@ settings.theme   = { preset: 'noir' /* marble | garden | royal */, accent: '#d4a
 
 ## 13. تطبيق أندرويد
 
-مجلد [`android/`](android): تطبيق Kotlin واحد (`com.alshams.projectionmenu`، الإصدار 2.1.0) يعمل على Android 7.0 (API 24) أو أحدث، ويحتاج Android System WebView بإصدار 89 أو أحدث (بسبب import maps). يظهر في قائمة تطبيقات Android TV ويُستخدم بالكامل بالريموت.
+مجلد [`android/`](android): تطبيق Kotlin واحد (`com.alshams.projectionmenu`، الإصدار 2.2.0) يعمل على Android 7.0 (API 24) أو أحدث، ويحتاج Android System WebView بإصدار 89 أو أحدث (بسبب import maps). يظهر في قائمة تطبيقات Android TV ويُستخدم بالكامل بالريموت.
 
 | الوضع | ماذا يفتح | السلوك |
 |---|---|---|
@@ -483,7 +484,7 @@ settings.theme   = { preset: 'noir' /* marble | garden | royal */, accent: '#d4a
 | `PLAYER` | `<server>/player/?device=<key>` | أفقي، ملء الشاشة، الشاشة لا تنطفئ، خلفية سوداء، يُمنع أي تنقّل خارج الخادم |
 | `DEMO` | `assets/demo/index.html` | العرض التجريبي بدون خادم |
 | `APP` (سحابي) | `assets/cloud/app.html` | تطبيق الموظفين على مشروع Firebase (بدون خادم) |
-| `PLAYER` (سحابي) | `assets/cloud/player.html?device=p<id>` | جهاز العرض على Firebase، مربوط برمز؛ الصور من ذاكرة الجهاز (`MediaCache`) |
+| `PLAYER` (سحابي) | `assets/cloud/player.html?device=p<id>` | جهاز العرض على Firebase، مربوط برمز؛ الصور والفيديو من ذاكرة الجهاز (Cache API `pm-media-v1`؛ و`MediaCache.kt` لمشاريع Storage) |
 
 - **صفحة الإعداد** (`assets/app/setup.*`، على `https://appassets.androidplatform.net`): (1) الدور، (2) الخادم: بحث NSD عن `_projection-menu._tcp`، أو كتابة العنوان والتحقق منه بـ `GET /api/info`، أو مسح QR، (3) لجهاز العرض: رمز الربط ← `POST /api/projectors/claim`، مع خيارات PIN والقفل والتشغيل كشاشة رئيسية. هذه الصفحة وحدها تسمح بطلبات http إلى الخادم المحلي (mixed content)، والخادم يسمح بـ CORS لأصل التطبيق فقط.
 - **الجسر** `AndroidApp` (web messages مقيّدة بالأصل): `getState`، `validateLink`، `scanQr`، `discover {timeoutMs}` ← `{servers:[{name, host, port, url}]}`، `saveConfig`، `startDemo`، `resume`، `resetConfig`، `openSettings`.
@@ -510,7 +511,7 @@ settings.theme   = { preset: 'noir' /* marble | garden | royal */, accent: '#d4a
 ```bash
 cd android
 ./gradlew assembleRelease testDebugUnitTest lintDebug
-cp app/build/outputs/apk/release/ProjectionMenu-2.1.0-release.apk ../dist/ProjectionMenu.apk
+cp app/build/outputs/apk/release/ProjectionMenu-2.2.0-release.apk ../dist/ProjectionMenu.apk
 ```
 
 - **التوقيع:** `android/keystore.properties` و `release.jks` (مستثناة من git). بدونها تُوقَّع نسخة release بمفتاح debug. احتفظ بالمفتاح: التحديث فوق نسخة موقّعة بمفتاح آخر يتطلب حذف التطبيق أولاً.
@@ -542,20 +543,21 @@ npm test                  # 83 اختباراً: الخادم، الأدوار،
 
 ### الوضع السحابي (Firebase)
 
-التصميم الكامل في [docs/cloud-architecture.md](docs/cloud-architecture.md): تطبيق الموظفين وجهاز العرض يعملان دون تغيير، و`assets/cloud/backend/` يشغّل مسارات الخادم الوهمي (`assets/demo/backend/`) على نسخة حية من بيانات Firestore داخل الصفحة نفسها، مع Firebase Auth (الموظفون باسم مستخدم وكلمة مرور، وأجهزة العرض دخول مجهول + رمز ربط) وStorage للملفات. قواعد الأمان في `firebase/firestore.rules` و`firebase/storage.rules` هي التي تفرض الصلاحيات.
+التصميم الكامل في [docs/cloud-architecture.md](docs/cloud-architecture.md): تطبيق الموظفين وجهاز العرض يعملان دون تغيير، و`assets/cloud/backend/` يشغّل مسارات الخادم الوهمي (`assets/demo/backend/`) على نسخة حية من بيانات Firestore داخل الصفحة نفسها، مع Firebase Auth (الموظفون باسم مستخدم وكلمة مرور، وأجهزة العرض دخول مجهول + رمز ربط)، والملفات داخل Firestore (`mediaChunks/`). قواعد الأمان في `firebase/firestore.rules` هي التي تفرض الصلاحيات (و`firebase/storage.rules` لمشاريع Blaze التي تختار Storage فقط).
 
 - **الاختبارات على المحاكيات** (مشروع `demo-pm`، لا يلمس مشروعاً حقيقياً؛ تحتاج Java 21):
 
   ```bash
-  npm run test:cloud      # قواعد الأمان + المضيفون (مالك، ويتر، مصمم، جهاز عرض) من طرف إلى طرف
+  npm run test:cloud      # قواعد الأمان + المضيفون (مالك، ويتر، مصمم، جهاز عرض) من طرف إلى طرف، والملفات في Firestore وفي Storage
   ```
 
 - **خلف وكيل HTTP (بيئات sandbox/CI):** شغّلها بـ `HTTPS_PROXY=undefined https_proxy=undefined npm run test:cloud`. firebase-tools يمرر اتصالات المحاكيات ببعضها عبر `HTTPS_PROXY` متجاهلاً `NO_PROXY`، فيفشل تحقق قواعد Storage من Firestore. وأزل `JAVA_TOOL_OPTIONS` إن كانت تضبط وكيلاً لـ Java.
 - **تجربة التطبيق على المحاكيات:** `firebase emulators:start --project demo-pm --config firebase/firebase.json`، ثم في نسخة debug من التطبيق تظهر في خطوة «مشروع Firebase» خانة «محاكيات Firebase» (اكتب عنوان الكمبيوتر، مثل `10.0.2.2` لمحاكي أندرويد). المنافذ: Auth 9099، Firestore 8080، Storage 9199.
-- **نشر القواعد بسطر الأوامر:** `npx firebase-tools deploy --only firestore:rules,storage --project <id> --config firebase/firebase.json` (أو بالنسخ واللصق كما في الدليل).
+- **نشر القواعد بسطر الأوامر:** `npx firebase-tools deploy --only firestore:rules --project <id> --config firebase/firebase.json` (أو بالنسخ واللصق كما في الدليل؛ أضف `,storage` لمشروع يستخدم Storage).
 - **مشروع مدمج في التطبيق:** املأ `android/app/src/main/assets/cloud/firebase-config.js` بكائن `firebaseConfig` للمطعم (`export default { apiKey: '…', authDomain: '…', projectId: '…', storageBucket: '…', messagingSenderId: '…', appId: '…' };`) ثم ابنِ التطبيق: تعرضه شاشة الإعداد كمشروع جاهز فلا يحتاج أحد إلى لصق الإعدادات، والأجهزة التي اختارته تتبع ما يحمله التطبيق المثبّت. هذه القيم ليست أسراراً.
 - **في الواجهة:** `/api/info` يعيد `mode: 'cloud'`، و`public/app/lib/session.js` (`useCloud`) يخفي ما يحتاج خادماً على الشبكة: أزرار PJLink، روابط المشغّل وQR، عناوين الخادم وتنزيل APK، ويحوّل «تغيير المفتاح» إلى «إعادة الربط برمز» (`POST /projectors/pairing-codes` مع `projector_id`) و«فصل الجهاز».
-- **ملفات الوسائط:** تُرفع إلى `media/<id>/<file>` بـ `Cache-Control: immutable`؛ جهاز العرض لا يقبل إلا روابط هذا المسار من `firebasestorage.googleapis.com` (أو من المحاكي في نسخ debug)، وتطبيق أندرويد يخزّنها على الجهاز (`MediaCache.kt`) لتبقى ظاهرة دون إنترنت.
+- **ملفات الوسائط (افتراضياً في Firestore، `assets/cloud/backend/media.js`):** الصور يعاد ترميزها في المتصفح (≤ 1600 بكسل، WebP 0.82)، ثم يُقسَّم كل ملف إلى أجزاء ≤ 900 KB من نوع Bytes في `mediaChunks/{assetId}_{index}`، ووثيقة `media/{id}` تُكتب أخيراً (`storage: 'firestore'`, `chunks`, `rev`). الحذف يزيل الوثيقة وأجزاءها في دفعة واحدة. كل جهاز يحفظ الملفات في Cache API (`pm-media-v1`) ويعطي الشاشات روابط `blob:`؛ جهاز العرض يحمّل مسبقاً كل ما يستخدمه المنيو، والتابلتات عند الحاجة. جهاز العرض لا يقبل إلا روابط `blob:` من أصله نفسه، أو `/media/…`، أو روابط Storage.
+- **Firebase Storage (اختياري، خطة Blaze):** أضف `media: 'storage'` إلى إعدادات المشروع: تُرفع الملفات إلى `media/<id>/<file>` بـ `Cache-Control: immutable`، وتطبيق أندرويد يخزّنها على الجهاز (`MediaCache.kt`)، وانشر `storage.rules`. التفاصيل في [docs/cloud-architecture.md](docs/cloud-architecture.md#media-in-firestore-default).
 
 ## 15. ملاحظات الأمان
 

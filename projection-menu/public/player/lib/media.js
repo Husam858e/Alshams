@@ -1,11 +1,12 @@
 // Media URL policy and image preloading.
 
-// Only files from the restaurant server ('/media/...'), local demo uploads
-// ('blob:') or, in cloud mode, the media library in Firebase Storage are ever
-// shown; anything else is treated as missing.
+// Only files from the restaurant server ('/media/...'), blob: URLs made by
+// this app's own pages (demo uploads; cloud mode's media cache, which turns
+// files kept in Firestore into blob: URLs) or, in cloud mode, the media library
+// in Firebase Storage are ever shown; anything else is treated as missing.
 export function mediaUrl(value) {
   if (typeof value !== 'string' || !value) return null;
-  if (value.startsWith('blob:')) return value;
+  if (value.startsWith('blob:')) return isOwnBlob(value) ? value : null;
   let url;
   try {
     url = new URL(value, location.href);
@@ -16,6 +17,19 @@ export function mediaUrl(value) {
   if (url.origin !== location.origin || !url.pathname.startsWith('/media/')) return null;
   if (url.pathname.includes('..')) return null;
   return url.pathname + url.search;
+}
+
+// blob:<origin>/<uuid> of this page's origin (the player, its parent staff
+// app and the cloud backend share it); never one minted by another site.
+const BLOB_PATH = /^[0-9a-f-]{36}$/i;
+function isOwnBlob(value) {
+  let inner;
+  try {
+    inner = new URL(value.slice(5));
+  } catch {
+    return false;
+  }
+  return inner.origin === location.origin && BLOB_PATH.test(inner.pathname.slice(1)) && !inner.search && !inner.hash;
 }
 
 // Cloud mode: a download URL of the library (media/<asset id>/<file>) in

@@ -5,12 +5,17 @@
 // feeds the player through its seam (public/player/lib/net.js openDevice).
 // It writes nothing but its own heartbeat (last_seen_at, every 2 minutes)
 // and scene acks (acked_at = the scene's `at`).
+//
+// Media in Firestore (media.js): the device prefetches every file its menu
+// and settings use into its cache, so the table keeps its photos and videos
+// when the internet is gone; the player is re-bootstrapped as files arrive.
 
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { frameTarget } from '../../demo/backend/frames.js';
 import { DEFAULT_SCENE, createModel } from '../../demo/backend/model.js';
 import { NETWORK_ERROR, httpErrorOf, watchConnection, withTimeout } from './firebase.js';
+import { createMediaCache, referencedAssets } from './media.js';
 import { createReplica } from './replica.js';
 import { HEARTBEAT_MS, emptyState, spec } from './schema.js';
 
@@ -80,9 +85,12 @@ export async function claim(services, rawCode) {
   };
 }
 
-export function createDeviceHost(services, { now = () => Date.now() } = {}) {
+// options: now, mediaStore (where media files are kept; default: Cache API)
+export function createDeviceHost(services, { now = () => Date.now(), mediaStore = undefined } = {}) {
   const { auth, db } = services;
   let current = null; // the open player connection (one per page)
+  // One cache per device (it outlives a re-pairing); files that arrive show at the next bootstrap.
+  const media = createMediaCache({ db, store: mediaStore, onReady: () => current?.mediaArrived() });
 
   let connected = true;
   const connectionListeners = new Set();
@@ -90,6 +98,7 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
     const back = value && !connected;
     connected = value;
     for (const fn of [...connectionListeners]) fn(value);
+    if (back) media.retry();
     current?.online(value, back);
   });
 
@@ -104,7 +113,7 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
   function connect(on) {
     const target = frameTarget(on.bootstrap);
     const s = emptyState();
-    const model = createModel(s);
+    const model = createModel(s, { assetUrl: (asset) => media.url(asset) });
     const replica = createReplica({ db, s, decorate: (key, row) => (key === 'projectors' ? { ...row, online: true } : row), onChange });
     // A refused listener usually means this device was unpaired (it then
     // reads nothing); the server says for sure.
@@ -159,6 +168,7 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
     function bootstrap() {
       const p = projector();
       if (!p) return;
+      media.prefetch(referencedAssets(s)); // everything this table may show, for offline
       deliver('bootstrap', model.bootstrapFor(p));
     }
     function refetchLater() {
@@ -210,8 +220,9 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
       await followOrder();
     }
 
-    async function onChange(key, changes, { initial }) {
+    async function onChange(key, changes, { initial, fromCache }) {
       if (closed || fatal) return;
+      if (key === 'assets') media.sync(s.assets, { complete: !fromCache });
       if (key === 'projectors') {
         const change = changes[0];
         if (change && !change.after) return confirmGone(['projectors', String(projectorId)]); // deleted
@@ -348,6 +359,7 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
         deliver('online', value);
         if (back) beat();
       },
+      mediaArrived: refetchLater,
     };
     setTimeout(() => start().catch((err) => console.error('cloud: device start failed', err)), 0);
     return api;
@@ -366,7 +378,9 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
       offConnection();
       current?.close();
       current = null;
+      media.close();
     },
+    media,
     now,
   };
 }
