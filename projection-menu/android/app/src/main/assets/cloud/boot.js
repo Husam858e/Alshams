@@ -171,14 +171,17 @@ export function startHost(createHost, screen, { quiet = false } = {}) {
     let ticker = null;
     let running = false;
 
+    let started = false; // once the host runs, nothing here starts another one
     const retryNow = () => {
       clearTimeout(timer);
       clearInterval(ticker);
-      run();
+      if (!started && !running) run();
     };
-    addEventListener('online', () => {
-      if (!running && attempt > 0) setTimeout(retryNow, 1000);
-    });
+    // Back online while waiting to retry: try at once.
+    const onOnline = () => {
+      if (!started && !running && attempt > 0) setTimeout(retryNow, 1000);
+    };
+    addEventListener('online', onOnline);
 
     const scheduleRetry = (content) => {
       const seconds = RETRY_S[Math.min(attempt - 1, RETRY_S.length - 1)];
@@ -211,6 +214,8 @@ export function startHost(createHost, screen, { quiet = false } = {}) {
       try {
         const host = await createHost();
         running = false;
+        started = true;
+        removeEventListener('online', onOnline);
         resolve(host);
       } catch (err) {
         running = false;

@@ -242,7 +242,11 @@ export function createDeviceHost(services, { now = () => Date.now() } = {}) {
         ack();
       } else if (key === 'orders') {
         const o = s.orders.find((x) => x.id === orderId);
-        if (o) deliver('order', model.dto.order(o));
+        if (!o) return;
+        deliver('order', model.dto.order(o));
+        // The player shows the order embedded in the scene: send the scene
+        // again with the new snapshot (the server's orderChanged -> refresh).
+        deliver('scene', sceneNow());
       } else refetchLater(); // menu, settings, areas, the table
     }
 

@@ -137,7 +137,8 @@ export const api = {
   setProjectorPower: (id, on) => post(`/projectors/${id}/power`, { on }),
   saveCalibration: (id, corners) => put(`/projectors/${id}/calibration`, { corners }),
   testPattern: (id, on) => post(`/projectors/${id}/test-pattern`, { on }),
-  pairingCode: (tableId, name) => post('/projectors/pairing-codes', { table_id: tableId, name: name || undefined }),
+  // projectorId: re-pair that projector (cloud mode) instead of adding one.
+  pairingCode: (tableId, name, projectorId) => post('/projectors/pairing-codes', { table_id: tableId, name: name || undefined, projector_id: projectorId ?? undefined }),
   serverInfo: () => get('/system/server-info'),
 
   // Menu

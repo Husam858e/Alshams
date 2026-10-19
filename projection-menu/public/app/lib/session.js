@@ -2,7 +2,25 @@
 
 import { api } from './api.js';
 import { disconnectLive } from './live.js';
-import { clearResources, getState, setState } from './store.js';
+import { clearResources, getState, setState, useStore } from './store.js';
+
+// Where the data lives: 'server' (the restaurant's own server, also the
+// offline demo) or 'cloud' (Firebase, no server on the restaurant's network:
+// no PJLink power control, LAN addresses, APK download or player links).
+// /api/info says so; asked once, kept across logins.
+let modeRequest = null;
+export function checkMode() {
+  if (getState().mode || modeRequest) return modeRequest;
+  modeRequest = api
+    .info()
+    .then((info) => setState({ mode: info?.mode === 'cloud' ? 'cloud' : 'server' }))
+    .catch(() => {}) // asked again on the next sign-in
+    .finally(() => {
+      modeRequest = null;
+    });
+  return modeRequest;
+}
+export const useCloud = () => useStore((s) => s.mode === 'cloud');
 
 export async function checkAuth() {
   try {

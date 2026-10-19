@@ -1,6 +1,7 @@
 // General settings (owner): restaurant identity, currency, welcome texts,
 // with a live preview of the welcome scene; plus the addresses and QR codes
-// staff tablets and projector devices use to reach this server.
+// staff tablets and projector devices use to reach this server (in cloud
+// mode: how a new device joins the restaurant's Firebase project).
 
 import { html } from 'htm/preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
@@ -144,6 +145,7 @@ export default function SettingsScreen() {
 function DevicesCard() {
   const info = useServerInfo();
   if (!info) return html`<${Skeleton} h=${300} r="18px" />`;
+  if (info.mode === 'cloud') return html`<${CloudDevicesCard} info=${info} />`;
   const base = info.publicBaseUrl;
   return html`<section class="panel">
     <div class="panel-head"><div class="panel-title"><${Icon} name="phone" size=${18} /> التابلت وأجهزة العرض</div></div>
@@ -170,6 +172,28 @@ function DevicesCard() {
         <p class="field-hint">تطبيق أندرويد يجد الخادم تلقائياً على نفس الشبكة؛ أو اكتب أحد هذه العناوين.</p>
       </div>
       ${info.apkAvailable && html`<a class="btn btn-secondary btn-md" href=${info.apkUrl ?? '/app.apk'} download><${Icon} name="download" size=${18} /><span class="btn-label">تنزيل APK</span></a>`}
+    </div>
+  </section>`;
+}
+
+// Cloud mode: no server on the restaurant's network (no addresses, QR codes
+// or APK download); every device signs in to the same Firebase project.
+function CloudDevicesCard({ info }) {
+  return html`<section class="panel">
+    <div class="panel-head"><div class="panel-title"><${Icon} name="phone" size=${18} /> التابلت وأجهزة العرض</div></div>
+    <div class="panel-body stack">
+      <div class="stack-sm">
+        <div class="section-title">مشروع Firebase</div>
+        <button type="button" class="addr-row" onClick=${() => copyText(info.projectId, 'نُسخ معرّف المشروع')}>
+          <${Icon} name="globe" size=${16} /><span class="ltr">${info.projectId}</span><${Icon} name="copy" size=${15} />
+        </button>
+      </div>
+      <ol class="pair-steps">
+        <li>ثبّت تطبيق <strong>المنيو الضوئي</strong> (ملف APK) على الجهاز الجديد.</li>
+        <li>اختر <strong>«سحابي (Firebase)»</strong> والصق إعدادات المشروع نفسه من Firebase Console.</li>
+        <li>للتابلت اختر <strong>«تابلت الموظفين»</strong>؛ ولجهاز العرض <strong>«جهاز عرض (بروجكتر)»</strong> ثم رمز الربط من صفحة أجهزة العرض.</li>
+      </ol>
+      <p class="field-hint">في الوضع السحابي تتصل الأجهزة عبر الإنترنت ولا يوجد خادم على شبكة المطعم، لذلك لا توجد عناوين أو رمز QR لتنزيل التطبيق هنا.</p>
     </div>
   </section>`;
 }

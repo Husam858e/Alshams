@@ -19,7 +19,7 @@ async function main() {
     // A file missing from the APK, or a module that fails to load.
     return showCrash(screen, err, 'تعذّر تشغيل الوضع السحابي');
   }
-  const host = await startHost(() => backend.createCloudHost(project.config, { role: 'staff', emulators: project.emulators }), screen);
+  const host = await startHost(() => backend.createCloudHost(project.config, { role: 'staff', appName: backend.STAFF_APP, emulators: project.emulators }), screen);
   window.__pmInstallShim(host, { realUploads: true });
   // The app paints over the splash; drop the status layer once it runs.
   await import('/app/main.js');

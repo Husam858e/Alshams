@@ -197,6 +197,8 @@ test('order flow: waiter orders, the table shows the order, the projector acks',
   assert.equal(added.status, 201);
   assert.deepEqual(added.data.items.map((i) => i.id), [1, 2, 3]);
   await waitFor(() => player.last('order')?.items?.length === 3, { label: 'order update on the player' });
+  // The player shows the snapshot embedded in the scene: it comes again, updated.
+  await waitFor(() => player.last('scene')?.order?.items?.length === 3, { label: 'order scene refreshed on the player' });
 
   // Status moves; paid frees the table and the table goes back to welcome.
   assert.equal((await waiter.call('PATCH', `/orders/${ids.order}`, { status: 'paid' })).status, 409);
@@ -298,6 +300,17 @@ test('media upload to Storage and delete', async () => {
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('cache-control'), 'public, max-age=31536000, immutable');
 
+  // Cancelled from the app (the XHR shim's abort() -> fields.signal): 499, no library entry.
+  const before = (await designer.call('GET', '/media')).data.length;
+  const early = new AbortController();
+  early.abort();
+  const cancel = (fields) => designer.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'c.png', { type: 'image/png' }), fields });
+  assert.equal((await cancel({ signal: early.signal })).status, 499);
+  const during = new AbortController();
+  const midway = await cancel({ signal: during.signal, onProgress: () => during.abort() });
+  assert.deepEqual([midway.status, midway.data.error], [499, 'أُلغي الرفع']);
+  assert.equal((await designer.call('GET', '/media')).data.length, before);
+
   const fake = await designer.host.request({ method: 'POST', url: '/api/media', file: new File([new Uint8Array(20)], 'x.png'), fields: {} });
   assert.equal(fake.status, 400);
   assert.equal((await waiter.host.request({ method: 'POST', url: '/api/media', file: new File([png], 'a.png'), fields: {} })).status, 403);
@@ -356,4 +369,31 @@ test('unpairing ("rotate key") cuts the projector off', async () => {
   // Nobody acks a table without an online projector.
   const shown = await owner.call('PUT', `/tables/${ids.table1}/scene`, { scene: { type: 'menu' } });
   assert.deepEqual(shown.data.delivered, { online: 0, acked: 0 });
+});
+
+test('re-pairing: a code for an existing projector binds a new device to it', async () => {
+  const code = await owner.call('POST', '/projectors/pairing-codes', { table_id: ids.table2, projector_id: ids.projector });
+  assert.equal(code.status, 201, JSON.stringify(code.data));
+  // On the code's table, offline until a device claims the code; still listed.
+  const waiting = (await owner.call('GET', `/projectors/${ids.projector}`)).data;
+  assert.deepEqual([waiting.table_id, waiting.online, waiting.last_seen_at], [ids.table2, false, null]);
+  assert.equal((await owner.call('GET', '/projectors')).data.length, 1);
+
+  const claimed = await cloud.claimProjector(CONFIG, code.data.code, { emulators: EMULATORS, appName: 'projector-3' });
+  assert.equal(claimed.projector.id, ids.projector);
+  assert.deepEqual(claimed.table, { id: ids.table2, number: 2 });
+  const device3 = await cloud.createCloudHost(CONFIG, { role: 'device', emulators: EMULATORS, appName: 'projector-3' });
+  opened.push(device3);
+  const player3 = playerRecorder();
+  device3.openDevice('ignored', player3.on);
+  const boot = await waitFor(() => player3.last('bootstrap'), { label: 're-paired bootstrap' });
+  assert.equal(boot.projector.id, ids.projector);
+  assert.equal(boot.table.number, 2);
+  await waitFor(async () => (await owner.call('GET', `/projectors/${ids.projector}`)).data.online === true, { label: 're-paired projector online' });
+  assert.equal((await owner.call('GET', '/projectors')).data.length, 1, 'no second projector');
+
+  // Another re-pair cuts this device off at once.
+  assert.equal((await owner.call('POST', '/projectors/pairing-codes', { table_id: ids.table2, projector_id: ids.projector })).status, 201);
+  await waitFor(() => player3.last('fatal') === 'unauthorized', { label: 'device cut off by a re-pair' });
+  assert.equal((await owner.call('POST', '/projectors/pairing-codes', { table_id: ids.table2, projector_id: 999 })).status, 404);
 });

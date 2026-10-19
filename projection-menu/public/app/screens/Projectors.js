@@ -1,5 +1,7 @@
 // Ceiling projectors: status, calibration and test pattern (owner +
-// designer); settings, PJLink power, pairing and keys (owner).
+// designer); settings, PJLink power, pairing and keys (owner). Cloud mode
+// has no server on the restaurant's network: no PJLink and no player links;
+// a projector is re-paired with a code instead of getting a new key.
 
 import { html } from 'htm/preact';
 import { useMemo, useState } from 'preact/hooks';
@@ -12,6 +14,7 @@ import { Button, Chip, Empty, ErrorState, Field, PageHeader, SearchInput, Segmen
 import { api } from '../lib/api.js';
 import { NOUNS, count, timeAgo } from '../lib/format.js';
 import { useNow } from '../lib/hooks.js';
+import { useCloud } from '../lib/session.js';
 import { allTables, load, patchResource, useResource } from '../lib/store.js';
 
 const syncProjectors = () => {
@@ -28,6 +31,7 @@ const LAYOUTS = [
 export default function ProjectorsScreen({ user }) {
   useNow(30000);
   const isOwner = user.role === 'owner';
+  const cloud = useCloud();
   const { data: projectors, error, reload } = useResource('projectors');
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
@@ -48,7 +52,7 @@ export default function ProjectorsScreen({ user }) {
       title="أجهزة العرض"
       subtitle=${projectors ? `${count(projectors.length, NOUNS.projector)} · ${online} متصل الآن` : 'جارٍ التحميل…'}
       actions=${isOwner &&
-      html`<${Button} icon="plus" onClick=${() => setDialog({ type: 'add' })}>إضافة برابط مباشر<//>
+      html`${!cloud && html`<${Button} icon="plus" onClick=${() => setDialog({ type: 'add' })}>إضافة برابط مباشر<//>`}
         <${Button} variant="primary" icon="link" onClick=${() => setDialog({ type: 'pair' })}>ربط جهاز برمز<//>`}
     />
 
@@ -75,18 +79,19 @@ export default function ProjectorsScreen({ user }) {
           : shown.length === 0
             ? html`<${Empty} compact icon="filter" title="لا توجد أجهزة مطابقة" />`
             : html`<div class="proj-grid">
-                ${shown.map((p) => html`<${ProjectorCard} key=${p.id} projector=${p} isOwner=${isOwner} onDialog=${(type) => setDialog({ type, projector: p })} />`)}
+                ${shown.map((p) => html`<${ProjectorCard} key=${p.id} projector=${p} isOwner=${isOwner} cloud=${cloud} onDialog=${(type) => setDialog({ type, projector: p })} />`)}
               </div>`}
 
     ${dialog?.type === 'pair' && html`<${PairingDialog} onClose=${() => (setDialog(null), syncProjectors())} />`}
+    ${dialog?.type === 'repair' && html`<${PairingDialog} projector=${dialog.projector} onClose=${() => (setDialog(null), syncProjectors())} />`}
     ${dialog?.type === 'add' && html`<${AddProjectorDialog} onClose=${() => setDialog(null)} onCreated=${(p) => setDialog({ type: 'link', projector: p })} />`}
     ${dialog?.type === 'calibrate' && html`<${CalibrationDialog} projector=${dialog.projector} onClose=${() => setDialog(null)} />`}
-    ${dialog?.type === 'settings' && html`<${ProjectorSettings} projector=${dialog.projector} onClose=${() => setDialog(null)} />`}
+    ${dialog?.type === 'settings' && html`<${ProjectorSettings} projector=${dialog.projector} cloud=${cloud} onClose=${() => setDialog(null)} />`}
     ${dialog?.type === 'link' && html`<${PlayerLinkDialog} projector=${dialog.projector} onClose=${() => setDialog(null)} />`}
   </div>`;
 }
 
-function ProjectorCard({ projector: p, isOwner, onDialog }) {
+function ProjectorCard({ projector: p, isOwner, cloud, onDialog }) {
   // The server remembers the test pattern, so the card shows its real state.
   const pattern = Boolean(p.test_pattern);
   const [power, setPower] = useState(null); // null | 'loading' | state string
@@ -140,6 +145,38 @@ function ProjectorCard({ projector: p, isOwner, onDialog }) {
       toast.error(err);
     }
   };
+  // Cloud: the device is unbound (it goes back to its pairing screen) ...
+  const unpair = async () => {
+    const ok = await confirmDialog({
+      title: `فصل "${p.name}"؟`,
+      message: 'يتوقف الجهاز عن عرض المنيو ويعود إلى شاشة رمز الربط. لتشغيله من جديد أنشئ له رمز ربط من «إعادة الربط برمز».',
+      confirmLabel: 'فصل الجهاز',
+      danger: true,
+      icon: 'key',
+    });
+    if (!ok) return;
+    try {
+      const updated = await api.rotateProjectorKey(p.id);
+      patchResource('projectors', (list) => list.map((x) => (x.id === p.id ? updated : x)));
+      syncProjectors();
+      toast.ok('فُصل الجهاز وعاد إلى شاشة الربط');
+    } catch (err) {
+      toast.error(err);
+    }
+  };
+  // ... or replaced: a code for this projector, the current device is cut off.
+  const repair = async () => {
+    if (p.online || p.last_seen_at) {
+      const ok = await confirmDialog({
+        title: `إعادة ربط "${p.name}"؟`,
+        message: 'سيُفصل الجهاز الحالي فوراً، ثم يظهر رمز ربط تُدخله على الجهاز نفسه أو على جهاز بديل. تبقى المعايرة والإعدادات كما هي.',
+        confirmLabel: 'إنشاء رمز الربط',
+        icon: 'link',
+      });
+      if (!ok) return;
+    }
+    onDialog('repair');
+  };
   const remove = async () => {
     const ok = await confirmDialog({ title: `حذف "${p.name}"؟`, message: 'سيُفصل الجهاز ويتوقف رابطه. يمكنك ربط جهاز جديد بالطاولة لاحقاً.', confirmLabel: 'حذف الجهاز', danger: true });
     if (!ok) return;
@@ -172,8 +209,15 @@ function ProjectorCard({ projector: p, isOwner, onDialog }) {
         label=${`خيارات ${p.name}`}
         items=${[
           { label: 'الإعدادات', icon: 'sliders', onSelect: () => onDialog('settings') },
-          { label: 'رابط المشغل و QR', icon: 'qr', onSelect: () => onDialog('link') },
-          { label: 'تغيير المفتاح', icon: 'key', onSelect: rotateKey },
+          ...(cloud
+            ? [
+                { label: 'إعادة الربط برمز', icon: 'link', onSelect: repair },
+                { label: 'فصل الجهاز', icon: 'key', onSelect: unpair },
+              ]
+            : [
+                { label: 'رابط المشغل و QR', icon: 'qr', onSelect: () => onDialog('link') },
+                { label: 'تغيير المفتاح', icon: 'key', onSelect: rotateKey },
+              ]),
           'divider',
           { label: 'حذف الجهاز', icon: 'trash', danger: true, onSelect: remove },
         ]}
@@ -197,7 +241,9 @@ function ProjectorCard({ projector: p, isOwner, onDialog }) {
     <dl class="proj-meta">
       <div><dt>الدوران</dt><dd class="num">${p.rotation}°</dd></div>
       <div><dt>التخطيط</dt><dd>${p.layout === 'dual' ? 'جهتان' : 'جهة واحدة'}</dd></div>
-      <div><dt>PJLink</dt><dd class=${p.pjlink_host ? 'ltr' : 'muted'}>${p.pjlink_host || 'غير مضبوط'}</dd></div>
+      ${cloud
+        ? html`<div title="التحكم بالطاقة عبر الشبكة يحتاج الخادم المحلي"><dt>PJLink</dt><dd class="muted">غير متاح سحابياً</dd></div>`
+        : html`<div><dt>PJLink</dt><dd class=${p.pjlink_host ? 'ltr' : 'muted'}>${p.pjlink_host || 'غير مضبوط'}</dd></div>`}
     </dl>
     <footer class="proj-actions">
       <${Button} variant="primary" size="sm" icon="corners" onClick=${() => onDialog('calibrate')}>معايرة<//>
@@ -205,6 +251,7 @@ function ProjectorCard({ projector: p, isOwner, onDialog }) {
         ${pattern ? 'إخفاء الاختبار' : 'شاشة اختبار'}
       <//>
       ${isOwner &&
+      !cloud &&
       p.pjlink_host &&
       html`<${MenuButton}
         label="الطاقة"
@@ -265,7 +312,7 @@ function AddProjectorDialog({ onClose, onCreated }) {
   <//>`;
 }
 
-function ProjectorSettings({ projector: p, onClose }) {
+function ProjectorSettings({ projector: p, cloud, onClose }) {
   const { data: floor } = useResource('floor');
   const tables = useMemo(() => allTables(floor), [floor]);
   const [form, setForm] = useState({
@@ -287,10 +334,12 @@ function ProjectorSettings({ projector: p, onClose }) {
       table_id: form.table_id ? Number(form.table_id) : null,
       rotation: form.rotation,
       layout: form.layout,
-      pjlink_host: form.pjlink_host.trim() || null,
-      pjlink_port: Number(form.pjlink_port) || 4352,
     };
-    if (form.pjlink_password) body.pjlink_password = form.pjlink_password;
+    if (!cloud) {
+      body.pjlink_host = form.pjlink_host.trim() || null;
+      body.pjlink_port = Number(form.pjlink_port) || 4352;
+      if (form.pjlink_password) body.pjlink_password = form.pjlink_password;
+    }
     try {
       const updated = await api.updateProjector(p.id, body);
       patchResource('projectors', (list) => list.map((x) => (x.id === p.id ? updated : x)));
@@ -328,18 +377,23 @@ function ProjectorSettings({ projector: p, onClose }) {
       <${Field} label="التخطيط" hint="جهتان: نسختان من المنيو متقابلتان لضيوف على جانبي الطاولة.">
         ${() => html`<${Segmented} options=${LAYOUTS} value=${form.layout} onChange=${set('layout')} label="التخطيط" />`}
       <//>
-      <div class="editor-section-title"><${Icon} name="power" size=${16} /> التحكم بالطاقة عبر الشبكة (PJLink) — اختياري</div>
-      <div class="form-grid form-grid-3">
-        <${Field} label="عنوان البروجكتر">
-          ${(id) => html`<input id=${id} class="input" dir="ltr" placeholder="192.168.1.50" value=${form.pjlink_host} onInput=${(e) => set('pjlink_host')(e.currentTarget.value)} />`}
-        <//>
-        <${Field} label="المنفذ">
-          ${(id) => html`<input id=${id} class="input input-num" inputmode="numeric" value=${form.pjlink_port} onInput=${(e) => set('pjlink_port')(e.currentTarget.value.replace(/\D/g, ''))} />`}
-        <//>
-        <${Field} label="كلمة المرور" hint=${p.pjlink_has_password ? 'محفوظة — اتركها فارغة للإبقاء عليها' : 'إن وُجدت'}>
-          ${(id) => html`<input id=${id} class="input" dir="ltr" type="password" autocomplete="off" value=${form.pjlink_password} onInput=${(e) => set('pjlink_password')(e.currentTarget.value)} />`}
-        <//>
-      </div>
+      <div class="editor-section-title"><${Icon} name="power" size=${16} /> التحكم بالطاقة عبر الشبكة (PJLink)${cloud ? '' : ' — اختياري'}</div>
+      ${cloud
+        ? html`<div class="notice">
+            <${Icon} name="info" size=${18} />
+            <span>غير متاح في الوضع السحابي: يحتاج التشغيل والإطفاء عبر الشبكة خادماً محلياً على شبكة المطعم. شغّل البروجكتر وأطفئه بجهاز التحكم الخاص به.</span>
+          </div>`
+        : html`<div class="form-grid form-grid-3">
+            <${Field} label="عنوان البروجكتر">
+              ${(id) => html`<input id=${id} class="input" dir="ltr" placeholder="192.168.1.50" value=${form.pjlink_host} onInput=${(e) => set('pjlink_host')(e.currentTarget.value)} />`}
+            <//>
+            <${Field} label="المنفذ">
+              ${(id) => html`<input id=${id} class="input input-num" inputmode="numeric" value=${form.pjlink_port} onInput=${(e) => set('pjlink_port')(e.currentTarget.value.replace(/\D/g, ''))} />`}
+            <//>
+            <${Field} label="كلمة المرور" hint=${p.pjlink_has_password ? 'محفوظة — اتركها فارغة للإبقاء عليها' : 'إن وُجدت'}>
+              ${(id) => html`<input id=${id} class="input" dir="ltr" type="password" autocomplete="off" value=${form.pjlink_password} onInput=${(e) => set('pjlink_password')(e.currentTarget.value)} />`}
+            <//>
+          </div>`}
     </form>
   <//>`;
 }

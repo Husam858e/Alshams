@@ -2071,6 +2071,11 @@
   align-items: start;
 }
 
+/* Cloud mode: no server to download the app from, so no QR column. */
+.pair-layout-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .pair-code-box {
   display: flex;
   flex-direction: column;

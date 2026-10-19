@@ -1,14 +1,17 @@
 // Connecting a projector device to a table (owner):
 //  - PairingDialog: a 6-digit code (10 minutes, single use) typed into the
-//    Android app's "جهاز عرض على طاولة" setup, plus a QR to install the app.
+//    Android app's "جهاز عرض على طاولة" setup, plus a QR to install the app
+//    (server mode). With `projector`, the code re-pairs that projector (cloud
+//    mode: its current device is cut off and a new one takes its place).
 //  - PlayerLinkDialog: the projector's private player link as a QR code, for
-//    devices that open a browser instead of the app.
+//    devices that open a browser instead of the app (server mode only).
 
 import { html } from 'htm/preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { api } from '../lib/api.js';
 import { useNow } from '../lib/hooks.js';
-import { allTables, useResource } from '../lib/store.js';
+import { useCloud } from '../lib/session.js';
+import { allTables, patchResource, useResource } from '../lib/store.js';
 import { Icon } from './icons.js';
 import { Modal } from './overlay.js';
 import { QrCode } from './QrCode.js';
@@ -38,14 +41,16 @@ export async function copyText(text, ok = 'نُسخ') {
   }
 }
 
-export function PairingDialog({ tableId: initialTable, onClose }) {
+export function PairingDialog({ tableId: initialTable, projector = null, onClose }) {
   const { data: floor } = useResource('floor');
   const tables = useMemo(() => allTables(floor), [floor]);
-  const [tableId, setTableId] = useState(initialTable ?? null);
+  const startTable = projector ? projector.table_id : initialTable;
+  const [tableId, setTableId] = useState(startTable ?? null);
   const [name, setName] = useState('');
   const [code, setCode] = useState(null); // {code, expiresAt}
   const [busy, setBusy] = useState(false);
   const known = useRef(null); // projector ids of the table when the code was made
+  const cloud = useCloud();
   const info = useServerInfo();
   const now = useNow(1000);
   const table = tables.find((t) => t.id === Number(tableId)) ?? null;
@@ -55,7 +60,10 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
     setBusy(true);
     try {
       known.current = new Set(table.projectors.map((p) => p.id));
-      setCode(await api.pairingCode(table.id, name.trim()));
+      const next = await api.pairingCode(table.id, name.trim(), projector?.id);
+      // Re-pairing cut the old device off: the projector is offline until the new one claims the code.
+      if (projector) markOffline(projector.id);
+      setCode(next);
     } catch (err) {
       toast.error(err);
     } finally {
@@ -63,11 +71,15 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
     }
   };
   useEffect(() => {
-    if (initialTable && !code) create();
+    if (startTable && !code) create();
   }, [floor ? 1 : 0]);
 
-  // The device claimed the code: a new projector shows up on that table.
-  const claimed = code && table && known.current ? table.projectors.find((p) => !known.current.has(p.id)) : null;
+  // The device claimed the code: a new projector shows up on that table (or,
+  // re-pairing, that projector comes back online).
+  const claimed =
+    code && table && known.current
+      ? table.projectors.find((p) => (projector ? p.id === projector.id && p.online : !known.current.has(p.id)))
+      : null;
   const left = code ? Math.max(0, Date.parse(code.expiresAt) - now) : 0;
   const expired = code && left === 0 && !claimed;
   const mmss = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}`;
@@ -76,7 +88,7 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
   return html`<${Modal}
     size="lg"
     icon="link"
-    title=${table ? `ربط جهاز عرض بطاولة ${table.number}` : 'ربط جهاز عرض'}
+    title=${projector ? `إعادة ربط "${projector.name}"` : table ? `ربط جهاز عرض بطاولة ${table.number}` : 'ربط جهاز عرض'}
     subtitle="جهاز أندرويد (TV Box أو تابلت) موصول بالبروجكتر فوق الطاولة"
     onClose=${onClose}
     footer=${html`
@@ -94,9 +106,10 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
                 ${tables.map((t) => html`<option key=${t.id} value=${t.id}>طاولة ${t.number}</option>`)}
               </select>`}
             <//>
-            <${Field} label="اسم الجهاز (اختياري)" hint="مثل: بروجكتر السقف">
+            ${!projector &&
+            html`<${Field} label="اسم الجهاز (اختياري)" hint="مثل: بروجكتر السقف">
               ${(id) => html`<input id=${id} class="input" maxlength="60" value=${name} onInput=${(e) => setName(e.currentTarget.value)} placeholder=${table ? `جهاز عرض طاولة ${table.number}` : ''} />`}
-            <//>
+            <//>`}
           </div>
           <div class="form-actions">
             <${Button} variant="primary" icon="key" disabled=${!table} loading=${busy} onClick=${create}>إنشاء رمز الربط<//>
@@ -108,7 +121,7 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
             <h3>تم ربط "${claimed.name}" بطاولة ${table.number}</h3>
             <p class="muted">${claimed.online ? 'الجهاز متصل ويعرض الآن.' : 'سيظهر المنيو على الطاولة فور اتصال الجهاز.'}</p>
           </div>`
-        : html`<div class="pair-layout">
+        : html`<div class=${cx('pair-layout', cloud && 'pair-layout-single')}>
             <div class="pair-code-box">
               <span class="section-title">رمز الربط</span>
               <div class=${cx('pair-code num', expired && 'is-expired')} aria-label=${`رمز الربط ${code.code.split('').join(' ')}`}>
@@ -120,23 +133,42 @@ export function PairingDialog({ tableId: initialTable, onClose }) {
                   : html`<${Icon} name="clock" size=${16} /> صالح لمدة <span class="num">${mmss}</span> · لمرة واحدة`}
               </div>
               <div class="pair-waiting">${!expired && html`<${Spinner} size=${14} /> بانتظار إدخال الرمز على الجهاز…`}</div>
-              <ol class="pair-steps">
-                <li>ثبّت تطبيق <strong>المنيو الضوئي</strong> على جهاز العرض (امسح الرمز المجاور).</li>
-                <li>اختر <strong>«جهاز عرض على طاولة»</strong> ثم اختر هذا الخادم من القائمة أو اكتب عنوانه:
-                  <span class="pair-server ltr">${info?.publicBaseUrl ?? location.origin}</span></li>
-                <li>أدخل الرمز المكوّن من 6 أرقام.</li>
-              </ol>
+              ${cloud
+                ? html`<ol class="pair-steps">
+                    <li>ثبّت تطبيق <strong>المنيو الضوئي</strong> على جهاز العرض، وتأكد أنه متصل بالإنترنت.</li>
+                    <li>اختر <strong>«سحابي (Firebase)»</strong> ثم مشروع المطعم نفسه${info?.projectId ? html` <span class="pair-server ltr">${info.projectId}</span>` : ''}، ثم <strong>«جهاز عرض (بروجكتر)»</strong>.</li>
+                    <li>أدخل الرمز المكوّن من 6 أرقام.${projector ? ' إن كان الجهاز نفسه مفتوحاً فسيعود إلى شاشة الرمز وحده.' : ''}</li>
+                  </ol>`
+                : html`<ol class="pair-steps">
+                    <li>ثبّت تطبيق <strong>المنيو الضوئي</strong> على جهاز العرض (امسح الرمز المجاور).</li>
+                    <li>اختر <strong>«جهاز عرض على طاولة»</strong> ثم اختر هذا الخادم من القائمة أو اكتب عنوانه:
+                      <span class="pair-server ltr">${info?.publicBaseUrl ?? location.origin}</span></li>
+                    <li>أدخل الرمز المكوّن من 6 أرقام.</li>
+                  </ol>`}
             </div>
-            <div class="pair-qr">
+            ${!cloud &&
+            html`<div class="pair-qr">
               ${apkUrl
                 ? html`<${QrCode} text=${apkUrl} size=${176} label="رمز QR لتنزيل تطبيق أندرويد" />`
                 : html`<div class="qr" style=${{ width: '176px', height: '176px' }}></div>`}
               <strong>تنزيل تطبيق أندرويد</strong>
               <span class="ltr muted pair-qr-url">${apkUrl ?? ''}</span>
               ${info && !info.apkAvailable && html`<span class="badge badge-warn">ملف APK غير موجود على الخادم بعد</span>`}
-            </div>
+            </div>`}
           </div>`}
   <//>`;
+}
+
+// The floor and the projectors list show `id` offline at once (re-paired:
+// its old device was cut off; the new one brings it back online).
+function markOffline(id) {
+  const off = (p) => (p.id === id ? { ...p, online: false } : p);
+  patchResource('projectors', (list) => list.map((p) => (p.id === id ? { ...off(p), last_seen_at: null } : p)));
+  patchResource('floor', (floor) => ({
+    ...floor,
+    areas: floor.areas.map((a) => ({ ...a, tables: a.tables.map((t) => ({ ...t, projectors: t.projectors.map(off) })) })),
+    unassigned: floor.unassigned.map((t) => ({ ...t, projectors: t.projectors.map(off) })),
+  }));
 }
 
 export function PlayerLinkDialog({ projector: p, onClose }) {

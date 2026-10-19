@@ -1,7 +1,8 @@
 // Media URL policy and image preloading.
 
-// Only files from the restaurant server ('/media/...') or local demo uploads
-// ('blob:') are ever shown; anything else is treated as missing.
+// Only files from the restaurant server ('/media/...'), local demo uploads
+// ('blob:') or, in cloud mode, the media library in Firebase Storage are ever
+// shown; anything else is treated as missing.
 export function mediaUrl(value) {
   if (typeof value !== 'string' || !value) return null;
   if (value.startsWith('blob:')) return value;
@@ -11,9 +12,35 @@ export function mediaUrl(value) {
   } catch {
     return null;
   }
+  if (isStorageFile(url)) return url.href;
   if (url.origin !== location.origin || !url.pathname.startsWith('/media/')) return null;
   if (url.pathname.includes('..')) return null;
   return url.pathname + url.search;
+}
+
+// Cloud mode: a download URL of the library (media/<asset id>/<file>) in
+// Firebase Storage, or in the Storage emulator a debug build was set up with
+// (?emulators=<host> on the cloud page, or on the staff app around a preview).
+const STORAGE_FILE = /^\/v0\/b\/[^/]+\/o\/media%2F\d+%2F[^/%]+$/;
+const STORAGE_HOST = 'firebasestorage.googleapis.com';
+const EMULATOR_PORT = '9199';
+
+function isStorageFile(url) {
+  if (!STORAGE_FILE.test(url.pathname) || url.searchParams.get('alt') !== 'media') return false;
+  if (url.protocol === 'https:' && url.host === STORAGE_HOST) return true;
+  return url.protocol === 'http:' && url.port === EMULATOR_PORT && url.hostname === emulatorHost();
+}
+
+function emulatorHost() {
+  for (const win of [globalThis.window, globalThis.window?.parent]) {
+    try {
+      const host = win && new URLSearchParams(win.location.search).get('emulators');
+      if (host) return host; // as URL.hostname writes it ([…] for IPv6)
+    } catch {
+      // another origin
+    }
+  }
+  return null;
 }
 
 const loaded = new Map(); // url -> Promise<boolean>

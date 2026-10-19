@@ -11,7 +11,7 @@ import { onUnauthorized } from './lib/api.js';
 import { NOUNS, count } from './lib/format.js';
 import { connectLive, onLive, reconnectLive } from './lib/live.js';
 import { match, navigate, useRoute } from './lib/router.js';
-import { checkAuth, endSession } from './lib/session.js';
+import { checkAuth, checkMode, endSession, useCloud } from './lib/session.js';
 import { load, onOrderEvent, useStore, wireLive } from './lib/store.js';
 import { HOME, ROUTES } from './routes.js';
 import { LoginScreen, SetupScreen } from './screens/Auth.js';
@@ -21,6 +21,7 @@ export function App() {
 
   useEffect(() => {
     checkAuth();
+    checkMode();
     // Any 401 from the API: the session is gone, show the login screen.
     return onUnauthorized(() => endSession());
   }, []);
@@ -40,12 +41,13 @@ function Splash() {
 }
 
 function ServerDown({ error }) {
+  const cloud = useCloud();
   return html`<div class="auth-page">
     <div class="auth-card auth-card-narrow">
       <${Empty}
         icon="wifi-off"
-        title="تعذّر الوصول إلى الخادم"
-        text=${`${error?.message ?? ''} تأكد أن جهاز الخادم يعمل وأنك على شبكة المطعم.`}
+        title=${cloud ? 'تعذّر الوصول إلى بيانات المطعم' : 'تعذّر الوصول إلى الخادم'}
+        text=${`${error?.message ?? ''} ${cloud ? 'تأكد من اتصال الجهاز بالإنترنت.' : 'تأكد أن جهاز الخادم يعمل وأنك على شبكة المطعم.'}`}
         action=${html`<${Button} variant="primary" icon="refresh" onClick=${() => checkAuth()}>إعادة المحاولة<//>`}
       />
     </div>
@@ -59,6 +61,7 @@ function LoggedIn({ user }) {
   useEffect(() => {
     wireLive();
     connectLive();
+    checkMode(); // if it failed before signing in
     load('settings').catch(() => {});
     if (user.role !== 'designer') load('orders').catch(() => {});
     const offs = [

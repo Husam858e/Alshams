@@ -240,6 +240,90 @@ test('the demo shim and fake socket serve the cloud pages too', () => {
   const shim = read(path.join(ASSETS, 'demo', 'frame-shim.js'));
   assert.match(shim, /window\.__pmInstallShim = install;/, 'cloud pages install it once their backend runs');
   assert.match(shim, /fields\.onProgress = function/, 'real uploads report their own progress');
+  assert.match(shim, /fields\.signal = demo\.controller\.signal;/, 'real uploads get an AbortSignal (POST /api/media cancels with it)');
+  assert.match(shim, /if \(this\._demo\.controller\) this\._demo\.controller\.abort\(\);/, "xhr.abort() cancels the cloud upload");
   assert.match(shim, /if \(parentHost\) install\(parentHost, \{\}\);/, 'the demo still installs it from the parent page');
   assert.match(read(path.join(ASSETS, 'demo', 'fake-socket.js')), /host\.onConnection\?\.\(/, 'the cloud connection state reaches live.js');
+});
+
+// boot.js without the page around it: the bridge and the configs are stubbed,
+// the status screen is a recorder.
+async function loadBoot() {
+  const source = read(path.join(CLOUD, 'boot.js'))
+    .replace("import { bridge } from '/app/bridge.js';", 'const bridge = { getState: async () => ({}), openSettings: async () => {} };')
+    .replace("import builtIn from './firebase-config.js';", 'const builtIn = null;')
+    .replace(/import \{[^}]*\} from '\.\/config\.js';/, 'const chooseConfig = () => ({}), emulatorHost = () => null, emulatorOptions = () => null;');
+  assert.doesNotMatch(source, /^import /m, 'every import of boot.js is stubbed');
+  return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+}
+
+test('the cloud pages start one backend host, also when the network comes back', async (t) => {
+  const events = new EventTarget();
+  globalThis.addEventListener = events.addEventListener.bind(events);
+  globalThis.removeEventListener = events.removeEventListener.bind(events);
+  globalThis.document = { createElement: () => ({}) };
+  t.after(() => {
+    delete globalThis.addEventListener;
+    delete globalThis.removeEventListener;
+    delete globalThis.document;
+  });
+  const { startHost } = await loadBoot();
+  const shown = [];
+  const screen = { busy() {}, show: (content) => shown.push(content.title), hide() {} };
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // The first start fails (offline); "online" retries at once instead of waiting.
+  let created = 0;
+  const hostReady = startHost(async () => {
+    created += 1;
+    if (created === 1) throw new Error('offline');
+    return { id: created };
+  }, screen);
+  await wait(10);
+  assert.equal(created, 1);
+  assert.equal(shown.length, 1, 'the failure is shown with a countdown');
+  events.dispatchEvent(new Event('online'));
+  assert.deepEqual(await hostReady, { id: 2 });
+
+  // Running: later reconnects must not start a second host (two hosts = two
+  // sets of listeners and heartbeats, and a "connecting" layer over the app).
+  events.dispatchEvent(new Event('online'));
+  await wait(1300);
+  assert.equal(created, 2);
+});
+
+test('the player shows library files from Firebase Storage, and nothing else from outside', async (t) => {
+  const page = (search = '') => {
+    globalThis.location = new URL(`${ORIGIN}/cloud/player.html${search}`);
+    globalThis.window = { location: globalThis.location, parent: null };
+  };
+  t.after(() => {
+    delete globalThis.location;
+    delete globalThis.window;
+  });
+  page('?device=p1');
+  const { mediaUrl } = await load(path.join(PUBLIC, 'player', 'lib', 'media.js'));
+  const storage = 'https://firebasestorage.googleapis.com/v0/b/pm.firebasestorage.app/o/media%2F12%2Fupload-12.jpg?alt=media&token=abc';
+  assert.equal(mediaUrl(storage), storage);
+  assert.equal(mediaUrl('/media/uploads/a.jpg'), '/media/uploads/a.jpg', 'server files as before');
+  assert.equal(mediaUrl(`${ORIGIN}/media/demo/a.jpg`), '/media/demo/a.jpg');
+  for (const bad of [
+    'https://firebasestorage.googleapis.com/v0/b/pm/o/other%2Ffile.jpg?alt=media',
+    'https://firebasestorage.googleapis.com/v0/b/pm/o/media%2F1%2F..%2Fx.jpg?alt=media',
+    'https://firebasestorage.googleapis.com/v0/b/pm/o/media%2F1%2Fa.jpg',
+    'http://firebasestorage.googleapis.com/v0/b/pm/o/media%2F1%2Fa.jpg?alt=media',
+    'https://example.com/v0/b/pm/o/media%2F1%2Fa.jpg?alt=media',
+    'http://127.0.0.1:9199/v0/b/demo-pm.appspot.com/o/media%2F1%2Fa.png?alt=media',
+  ]) {
+    assert.equal(mediaUrl(bad), null, bad);
+  }
+  // The Storage emulator only on a page set up with it (debug builds).
+  const emulated = 'http://10.0.2.2:9199/v0/b/demo-pm.appspot.com/o/media%2F1%2Fupload-1.png?alt=media&token=t';
+  page('?device=p1&emulators=10.0.2.2');
+  assert.equal(mediaUrl(emulated), emulated);
+  assert.equal(mediaUrl(emulated.replace(':9199', ':8080')), null);
+  // A preview inside the staff app: the emulators parameter is on the parent page.
+  globalThis.location = new URL(`${ORIGIN}/player/?preview=3`);
+  globalThis.window = { location: globalThis.location, parent: { location: new URL(`${ORIGIN}/cloud/app.html?emulators=10.0.2.2`) } };
+  assert.equal(mediaUrl(emulated), emulated);
 });

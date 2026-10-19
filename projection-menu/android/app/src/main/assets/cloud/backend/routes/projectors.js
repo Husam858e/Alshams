@@ -73,8 +73,11 @@ export function projectorRoutes(route, cloud) {
       }
       let projectorId = existingId;
       if (projectorId) {
+        // The old device stops at once (extraWrites then deletes devices/{uid});
+        // the projector is offline until a device claims the code, on the
+        // code's table.
         const p = loadProjector(projectorId);
-        p.device_uid = null; // the old device stops at once (extraWrites then deletes devices/{uid})
+        Object.assign(p, { device_uid: null, last_seen_at: null, acked_at: null, online: false, table_id: table.id });
       } else {
         projectorId = s.nextId('projector');
         const row = {

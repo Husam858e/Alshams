@@ -1074,7 +1074,9 @@ async function claimLocal(code) {
 async function claimCloud(code) {
   const { config, emulators } = flow.cloud;
   const result = await cloudCall(
-    (backend) => backend.claimProjector(config, code, { emulators: emulatorOptions(emulators) }),
+    // The player page signs in with the same app instance (DEVICE_APP), so it
+    // finds the anonymous user that this claim bound to the projector.
+    (backend) => backend.claimProjector(config, code, { appName: backend.DEVICE_APP, emulators: emulatorOptions(emulators) }),
     CLAIM_TIMEOUT_MS * 2,
     'انتهت مهلة الاتصال بمشروع Firebase — تأكد من اتصال الإنترنت ثم أعد المحاولة',
   );

@@ -59,7 +59,7 @@ async function main() {
     // A file missing from the APK, or a module that fails to load.
     return showCrash(screen, err, 'تعذّر تشغيل الوضع السحابي');
   }
-  const hostReady = startHost(() => backend.createCloudHost(project.config, { role: 'device', emulators: project.emulators }), screen, { quiet: true }).then((host) => {
+  const hostReady = startHost(() => backend.createCloudHost(project.config, { role: 'device', appName: backend.DEVICE_APP, emulators: project.emulators }), screen, { quiet: true }).then((host) => {
     screen.hide(); // an error shown while it kept retrying
     return host;
   });

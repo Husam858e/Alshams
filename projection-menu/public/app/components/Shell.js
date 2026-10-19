@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useViewport } from '../lib/hooks.js';
 import { ROLES } from '../lib/labels.js';
 import { liveStatus, onLiveStatus } from '../lib/live.js';
-import { logout } from '../lib/session.js';
+import { logout, useCloud } from '../lib/session.js';
 import { useStore } from '../lib/store.js';
 import { GROUPS, navFor, phoneNav } from '../routes.js';
 import { BrandMark, Icon } from './icons.js';
@@ -33,6 +33,7 @@ export function LiveIndicator({ compact }) {
 // Shown when the realtime link has been down for a few seconds.
 function OfflineBanner() {
   const status = useLiveStatus();
+  const cloud = useCloud();
   const [show, setShow] = useState(false);
   useEffect(() => {
     if (status !== 'offline') return setShow(false);
@@ -42,7 +43,11 @@ function OfflineBanner() {
   if (!show) return null;
   return html`<div class="offline-banner" role="alert">
     <${Icon} name="wifi-off" size=${18} />
-    <span>انقطع الاتصال المباشر بالخادم — جارٍ إعادة المحاولة. التحديثات الحية متوقفة مؤقتاً.</span>
+    <span>
+      ${cloud
+        ? 'لا يوجد اتصال بالإنترنت — تُحفظ تعديلاتك على هذا الجهاز وتُرسل عند عودة الاتصال. التحديثات من الأجهزة الأخرى متوقفة مؤقتاً.'
+        : 'انقطع الاتصال المباشر بالخادم — جارٍ إعادة المحاولة. التحديثات الحية متوقفة مؤقتاً.'}
+    </span>
   </div>`;
 }
 

@@ -11,7 +11,7 @@
 // window and only exists after an async start: the page calls
 // window.__pmInstallShim(host, {realUploads: true}) once it has one. Real
 // uploads report their own progress (fields.onProgress) instead of the
-// demo's simulated one.
+// demo's simulated one, and xhr.abort() cancels them (fields.signal).
 // Keep to plain ES2017: it runs before anything else on the page.
 
 (function () {
@@ -121,7 +121,12 @@
             });
         };
         if (realUploads) {
-          // The cloud backend reports the bytes it has sent (0..1).
+          // The cloud backend reports the bytes it has sent (0..1), and
+          // abort() cancels the upload itself through fields.signal.
+          if (typeof AbortController !== 'undefined') {
+            demo.controller = new AbortController();
+            fields.signal = demo.controller.signal;
+          }
           fields.onProgress = function (fraction) {
             if (demo.aborted || !total) return;
             fire(self.upload, 'progress', Math.round(total * Math.min(1, Math.max(0, Number(fraction) || 0))));
@@ -148,6 +153,7 @@
         if (this._demo.aborted || this._demo.state === DONE) return;
         this._demo.aborted = true;
         this._demo.state = DONE;
+        if (this._demo.controller) this._demo.controller.abort();
         this.dispatchEvent(new ProgressEvent('abort'));
         this.dispatchEvent(new ProgressEvent('loadend'));
       }
