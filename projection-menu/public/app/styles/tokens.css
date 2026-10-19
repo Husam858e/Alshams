@@ -1,0 +1,121 @@
+/* Staff app design tokens. Builds on /shared/tokens.css (brand gold, ink,
+ * status colors, motion) so the app and the projected menu feel like one
+ * product: dark luxe canvas, refined gold, glass surfaces, 8px grid. */
+
+:root {
+  /* Canvas and surfaces */
+  --bg: #0a0a0b;
+  --bg-2: #0e0e10;
+  --bg-glow: radial-gradient(1100px 620px at 100% -8%, rgba(212, 160, 86, 0.075), transparent 62%),
+    radial-gradient(900px 600px at -10% 110%, rgba(130, 110, 80, 0.05), transparent 60%);
+  --surface: rgba(255, 255, 255, 0.034);
+  --surface-2: rgba(255, 255, 255, 0.055);
+  --surface-3: rgba(255, 255, 255, 0.085);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --surface-solid: #131315;
+  --surface-solid-2: #19191c;
+  --surface-solid-3: #212125;
+  --glass: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.022) 60%, rgba(255, 255, 255, 0.035));
+  --glass-strong: linear-gradient(165deg, rgba(34, 33, 36, 0.92), rgba(20, 20, 22, 0.94));
+  --line: rgba(255, 255, 255, 0.075);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --line-3: rgba(255, 255, 255, 0.2);
+
+  /* Ink */
+  --ink: var(--pm-ink, #f6efe4);
+  --ink-2: rgba(246, 239, 228, 0.72);
+  --ink-3: rgba(246, 239, 228, 0.5);
+  --ink-4: rgba(246, 239, 228, 0.3);
+
+  /* Gold */
+  --gold: var(--pm-gold, #d4a056);
+  --gold-hi: var(--pm-gold-hi, #ecca8e);
+  --gold-lo: var(--pm-gold-lo, #a2763a);
+  --gold-rgb: 212, 160, 86;
+  --gold-grad: linear-gradient(180deg, #ebc47f 0%, #d4a056 52%, #bb8642 100%);
+  --gold-soft: rgba(212, 160, 86, 0.12);
+  --gold-line: rgba(212, 160, 86, 0.38);
+  --on-gold: #1c1408;
+
+  /* Feedback */
+  --ok: var(--pm-ok, #74c48f);
+  --warn: var(--pm-warn, #e6b450);
+  --danger: var(--pm-danger, #e2705f);
+  --info: var(--pm-info, #82a9e3);
+
+  /* Statuses */
+  --c-free: var(--pm-table-free, #74c48f);
+  --c-occupied: var(--pm-table-occupied, #e6b450);
+  --c-reserved: var(--pm-table-reserved, #b58ae0);
+  --c-open: var(--pm-status-open, #82a9e3);
+  --c-preparing: var(--pm-status-preparing, #e6b450);
+  --c-served: var(--pm-status-served, #74c48f);
+  --c-paid: var(--pm-status-paid, #a9a3b8);
+  --c-cancelled: var(--pm-status-cancelled, #e2705f);
+
+  /* Spacing (8px grid, with 4px half steps) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* Radii */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* Type scale */
+  --font: var(--font-cairo, 'Cairo', 'Segoe UI', Tahoma, sans-serif);
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-28: 28px;
+  --fs-34: 34px;
+  --fs-44: 44px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-3: 0 30px 80px rgba(0, 0, 0, 0.6), 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-gold: 0 8px 24px rgba(212, 160, 86, 0.22);
+  --inset-hi: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* Focus */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px rgba(var(--gold-rgb), 0.75);
+
+  /* Motion */
+  --ease: var(--pm-ease-out, cubic-bezier(0.22, 0.61, 0.36, 1));
+  --ease-emph: var(--pm-ease-emph, cubic-bezier(0.16, 1, 0.3, 1));
+  --dur-1: 140ms;
+  --dur-2: 220ms;
+  --dur-3: 420ms;
+
+  /* Layout */
+  --sidebar-w: 256px;
+  --rail-w: 92px;
+  --phone-top-h: 56px;
+  --bottom-h: 68px;
+  --touch: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}

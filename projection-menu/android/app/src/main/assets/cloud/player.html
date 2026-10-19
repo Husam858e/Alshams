@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#000000">
+  <title>منيو الطاولة</title>
+  <!-- Cloud-mode copy of public/player/index.html, kept in sync by
+       test/android-cloud-assets.test.js: the same stylesheets (absolute paths,
+       as this page lives in /cloud/) plus the start-up states, and the same
+       import map plus the Firebase SDK bundled in the APK. player.js starts
+       the cloud backend and hands it to /player/main.js through its demo seam
+       (lib/net.js). Opened as player.html?device=<key>. -->
+  <link rel="stylesheet" href="/shared/fonts.css">
+  <link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/player/player.css">
+  <link rel="stylesheet" href="/player/themes.css">
+  <link rel="stylesheet" href="/player/scenes.css">
+  <link rel="stylesheet" href="/cloud/boot.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "preact": "/vendor/preact/dist/preact.module.js",
+        "preact/hooks": "/vendor/preact/hooks/dist/hooks.module.js",
+        "htm": "/vendor/htm/dist/htm.module.js",
+        "htm/preact": "/vendor/htm/preact/index.module.js",
+        "three": "/vendor/three/build/three.module.js",
+        "three/addons/": "/vendor/three/examples/jsm/",
+        "firebase/app": "/vendor/firebase/firebase-app.js",
+        "firebase/auth": "/vendor/firebase/firebase-auth.js",
+        "firebase/firestore": "/vendor/firebase/firebase-firestore.js",
+        "firebase/storage": "/vendor/firebase/firebase-storage.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js": "/vendor/firebase/firebase-app.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js": "/vendor/firebase/firebase-auth.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js": "/vendor/firebase/firebase-firestore.js",
+        "https://www.gstatic.com/firebasejs/13.0.0/firebase-storage.js": "/vendor/firebase/firebase-storage.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Black = no light on the table. The app paints into #root. -->
+  <div id="root"></div>
+  <script type="module" src="/cloud/player.js"></script>
+</body>
+</html>

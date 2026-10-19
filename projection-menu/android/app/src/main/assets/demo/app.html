@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>تطبيق الموظفين — المنيو الضوئي</title>
+  <!-- Offline-demo copy of public/app/index.html, kept in sync by
+       test/android-assets.test.js: the same stylesheets (absolute paths, as
+       this page lives in /demo/), the same import map plus the Socket.IO
+       client swapped for the demo's, and frame-shim.js first so fetch / XHR
+       reach the demo backend of the parent page. -->
+  <script src="/demo/frame-shim.js"></script>
+  <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/fonts.css">
+  <link rel="stylesheet" href="/shared/tokens.css">
+  <link rel="stylesheet" href="/app/styles/tokens.css">
+  <link rel="stylesheet" href="/app/styles/base.css">
+  <link rel="stylesheet" href="/app/styles/components.css">
+  <link rel="stylesheet" href="/app/styles/layout.css">
+  <link rel="stylesheet" href="/app/styles/screens.css">
+  <link rel="stylesheet" href="/app/styles/manage.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "preact": "/vendor/preact/dist/preact.module.js",
+        "preact/hooks": "/vendor/preact/hooks/dist/hooks.module.js",
+        "htm": "/vendor/htm/dist/htm.module.js",
+        "htm/preact": "/vendor/htm/preact/index.module.js",
+        "/socket.io/socket.io.esm.min.js": "/demo/fake-socket.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root">
+    <!-- Shown until the app module paints. -->
+    <div class="boot-splash" aria-busy="true">
+      <div class="boot-mark"></div>
+    </div>
+  </div>
+  <script type="module" src="/app/main.js"></script>
+</body>
+</html>

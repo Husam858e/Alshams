@@ -1,0 +1,36 @@
+{
+  "name": "alshams-projection-menu",
+  "version": "2.2.0",
+  "private": true,
+  "description": "منيو مطعم كامل يُعرض بالإسقاط الضوئي على الطاولات، مع تطبيق للموظفين (مالك، مصمم، ويتر)",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "start:env": "node --env-file=.env src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/db/seed.js",
+    "seed:reset": "node src/db/seed.js --reset",
+    "test": "node --test \"test/*.test.js\"",
+    "test:cloud": "npx --yes firebase-tools@15.34.0 emulators:exec --project demo-pm --config firebase/firebase.json \"node --test --test-concurrency=1 'test/cloud/*.test.js'\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "bonjour-service": "^1.4.4",
+    "express": "^5.3.0",
+    "firebase": "^13.0.0",
+    "htm": "^3.1.1",
+    "multer": "^2.4.0",
+    "preact": "^10.29.8",
+    "qrcode-generator": "^2.0.4",
+    "socket.io": "^4.8.4",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "socket.io-client": "^4.8.4"
+  }
+}

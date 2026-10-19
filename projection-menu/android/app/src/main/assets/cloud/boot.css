@@ -1,0 +1,129 @@
+/* Start-up states of the cloud pages (cloud/boot.js): a layer over the page
+   while the cloud backend starts or when it cannot. Same dark luxe look as the
+   setup screen (app/setup.css), on the shared tokens (/shared/tokens.css).
+   On a projector ([data-surface='player']) the layer is black and the text
+   dim: whatever is shown lands on the guests' table. */
+
+.cloud-boot {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  direction: rtl;
+  color: var(--pm-ink, #f6efe4);
+  font: 16px/1.65 var(--font-cairo, 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(1000px 460px at 50% -160px, rgba(var(--pm-gold-rgb, 212, 160, 86), 0.14), transparent 70%),
+    linear-gradient(180deg, var(--pm-bg-1, #0d0d0f) 0%, var(--pm-bg-0, #060606) 100%);
+  animation: cloud-boot-in 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.cloud-boot[hidden] { display: none; }
+@keyframes cloud-boot-in { from { opacity: 0; } }
+
+.cloud-boot-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(560px, 100%);
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid var(--pm-line, rgba(255, 255, 255, 0.08));
+  border-radius: 22px;
+  background: var(--pm-glass-fill, linear-gradient(160deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.025) 55%, rgba(255, 255, 255, 0.04))), rgba(20, 20, 23, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+/* Starting up: no card, just the mark and one line, like the app's splash. */
+.cloud-boot-card[data-kind='busy'] { border-color: transparent; background: none; box-shadow: none; }
+
+.cloud-boot-badge {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  border: 1px solid rgba(var(--pm-gold-rgb, 212, 160, 86), 0.35);
+  background: radial-gradient(circle at 30% 25%, rgba(var(--pm-gold-rgb, 212, 160, 86), 0.3), rgba(var(--pm-gold-rgb, 212, 160, 86), 0.08));
+  color: var(--pm-gold-hi, #ecca8e);
+}
+.cloud-boot-card[data-kind='error'] .cloud-boot-badge {
+  border-color: rgba(226, 112, 95, 0.4);
+  background: rgba(226, 112, 95, 0.1);
+  color: var(--pm-danger, #e2705f);
+}
+.cloud-boot-card[data-kind='busy'] .cloud-boot-badge { border-color: transparent; background: none; }
+
+.cloud-boot-icon {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cloud-boot-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(var(--pm-gold-rgb, 212, 160, 86), 0.2);
+  border-top-color: var(--pm-gold, #d4a056);
+  animation: cloud-boot-spin 0.9s linear infinite;
+}
+@keyframes cloud-boot-spin { to { transform: rotate(360deg); } }
+
+.cloud-boot-title { margin: 0; font-size: clamp(21px, 2.6vw, 27px); font-weight: 800; line-height: 1.4; }
+.cloud-boot-card[data-kind='busy'] .cloud-boot-title { font-size: 18px; font-weight: 700; color: var(--pm-ink-2, rgba(246, 239, 228, 0.74)); }
+.cloud-boot-text { margin: 0; color: var(--pm-ink-2, rgba(246, 239, 228, 0.74)); overflow-wrap: anywhere; }
+.cloud-boot-card[data-kind='busy'] .cloud-boot-text { color: var(--pm-ink-3, rgba(246, 239, 228, 0.5)); font-size: 15px; }
+.cloud-boot-countdown { margin: 0; color: var(--pm-gold-hi, #ecca8e); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.cloud-boot-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; width: 100%; margin-top: 6px; }
+.cloud-boot-btn {
+  display: inline-flex;
+  flex: 1 1 200px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 22px;
+  border: 1px solid var(--pm-line-2, rgba(255, 255, 255, 0.14));
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.cloud-boot-btn .cloud-boot-icon { width: 22px; height: 22px; stroke-width: 1.7; }
+.cloud-boot-btn:hover { border-color: rgba(var(--pm-gold-rgb, 212, 160, 86), 0.55); background: rgba(var(--pm-gold-rgb, 212, 160, 86), 0.08); }
+.cloud-boot-btn:active { transform: scale(0.98); }
+.cloud-boot-btn.primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--pm-gold-hi, #ecca8e), var(--pm-gold, #d4a056) 50%, var(--pm-gold-lo, #a2763a));
+  color: #1b1307;
+  font-weight: 800;
+  box-shadow: 0 12px 32px rgba(var(--pm-gold-rgb, 212, 160, 86), 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+/* Remote control / keyboard focus, as on the setup screen. */
+.cloud-boot-btn:focus { outline: none; }
+.cloud-boot-btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--pm-bg-1, #0d0d0f), 0 0 0 6px rgba(var(--pm-gold-rgb, 212, 160, 86), 0.95), 0 0 28px rgba(var(--pm-gold-rgb, 212, 160, 86), 0.35);
+}
+
+/* Projector: black, dim, no glass — light on the table only where needed. */
+.cloud-boot[data-surface='player'] { background: #000; }
+.cloud-boot[data-surface='player'] .cloud-boot-card { background: #000; box-shadow: none; border-color: rgba(255, 255, 255, 0.06); opacity: 0.85; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud-boot, .cloud-boot-spinner { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}

@@ -1,0 +1,356 @@
+rules_version = '2';
+
+// Security rules of the restaurant's Firebase project (cloud mode).
+// Layout and roles: docs/cloud-architecture.md ("Firestore layout").
+//
+//   staff     Firebase Auth email accounts; roles/{uid} = {role, userId, active}
+//             is the only source of a role (staff cannot write it, only owners)
+//   projector anonymous Auth accounts bound to one projector by devices/{uid},
+//             which only a valid, unexpired pairing code can create
+//
+// Deactivated staff and anonymous visitors that are not a paired projector
+// read nothing but the public bits (setup state, restaurant name and theme).
+//
+// Every rule below states who may do what; the app checks the same things
+// first so that people get a clear Arabic message instead of a refusal.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Who is asking ─────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function docPath(collection, id) {
+      return /databases/$(database)/documents/$(collection)/$(id);
+    }
+
+    // The caller's role, or 'none' (signed out, no account, deactivated).
+    function role() {
+      return signedIn() ? roleOf(request.auth.uid) : 'none';
+    }
+
+    function roleOf(uid) {
+      let roles = docPath('roles', uid);
+      return exists(roles) && get(roles).data.active == true ? get(roles).data.role : 'none';
+    }
+
+    function isOwner() { return role() == 'owner'; }
+    function isDesigner() { return role() == 'designer'; }
+    function isWaiter() { return role() == 'waiter'; }
+    function isStaff() { return role() in ['owner', 'designer', 'waiter']; }
+    function isContentTeam() { return role() in ['owner', 'designer']; }
+    function isFloorTeam() { return role() in ['owner', 'waiter']; }
+
+    // users/{id} of the signed-in staff member.
+    function myUserId() {
+      return get(docPath('roles', request.auth.uid)).data.userId;
+    }
+
+    // The projector this (anonymous) device is bound to, or -1. "After":
+    // as it will be once the current batch is written (the claim creates it).
+    function boundProjectorAfter() {
+      return signedIn() ? projectorOfDeviceAfter(request.auth.uid) : -1;
+    }
+
+    function projectorOfDeviceAfter(uid) {
+      let device = docPath('devices', uid);
+      return existsAfter(device) ? getAfter(device).data.projectorId : -1;
+    }
+
+    // A projector device that completed its pairing.
+    function isBoundDevice() {
+      return signedIn() && exists(docPath('devices', request.auth.uid));
+    }
+
+    // Active staff and paired projectors: who may read the restaurant's
+    // floor and menu (not any visitor who signs in anonymously).
+    function isMember() {
+      return isStaff() || isBoundDevice();
+    }
+
+    // The table of the projector this device is bound to, or -1.
+    function boundTable() {
+      return signedIn() ? tableOfDevice(request.auth.uid) : -1;
+    }
+
+    function tableOfDevice(uid) {
+      let device = docPath('devices', uid);
+      return exists(device) ? tableOfProjector(get(device).data.projectorId) : -1;
+    }
+
+    function tableOfProjector(projectorId) {
+      let projector = docPath('projectors', string(projectorId));
+      return exists(projector) ? get(projector).data.table_id : -1;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    function data() { return request.resource.data; }
+
+    // Top-level fields an update changes.
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function onlyChanges(fields) {
+      return changed().hasOnly(fields);
+    }
+
+    // A document's own `id` field matches its document id.
+    function idMatches(id) {
+      return data().id is int && string(data().id) == id;
+    }
+
+    // The first owner's setup batch: meta/setup does not exist before it,
+    // and names the caller once the batch is written.
+    function bootstrapping() {
+      let setup = docPath('meta', 'setup');
+      return signedIn()
+        && !exists(setup)
+        && existsAfter(setup)
+        && getAfter(setup).data.ownerUid == request.auth.uid;
+    }
+
+    // ── meta: first run and id counters ───────────────────────────
+
+    // Exists once the owner account exists (the app shows "create owner" until then).
+    match /meta/setup {
+      allow get: if true;
+      allow create: if signedIn()
+        && data().keys().hasOnly(['ownerUid', 'at'])
+        && data().ownerUid == request.auth.uid
+        && getAfter(docPath('roles', request.auth.uid)).data.role == 'owner';
+      allow list, update, delete: if false;
+    }
+
+    // One counter per kind of id; staff reserve ids by raising them (never lowering).
+    match /meta/counters {
+      function notLower(kind) {
+        return data().get(kind, 0) is int && data().get(kind, 0) >= resource.data.get(kind, 0);
+      }
+      function validCounters() {
+        return data().keys().hasOnly(['user', 'area', 'table', 'projector', 'asset', 'category', 'dish', 'order', 'activity']);
+      }
+      allow get: if isStaff();
+      allow create: if bootstrapping() && validCounters();
+      allow update: if isStaff() && validCounters()
+        && notLower('user') && notLower('area') && notLower('table') && notLower('projector')
+        && notLower('asset') && notLower('category') && notLower('dish') && notLower('order')
+        && notLower('activity');
+      allow list, delete: if false;
+    }
+
+    // ── Accounts ──────────────────────────────────────────────────
+
+    // username -> current Auth email. Read one by one before signing in; never listed.
+    match /logins/{key} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if (isOwner() || bootstrapping())
+        && data().keys().hasOnly(['email', 'userId'])
+        && data().email is string
+        && data().userId is int;
+      allow delete: if isOwner();
+    }
+
+    // The security source of truth. Only owners write roles (nobody raises
+    // their own); the first owner writes their own once, during setup.
+    match /roles/{uid} {
+      function validRole() {
+        return data().keys().hasOnly(['role', 'userId', 'active'])
+          && data().role in ['owner', 'designer', 'waiter']
+          && data().userId is int
+          && data().active is bool;
+      }
+      allow get: if signedIn() && (uid == request.auth.uid || isOwner());
+      allow list: if isOwner();
+      allow create: if validRole()
+        && (isOwner() || (bootstrapping() && uid == request.auth.uid && data().role == 'owner' && data().active == true));
+      allow update: if validRole() && isOwner();
+      allow delete: if isOwner();
+    }
+
+    // The app's user rows (no passwords: Auth holds them).
+    match /users/{id} {
+      function validUser() {
+        return idMatches(id) && !('password' in data()) && data().role in ['owner', 'designer', 'waiter'];
+      }
+      allow read: if isStaff();
+      allow create: if validUser() && (isOwner() || (bootstrapping() && id == '1' && data().role == 'owner'));
+      // Everyone records their own last sign-in; everything else is the owner's.
+      allow update: if validUser()
+        && (isOwner() || (isStaff() && string(myUserId()) == id && onlyChanges(['last_login_at'])));
+      allow delete: if false;
+    }
+
+    // ── Floor ─────────────────────────────────────────────────────
+
+    match /areas/{id} {
+      allow read: if isMember();
+      allow create, update: if isOwner() && idMatches(id);
+      allow delete: if isOwner();
+    }
+
+    // Waiters only change a table's status (free / occupied / reserved).
+    match /tables/{id} {
+      allow read: if isMember();
+      allow create: if isOwner() && idMatches(id);
+      allow update: if (isOwner() && idMatches(id))
+        || (isWaiter() && onlyChanges(['status']) && data().status in ['free', 'occupied', 'reserved']);
+      allow delete: if isOwner();
+    }
+
+    // Owners manage projectors; designers calibrate them; the bound device
+    // writes only its heartbeat, scene acks and power, and completes its
+    // own pairing (pending -> false, device_uid = itself).
+    match /projectors/{id} {
+      function deviceUpdate() {
+        return boundProjectorAfter() == int(id)
+          && onlyChanges(['last_seen_at', 'acked_at', 'power', 'pending', 'device_uid'])
+          && data().get('pending', false) == false
+          && data().get('device_uid', null) == request.auth.uid;
+      }
+      allow read: if isMember();
+      allow create: if isOwner() && idMatches(id);
+      allow update: if (isOwner() && idMatches(id))
+        || (isDesigner() && onlyChanges(['calibration', 'rotation', 'layout', 'test_pattern']))
+        || deviceUpdate();
+      allow delete: if isOwner();
+    }
+
+    // A device's binding to its projector. Created only with a pairing code
+    // that exists, has not expired, names that projector and is deleted in
+    // the same batch (single use). The owner deletes it to cut the device off.
+    match /devices/{uid} {
+      function validClaim() {
+        let pairing = docPath('pairing', data().code);
+        return data().keys().hasOnly(['projectorId', 'code', 'at'])
+          && data().code is string
+          && exists(pairing)
+          && get(pairing).data.projectorId == data().projectorId
+          && get(pairing).data.expiresAt > request.time
+          && !existsAfter(pairing);
+      }
+      allow get: if signedIn() && (uid == request.auth.uid || isOwner());
+      allow list: if isOwner();
+      allow create, update: if signedIn() && uid == request.auth.uid && validClaim();
+      allow delete: if isOwner();
+    }
+
+    // 6-digit pairing codes (10 minutes, single use). Read one by one.
+    match /pairing/{code} {
+      function validPairing() {
+        return code.matches('^[0-9]{6}$')
+          && data().keys().hasOnly(['projectorId', 'tableId', 'expiresAt', 'createdBy'])
+          && data().projectorId is int
+          && data().expiresAt is timestamp;
+      }
+      allow get: if signedIn();
+      allow list: if isOwner();
+      allow create, update: if isOwner() && validPairing();
+      // The owner, or the device that claims it in its pairing batch.
+      allow delete: if isOwner()
+        || (signedIn() && existsAfter(docPath('devices', request.auth.uid)) && getAfter(docPath('devices', request.auth.uid)).data.code == code);
+    }
+
+    // ── Menu, media, settings ─────────────────────────────────────
+
+    match /categories/{id} {
+      allow read: if isMember();
+      allow create, update: if isContentTeam() && idMatches(id);
+      allow delete: if isContentTeam();
+    }
+
+    // Prices are the owner's: a designer never changes one, and adds dishes at price 0.
+    match /dishes/{id} {
+      allow read: if isMember();
+      allow create: if idMatches(id) && data().price is number
+        && (isOwner() || (isDesigner() && data().price == 0));
+      allow update: if idMatches(id) && data().price is number
+        && (isOwner() || (isDesigner() && !('price' in changed())));
+      allow delete: if isContentTeam();
+    }
+
+    // The media library. A file kept in Firestore (storage == 'firestore',
+    // the default) is published only once its chunks are written (the first
+    // and the last must exist); a library entry's file never changes after,
+    // only its title. Older entries / Blaze projects keep files in Firebase
+    // Storage (storage_path + url).
+    match /media/{id} {
+      function chunksWritten() {
+        return data().chunks is int && data().chunks >= 1 && data().chunks <= 32
+          && data().size_bytes is int && data().size_bytes > 0 && data().size_bytes <= data().chunks * 921600
+          && data().rev is string && data().rev.size() <= 64
+          && data().mime_type in ['image/webp', 'image/jpeg', 'image/png', 'video/mp4', 'video/webm', 'model/gltf-binary']
+          && exists(docPath('mediaChunks', id + '_0'))
+          && exists(docPath('mediaChunks', id + '_' + string(data().chunks - 1)));
+      }
+      allow read: if isMember();
+      allow create: if isContentTeam() && idMatches(id)
+        && data().kind in ['image', 'video', 'model3d']
+        && (data().get('storage', null) != 'firestore' || chunksWritten());
+      allow update: if isContentTeam() && idMatches(id)
+        && !changed().hasAny(['kind', 'storage', 'chunks', 'rev', 'sha256', 'size_bytes', 'mime_type', 'url', 'storage_path', 'file_name']);
+      allow delete: if isContentTeam();
+    }
+
+    // Media files kept in Firestore: ≤ 900 KB pieces of one file, Firestore
+    // Bytes, id "<assetId>_<index>". Written before their media doc, never
+    // changed (nor added to a published file), deleted with it.
+    match /mediaChunks/{chunk} {
+      function validChunk() {
+        let d = data();
+        return d.keys().hasOnly(['assetId', 'index', 'data'])
+          && d.assetId is int && d.assetId > 0
+          && d.index is int && d.index >= 0 && d.index < 32
+          && d.data is bytes && d.data.size() > 0 && d.data.size() <= 921600
+          && chunk == string(d.assetId) + '_' + string(d.index)
+          && !exists(docPath('media', string(d.assetId)));
+      }
+      allow read: if isMember();
+      allow create: if isContentTeam() && validChunk();
+      allow update: if false;
+      allow delete: if isContentTeam() && chunk.matches('^[0-9]+_[0-9]+$');
+    }
+
+    // Public: the restaurant's name and theme are shown on every table (and
+    // on the sign-in screen). general: owner; theme: owner and designer.
+    match /settings/{name} {
+      allow read: if true;
+      allow create, update: if (name == 'general' && (isOwner() || bootstrapping()))
+        || (name == 'theme' && (isContentTeam() || bootstrapping()));
+      allow delete: if false;
+    }
+
+    // What each table shows. Designers test with menu scenes, never orders.
+    match /scenes/{tableId} {
+      allow read: if isMember();
+      allow create, update: if isStaff()
+        && data().type in ['welcome', 'menu', 'category', 'dish', 'order', 'off']
+        && !(isDesigner() && data().type == 'order');
+      allow delete: if isStaff();
+    }
+
+    // ── Orders and the activity log ───────────────────────────────
+
+    // Owners and waiters; a projector reads the orders of its own table
+    // (one by one: the order its table shows).
+    match /orders/{id} {
+      allow read: if isFloorTeam() || resource.data.table_id == boundTable();
+      allow create, update: if isFloorTeam() && idMatches(id);
+      allow delete: if false;
+    }
+
+    // Append-only; everyone logs as themselves; only owners read it.
+    match /activity/{id} {
+      allow read: if isOwner();
+      allow create: if idMatches(id)
+        && ((isStaff() && data().user_id == myUserId())
+          || (bootstrapping() && data().action == 'auth.setup'));
+      allow update, delete: if false;
+    }
+  }
+}

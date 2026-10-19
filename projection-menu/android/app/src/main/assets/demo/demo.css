@@ -1,0 +1,918 @@
+/* Offline demo page: the staff app in a tablet next to a restaurant table
+ * seen from above, on which the projector's output is blended like light.
+ * Colours, radii and motion come from /shared/tokens.css. */
+
+:root {
+  --bar-h: 64px;
+  --gap: 16px;
+  --app-w: 56%;
+  --bezel: 8px;
+  --table-w: 480px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-rows: var(--bar-h) minmax(0, 1fr);
+  overflow: hidden;
+  font-family: var(--pm-font);
+  color: var(--pm-ink);
+  background:
+    radial-gradient(ellipse 70% 50% at 85% 0%, rgba(var(--pm-gold-rgb), 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 60% at 10% 100%, rgba(var(--pm-gold-rgb), 0.05), transparent 70%),
+    #080706;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--pm-gold-hi);
+  outline-offset: 3px;
+}
+
+svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────── */
+
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--pm-s2);
+  padding: 0 var(--gap);
+  border-bottom: 1px solid var(--pm-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-inline-end: auto;
+}
+
+.brand .mark {
+  width: 40px;
+  height: 40px;
+  stroke: none;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.brand p {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--pm-ink-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.role-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--pm-line-2);
+  border-radius: var(--pm-r-pill);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.role-switch button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--pm-r-pill);
+  background: transparent;
+  color: var(--pm-ink-2);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background var(--pm-dur-2) var(--pm-ease-out), color var(--pm-dur-2) var(--pm-ease-out);
+}
+
+.role-switch button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.role-switch button:hover {
+  color: var(--pm-ink);
+}
+
+.role-switch button[aria-pressed='true'] {
+  background: linear-gradient(160deg, var(--pm-gold-hi), var(--pm-gold) 55%, var(--pm-gold-lo));
+  color: #1a1206;
+  box-shadow: 0 6px 18px rgba(var(--pm-gold-rgb), 0.25);
+}
+
+.exit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--pm-line-2);
+  border-radius: var(--pm-r-pill);
+  background: transparent;
+  color: var(--pm-ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color var(--pm-dur-2), color var(--pm-dur-2);
+}
+
+.exit:hover {
+  border-color: rgba(var(--pm-gold-rgb), 0.5);
+  color: var(--pm-ink);
+}
+
+/* ── Panes ───────────────────────────────────────────────────────── */
+
+.demo-main {
+  display: grid;
+  grid-template-columns: minmax(0, var(--app-w)) minmax(0, 1fr);
+  gap: var(--gap);
+  min-height: 0;
+  padding: var(--gap);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--pm-glass-edge);
+  border-radius: var(--pm-r-lg);
+  background: var(--pm-glass-fill), rgba(14, 13, 12, 0.7);
+  box-shadow: var(--pm-shadow-2);
+  overflow: hidden;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 16px;
+}
+
+.pane-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pane-title svg {
+  color: var(--pm-gold);
+}
+
+.who {
+  margin-inline-start: auto;
+  font-size: 13px;
+  color: var(--pm-ink-3);
+  white-space: nowrap;
+}
+
+.device {
+  flex: 1;
+  min-height: 0;
+  margin: 0 12px 12px;
+  padding: var(--bezel);
+  border-radius: 26px;
+  background: linear-gradient(160deg, #26231f, #0b0a09 40%, #151310);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+.device iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 18px;
+  background: var(--pm-bg-0);
+  /* clip-path also clips the app's composited layers (fixed bars), which
+   * border-radius alone lets spill over the rounded corners. */
+  clip-path: inset(0 round 18px);
+}
+
+.scene-chip {
+  overflow: hidden;
+  margin-inline-start: auto;
+  padding: 4px 12px;
+  border: 1px solid rgba(var(--pm-gold-rgb), 0.35);
+  border-radius: var(--pm-r-pill);
+  background: rgba(var(--pm-gold-rgb), 0.1);
+  color: var(--pm-gold-hi);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: background var(--pm-dur-2), color var(--pm-dur-2);
+}
+
+.scene-chip:empty {
+  display: none;
+}
+
+.scene-chip[data-scene='off'] {
+  border-color: var(--pm-line-2);
+  background: transparent;
+  color: var(--pm-ink-3);
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 1px solid var(--pm-line-2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--pm-ink-2);
+}
+
+.icon-btn:hover,
+.icon-btn[aria-pressed='true'] {
+  border-color: rgba(var(--pm-gold-rgb), 0.5);
+  color: var(--pm-gold-hi);
+}
+
+/* ── The table, seen from above ──────────────────────────────────── */
+
+.room {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+  margin: 0 12px;
+  padding: 8px 8px 34px; /* room for the caption under the table */
+  border-radius: 18px;
+  overflow: hidden;
+  /* A dark restaurant floor, lit by the room around the table. */
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 50%, rgba(255, 214, 160, 0.07), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 96px),
+    radial-gradient(ellipse at 50% 50%, #191613 0%, #0c0b0a 75%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.table-scene {
+  --chair-w: calc(var(--table-w) * 0.14);
+  --chair-d: calc(var(--table-w) * 0.115);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: var(--table-w);
+}
+
+.chairs {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  justify-content: space-evenly;
+  padding: 0 8%;
+}
+
+.chairs.far {
+  margin-bottom: calc(var(--chair-d) * -0.3);
+}
+
+.chairs.near {
+  margin-top: calc(var(--chair-d) * -0.3);
+  transform: scaleY(-1);
+}
+
+/* An upholstered chair from above: a cushioned seat and, on the outside,
+ * a curved backrest (the near row is mirrored). */
+.chair {
+  position: relative;
+  width: var(--chair-w);
+  height: var(--chair-d);
+  border-radius: 22% 22% 34% 34% / 26% 26% 40% 40%;
+  background:
+    radial-gradient(ellipse 62% 55% at 50% 58%, rgba(255, 236, 214, 0.12), transparent 72%),
+    linear-gradient(180deg, #6b5442, #47372b 70%, #3a2c22);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 240, 220, 0.08),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.6);
+}
+
+.chair::before {
+  content: '';
+  position: absolute;
+  inset: -16% -7% auto;
+  height: 36%;
+  border-radius: 50% 50% 24% 24% / 100% 100% 30% 30%;
+  background: linear-gradient(180deg, #7a604b, #4a392c 80%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 220, 0.16),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 5px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Stitching around the cushion. */
+.chair::after {
+  content: '';
+  position: absolute;
+  inset: 34% 13% 14%;
+  border-radius: 26% 26% 34% 34%;
+  border: 1px dashed rgba(255, 236, 214, 0.14);
+}
+
+.tabletop {
+  position: relative;
+  z-index: 1;
+  aspect-ratio: 16 / 9;
+  border-radius: calc(var(--table-w) * 0.012);
+  background: var(--table-texture, #3b2618) center / cover;
+  isolation: isolate;
+  box-shadow:
+    0 calc(var(--table-w) * 0.04) calc(var(--table-w) * 0.08) rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 233, 200, 0.12),
+    inset 0 0 0 2px rgba(255, 220, 180, 0.04),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+/* Dim restaurant lighting: the projected menu stands out on the wood. */
+.tabletop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 75% at 50% 50%, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.38));
+}
+
+/* The projector covers the whole top (it is calibrated to the edges). */
+.projection {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+}
+
+.projection iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+  pointer-events: none;
+}
+
+/* A projector's black is never quite black: a faint light pool on the wood. */
+.projection::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, rgba(255, 246, 232, 0.05), rgba(255, 246, 232, 0.015) 80%);
+  pointer-events: none;
+}
+
+/* Varnish: a soft reflection of the room lights. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 40% 30% at 28% 22%, rgba(255, 244, 228, 0.08), transparent 70%),
+    linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.025) 50%, transparent 60%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.dark-note {
+  position: absolute;
+  inset: auto 50% 50% auto;
+  transform: translate(50%, 50%);
+  max-width: 80%;
+  padding: 8px 16px;
+  border: 1px solid var(--pm-line-2);
+  border-radius: var(--pm-r-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--pm-ink-2);
+  font-size: 13px;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+.dark-note[hidden] {
+  display: none;
+}
+
+@keyframes table-switch {
+  from {
+    opacity: 0.35;
+    transform: scale(0.985);
+  }
+}
+
+.table-scene.is-switching {
+  animation: table-switch 520ms var(--pm-ease-out);
+}
+
+/* Which projector is lighting the table, and who changed it last. */
+.room-caption {
+  position: absolute;
+  inset: auto 12px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--pm-ink-3);
+  text-align: center;
+  pointer-events: none;
+}
+
+.room-caption:empty {
+  display: none;
+}
+
+.room-caption .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pm-ink-4);
+}
+
+.room-caption[data-on='true'] .dot {
+  background: var(--pm-ok);
+  box-shadow: 0 0 0 3px rgba(116, 196, 143, 0.18);
+}
+
+.room-caption .by::before {
+  content: '·';
+  margin-inline-end: 10px;
+}
+
+/* ── Tips ────────────────────────────────────────────────────────── */
+
+.tips {
+  padding: 14px 18px 16px;
+}
+
+.tips h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pm-gold);
+}
+
+.tips ol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: tip;
+}
+
+.tips li {
+  position: relative;
+  padding-inline-start: 30px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pm-ink-2);
+  counter-increment: tip;
+}
+
+.tips li::before {
+  content: counter(tip);
+  position: absolute;
+  inset-inline-start: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid rgba(var(--pm-gold-rgb), 0.45);
+  border-radius: 50%;
+  color: var(--pm-gold-hi);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.accounts {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px dashed rgba(var(--pm-gold-rgb), 0.4);
+  border-radius: var(--pm-r-md);
+  font-size: 13px;
+  color: var(--pm-ink-2);
+}
+
+.accounts p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.accounts svg {
+  width: 18px;
+  height: 18px;
+  color: var(--pm-gold);
+}
+
+.accounts ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accounts li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--pm-r-pill);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.accounts li span {
+  color: var(--pm-ink-3);
+}
+
+.accounts b {
+  font-weight: 700;
+  color: var(--pm-ink);
+}
+
+.accounts[hidden] {
+  display: none;
+}
+
+/* ── Zoomed table ────────────────────────────────────────────────── */
+
+body.is-zoomed .demo-main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.is-zoomed .app-pane,
+body.is-zoomed .tips {
+  display: none;
+}
+
+body.is-zoomed .room {
+  margin-bottom: 12px;
+}
+
+/* ── Role picker (first screen) ──────────────────────────────────── */
+
+.picker {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: auto;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(var(--pm-gold-rgb), 0.16), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(var(--pm-gold-rgb), 0.06), transparent 70%),
+    #070605;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--pm-dur-3) var(--pm-ease-out), visibility 0s linear var(--pm-dur-3);
+}
+
+body.is-picking .picker {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--pm-dur-3) var(--pm-ease-out);
+}
+
+.picker-card {
+  width: min(920px, 100%);
+  text-align: center;
+  animation: rise var(--pm-dur-4) var(--pm-ease-emph) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+.picker-mark {
+  width: 64px;
+  height: 64px;
+  stroke: none;
+  filter: drop-shadow(0 8px 30px rgba(var(--pm-gold-rgb), 0.35));
+}
+
+.picker h2 {
+  margin: 16px 0 8px;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 800;
+  background: linear-gradient(160deg, #fff4dd, var(--pm-gold-hi) 40%, var(--pm-gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.picker-intro {
+  max-width: 640px;
+  margin: 0 auto;
+  font-size: 15.5px;
+  line-height: 1.9;
+  color: var(--pm-ink-2);
+}
+
+.picker-ask {
+  margin: 28px 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pm-gold);
+}
+
+.roles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--pm-s2);
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 20px 22px;
+  border: 1px solid var(--pm-glass-edge);
+  border-radius: var(--pm-r-lg);
+  background: var(--pm-glass-fill), rgba(20, 18, 16, 0.85);
+  text-align: center;
+  transition:
+    transform var(--pm-dur-2) var(--pm-ease-out),
+    border-color var(--pm-dur-2) var(--pm-ease-out),
+    box-shadow var(--pm-dur-2) var(--pm-ease-out);
+}
+
+.role-card svg {
+  width: 30px;
+  height: 30px;
+  padding: 13px;
+  box-sizing: content-box;
+  border: 1px solid rgba(var(--pm-gold-rgb), 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--pm-gold-rgb), 0.18), rgba(var(--pm-gold-rgb), 0.04));
+  color: var(--pm-gold-hi);
+}
+
+.role-card strong {
+  margin-top: 6px;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.role-card span {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--pm-ink-3);
+}
+
+.role-card:hover,
+.role-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(var(--pm-gold-rgb), 0.55);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(var(--pm-gold-rgb), 0.25);
+  outline: none;
+}
+
+.picker-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 26px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--pm-r-pill);
+  background: transparent;
+  color: var(--pm-ink-3);
+  font-size: 14px;
+}
+
+.picker-exit:hover {
+  color: var(--pm-ink);
+}
+
+/* ── Sizes ───────────────────────────────────────────────────────── */
+
+/* Wide screens: the staff app gets the tablet layout (>= 760 px inside). */
+@media (min-width: 1180px) {
+  :root {
+    --app-w: max(828px, 58%);
+  }
+}
+
+@media (min-width: 1700px) {
+  :root {
+    --app-w: 56%;
+  }
+
+  .tips ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .exit span {
+    display: none;
+  }
+
+  .exit {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+}
+
+@media (max-width: 860px) {
+  .brand p {
+    display: none;
+  }
+}
+
+@media (max-height: 640px) and (orientation: landscape) {
+  .tips {
+    display: none;
+  }
+}
+
+/* Portrait (phones, tablets held upright): the table above the app. */
+@media (max-aspect-ratio: 1/1) {
+  :root {
+    --bar-h: 60px;
+    --gap: 10px;
+    --bezel: 6px;
+  }
+
+  .demo-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 33fr) minmax(0, 67fr);
+  }
+
+  .table-pane {
+    order: -1;
+  }
+
+  .tips,
+  .room-caption {
+    display: none;
+  }
+
+  .room {
+    margin-bottom: 10px;
+    padding: 6px;
+  }
+
+  .pane-head {
+    min-height: 44px;
+    padding: 4px 12px;
+  }
+
+  .device {
+    margin: 0 8px 8px;
+    border-radius: 22px;
+  }
+
+  .device iframe {
+    border-radius: 16px;
+    clip-path: inset(0 round 16px);
+  }
+
+  .roles {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 460px;
+    margin: 0 auto;
+  }
+
+  .role-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 14px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 16px;
+    text-align: start;
+  }
+
+  .role-card svg {
+    grid-row: span 2;
+    width: 24px;
+    height: 24px;
+    padding: 11px;
+  }
+
+  .role-card strong {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .role-card span {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  body.is-zoomed .demo-main {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-text {
+    display: none;
+  }
+
+  .role-switch button {
+    padding: 0 12px;
+  }
+
+  .role-switch button svg {
+    display: none;
+  }
+
+  .pane-title svg {
+    display: none;
+  }
+
+  .picker-intro {
+    font-size: 14.5px;
+  }
+
+  .picker-ask {
+    margin-top: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+data/
+.env
+__pycache__/
+
+# Firebase emulator logs (npm run test:cloud) and any other log file
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+*.log

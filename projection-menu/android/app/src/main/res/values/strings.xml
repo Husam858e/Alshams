@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="ar">
+    <string name="app_name">المنيو الضوئي</string>
+    <string name="cancel">إلغاء</string>
+    <string name="close">إغلاق</string>
+
+    <string name="pin_title">الإعدادات محمية</string>
+    <string name="pin_message">أدخل رمز PIN لفتح الإعدادات</string>
+    <string name="pin_confirm">فتح</string>
+    <string name="pin_wrong">رمز غير صحيح</string>
+    <string name="pin_locked">محاولات خاطئة كثيرة — حاول مرة أخرى بعد دقيقة</string>
+
+    <string name="webview_update_title">يلزم تحديث Android System WebView</string>
+    <string name="webview_update_message">نسخة WebView على هذا الجهاز قديمة ولا تكفي لتشغيل التطبيق ولا العرض التجريبي. حدّث تطبيق «Android System WebView» من متجر Google Play ثم افتح التطبيق من جديد.</string>
+    <string name="webview_update_action">فتح المتجر</string>
+</resources>

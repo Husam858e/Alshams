@@ -1,0 +1,185 @@
+/* Theme presets and card styles. The accent comes from the theme
+ * (--accent / --accent-rgb are set inline by main.js); presets define the
+ * canvas, surfaces and decoration. Canvases stay dark: on a projector every
+ * bright pixel is light thrown on the table. */
+
+.player {
+  --ink: #f6efe4;
+  --ink-2: rgba(246, 239, 228, 0.76);
+  --ink-3: rgba(246, 239, 228, 0.52);
+  --ink-4: rgba(246, 239, 228, 0.24);
+  /* --accent, --accent-rgb, --accent-hi and --accent-lo are set by main.js
+     (computed in JS: older Android WebViews lack color-mix()). */
+  --bg: #050505;
+  --surface: #12110f;
+  --surface-line: rgba(var(--accent-rgb), 0.18);
+  --title-grad: linear-gradient(180deg, #fff3dc 0%, var(--accent-hi) 38%, var(--accent) 72%, var(--accent-lo) 100%);
+}
+
+/* ── noir: black and gold, a single warm pool of light ────────────── */
+
+.preset-noir {
+  --bg: #040404;
+  --surface: #11100e;
+}
+
+.preset-noir .bd-preset {
+  background:
+    radial-gradient(ellipse 55% 45% at 50% -8%, rgba(var(--accent-rgb), 0.13), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 50% 112%, rgba(var(--accent-rgb), 0.06), transparent 70%),
+    #040404;
+}
+
+/* ── marble: dark Nero Marquina stone with ivory and gold veins ───── */
+
+.preset-marble {
+  --bg: #0b0b0d;
+  --surface: #151517;
+  --surface-line: rgba(255, 255, 255, 0.1);
+}
+
+.preset-marble .bd-preset {
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(255, 250, 240, 0.05), transparent 70%),
+    url('assets/marble.svg') center / cover no-repeat,
+    linear-gradient(135deg, #0d0d10, #09090b 50%, #0e0e11);
+}
+
+/* ── garden: deep green with warm light and an olive branch ───────── */
+
+.preset-garden {
+  --bg: #04100a;
+  --surface: #0a1a12;
+  --surface-line: rgba(var(--accent-rgb), 0.2);
+  --ink: #f4f0e3;
+}
+
+.preset-garden .bd-preset {
+  background:
+    radial-gradient(ellipse 55% 50% at 50% 40%, rgba(var(--accent-rgb), 0.07), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 88% 4%, rgba(48, 110, 72, 0.38), transparent 65%),
+    radial-gradient(ellipse 65% 60% at 6% 100%, rgba(36, 92, 60, 0.4), transparent 68%),
+    linear-gradient(160deg, #061810, #03100a 55%, #051309);
+}
+
+.preset-garden .bd-deco::before,
+.preset-garden .bd-deco::after {
+  content: '';
+  position: absolute;
+  width: 560px;
+  height: 604px;
+  background: url('assets/branch.svg') center / contain no-repeat;
+  opacity: 0.2;
+}
+
+.preset-garden .bd-deco::before {
+  top: -150px;
+  right: -110px;
+  transform: rotate(160deg);
+}
+
+.preset-garden .bd-deco::after {
+  bottom: -170px;
+  left: -120px;
+  transform: rotate(-12deg);
+}
+
+/* ── royal: midnight navy into burgundy, framed in gold ───────────── */
+
+.preset-royal {
+  --bg: #070918;
+  --surface: #0e1130;
+  --surface-line: rgba(var(--accent-rgb), 0.28);
+}
+
+.preset-royal .bd-preset {
+  background:
+    radial-gradient(ellipse 75% 65% at 100% 0%, rgba(110, 22, 46, 0.42), transparent 62%),
+    radial-gradient(ellipse 80% 70% at 0% 100%, rgba(24, 36, 96, 0.55), transparent 66%),
+    radial-gradient(ellipse 50% 40% at 50% 45%, rgba(var(--accent-rgb), 0.06), transparent 70%),
+    linear-gradient(135deg, #080b20, #0b0a1c 50%, #170711);
+}
+
+.frame-deco {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transition: opacity 1.2s var(--pm-ease-in-out);
+}
+
+.frame.is-off .frame-deco {
+  opacity: 0;
+}
+
+/* Drawn above the scenes so photos sit inside the frame. */
+.preset-royal .frame-deco {
+  inset: 26px;
+  border: 1.5px solid rgba(var(--accent-rgb), 0.38);
+  border-radius: 6px;
+  outline: 1px solid rgba(var(--accent-rgb), 0.16);
+  outline-offset: 9px;
+}
+
+.preset-royal .frame-deco::before,
+.preset-royal .frame-deco::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.6);
+}
+
+.preset-royal .frame-deco::before {
+  top: -9px;
+}
+
+.preset-royal .frame-deco::after {
+  bottom: -9px;
+}
+
+/* ── Vignette / custom background darkening ───────────────────────── */
+
+.bd-shade {
+  background: radial-gradient(ellipse 85% 85% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.backdrop.has-media .bd-shade {
+  background:
+    radial-gradient(ellipse 85% 85% at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.6) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.72));
+}
+
+/* ── Card styles ──────────────────────────────────────────────────── */
+
+.cards-glass {
+  --card-bg:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025) 42%, rgba(255, 255, 255, 0.045)),
+    rgba(16, 14, 12, 0.42);
+  --card-border: rgba(255, 255, 255, 0.11);
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 30px 70px rgba(0, 0, 0, 0.5);
+  --panel-bg:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.04)),
+    rgba(14, 12, 10, 0.5);
+}
+
+.cards-solid {
+  --card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 24%), var(--surface);
+  --card-border: var(--surface-line);
+  --card-shadow: 0 26px 60px rgba(0, 0, 0, 0.6);
+  --panel-bg: var(--surface);
+}
+
+/* Real glass (blur) only where something sits behind the card. */
+.cards-glass .backdrop.has-media ~ .scenes .dish-card,
+.cards-glass .backdrop.has-media ~ .scenes .od-panel,
+.cards-glass .category .dish-card {
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+}
