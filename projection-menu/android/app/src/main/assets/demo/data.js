@@ -2,7 +2,7 @@
 // Do not edit by hand: change sample-content/ and run the tool again.
 // Photos: sample-content/images (sources and licences in sample-content/CREDITS.md).
 
-export const VERSION = "2.0.1";
+export const VERSION = "2.1.0";
 
 // The sample restaurant; file names point at assets/media (served as /media/<name>).
 export const SAMPLE = {

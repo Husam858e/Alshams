@@ -1,6 +1,6 @@
 {
   "name": "alshams-projection-menu",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "private": true,
   "description": "منيو مطعم كامل يُعرض بالإسقاط الضوئي على الطاولات، مع تطبيق للموظفين (مالك، مصمم، ويتر)",
   "type": "module",
