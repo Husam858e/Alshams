@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val appVersionName = "2.1.0"
+val appVersionName = "2.1.1"
 
 // Release signing: android/keystore.properties (gitignored) with storeFile,
 // storePassword, keyAlias, keyPassword. Without it, release builds are signed
@@ -23,7 +23,7 @@ android {
         applicationId = "com.alshams.projectionmenu"
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
+        versionCode = 5
         versionName = appVersionName
     }
 

@@ -18,4 +18,11 @@
 // These values identify the project; they are not secrets (access is guarded
 // by the Firestore / Storage security rules and Firebase Auth).
 
-export default null;
+export default {
+  apiKey: 'AIzaSyACc7ANpHwrBKYcty2UZKJbFRkzCARduWo',
+  authDomain: 'mineo-21737.firebaseapp.com',
+  projectId: 'mineo-21737',
+  storageBucket: 'mineo-21737.firebasestorage.app',
+  messagingSenderId: '1072021680489',
+  appId: '1:1072021680489:web:699fa4c458588596d58df8',
+};
