@@ -1,0 +1,2409 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تشريح كبّاسة BiG Pack 1290</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="مرجع تفاعلي بالعربي لأجزاء كبّاسة KRONE BiG Pack 1290 HDP II VC مع أرقام تسلسلية وحقول لأرقام الكتالوج ومحاكاة لعملية الكبس.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Reem+Kufi:wght@500;600;700&display=swap">
+<style>
+:root{
+  /* Layout: sticky instrument bar over a tabbed workbench; the anatomy view is a blueprint canvas between a system rail and a part inspector */
+  --bg:#0b1310;
+  --bg-2:#0f1915;
+  --panel:#131f1a;
+  --panel-2:#192821;
+  --line:#243630;
+  --line-2:#30473d;
+  --fg:#e3ece6;
+  --muted:#93a89d;
+  --faint:#62766b;
+  --accent:#e0ae3a;
+  --accent-ink:#1a1304;
+  --machine:#5dbb6c;
+  --sel:#ff7a45;
+  --ok:#4cc38a;
+  --warn:#f0b429;
+  --bad:#f06363;
+  --grid:rgba(120,180,145,.07);
+  --crop:#d8b45a;
+  --crop-2:#a9853a;
+  --m-steel:#8b9a93;
+  --tyre:#1d2320;
+  --sky:#0f1915;
+  --soil:#272619;
+  --shadow:rgba(0,0,0,.35);
+  --font-display:'Reem Kufi','IBM Plex Sans Arabic',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans Arabic','Segoe UI',Tahoma,system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:10px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#edf2ee; --bg-2:#e3eae4; --panel:#ffffff; --panel-2:#f3f6f3; --line:#d3ddd6; --line-2:#bccbc1;
+    --fg:#13211a; --muted:#53675c; --faint:#8a9a90; --accent:#9c6f0b; --accent-ink:#ffffff; --machine:#2e8740;
+    --sel:#d4501a; --ok:#18915a; --warn:#a87406; --bad:#c93434; --grid:rgba(30,90,55,.08);
+    --crop:#d4a940; --crop-2:#9c7520; --m-steel:#66766e; --tyre:#2b322e; --sky:#e7eee8; --soil:#d9d0b4; --shadow:rgba(20,40,30,.18);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#edf2ee; --bg-2:#e3eae4; --panel:#ffffff; --panel-2:#f3f6f3; --line:#d3ddd6; --line-2:#bccbc1;
+  --fg:#13211a; --muted:#53675c; --faint:#8a9a90; --accent:#9c6f0b; --accent-ink:#ffffff; --machine:#2e8740;
+  --sel:#d4501a; --ok:#18915a; --warn:#a87406; --bad:#c93434; --grid:rgba(30,90,55,.08);
+  --crop:#d4a940; --crop-2:#9c7520; --m-steel:#66766e; --tyre:#2b322e; --sky:#e7eee8; --soil:#d9d0b4; --shadow:rgba(20,40,30,.18);
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0b1310; --bg-2:#0f1915; --panel:#131f1a; --panel-2:#192821; --line:#243630; --line-2:#30473d;
+  --fg:#e3ece6; --muted:#93a89d; --faint:#62766b; --accent:#e0ae3a; --accent-ink:#1a1304; --machine:#5dbb6c;
+  --sel:#ff7a45; --ok:#4cc38a; --warn:#f0b429; --bad:#f06363; --grid:rgba(120,180,145,.07);
+  --crop:#d8b45a; --crop-2:#a9853a; --m-steel:#8b9a93; --tyre:#1d2320; --sky:#0f1915; --soil:#272619; --shadow:rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 var(--font-body);direction:rtl;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg-2)}
+.wrap{max-width:1480px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:600;line-height:1.3;margin:0;text-wrap:balance}
+p{margin:0}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:25;background:var(--bg-2);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:14px;padding-block:9px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:44px;height:30px;flex:none;color:var(--accent)}
+.b-title{font-family:var(--font-mono);font-weight:600;font-size:15px;letter-spacing:.02em;direction:ltr;text-align:right;white-space:nowrap}
+.b-title span{color:var(--accent)}
+.b-sub{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;margin-inline-start:auto;overflow-x:auto;scrollbar-width:none;max-width:100%}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:transparent;padding:8px 14px;border-radius:8px;color:var(--muted);font-weight:600;white-space:nowrap;cursor:pointer}
+.tabs button:hover{color:var(--fg)}
+.tabs button[aria-selected="true"]{background:var(--panel-2);color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+.icon-btn{width:38px;height:38px;flex:none;border-radius:9px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon-btn:hover{color:var(--fg);border-color:var(--line-2)}
+@media (max-width:760px){.tabs{order:3;width:100%;margin:0}.bar{gap:8px}.brand{flex:1}}
+
+/* shared */
+main{padding-block:18px 30px}
+.tab-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
+.tab-head h1{font-size:clamp(22px,3vw,30px)}
+.tab-head p{margin-top:4px;color:var(--muted);max-width:72ch}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.pad{padding:14px}
+.card-h{font-size:16px;margin-bottom:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line-2);background:var(--panel-2);padding:7px 13px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.chip-btn{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chip-btn:hover{color:var(--fg)}
+.chip-btn[aria-pressed="true"]{background:var(--panel-2);color:var(--fg);border-color:var(--accent)}
+.pill{display:inline-block;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid;line-height:1.7;white-space:nowrap}
+.t-c{color:var(--muted);border-color:var(--line-2)}
+.t-w{color:var(--warn);border-color:currentColor}
+.t-o{color:var(--machine);border-color:currentColor}
+.sys-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.sys-chip::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+input[type=text],input[type=search],input[type=number],select,textarea{background:var(--panel);border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;font-size:14px;min-width:0;max-width:100%}
+input[type=text]:focus,input[type=search]:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label,.lbl-row{font-size:12.5px;color:var(--muted);font-weight:600}
+
+/* anatomy */
+.ana{display:grid;grid-template-columns:236px minmax(0,1fr) 360px;gap:14px;align-items:start}
+@media (max-width:1200px){.ana{grid-template-columns:minmax(0,1fr) 340px}.rail{grid-column:1 / -1;order:3}}
+@media (max-width:880px){.ana{grid-template-columns:minmax(0,1fr)}.inspector{order:2}.rail{order:3}}
+.rail{padding:12px}
+.rail-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.rail-h h2{font-size:17px}
+.sys-list{list-style:none;margin:8px 0 10px;padding:0;display:grid;gap:2px}
+@media (max-width:1200px) and (min-width:600px){.sys-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sys-item{display:flex;align-items:center;gap:2px;border-radius:8px}
+.sys-item .name{flex:1;display:flex;align-items:center;gap:9px;background:none;border:0;padding:7px 8px;text-align:start;cursor:pointer;border-radius:7px;font-weight:600;font-size:14px;min-width:0}
+.sys-item .name:hover{background:var(--panel-2)}
+.sys-item.active .name{background:var(--panel-2);color:var(--fg);box-shadow:inset 0 0 0 1px var(--c)}
+.sys-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:12px;height:12px;border-radius:4px;background:var(--c);flex:none}
+.cnt{margin-inline-start:auto;font:12px var(--font-mono);color:var(--faint)}
+.eye{background:none;border:0;padding:6px;cursor:pointer;color:var(--muted);border-radius:6px;display:grid;place-items:center}
+.eye:hover{color:var(--fg);background:var(--panel-2)}
+.sys-item.off .name{opacity:.42}
+.rail-foot{display:flex;gap:6px;flex-wrap:wrap}
+.stage{min-width:0;overflow:hidden;display:flex;flex-direction:column}
+.stage-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1 1 220px;min-width:0}
+.search input{width:100%}
+.results{position:absolute;inset-inline:0;top:calc(100% + 4px);z-index:6;list-style:none;margin:0;padding:4px;background:var(--panel);border:1px solid var(--line-2);border-radius:9px;max-height:320px;overflow:auto;box-shadow:0 14px 34px var(--shadow)}
+.results button{width:100%;display:flex;gap:10px;align-items:center;text-align:start;background:none;border:0;padding:7px 8px;border-radius:6px;cursor:pointer}
+.results button:hover,.results button:focus-visible{background:var(--panel-2)}
+.results .rid{font:12px var(--font-mono);color:var(--muted);direction:ltr;flex:none}
+.results .ren{font-size:12px;color:var(--faint);direction:ltr;margin-inline-start:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+.tool-group{display:flex;gap:6px;flex-wrap:wrap}
+.viewport{position:relative;aspect-ratio:1160/440;min-height:250px;background:var(--bg-2);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;overflow:hidden}
+.viewport.dragging{cursor:grabbing}
+.viewport>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.zoom{position:absolute;inset-inline-end:10px;bottom:10px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line-2);background:var(--panel);font-weight:700;font-size:17px;cursor:pointer;display:grid;place-items:center}
+.zoom button:hover{border-color:var(--accent)}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line-2);padding:3px 9px;border-radius:7px;font-size:13px;font-weight:600;white-space:nowrap;transform:translate(-50%,-135%);box-shadow:0 6px 18px var(--shadow);z-index:4}
+.stage-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+
+#ana .gridline{stroke:var(--grid);fill:none}
+#ana .ground{stroke:var(--line-2);stroke-width:2}
+#ana .hatch{stroke:var(--line-2);stroke-width:1;fill:none}
+#ana .lbl{font:600 13px var(--font-body);fill:var(--muted)}
+#ana .lbl.sm{font-size:10.5px}
+#ana .arrow{stroke:var(--muted);stroke-width:1.6;fill:none}
+#ana .pt{cursor:pointer}
+#ana .f{fill:var(--c);fill-opacity:.17;stroke:var(--c);stroke-width:1.6}
+#ana .s{fill:none;stroke:var(--c);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#ana .k{fill:var(--c);stroke:none}
+#ana .dash{stroke-dasharray:5 4}
+#ana .tyre{fill:var(--tyre);stroke:var(--c);stroke-width:1.5}
+#ana .hose{fill:none;stroke:var(--c);stroke-width:1.6;stroke-dasharray:2 3;opacity:.85}
+#ana .twine{fill:none;stroke:var(--c);stroke-width:1.3;stroke-dasharray:3 3;opacity:.8}
+#ana .bales{--c:var(--fg)}
+#ana .bale{fill:var(--crop);fill-opacity:.42}
+#ana .flk{stroke:var(--crop-2);stroke-width:1;opacity:.75;fill:none}
+#ana .pt:hover .f{fill-opacity:.32}
+#ana .pt.sel .f{fill-opacity:.5;stroke:var(--sel);stroke-width:2.6}
+#ana .pt.sel .s,#ana .pt.sel .hose,#ana .pt.sel .twine{stroke:var(--sel)}
+#ana .pt.sel .k{fill:var(--sel)}
+#ana .pt.sel{filter:url(#glow)}
+#ana.iso .pt:not(.on),#ana.iso .deco{opacity:.13}
+#ana .cover{fill:var(--m-steel);fill-opacity:0;stroke:var(--c);stroke-dasharray:7 5;stroke-width:1.5;pointer-events:stroke}
+#ana.solid .cover{fill-opacity:.94;stroke-dasharray:none;pointer-events:visiblePainted}
+#ana .hid{display:none!important}
+#ana .pin{display:none;cursor:pointer}
+#ana.iso .pin:not(.on){opacity:.3}
+#ana.showpins .pin,#ana .pin.vis{display:inline}
+#ana .pin circle{fill:var(--panel);stroke:var(--c);stroke-width:2}
+#ana .pin text{font:600 10px var(--font-mono);fill:var(--fg);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#ana .pin.sel circle{fill:var(--sel);stroke:var(--sel)}
+#ana .pin.sel text{fill:#fff}
+#ana .pin.sel{display:inline}
+#ana .pin.quiz circle{fill:var(--accent);stroke:var(--accent)}
+#ana .pin.quiz text{fill:var(--accent-ink)}
+.pulse{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+.inspector{padding:16px;min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 74px);max-height:calc(100vh - 96px);overflow:auto}
+@media (max-width:880px){.inspector{position:static;max-height:none}}
+.ins-head h3{font-size:24px;margin-top:6px}
+.ins-en{direction:ltr;text-align:right;color:var(--muted);font-size:13px;font-family:var(--font-mono);margin-top:2px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:14px 0 6px}
+.facts>div{background:var(--panel-2);padding:8px 10px;min-width:0}
+.facts .span2{grid-column:1 / -1}
+.facts dt{font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+.facts dd{margin:2px 0 0;font-weight:600}
+.cat-edit{display:flex;gap:6px;margin-top:3px}
+.cat-edit input{flex:1;font-family:var(--font-mono);direction:ltr;text-align:left}
+.cat-empty{color:var(--warn);font-size:12.5px;font-weight:500;margin-top:5px;line-height:1.5}
+.ins-sec{margin-top:13px}
+.ins-sec h4{font:700 13.5px var(--font-body);color:var(--accent);margin-bottom:2px}
+.ins-sec p{font-size:14.5px}
+.ins-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.siblings{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.sib{border:1px solid var(--line-2);background:transparent;border-radius:6px;padding:2px 8px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.sib:hover{color:var(--fg);border-color:var(--c)}
+.sib.cur{border-color:var(--sel);color:var(--sel)}
+.sys-parts{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:2px}
+.sys-parts button{width:100%;display:flex;gap:10px;align-items:baseline;text-align:start;background:none;border:0;border-radius:6px;padding:6px 6px;cursor:pointer}
+.sys-parts button:hover{background:var(--panel-2)}
+.sys-parts .n{font:12px var(--font-mono);color:var(--muted);min-width:24px}
+.quiz-q{font-size:15px;margin:10px 0}
+.quiz-opts{display:grid;gap:6px}
+.quiz-opts button{text-align:start;border:1px solid var(--line-2);background:var(--panel-2);border-radius:8px;padding:9px 12px;cursor:pointer;font-weight:600}
+.quiz-opts button:hover{border-color:var(--accent)}
+.quiz-opts button:disabled{cursor:default}
+.quiz-opts button.right{border-color:var(--ok);color:var(--ok)}
+.quiz-opts button.wrong{border-color:var(--bad);color:var(--bad)}
+.score{font:600 13px var(--font-mono);color:var(--muted)}
+
+/* parts */
+.notice{display:flex;gap:12px;padding:12px 14px;border:1px solid var(--line-2);border-radius:10px;background:var(--panel-2);margin-bottom:14px}
+.notice svg{flex:none;color:var(--warn);margin-top:3px}
+.notice strong{display:block;margin-bottom:2px}
+.notice p{color:var(--muted);font-size:14px;max-width:95ch}
+.machine{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 14px;margin-bottom:12px}
+.machine h3{font-size:15px;flex-basis:100%}
+.ptools{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px}
+.ptools .grow{flex:1 1 240px}
+.ptools .acts{display:flex;gap:6px;flex-wrap:wrap}
+.pcount{margin-bottom:8px}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table.parts{width:100%;border-collapse:collapse;font-size:14px;min-width:860px}
+.parts th{position:sticky;top:0;background:var(--panel-2);text-align:start;font-size:12px;color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+.parts td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.parts tbody tr:last-child td{border-bottom:0}
+.parts tbody tr:hover td{background:var(--panel-2)}
+.parts .pn{font-weight:600}
+.parts .pe{font-size:12px;color:var(--muted);direction:ltr;text-align:right}
+.parts .cat input{width:160px;font-family:var(--font-mono);direction:ltr;text-align:left;padding:5px 8px}
+.parts .cat input.has{border-color:var(--ok)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* sim */
+.sim{display:grid;grid-template-columns:318px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1100px){.sim{grid-template-columns:minmax(0,1fr)}.controls{order:2}}
+.sim-main{min-width:0;display:flex;flex-direction:column;gap:14px}
+.canvas-card{position:relative;overflow:hidden}
+#simCanvas{display:block;width:100%;height:auto;background:var(--sky)}
+.sim-status{position:absolute;top:8px;inset-inline:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+@media (max-width:700px){.sim-status{position:static;padding:8px;border-top:1px solid var(--line)}.sim-status .st{box-shadow:none}}
+.st{background:var(--panel);border:1px solid var(--line-2);border-radius:999px;padding:1px 10px;font-size:12.5px;font-weight:600;box-shadow:0 3px 10px var(--shadow)}
+.st.w{border-color:var(--warn);color:var(--warn)}
+.st.b{border-color:var(--bad);color:var(--bad)}
+.st.g{border-color:var(--ok);color:var(--ok)}
+.readouts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);overflow:hidden}
+@media (max-width:1300px){.readouts{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:700px){.readouts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:480px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ro{background:var(--panel);padding:9px 12px;min-width:0}
+.ro .k{font-size:12px;color:var(--muted);font-weight:600}
+.ro .v{font:600 21px/1.3 var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ro .u{font:500 12px var(--font-body);color:var(--muted);margin-inline-start:5px}
+.ro .sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin-top:5px;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:var(--machine);transition:width .2s}
+.meter.warn i{background:var(--warn)}
+.meter.bad i{background:var(--bad)}
+.controls{padding:14px;display:flex;flex-direction:column;gap:12px}
+.ctl{display:flex;flex-direction:column;gap:3px}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600}
+.ctl output{font-family:var(--font-mono);color:var(--accent);font-weight:600}
+.ctl select{width:100%}
+.ctl.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ctl.two>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;padding:6px 4px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button+button{border-inline-start:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.check{display:flex;gap:8px;align-items:center;font-size:13.5px;font-weight:600;cursor:pointer}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+.sim-actions{display:flex;gap:8px;flex-wrap:wrap}
+.sim-lower{display:grid;grid-template-columns:250px minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:1300px){.sim-lower{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.timing{grid-column:1 / -1}}
+@media (max-width:640px){.sim-lower{grid-template-columns:minmax(0,1fr)}}
+.timing{display:flex;flex-direction:column}
+.timing-body{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+#tw{width:210px;max-width:100%;height:auto;flex:none}
+#tw .ring{fill:none;stroke-width:9;stroke-linecap:butt}
+#tw .base{fill:none;stroke:var(--line);stroke-width:9}
+#tw .tick{stroke:var(--faint);stroke-width:1}
+#tw text{font:600 10px var(--font-mono);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+#tw .phase{font:700 12.5px var(--font-body);fill:var(--fg)}
+#tw .hand{stroke:var(--sel);stroke-width:3;stroke-linecap:round}
+.tw-legend{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px;flex:1;min-width:150px}
+.tw-legend li{display:flex;gap:8px;align-items:center}
+.tw-legend i{width:18px;height:6px;border-radius:2px;background:var(--c);flex:none}
+table.mini{width:100%;border-collapse:collapse;font-size:13px}
+.mini th{text-align:start;color:var(--muted);font-weight:600;font-size:12px;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.mini td{padding:5px 6px;border-bottom:1px dashed var(--line);font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini .empty td{font-family:var(--font-body);color:var(--muted);white-space:normal}
+.log{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto;font-size:13px}
+.log li{padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:8px;line-height:1.5}
+.log time{font-family:var(--font-mono);color:var(--faint);flex:none;direction:ltr}
+.log .w{color:var(--warn)}
+.log .b{color:var(--bad)}
+.log .g{color:var(--ok)}
+.sim-note{font-size:12.5px;color:var(--muted);line-height:1.6}
+
+/* specs */
+.specs{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:960px){.specs{grid-template-columns:minmax(0,1fr)}}
+.spec-table{width:100%;border-collapse:collapse;font-size:14.5px}
+.spec-table caption{text-align:start;font:600 15px var(--font-display);padding:14px 14px 6px;color:var(--accent)}
+.spec-table th{text-align:start;font-weight:500;color:var(--muted);width:44%;padding:7px 14px;border-top:1px solid var(--line);vertical-align:top}
+.spec-table td{padding:7px 14px;border-top:1px solid var(--line);font-weight:600}
+.flow{margin:0;padding:0 0 0 0;list-style:none;counter-reset:st;display:grid;gap:10px}
+.flow li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;counter-increment:st}
+.flow li::before{content:counter(st);width:28px;height:28px;border-radius:50%;border:1.5px solid var(--c,var(--accent));color:var(--c,var(--accent));display:grid;place-items:center;font:600 13px var(--font-mono)}
+.flow b{display:block}
+.flow span{color:var(--muted);font-size:14px}
+.src{margin:0;padding-inline-start:18px;font-size:14px}
+.src li{margin-bottom:4px}
+.src a{color:var(--accent)}
+.stack{display:grid;gap:14px}
+
+/* footer, modal, toast */
+.foot{padding-block:18px 26px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.7}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(5,10,8,.55);display:grid;place-items:center;padding:16px}
+.modal-box{background:var(--panel);border:1px solid var(--line-2);border-radius:12px;max-width:660px;width:100%;padding:18px;max-height:88vh;overflow:auto;box-shadow:0 24px 60px var(--shadow)}
+.modal-box h3{font-size:19px;margin-bottom:8px}
+.modal-box p{color:var(--muted);font-size:14px;margin-bottom:10px}
+.modal-box textarea{width:100%;min-height:210px;font-family:var(--font-mono);direction:ltr;font-size:12.5px;line-height:1.5}
+.modal-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translate(-50%,140px);background:var(--panel);border:1px solid var(--line-2);border-radius:999px;padding:8px 18px;font-weight:600;font-size:13.5px;z-index:70;transition:transform .25s;box-shadow:0 10px 30px var(--shadow);max-width:calc(100% - 32px);text-align:center}
+#toast.show{transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion: reduce){
+  .pulse{animation:none}
+  #toast,.meter i{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="app" dir="rtl" lang="ar">
+
+<header class="top">
+  <div class="wrap bar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 44 30" aria-hidden="true">
+        <rect x="3" y="5" width="27" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M7 8v6M11 8v6M15 8v6M19 8v6M23 8v6" stroke="currentColor" stroke-width="1.2" opacity=".6"/>
+        <path d="M30 9h5l5 9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="15" cy="23" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="37" cy="23" r="3.2" fill="currentColor"/>
+      </svg>
+      <div>
+        <div class="b-title">BiG Pack 1290 HDP II <span>VC</span></div>
+        <div class="b-sub">تشريح القطع ومحاكاة الكبس</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="أقسام التطبيق">
+      <button type="button" role="tab" data-tab="anatomy" aria-selected="true">التشريح</button>
+      <button type="button" role="tab" data-tab="parts" aria-selected="false">القطع والأرقام</button>
+      <button type="button" role="tab" data-tab="sim" aria-selected="false">محاكاة الكبس</button>
+      <button type="button" role="tab" data-tab="specs" aria-selected="false">المواصفات</button>
+    </nav>
+    <button type="button" id="themeBtn" class="icon-btn" aria-label="المظهر">
+      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 2.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ═══════════ التشريح ═══════════ -->
+<section id="tab-anatomy" class="tab" aria-labelledby="h-ana">
+  <div class="tab-head">
+    <div>
+      <h1 id="h-ana">تشريح الكبّاسة</h1>
+      <p>اضغط أي جزء في الرسم لترى اسمه ورقمه التسلسلي ورقم الكتالوج ووظيفته وطريقة صيانته. اختر نظاماً من القائمة لعزله وإظهار أرقام أجزائه، كما في تطبيقات التشريح.</p>
+    </div>
+  </div>
+  <div class="ana">
+    <aside class="rail card" aria-labelledby="h-sys">
+      <div class="rail-h"><h2 id="h-sys">الأنظمة</h2><span class="muted small">اضغط للعزل · العين للإخفاء</span></div>
+      <ul id="sysList" class="sys-list"></ul>
+      <div class="rail-foot">
+        <button type="button" id="isoOff" class="btn sm ghost">إلغاء العزل</button>
+        <button type="button" id="showAllSys" class="btn sm ghost">إظهار كل الأنظمة</button>
+      </div>
+    </aside>
+
+    <div class="stage card">
+      <div class="stage-tools">
+        <div class="search">
+          <label for="anaSearch" class="sr">ابحث عن جزء</label>
+          <input id="anaSearch" type="search" placeholder="ابحث: إبرة، عقّادة، knotter، 05-01…" autocomplete="off">
+          <ul id="anaResults" class="results" hidden></ul>
+        </div>
+        <div class="tool-group">
+          <button type="button" class="chip-btn" id="tPins" aria-pressed="false">كل الأرقام</button>
+          <button type="button" class="chip-btn" id="tXray" aria-pressed="true">عرض داخلي</button>
+          <button type="button" class="chip-btn" id="tAnim" aria-pressed="false">تحريك الأجزاء</button>
+          <button type="button" class="chip-btn" id="tQuiz" aria-pressed="false">اختبر نفسك</button>
+        </div>
+      </div>
+      <div class="viewport" id="viewport">
+        <svg id="ana" viewBox="30 50 1160 440" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="anaTitle">
+          <title id="anaTitle">مخطط جانبي ملوّن لأنظمة الكبّاسة، الأمام جهة اليمين</title>
+          <defs>
+            <pattern id="gp" width="20" height="20" patternUnits="userSpaceOnUse"><path class="gridline" d="M20 0H0V20"/></pattern>
+            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <rect x="-400" y="-200" width="2000" height="900" fill="url(#gp)"/>
+
+          <g class="deco">
+            <line class="ground" x1="20" y1="470" x2="1200" y2="470"/>
+            <path id="hatch" class="hatch" d=""/>
+            <text class="lbl" x="1086" y="70">اتجاه السير</text>
+            <path class="arrow" d="M1040 82 H1132 M1122 76 L1132 82 L1122 88"/>
+            <text class="lbl" x="120" y="234">خروج البالات</text>
+          </g>
+
+          <!-- 11 إخراج البالات -->
+          <g class="pt" data-part="11-01" data-sys="11"><path class="f" d="M232 250 L72 286 L74 294 L232 260 Z"/><g id="chuteRollers"></g></g>
+          <g class="pt" data-part="11-04" data-sys="11"><rect class="f dash" x="140" y="290" width="62" height="7" rx="2"/></g>
+          <g class="pt" data-part="11-03" data-sys="11"><circle class="k" cx="86" cy="296" r="4"/></g>
+
+          <!-- 08 الهيكل -->
+          <g class="pt" data-part="08-01" data-sys="08"><rect class="f" x="230" y="252" width="690" height="12" rx="2"/><rect class="f" x="850" y="92" width="16" height="172" rx="2"/></g>
+          <g class="pt" data-part="08-13" data-sys="08"><rect class="f" x="262" y="372" width="46" height="30" rx="5"/><path class="s" d="M272 382h26"/></g>
+          <g class="pt" data-part="08-14" data-sys="08"><rect class="f" x="562" y="372" width="58" height="28" rx="3"/><path class="s" d="M584 380h14"/></g>
+          <g class="pt" data-part="08-06" data-sys="08"><rect class="f" x="431" y="352" width="8" height="66"/><path class="s" d="M403 384 Q435 398 467 384"/><path class="s" d="M403 392 Q435 406 467 392"/></g>
+          <g id="wheelRot1"><g class="pt" data-part="08-07" data-sys="08"><circle class="tyre" cx="370" cy="424" r="46"/><circle class="f" cx="370" cy="424" r="27"/><path class="s" d="M370 399 V449 M345 424 H395"/></g></g>
+          <g id="wheelRot2"><g class="pt" data-part="08-07" data-sys="08"><circle class="tyre" cx="500" cy="424" r="46"/><circle class="f" cx="500" cy="424" r="27"/><path class="s" d="M500 399 V449 M475 424 H525"/></g></g>
+          <g class="pt" data-part="08-08" data-sys="08"><circle class="s dash" cx="370" cy="424" r="16"/><circle class="s dash" cx="500" cy="424" r="16"/></g>
+          <g class="pt" data-part="08-05" data-sys="08"><rect class="f" x="366" y="418" width="138" height="10" rx="4"/><circle class="k" cx="435" cy="423" r="6"/><circle class="k" cx="370" cy="424" r="6"/><circle class="k" cx="500" cy="424" r="6"/></g>
+          <g class="pt" data-part="08-15" data-sys="08"><path class="s" d="M314 424 Q314 368 370 366 H500 Q556 368 556 424"/></g>
+          <g class="pt" data-part="08-11" data-sys="08"><rect class="k" x="222" y="262" width="10" height="18" rx="2"/></g>
+          <g class="pt" data-part="08-02" data-sys="08"><path class="f" d="M900 252 L1130 312 L1130 328 L900 270 Z"/></g>
+          <g class="pt" data-part="08-03" data-sys="08"><circle class="s" cx="1142" cy="321" r="10" style="stroke-width:5"/></g>
+          <g class="pt" data-part="08-04" data-sys="08"><rect class="f" x="1055" y="292" width="22" height="12" rx="2"/><rect class="f" x="1060" y="304" width="12" height="144"/><rect class="f" x="1046" y="448" width="40" height="8" rx="2"/></g>
+
+          <!-- 05 صناديق الخيط -->
+          <g class="pt" data-part="05-14" data-sys="05"><rect class="f" x="240" y="266" width="322" height="86" rx="6"/><path class="s" d="M246 274 H556"/></g>
+          <g class="pt" data-part="05-15" data-sys="05" id="rolls"></g>
+
+          <!-- 04 قناة الكبس -->
+          <g class="pt" data-part="04-07" data-sys="04"><rect class="f" x="230" y="150" width="620" height="100"/></g>
+          <g class="deco bales" pointer-events="none">
+            <rect class="bale" x="238" y="154" width="230" height="92"/>
+            <rect class="bale" x="470" y="154" width="214" height="92"/>
+            <path id="flakeLines" class="flk" d=""/>
+            <path class="twine" d="M238 158 H468 M238 242 H468 M238 158 V242 M468 158 V242 M470 158 H684 M470 242 H684"/>
+          </g>
+          <g class="pt" data-part="04-11" data-sys="04"><path class="s dash" d="M238 248 H686"/></g>
+          <g class="pt" data-part="04-08" data-sys="04"><rect class="f" x="240" y="142" width="282" height="8" rx="2"/><circle class="k" cx="522" cy="146" r="4"/></g>
+          <g class="pt" data-part="04-09" data-sys="04"><rect class="s dash" x="252" y="164" width="262" height="72" rx="3"/></g>
+          <g class="pt" data-part="04-10" data-sys="04">
+            <rect class="f" x="270" y="104" width="232" height="7" rx="2"/>
+            <rect class="f" x="284" y="111" width="13" height="22" rx="2"/><path class="s" d="M290.5 133 V142"/>
+            <rect class="f" x="378" y="111" width="13" height="22" rx="2"/><path class="s" d="M384.5 133 V142"/>
+            <rect class="f" x="472" y="111" width="13" height="22" rx="2"/><path class="s" d="M478.5 133 V142"/>
+            <circle class="f" cx="300" cy="200" r="9"/><circle class="k" cx="300" cy="200" r="3"/>
+            <circle class="f" cx="466" cy="200" r="9"/><circle class="k" cx="466" cy="200" r="3"/>
+          </g>
+          <g class="pt" data-part="04-12" data-sys="04"><path class="k" d="M636 151 L652 151 L636 162 Z M636 249 L652 249 L636 238 Z"/></g>
+
+          <!-- 03 قناة VFS -->
+          <g class="pt" data-part="03-07" data-sys="03"><path class="f" d="M700 446 C650 420 638 310 690 250 L762 250 C768 285 765 320 760 352 L728 412 Z" style="stroke:none"/><path class="s" d="M700 446 C650 420 638 310 690 250"/><path class="s" d="M762 250 C768 285 765 320 760 352"/></g>
+          <g class="pt" data-part="03-04" data-sys="03"><circle class="s dash" cx="800" cy="300" r="29"/></g>
+          <g id="vfsRot">
+            <g class="pt" data-part="03-01" data-sys="03"><circle class="f" cx="800" cy="300" r="18"/><circle class="k" cx="800" cy="300" r="4"/></g>
+            <g class="pt" data-part="03-02" data-sys="03" id="packerTines"></g>
+            <g class="pt" data-part="03-03" data-sys="03" id="feederTine"></g>
+          </g>
+          <g class="pt" data-part="03-08" data-sys="03"><path class="s" d="M774 262 L734 274"/><circle class="k" cx="774" cy="262" r="3.5"/></g>
+
+          <!-- 04 المكبس -->
+          <g id="plungerMove">
+            <g class="pt" data-part="04-01" data-sys="04"><rect class="f" x="0" y="154" width="80" height="92" rx="3"/><rect class="k" x="0" y="154" width="5" height="92"/><path class="s" d="M80 196 H92 M80 204 H92"/><circle class="k" cx="88" cy="200" r="5"/></g>
+            <g class="pt" data-part="04-02" data-sys="04"><circle class="f" cx="16" cy="151" r="5"/><circle class="f" cx="64" cy="151" r="5"/><circle class="f" cx="16" cy="249" r="5"/><circle class="f" cx="64" cy="249" r="5"/></g>
+            <g class="pt" data-part="04-03" data-sys="04"><path class="k" d="M0 246 L18 246 L0 234 Z"/></g>
+          </g>
+          <g class="pt" data-part="04-04" data-sys="04"><path class="k" d="M762 250 L778 250 L762 240 Z"/></g>
+          <g class="pt" data-part="04-05" data-sys="04"><line id="conrod" class="s" x1="0" y1="200" x2="0" y2="200" style="stroke-width:7"/></g>
+
+          <!-- 06 نقل الحركة -->
+          <g class="pt" data-part="06-06" data-sys="06"><rect class="f" x="872" y="158" width="66" height="84" rx="8"/><path class="s" d="M884 172 h42 M884 228 h42"/></g>
+          <g class="pt" data-part="04-06" data-sys="04"><line id="crank" class="s" x1="905" y1="200" x2="905" y2="200" style="stroke-width:9"/><circle class="k" cx="905" cy="200" r="7"/><circle id="crankPin" class="k" cx="905" cy="200" r="5"/></g>
+          <g class="pt" data-part="06-04" data-sys="06"><ellipse class="f" cx="968" cy="200" rx="14" ry="62"/><ellipse class="s" cx="968" cy="200" rx="8" ry="54"/><g id="flyMarks"><line class="s" x1="958" y1="170" x2="978" y2="170"/><line class="s" x1="958" y1="230" x2="978" y2="230"/></g></g>
+          <g class="pt" data-part="06-03" data-sys="06"><circle class="f" cx="990" cy="206" r="9"/><circle class="k" cx="990" cy="206" r="3"/></g>
+          <g class="pt" data-part="06-05" data-sys="06"><rect class="f" x="984" y="150" width="24" height="18" rx="3"/><path class="s" d="M996 168 V178"/></g>
+          <g class="pt" data-part="06-01" data-sys="06"><path class="s" d="M999 212 L1130 284" style="stroke-width:9"/><path class="f" d="M1016 211 L1112 264 L1105 277 L1009 224 Z"/><circle class="k" cx="1066" cy="248" r="5"/></g>
+          <g class="pt" data-part="06-02" data-sys="06"><circle class="f" cx="1138" cy="288" r="10"/><circle class="k" cx="1138" cy="288" r="3"/></g>
+          <g class="pt" data-part="06-07" data-sys="06"><path class="s" d="M905 242 V274"/></g>
+          <g class="pt" data-part="06-09" data-sys="06"><path class="s" d="M889 293 L822 303"/></g>
+          <g class="pt" data-part="06-08" data-sys="06"><path class="s dash" d="M886 160 L748 112"/></g>
+
+          <!-- 02 وحدة القطع -->
+          <g class="pt" data-part="02-08" data-sys="02"><path class="s" d="M905 274 L745 362 M905 306 L745 418"/><circle class="s" cx="745" cy="390" r="28"/></g>
+          <g class="pt" data-part="02-09" data-sys="02"><circle class="f" cx="905" cy="290" r="16"/><circle class="k" cx="905" cy="290" r="4"/></g>
+          <g class="pt" data-part="02-07" data-sys="02"><path class="f" d="M696 448 Q745 460 800 448 L800 454 Q745 466 696 454 Z"/></g>
+          <g class="pt" data-part="02-05" data-sys="02"><rect class="f" x="700" y="436" width="92" height="9" rx="2"/></g>
+          <g class="pt" data-part="02-03" data-sys="02" id="knives"></g>
+          <g id="rotorRot">
+            <g class="pt" data-part="02-01" data-sys="02"><circle class="f" cx="745" cy="390" r="30"/><circle class="k" cx="745" cy="390" r="6"/></g>
+            <g class="pt" data-part="02-02" data-sys="02" id="rotorTeeth"></g>
+          </g>
+
+          <!-- 01 البيك أب -->
+          <g class="pt" data-part="01-09" data-sys="01"><path class="s" d="M846 300 L858 350" style="stroke-width:7"/><path class="s" d="M858 350 L864 372"/></g>
+          <g class="pt" data-part="01-10" data-sys="01"><path class="s" d="M874 300 l6 6 -10 6 10 6 -10 6 10 6 -10 6 6 6"/></g>
+          <g class="pt" data-part="01-03" data-sys="01"><path class="s" d="M832 450 A38 38 0 0 1 900 410"/><path class="s dash" d="M828 404 A46 46 0 0 1 912 424"/></g>
+          <g id="reelRot">
+            <g class="pt" data-part="01-01" data-sys="01"><circle class="f" cx="866" cy="428" r="20"/><circle class="k" cx="866" cy="428" r="4"/></g>
+            <g class="pt" data-part="01-02" data-sys="01" id="reelTines"></g>
+          </g>
+          <g class="pt" data-part="01-06" data-sys="01"><path class="s" d="M922 448 L904 412"/><circle class="tyre" cx="922" cy="448" r="20"/><circle class="f" cx="922" cy="448" r="9"/></g>
+          <g class="pt" data-part="01-07" data-sys="01"><path class="s" d="M884 460 L906 460"/></g>
+          <g class="pt" data-part="01-05" data-sys="01"><path class="s" d="M905 345 L892 378"/><circle class="f" cx="892" cy="378" r="11"/></g>
+          <g class="pt" data-part="01-08" data-sys="01"><circle class="f" cx="846" cy="386" r="11"/><path class="s" d="M838 380 Q846 394 854 380"/></g>
+          <g id="feedRot"><g class="pt" data-part="01-04" data-sys="01"><circle class="f" cx="814" cy="406" r="14"/><path class="s" d="M802 406 H826 M814 394 V418"/></g></g>
+          <g class="pt" data-part="01-12" data-sys="01"><path class="s dash" d="M814 421 L860 447"/></g>
+          <g class="pt" data-part="01-13" data-sys="01"><rect class="f dash" x="980" y="358" width="52" height="40" rx="7"/><path class="s dash" d="M980 384 C950 390 930 396 905 404"/></g>
+
+          <!-- 05 الربط -->
+          <g class="pt" data-part="05-06" data-sys="05"><circle class="f" cx="565" cy="330" r="10"/><circle class="k" cx="565" cy="330" r="3.5"/></g>
+          <g class="pt" data-part="05-05" data-sys="05"><path id="needlePath" class="s" d="M565 330 Q690 334 680 268" style="stroke-width:5"/><circle id="needleTip" class="k" cx="680" cy="268" r="4"/></g>
+          <g class="pt" data-part="05-13" data-sys="05"><path class="twine" d="M548 280 C600 250 630 170 655 128 M548 290 C610 300 660 292 680 268"/></g>
+          <g class="pt" data-part="05-01" data-sys="05"><rect class="f" x="655" y="98" width="84" height="50" rx="5"/><circle class="s" cx="680" cy="136" r="7"/><circle class="s" cx="710" cy="136" r="7"/></g>
+          <g class="pt" data-part="05-08" data-sys="05"><path class="s" d="M650 112 H744" style="stroke-width:4"/><circle class="k" cx="696" cy="112" r="5"/></g>
+          <g class="pt" data-part="05-09" data-sys="05"><circle class="f" cx="749" cy="112" r="7"/></g>
+          <g class="pt" data-part="05-10" data-sys="05"><path class="s" d="M585 150 L612 128"/></g>
+          <g id="starRot"><g class="pt" data-part="05-10" data-sys="05" id="starWheel"></g></g>
+          <g class="pt" data-part="05-16" data-sys="05"><circle class="f" cx="618" cy="106" r="14"/><g id="fanBlades1"></g><circle class="f" cx="772" cy="106" r="14"/><g id="fanBlades2"></g></g>
+
+          <!-- 07 الهيدروليك -->
+          <g class="pt" data-part="07-07" data-sys="07"><path class="hose" d="M610 268 C600 220 540 120 502 108 M632 276 C760 282 860 170 882 142 M588 278 C520 284 420 262 332 240"/></g>
+          <g class="pt" data-part="07-02" data-sys="07"><rect class="f" x="878" y="98" width="56" height="44" rx="6"/><path class="s" d="M886 112 h40"/></g>
+          <g class="pt" data-part="07-06" data-sys="07"><rect class="f" x="936" y="104" width="11" height="26" rx="3"/></g>
+          <g class="pt" data-part="07-01" data-sys="07"><rect class="f" x="940" y="170" width="13" height="26" rx="3"/></g>
+          <g class="pt" data-part="07-03" data-sys="07"><rect class="f" x="588" y="268" width="44" height="16" rx="3"/><path class="s" d="M598 268 v-4 M610 268 v-4 M622 268 v-4"/></g>
+
+          <!-- 09 الإلكترونيات -->
+          <g class="pt" data-part="09-11" data-sys="09"><path class="hose" d="M1144 214 C1080 190 920 160 832 128"/></g>
+          <g class="pt" data-part="09-01" data-sys="09"><rect class="f" x="792" y="114" width="40" height="26" rx="4"/><path class="s" d="M800 124 h24 M800 131 h16"/></g>
+          <g class="pt" data-part="09-02" data-sys="09"><rect class="f" x="1144" y="200" width="42" height="30" rx="4"/><rect class="k" x="1150" y="205" width="30" height="18" rx="2" style="fill-opacity:.45"/><text class="lbl sm" x="1165" y="246" text-anchor="middle">في الجرار</text></g>
+          <g class="pt" data-part="09-05" data-sys="09"><rect class="f" x="228" y="132" width="16" height="10" rx="2"/><circle class="k" cx="233" cy="137" r="2.5"/></g>
+          <g class="pt" data-part="09-04" data-sys="09"><rect class="f" x="826" y="318" width="18" height="26" rx="3"/><path class="s" d="M831 326 h8 M831 333 h8"/></g>
+
+          <!-- 10 التزييت -->
+          <g class="pt" data-part="10-03" data-sys="10"><path class="hose" d="M930 316 C900 300 880 280 868 274 M846 274 C700 300 500 360 446 412"/></g>
+          <g class="pt" data-part="10-01" data-sys="10"><rect class="f" x="930" y="296" width="26" height="40" rx="4"/><rect class="k" x="934" y="314" width="18" height="18" rx="2" style="fill-opacity:.5"/></g>
+          <g class="pt" data-part="10-02" data-sys="10"><rect class="f" x="846" y="268" width="22" height="11" rx="2"/></g>
+
+          <!-- الأغطية (تظهر عند إيقاف العرض الداخلي) -->
+          <g class="pt" data-part="08-10" data-sys="08"><path class="cover" d="M840 84 H1004 Q1016 84 1016 96 V262 H870 V250 H840 Z"/></g>
+
+          <g id="pins"></g>
+        </svg>
+        <div class="zoom">
+          <button type="button" id="zIn" aria-label="تكبير">+</button>
+          <button type="button" id="zOut" aria-label="تصغير">−</button>
+          <button type="button" id="zFit" aria-label="عرض الكبّاسة كاملة">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          </button>
+        </div>
+        <div id="tip" class="tip" hidden></div>
+      </div>
+      <div class="stage-foot"><span>اسحب للتحريك · عجلة الفأرة أو إصبعين للتكبير</span><span id="stageInfo"></span></div>
+    </div>
+
+    <aside class="inspector card" id="inspector" aria-live="polite"></aside>
+  </div>
+</section>
+
+<!-- ═══════════ القطع والأرقام ═══════════ -->
+<section id="tab-parts" class="tab" aria-labelledby="h-parts" hidden>
+  <div class="tab-head">
+    <div>
+      <h1 id="h-parts">القطع والأرقام</h1>
+      <p>كل قطعة لها رقم تسلسلي ثابت في هذا التطبيق على شكل BP-النظام-البند، ويطابق رقم الموقع في رسم التشريح. أضف رقم كتالوج KRONE بجانب كل قطعة ليصبح عندك دليل طلب قطع خاص بماكينتك.</p>
+    </div>
+  </div>
+  <div class="notice">
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 19 18H1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 8v4.5M10 14.6v.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+    <div>
+      <strong>عن أرقام كتالوج KRONE</strong>
+      <p>أرقام القطع الرسمية تتغير حسب رقم الماكينة وسنة الصنع، لذلك لم يُكتب هنا أي رقم غير مؤكد. خذ الرقم من كتالوج قطع الغيار الرسمي لماكينتك (من الوكيل أو بوابة قطع الغيار المعتمدة لدى KRONE) واكتبه في الخانة. يُحفظ تلقائياً على هذا الجهاز، ويمكنك تصدير القائمة كاملة واستيرادها على جهاز آخر.</p>
+    </div>
+  </div>
+  <div class="card machine">
+    <h3>بيانات ماكينتك</h3>
+    <div class="field"><label for="mNo">رقم الماكينة (من لوحة التعريف)</label><input type="text" id="mNo" dir="ltr" placeholder="مثال: 1290xxxx" autocomplete="off"></div>
+    <div class="field"><label for="mYear">سنة الصنع</label><input type="text" id="mYear" dir="ltr" inputmode="numeric" placeholder="2024" autocomplete="off" style="width:110px"></div>
+  </div>
+  <div class="ptools">
+    <div class="field grow"><label for="pSearch">بحث</label><input type="search" id="pSearch" placeholder="الاسم بالعربي أو الإنجليزي أو الرقم" autocomplete="off"></div>
+    <div class="field"><label for="pSys">النظام</label><select id="pSys"><option value="">كل الأنظمة</option></select></div>
+    <div class="field"><label for="pType">التصنيف</label><select id="pType"><option value="">الكل</option><option value="c">أساسي</option><option value="w">قطعة تآكل</option><option value="o">اختياري</option></select></div>
+    <div class="field"><label for="pCat">رقم الكتالوج</label><select id="pCat"><option value="">الكل</option><option value="has">مُدخل</option><option value="missing">غير مُدخل</option></select></div>
+    <div class="acts">
+      <button type="button" class="btn" id="expJson">تصدير</button>
+      <button type="button" class="btn" id="expCsv">جدول CSV</button>
+      <button type="button" class="btn" id="impBtn">استيراد</button>
+      <button type="button" class="btn ghost danger" id="clrBtn">مسح الأرقام</button>
+    </div>
+  </div>
+  <p class="pcount muted small" id="pCount"></p>
+  <div class="table-wrap">
+    <table class="parts">
+      <thead><tr><th scope="col">الرقم التسلسلي</th><th scope="col">اسم القطعة</th><th scope="col">النظام</th><th scope="col">الكمية</th><th scope="col">التصنيف</th><th scope="col">رقم كتالوج KRONE</th><th scope="col"><span class="sr">عرض</span></th></tr></thead>
+      <tbody id="partsBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════ المحاكاة ═══════════ -->
+<section id="tab-sim" class="tab" aria-labelledby="h-sim" hidden>
+  <div class="tab-head">
+    <div>
+      <h1 id="h-sim">محاكاة الكبس</h1>
+      <p>مقطع جانبي متحرك يوضح مسار التبن من البيك أب حتى خروج البالة: القطع، التعبئة المسبقة، ضربة المكبس، وتوقيت الإبر والعقّادات. غيّر السرعة والكثافة وطول البالة وراقب النتيجة.</p>
+    </div>
+    <div class="sim-actions">
+      <button type="button" class="btn primary" id="ptoBtn">تشغيل عمود الإدارة</button>
+      <button type="button" class="btn" id="pickupBtn">رفع البيك أب</button>
+    </div>
+  </div>
+  <div class="sim">
+    <aside class="card controls" aria-labelledby="h-ctl">
+      <h3 class="card-h" id="h-ctl">إعدادات التشغيل</h3>
+      <div class="ctl"><label for="cCrop">المحصول</label><select id="cCrop"></select></div>
+      <div class="ctl"><label for="cSpeed">سرعة التقدم <output id="oSpeed" for="cSpeed"></output></label><input type="range" id="cSpeed" min="0" max="20" step="0.5"></div>
+      <div class="ctl"><label for="cSwath">كثافة السطر <output id="oSwath" for="cSwath"></output></label><input type="range" id="cSwath" min="0.5" max="9" step="0.1"></div>
+      <div class="ctl"><label for="cMoist">الرطوبة <output id="oMoist" for="cMoist"></output></label><input type="range" id="cMoist" min="6" max="70" step="1"></div>
+      <div class="ctl"><span class="lbl-row" id="lDmode">ضغط الكبس</span><div class="seg" id="cDmode" role="group" aria-labelledby="lDmode"><button type="button" data-v="auto">آلي</button><button type="button" data-v="manual">يدوي</button></div></div>
+      <div class="ctl" id="wrapDens"><label for="cDens">الكثافة المطلوبة <output id="oDens" for="cDens"></output></label><input type="range" id="cDens" min="0" max="100" step="1"></div>
+      <div class="ctl" id="wrapBar" hidden><label for="cBar">الضغط اليدوي <output id="oBar" for="cBar"></output></label><input type="range" id="cBar" min="0" max="200" step="5"></div>
+      <div class="ctl"><label for="cLen">طول البالة <output id="oLen" for="cLen"></output></label><input type="range" id="cLen" min="0.5" max="3.2" step="0.05"></div>
+      <div class="ctl two">
+        <div><label for="cVc">وحدة القطع</label><select id="cVc"><option value="26">VariCut 26</option><option value="51">VariCut 51</option></select></div>
+        <div><label for="cKn">السكاكين العاملة</label><select id="cKn"></select></div>
+      </div>
+      <div class="ctl"><label for="cTrig">عتبة تعبئة VFS <output id="oTrig" for="cTrig"></output></label><input type="range" id="cTrig" min="50" max="100" step="1"></div>
+      <div class="ctl"><span class="lbl-row" id="lSim">سرعة المحاكاة</span><div class="seg" id="cSim" role="group" aria-labelledby="lSim"><button type="button" data-v="0.25">¼×</button><button type="button" data-v="0.5">½×</button><button type="button" data-v="1">1×</button><button type="button" data-v="4">4×</button><button type="button" data-v="16">16×</button></div></div>
+      <label class="check"><input type="checkbox" id="cStarter"> مساعد البدء الهيدروليكي</label>
+      <label class="check"><input type="checkbox" id="cLabels"> إظهار أسماء الأجزاء على الرسم</label>
+      <div class="btn-row">
+        <button type="button" class="btn" id="unblockBtn" disabled>إزالة الانسداد</button>
+        <button type="button" class="btn" id="ejectBtn" disabled>تفريغ القناة</button>
+        <button type="button" class="btn ghost" id="resetBtn">إعادة الضبط</button>
+      </div>
+      <p class="sim-note">المحاكاة نموذج تعليمي تقريبي. الثوابت من مواصفات الشركة (45 ضربة/دقيقة، مقطع 120 × 90 سم، 8 عقّادات، حتى 200 بار)، أما الكثافة والقدرة والوزن فتقديرات للتوضيح وتختلف في الحقل.</p>
+    </aside>
+
+    <div class="sim-main">
+      <div class="card canvas-card">
+        <canvas id="simCanvas" role="img" aria-label="مقطع جانبي متحرك للكبّاسة أثناء الكبس"></canvas>
+        <div class="sim-status" id="simChips"></div>
+      </div>
+      <div class="card readouts" id="readouts">
+        <div class="ro"><div class="k">عمود الإدارة</div><div class="v"><span id="rRpm">0</span><span class="u">د/د</span></div><div class="sub" id="rSpm">المكبس متوقف</div></div>
+        <div class="ro"><div class="k">الإنتاجية</div><div class="v"><span id="rTph">0.0</span><span class="u">طن/ساعة</span></div><div class="sub" id="rBph">—</div></div>
+        <div class="ro"><div class="k">كثافة البالة</div><div class="v"><span id="rRho">0</span><span class="u">كغ/م³</span></div><div class="sub" id="rBar">—</div></div>
+        <div class="ro"><div class="k">آخر رقيقة</div><div class="v"><span id="rFlake">—</span><span class="u">سم</span></div><div class="sub" id="rFlakeM">—</div></div>
+        <div class="ro"><div class="k">امتلاء قناة VFS</div><div class="v"><span id="rFill">0</span><span class="u">%</span></div><div class="meter" id="mFill"><i></i></div></div>
+        <div class="ro"><div class="k">حمل المكبس</div><div class="v"><span id="rLoad">0</span><span class="u">%</span></div><div class="meter" id="mLoad"><i></i></div></div>
+        <div class="ro"><div class="k">القدرة المستهلكة</div><div class="v"><span id="rPow">0</span><span class="u">كيلوواط</span></div><div class="meter" id="mPow"><i></i></div></div>
+        <div class="ro"><div class="k">طول القطع النظري</div><div class="v"><span id="rCut">—</span><span class="u">مم</span></div><div class="sub" id="rKn">—</div></div>
+        <div class="ro"><div class="k">البالة الحالية</div><div class="v"><span id="rCur">0.00</span><span class="u">م</span></div><div class="meter" id="mCur"><i></i></div></div>
+        <div class="ro"><div class="k">البالات المربوطة</div><div class="v"><span id="rBales">0</span></div><div class="sub" id="rAvg">—</div></div>
+        <div class="ro"><div class="k">الكمية المكبوسة</div><div class="v"><span id="rTons">0.00</span><span class="u">طن</span></div><div class="sub" id="rStrokes">—</div></div>
+        <div class="ro"><div class="k">الخيط المستهلك</div><div class="v"><span id="rTwine">0</span><span class="u">م</span></div><div class="sub" id="rRolls">—</div></div>
+      </div>
+      <div class="sim-lower">
+        <div class="card pad timing">
+          <h3 class="card-h">مخطط توقيت الدورة</h3>
+          <div class="timing-body">
+            <svg id="tw" viewBox="-120 -120 240 240" role="img" aria-label="زاوية الكرنك ومراحل الدورة"></svg>
+            <ul class="tw-legend" id="twLegend"></ul>
+          </div>
+        </div>
+        <div class="card pad">
+          <h3 class="card-h">سجل البالات</h3>
+          <div class="table-wrap" style="border:0">
+            <table class="mini"><thead><tr><th>#</th><th>الطول م</th><th>الوزن كغ</th><th>الكثافة</th><th>رقائق</th></tr></thead><tbody id="baleLog"></tbody></table>
+          </div>
+        </div>
+        <div class="card pad">
+          <h3 class="card-h">الأحداث</h3>
+          <ul id="evLog" class="log"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ المواصفات ═══════════ -->
+<section id="tab-specs" class="tab" aria-labelledby="h-specs" hidden>
+  <div class="tab-head">
+    <div>
+      <h1 id="h-specs">المواصفات وطريقة العمل</h1>
+      <p>البيانات الفنية لموديل BiG Pack HDP II 1290 بوحدة القطع VariCut (VC) كما تنشرها الشركة. تأكد دائماً من لوحة ماكينتك وكتيب المشغل لأن التجهيزات تختلف حسب الطلب والسنة.</p>
+    </div>
+  </div>
+  <div class="specs">
+    <div class="card" id="specTables"></div>
+    <div class="stack">
+      <div class="card pad">
+        <h3 class="card-h">رحلة التبن داخل الكبّاسة</h3>
+        <ol class="flow" id="flowList"></ol>
+      </div>
+      <div class="card pad">
+        <h3 class="card-h">المصادر</h3>
+        <ul class="src">
+          <li><a href="https://www.krone-northamerica.com/products/large-square-balers/big-pack-hdp-ii-1290-vc" target="_blank" rel="noopener">KRONE North America: BiG Pack HDP II 1290 (VC)</a></li>
+          <li><a href="https://www.topagrar.com/technik/news/krone-stellt-die-neue-big-pack-hdp-ii-grosspackenpresse-vor-20017783.html" target="_blank" rel="noopener">top agrar: إطلاق BiG Pack HDP II</a></li>
+          <li><a href="https://www.terre-net.fr/recoltes/article/887461/la-presse-krone-big-pack-hdp-ii-repousse-la-limite-du-debit-de-chantier" target="_blank" rel="noopener">Terre-net: Krone Big Pack HDP II</a></li>
+        </ul>
+        <p class="muted small" style="margin-top:8px">أسماء الأجزاء الإنجليزية والألمانية مكتوبة لتسهيل البحث في الكتالوج الرسمي. أما الوظائف ونصائح الصيانة فهي إرشاد عام ولا تغني عن كتيب المشغل.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap foot">
+  تطبيق تعليمي مستقل، غير تابع لشركة KRONE وغير معتمد منها. الأسماء التجارية لأصحابها. قبل طلب أي قطعة أو تنفيذ صيانة راجع كتالوج قطع الغيار الرسمي وكتيب المشغل الخاص برقم ماكينتك، وأوقف المحرك واسحب المفتاح قبل العمل على الكبّاسة.
+</footer>
+
+<div id="modal" class="modal" hidden><div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><h3 id="modalTitle"></h3><div id="modalBody"></div><div class="modal-acts" id="modalActs"></div></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────
+   بيانات الأجزاء
+   id  = النظام-البند (يُعرض كرقم تسلسلي BP-xx-yy)
+   t   = c أساسي · w قطعة تآكل · o اختياري
+   p   = موقع الرقم على رسم التشريح (إحداثيات SVG)
+   fn وظيفة · sp مواصفات · mt صيانة وفحص · fl أعطال شائعة
+   رقم كتالوج KRONE لا يُكتب هنا؛ يدخله المستخدم من الكتالوج الرسمي
+   ──────────────────────────────────────────────────────────── */
+const SYSTEMS = [
+  {id:'01', ar:'جهاز الالتقاط (البيك أب)', en:'Pick-up', color:'#d6ac35',
+   desc:'يلتقط سطر التبن من الأرض ويرفعه ويغذي به دوّار القطع. البيك أب EasyFlow بدون مسار كامة، مع بكرة تغذية نشطة وبكرة ضغط للمحصول.'},
+  {id:'02', ar:'وحدة القطع VariCut', en:'VariCut cutting unit', color:'#e25a52',
+   desc:'دوّار بقطر 720 مم يسحب المحصول عبر 26 أو 51 سكيناً لتقصيره قبل الكبس. مجموعات السكاكين تُدخل وتُخرج هيدروليكياً من الكابينة.'},
+  {id:'03', ar:'نظام التعبئة VFS', en:'Variable Filling System', color:'#9cc44a',
+   desc:'يملأ قناة الضغط المسبق حتى يتحسس الامتلاء، ثم تدفع شوكة التغذية الشحنة كاملة إلى قناة الكبس، فتخرج الرقائق متساوية والبالة بحواف قائمة.'},
+  {id:'04', ar:'الكبس وقناة البالة', en:'Plunger & bale chamber', color:'#4b9fe0',
+   desc:'المكبس يضغط كل شحنة 45 مرة في الدقيقة داخل قناة مقطعها 120 × 90 سم، وأبواب الضغط الهيدروليكية تتحكم بكثافة البالة.'},
+  {id:'05', ar:'الربط والخيوط', en:'Knotters & twine', color:'#b07ce0',
+   desc:'ثماني عقّادات مزدوجة وثماني إبر تربط البالة عند بلوغ الطول المضبوط، مع صندوقي خيط يتسعان لـ48 بكرة ومراوح تنظيف PowerClean.'},
+  {id:'06', ar:'نقل الحركة', en:'Driveline', color:'#ee8f3a',
+   desc:'ينقل القدرة من عمود إدارة الجرار (1000 د/د) عبر الحدّافة وعلبة التروس الرئيسية إلى المكبس وبقية الوحدات، مع قوابض الحماية.'},
+  {id:'07', ar:'الهيدروليك', en:'Hydraulics', color:'#36bfc8',
+   desc:'دائرة هيدروليكية على الماكينة تشغّل ضغط الكبس ومراوح التنظيف وقاذف البالة وصناديق الخيط وقاع القطع.'},
+  {id:'08', ar:'الهيكل والمحاور', en:'Chassis & axle', color:'#8d9da6',
+   desc:'الإطار الحامل وقضيب الجر والمحور الترادفي والإطارات والأغطية وتجهيزات الطريق والصيانة.'},
+  {id:'09', ar:'الإلكترونيات والتحكم', en:'Electronics & control', color:'#4fcf86',
+   desc:'حاسوب الماكينة والحساسات وشاشات ISOBUS التي تعرض الحالة وتضبط الكبّاسة من مقعد السائق.'},
+  {id:'10', ar:'التزييت', en:'Lubrication', color:'#c18b5c',
+   desc:'تزييت مركزي آلي لمعظم نقاط التشحيم، إضافة إلى زيت علب التروس ونقاط التشحيم اليدوي.'},
+  {id:'11', ar:'إخراج البالات', en:'Bale discharge', color:'#e27ab3',
+   desc:'يستقبل البالات المربوطة من قناة الكبس ويضعها على الأرض، مع قاذف لتفريغ القناة وتجهيزات اختيارية للوزن والتجميع.'}
+];
+
+const PARTS = [
+  /* ── 01 البيك أب ── */
+  {id:'01-01', ar:'دوّار البيك أب EasyFlow', en:'EasyFlow pick-up reel (camless)', de:'EasyFlow Pick-up', q:'1', t:'c', p:[866,428],
+   fn:'يلتقط السطر من الأرض بأصابع زنبركية ويرفعه نحو بكرة التغذية ودوّار القطع. التصميم بدون مسار كامة يقلل الأجزاء المتحركة والتآكل ويسمح بسرعة دوران أعلى.',
+   sp:'عرض العمل 2.35 م، خمسة صفوف أصابع، تباعد الأصابع 55 مم.',
+   mt:'افحص يومياً الأصابع المكسورة أو المنحنية ونظّف الأعشاب الملتفة حول الدوّار.',
+   fl:'تكسر الأصابع عند العمل منخفضاً جداً أو على أرض حجرية، وتكدس المحصول أمام البيك أب عند سرعة تقدم عالية.'},
+  {id:'01-02', ar:'أصابع البيك أب الزنبركية المزدوجة', en:'Double spring tines', de:'Doppelfederzinken', q:'حسب الكتالوج', t:'w', p:[893,452],
+   fn:'تلتقط المحصول وترفعه. مصنوعة من سلك زنبركي يتحمل الصدمات ويرجع لشكله.',
+   sp:'موزعة على خمسة صفوف بتباعد 55 مم على كامل العرض.',
+   mt:'استبدل المكسور فوراً حتى لا تدخل قطع الحديد إلى الدوار والسكاكين. احتفظ بعدد من الأصابع الاحتياطية.',
+   fl:'كسر عند ملامسة الأرض أو الحجارة.'},
+  {id:'01-03', ar:'شرائح التوجيه (المشط)', en:'Tine guide strips', q:'حسب الكتالوج', t:'w', p:[912,408],
+   fn:'تمر الأصابع بين الشرائح فتنفصل عنها المادة ولا تلتف على الدوّار، وتشكل سطحاً ينزلق عليه التبن.',
+   mt:'افحص التشققات والانحناء. الشريحة المنحنية تحتك بالأصابع وتكسرها.'},
+  {id:'01-04', ar:'بكرة التغذية النشطة', en:'Active feed roller', q:'1', t:'c', p:[814,406],
+   fn:'بكرة مُدارة خلف البيك أب تسحب المحصول بقوة نحو دوّار القطع، فتتحسن التغذية في السطور الكثيفة وغير المنتظمة.',
+   sp:'جزء من نظام Active Pick-up.'},
+  {id:'01-05', ar:'وحدة بكرة ضغط المحصول', en:'Crop press roller unit', de:'Rollenniederhalter', q:'1', t:'c', p:[892,378],
+   fn:'تضغط السطر وتثبته فوق البيك أب لتغذية متساوية، وتمنع تطاير التبن الخفيف مع الهواء.',
+   sp:'ارتفاعها قابل للتعديل هيدروليكياً بشكل مستمر من مقعد السائق.'},
+  {id:'01-06', ar:'عجلات التوجيه الهوائية', en:'Pneumatic caster wheels', de:'Tasträder', q:'2', t:'c', p:[922,448],
+   fn:'تحمل البيك أب وتتبع سطح الأرض للحفاظ على ارتفاع عمل ثابت.',
+   sp:'قابلة لتعديل الارتفاع بدون أدوات.',
+   mt:'افحص ضغط الإطارات ومحامل العجلات وحرية دوران المحور الرأسي.'},
+  {id:'01-07', ar:'محدد العمق', en:'Depth limiter', q:'1', t:'c', p:[895,463],
+   fn:'يحدد أدنى ارتفاع للبيك أب حتى لا تنغرس الأصابع في التربة.',
+   sp:'تجهيز قياسي.'},
+  {id:'01-08', ar:'الحلزونات الجانبية', en:'Lateral feed augers', de:'Querförderschnecken', q:'2', t:'c', p:[846,386],
+   fn:'تجمع المحصول من طرفي البيك أب العريض نحو عرض الدوّار في المنتصف.',
+   mt:'افحص لحامات الحلزون وتآكل حوافه. التجهيز قد يختلف حسب السنة.'},
+  {id:'01-09', ar:'أسطوانة رفع البيك أب', en:'Pick-up lift cylinder', q:'حسب الكتالوج', t:'c', p:[846,322],
+   fn:'ترفع البيك أب للنقل وعند المنعطفات وتخفضه للعمل.',
+   mt:'افحص التسريب من الأسطوانة والخراطيم.'},
+  {id:'01-10', ar:'نوابض موازنة البيك أب', en:'Pick-up relief springs', q:'حسب الكتالوج', t:'c', p:[880,318],
+   fn:'تخفف جزءاً من وزن البيك أب عن عجلات التوجيه لتتبع أفضل للأرض وتآكل أقل.',
+   mt:'اضبط شد النوابض حسب الكتيب. البيك أب الثقيل يكشط الأرض ويرفع التراب للبالة.'},
+  {id:'01-11', ar:'قابض حماية البيك أب', en:'Pick-up overload clutch', q:'1', t:'c', p:[835,430],
+   fn:'يفصل الحركة عن البيك أب عند دخول جسم صلب أو حدوث انسداد، فيحمي الأصابع ونظام الإدارة.'},
+  {id:'01-12', ar:'سلسلة وتروس إدارة البيك أب', en:'Pick-up drive chain and sprockets', q:'حسب الكتالوج', t:'w', p:[838,428],
+   fn:'تنقل الحركة إلى دوّار البيك أب.',
+   mt:'افحص شد السلسلة وحالة التروس، ونظفها من الغبار.'},
+  {id:'01-13', ar:'نظام جرعات المواد الحافظة', en:'Dosing system for silage additives', q:'1', t:'o', p:[1006,378],
+   fn:'يرش مادة حافظة على المحصول عند البيك أب، وهو مفيد عند كبس الدريس أو الهايلاج الرطب.',
+   sp:'خزان 400 لتر، فوهتا رش مسطحتان عند البيك أب، جرعة ثابتة أو حسب الإنتاجية أو حسب الرطوبة (مع حساس الرطوبة).'},
+
+  /* ── 02 VariCut ── */
+  {id:'02-01', ar:'دوّار القطع', en:'Cutting rotor', de:'Schneidrotor', q:'1', t:'c', p:[745,390],
+   fn:'يسحب المحصول من البيك أب ويمرره عبر السكاكين، ثم يدفعه إلى قناة التغذية VFS.',
+   sp:'قطر 720 مم. نسخة 26 سكيناً: 27 نجمة مع صفائح فولاذية. نسخة 51 سكيناً: 52 نجمة.',
+   mt:'افحص تآكل النجوم والمحامل، وأزل الأسلاك والحبال الملتفة.'},
+  {id:'02-02', ar:'نجوم الدوّار (أقراص الأسنان)', en:'Rotor stars', q:'27 أو 52', t:'w', p:[781,370],
+   fn:'أقراص مسننة تمسك المحصول وتدفعه بين السكاكين.',
+   mt:'افحص تآكل رؤوس الأسنان والتشققات في بداية كل موسم.'},
+  {id:'02-03', ar:'سكاكين القطع', en:'Cutting knives', de:'Messer', q:'26 أو 51', t:'w', p:[745,428],
+   fn:'تقطع المحصول إلى أطوال قصيرة، فترتفع كثافة البالة ويسهل استخدام التبن علفاً أو فرشة.',
+   sp:'26 سكيناً لطول قطع نظري من 44 مم، و51 سكيناً لطول من 22 مم.',
+   mt:'اشحذ السكاكين أو اقلبها أو استبدلها حسب الحالة. السكين الكليلة ترفع استهلاك القدرة وتزيد خطر الانسداد.',
+   fl:'ثلم أو كسر بسبب الحجارة والأجسام المعدنية.'},
+  {id:'02-04', ar:'حماية السكين الفردية', en:'Individual knife protection', q:'لكل سكين', t:'c', p:[722,452],
+   fn:'كل سكين محمية بآلية نابضية ترتد للأسفل عند اصطدامها بجسم غريب ثم ترجع تلقائياً لمكانها.',
+   mt:'تأكد أن كل سكين ترجع لوضعها بحرية بعد تنظيف المنطقة.'},
+  {id:'02-05', ar:'حامل السكاكين (الدرج)', en:'Knife drawer', q:'1', t:'c', p:[700,440],
+   fn:'يحمل مجموعة السكاكين تحت الدوّار، ويسهل الوصول إليها عند الصيانة وتبديل السكاكين.'},
+  {id:'02-06', ar:'أسطوانات اختيار مجموعات السكاكين', en:'Knife group selector cylinders', q:'حسب الكتالوج', t:'c', p:[786,442],
+   fn:'تُدخل أو تُخرج مجموعات السكاكين هيدروليكياً من الكابينة أو من لوحة الماكينة.',
+   sp:'VariCut 26: مجموعات 26 / 14 / 12 / 6 / 6. VariCut 51: مجموعات 51 / 26 / 25 / 12 / 5. تُختار المجموعات يدوياً مسبقاً على الماكينة.'},
+  {id:'02-07', ar:'قاع القطع القابل للخفض', en:'Drop floor', q:'1', t:'c', p:[760,458],
+   fn:'يُخفض لتحرير الانسداد بين الدوار والسكاكين، ثم يُرفع ويُكمل العمل دون نزول السائق في أغلب الحالات.'},
+  {id:'02-08', ar:'سير إدارة دوّار القطع', en:'Rotor drive belt', q:'حسب الكتالوج', t:'w', p:[830,334],
+   fn:'ينقل الحركة إلى دوّار القطع.',
+   sp:'إدارة بالسير مع مراقبة الانزلاق وقابض حماية مدمج.',
+   mt:'افحص الشد والتشققات واهتراء الجوانب.'},
+  {id:'02-09', ar:'قابض حماية دوّار القطع', en:'Rotor overload clutch', q:'1', t:'c', p:[905,290],
+   fn:'يفصل الحركة عن الدوّار عند الحمل الزائد لحماية السكاكين والدوار.'},
+  {id:'02-10', ar:'حساس مراقبة الانزلاق', en:'Belt slip monitoring sensor', q:'1', t:'c', p:[928,302],
+   fn:'يقارن سرعة الدوّار بسرعة الإدارة وينبّه السائق عند انزلاق السير قبل حدوث الانسداد.'},
+  {id:'02-11', ar:'جهاز العكس', en:'Reversing device', q:'1', t:'o', p:[780,350],
+   fn:'يدير الدوّار والبيك أب بالعكس لإخراج المحصول المتكتل عند الانسداد.'},
+  {id:'02-12', ar:'التنظيف بالهواء المضغوط', en:'Compressed-air cleaning (VariCut 51)', q:'1', t:'c', p:[800,430],
+   fn:'ينفخ الهواء على منطقة السكاكين لمنع تراكم الغبار وبقايا المحصول.',
+   sp:'مدمج في نسخة VariCut 51.'},
+  {id:'02-13', ar:'الدائرة الهيدروليكية لوحدة القطع', en:'Enclosed on-board hydraulics for cutting unit', q:'1', t:'c', p:[672,452],
+   fn:'دائرة هيدروليكية مستقلة ومغلقة على الماكينة لتشغيل السكاكين وقاع القطع.'},
+  {id:'02-14', ar:'مكاشط الدوّار', en:'Rotor scrapers', q:'حسب الكتالوج', t:'w', p:[716,360],
+   fn:'تنظف المحصول من بين نجوم الدوّار وتمنع رجوعه مع الدوران.',
+   mt:'المكشطة المتآكلة تسبب التفاف المحصول حول الدوّار.'},
+
+  /* ── 03 VFS ── */
+  {id:'03-01', ar:'أسطوانة VFS الدوّارة', en:'VFS drum', q:'1', t:'c', p:[800,300],
+   fn:'أسطوانة عليها أربعة صفوف أذرع: ثلاثة صفوف تكديس تملأ قناة الضغط المسبق، وصف تغذية واحد يدفع الشحنة إلى قناة الكبس.',
+   sp:'أقراص الأسطوانة مقسومة إلى أربعة أجزاء لسهولة الاستبدال.'},
+  {id:'03-02', ar:'أذرع التكديس', en:'Packer tines', q:'3 صفوف', t:'w', p:[835,272],
+   fn:'تجمع المحصول وتضغطه مسبقاً داخل القناة إلى أن تمتلئ.',
+   mt:'افحص الأذرع المنحنية أو المتآكلة.'},
+  {id:'03-03', ar:'شوكة التغذية', en:'Feeder tines', q:'صف واحد', t:'w', p:[768,322],
+   fn:'تدفع الشحنة كاملة إلى قناة الكبس دفعة واحدة عندما يكون المكبس في وضع التراجع، فتتكون رقيقة كاملة الارتفاع.',
+   mt:'التوقيت بين الشوكة والمكبس حرج. أي تغيير في السلاسل أو الأعمدة يتطلب فحص التوقيت.'},
+  {id:'03-04', ar:'مسار الكامة المجزأ', en:'Split packer cam track', q:'1', t:'w', p:[826,322],
+   fn:'يوجه حركة الأذرع لتدخل القناة وتخرج منها في الوقت الصحيح. التقسيم يسهل الاستبدال دون فك الأسطوانة.'},
+  {id:'03-05', ar:'بكرات مسار VFS', en:'VFS cam rollers', q:'حسب الكتالوج', t:'w', p:[790,330],
+   fn:'تتدحرج داخل مسار الكامة لتحريك الأذرع.',
+   sp:'تزييت مركزي لبكرات VFS.',
+   mt:'افحص لعب البكرات وتأكد من وصول الشحم إليها.'},
+  {id:'03-06', ar:'أقراص أسطوانة VFS', en:'Four-part drum discs', q:'حسب الكتالوج', t:'c', p:[812,282],
+   fn:'تحمل أذرع التكديس والتغذية على الأسطوانة.'},
+  {id:'03-07', ar:'قناة الضغط المسبق', en:'Pre-compression channel', q:'1', t:'c', p:[680,340],
+   fn:'قناة منحنية تمتلئ بكمية محددة من التبن قبل إدخالها إلى قناة الكبس، فتتساوى الرقائق في الكثافة والسماكة وتخرج البالة بحواف قائمة.',
+   mt:'افحص صفائح التآكل في قاع القناة وأزل التراكمات الرطبة.'},
+  {id:'03-08', ar:'مشط الاستشعار', en:'Sensing rake', q:'1', t:'c', p:[742,262],
+   fn:'يتحسس امتلاء القناة. عند الوصول إلى العتبة المحددة يعطي الإشارة لتفعيل شوكة التغذية.',
+   sp:'عتبة التفعيل ودرجة الضغط المسبق قابلتان للتعديل من الشاشة.'},
+  {id:'03-09', ar:'حساس امتلاء القناة', en:'Filling sensor', q:'1', t:'c', p:[760,282],
+   fn:'يحول حركة مشط الاستشعار إلى إشارة كهربائية لحاسوب الماكينة.'},
+  {id:'03-10', ar:'قابض حماية VFS', en:'VFS overload clutch', q:'1', t:'c', p:[822,303],
+   fn:'يفصل الحركة عن أسطوانة VFS عند الحمل الزائد أو الانسداد.'},
+  {id:'03-11', ar:'مؤشر الحمل (قياس العزم)', en:'Torque-based load indicator', q:'1', t:'c', p:[860,290],
+   fn:'يقيس عزم إدارة VFS ويعرضه مؤشراً على الشاشة ليضبط السائق سرعة التقدم قبل الانسداد.'},
+  {id:'03-12', ar:'آلية تفعيل شوكة التغذية', en:'Feeder trigger mechanism', q:'1', t:'c', p:[820,262],
+   fn:'تحول الذراع من وضع التكديس إلى وضع التغذية بأمر من حساس الامتلاء وبتزامن مع حركة المكبس.'},
+
+  /* ── 04 الكبس ── */
+  {id:'04-01', ar:'المكبس', en:'Plunger', de:'Presskolben', q:'1', t:'c', p:[720,200],
+   fn:'يتحرك ذهاباً وإياباً داخل قناة الكبس ويضغط كل شحنة على البالة. في وجهه شقوق تعبر منها الإبر عند الربط.',
+   sp:'45 ضربة في الدقيقة عند 1000 د/د لعمود الإدارة.',
+   mt:'افحص استقامة المكبس وحالة السكين وتآكل وجهه.'},
+  {id:'04-02', ar:'بكرات توجيه المكبس', en:'Plunger guide rollers', q:'حسب الكتالوج', t:'w', p:[760,150],
+   fn:'يسير عليها المكبس داخل القناة بأقل احتكاك، وتحافظ على استقامته.',
+   mt:'افحص التآكل واللعب، واضبط البكرات الجانبية حسب الكتيب.'},
+  {id:'04-03', ar:'سكين المكبس', en:'Plunger knife', q:'1', t:'w', p:[702,240],
+   fn:'تقص المحصول البارز من فتحة التغذية عند مرور المكبس فوقها.',
+   mt:'اشحذها أو استبدلها. السكين الكليلة ترفع حمل المكبس وتشوه حافة البالة.'},
+  {id:'04-04', ar:'السكين الثابتة', en:'Stationary counter knife', q:'1', t:'w', p:[778,240],
+   fn:'تعمل مع سكين المكبس كالمقص عند فتحة التغذية.',
+   mt:'افحص الخلوص بين السكينين.'},
+  {id:'04-05', ar:'ذراعا التوصيل', en:'Connecting rods', de:'Pleuel', q:'2', t:'c', p:[835,214],
+   fn:'تحول حركة أذرع الكرنك الدائرية إلى حركة المكبس الترددية.',
+   mt:'افحص محامل الطرفين والمسامير.'},
+  {id:'04-06', ar:'أذرع الكرنك', en:'Crank arms', de:'Kurbel', q:'2', t:'c', p:[905,166],
+   fn:'مثبتة على عمود خرج علبة التروس الرئيسية، وتدور 45 دورة في الدقيقة.'},
+  {id:'04-07', ar:'قناة الكبس', en:'Bale chamber', de:'Presskanal', q:'1', t:'c', p:[400,214],
+   fn:'القناة التي تتشكل فيها البالة. احتكاك البالة بجدرانها مع ضغط الأبواب يحدد الكثافة.',
+   sp:'مقطع 120 × 90 سم. قاع مخروطي مع صفائح تآكل قياسية.'},
+  {id:'04-08', ar:'باب الضغط العلوي', en:'Continuous upper density flap', de:'Pressklappe', q:'1', t:'c', p:[380,146],
+   fn:'يضغط على البالة من الأعلى ويضيق مقطع القناة لزيادة الكثافة.',
+   sp:'باب علوي متصل على طول منطقة الضغط.'},
+  {id:'04-09', ar:'أبواب الضغط الجانبية', en:'Side density flaps', q:'2', t:'c', p:[390,176],
+   fn:'تضغط البالة من الجانبين مع الباب العلوي.'},
+  {id:'04-10', ar:'أسطوانات ضغط الكبس', en:'Baling pressure cylinders', q:'7', t:'c', p:[290,122],
+   fn:'أسطوانات هيدروليكية كبيرة تحرك أبواب الضغط وفق الضغط المطلوب.',
+   sp:'سبع أسطوانات، ثلاث منها على الباب العلوي. وضع آلي من 0 إلى 100٪، أو يدوي من 0 إلى 200 بار (50 بار عند البدء).',
+   mt:'افحص التسريب والخراطيم وحالة ذراع الأسطوانة.'},
+  {id:'04-11', ar:'قاع القناة وصفائح التآكل', en:'Chamber floor and wear plates', q:'حسب الكتالوج', t:'w', p:[330,248],
+   fn:'تحمي قاع القناة من التآكل بفعل الاحتكاك المستمر للبالات.',
+   mt:'افحص السماكة المتبقية وتثبيت البراغي.'},
+  {id:'04-12', ar:'ماسكات منع الارتداد', en:'Bale retainers', q:'حسب الكتالوج', t:'w', p:[636,166],
+   fn:'تمنع ارتداد المحصول المضغوط نحو المكبس أثناء رجوعه.',
+   mt:'تأكد من حرية حركتها وقوة نوابضها.'},
+
+  /* ── 05 الربط ── */
+  {id:'05-01', ar:'العقّادات المزدوجة', en:'Double knotters (V-knotter)', de:'Doppelknoter', q:'8', t:'c', p:[697,124],
+   fn:'تربط الخيط حول البالة بعقدتين في كل دورة: الأولى تغلق البالة المكتملة، والثانية تبدأ حلقة البالة التالية. نظام V-knotter لا يترك بقايا خيط.',
+   sp:'ثماني عقّادات مزدوجة.',
+   mt:'نظف العقّادات يومياً، وافحص الخطاف وقرص الإمساك وسكين الخيط. لا تزيّت الخطاف بزيت يجمع الغبار.',
+   fl:'عقد غير مكتملة بسبب شد خيط خاطئ أو خيط غير مناسب أو تآكل الخطاف أو تأخر توقيت الإبر.'},
+  {id:'05-02', ar:'خطاف العقدة', en:'Knotter bill hook', q:'8', t:'w', p:[674,140],
+   fn:'يدور ليلف طرفي الخيط ويشكّل العقدة.',
+   mt:'افحص لسان الخطاف ونابضه. الخطاف المتآكل يسبب عقداً مفتوحة.'},
+  {id:'05-03', ar:'قرص الإمساك (حامل الخيط)', en:'Twine holder disc', q:'8', t:'w', p:[716,140],
+   fn:'يمسك طرف الخيط بين دورتي الربط.',
+   mt:'اضبط ضغط نابض الحامل حسب الكتيب ونوع الخيط.'},
+  {id:'05-04', ar:'ذراع السكين ومنزع العقدة', en:'Knife arm and stripper', q:'8', t:'w', p:[728,124],
+   fn:'يقطع الخيط بعد العقدة ويسحب العقدة عن الخطاف.'},
+  {id:'05-05', ar:'الإبر', en:'Needles', de:'Nadeln', q:'8', t:'w', p:[648,292],
+   fn:'تحمل الخيط السفلي من أسفل البالة عبر شقوق المكبس إلى العقّادات عند انتهاء طول البالة.',
+   mt:'افحص استقامة الإبر وبكرات رؤوسها، وتوقيتها مع المكبس.',
+   fl:'الإبرة المنحنية لا توصل الخيط للخطاف فتفشل العقدة، وقد تصطدم بالمكبس.'},
+  {id:'05-06', ar:'حامل الإبر', en:'Needle yoke', q:'1', t:'c', p:[565,330],
+   fn:'يحمل الإبر الثماني ويرفعها معاً بحركة واحدة.'},
+  {id:'05-07', ar:'حماية الإبر', en:'Needle protection', q:'1', t:'c', p:[588,346],
+   fn:'تمنع اصطدام الإبر بالمكبس إذا اختل التوقيت.'},
+  {id:'05-08', ar:'عمود العقّادات', en:'Knotter shaft', q:'1', t:'c', p:[652,112],
+   fn:'يحمل العقّادات الثماني ويديرها معاً.'},
+  {id:'05-09', ar:'قابض دورة الربط', en:'Knotter single-revolution clutch', q:'1', t:'c', p:[749,112],
+   fn:'يشغل العقّادات والإبر دورة واحدة فقط عند انتهاء طول البالة.'},
+  {id:'05-10', ar:'عجلة قياس الطول النجمية', en:'Bale length star wheel', de:'Sternrad', q:'1', t:'c', p:[585,150],
+   fn:'تدور بحركة البالة داخل القناة لقياس طولها، وعند بلوغ الطول المضبوط تطلق دورة الربط.',
+   sp:'قياس إلكتروني لطول البالة من 0.50 إلى 3.20 م.'},
+  {id:'05-11', ar:'فرامل الخيط', en:'Twine brakes', q:'16', t:'w', p:[545,282],
+   fn:'تعطي الخيط الشد المناسب أثناء خروجه من الصندوق.',
+   mt:'اضبط الشد حسب نوع الخيط. الشد الزائد يقطع الخيط، والناقص يرخي العقدة.'},
+  {id:'05-12', ar:'أذرع شد الخيط', en:'Twine tension arms', q:'حسب الكتالوج', t:'c', p:[624,140],
+   fn:'تأخذ الرخاوة من الخيط أثناء حركة الإبر.'},
+  {id:'05-13', ar:'أدلة الخيط والعيون', en:'Twine guides and eyelets', q:'حسب الكتالوج', t:'w', p:[600,232],
+   fn:'توجه الخيط من الصندوق إلى الإبر والعقّادات دون احتكاك حاد.',
+   mt:'العين المحززة تقطع الخيط. استبدلها عند ظهور حز.'},
+  {id:'05-14', ar:'صناديق الخيط', en:'Twine boxes', q:'2', t:'c', p:[400,312],
+   fn:'تخزن بكرات الخيط على جانبي الكبّاسة.',
+   sp:'حتى 24 بكرة في كل جانب (48 بكرة بوزن 15 كغ)، تكفي لنحو 1500 بالة بطول 2.35 م. تنزل هيدروليكياً لتسهيل التعبئة. تقبل أيضاً بكرات 11 كغ.'},
+  {id:'05-15', ar:'بكرات الخيط', en:'Baler twine', q:'48', t:'w', p:[262,290],
+   fn:'خيط مخصص للبالات الكبيرة عالية الكثافة.',
+   mt:'اربط بكرات كل صف ببعضها حسب مخطط الربط على باب الصندوق. استخدم خيطاً بالمتانة والطول المناسبين للكبس عالي الكثافة.'},
+  {id:'05-16', ar:'مراوح التنظيف PowerClean', en:'PowerClean turbines', q:'2', t:'c', p:[618,106],
+   fn:'تنفخ الهواء على منطقة العقّادات لتبقى نظيفة تحت ضغط هواء موجب.',
+   sp:'توربينتان بإدارة هيدروليكية.'},
+  {id:'05-17', ar:'حساسات مراقبة الخيط', en:'Twine monitoring sensors', q:'حسب الكتالوج', t:'c', p:[680,92],
+   fn:'تنبه السائق عند انقطاع الخيط أو فشل الربط حتى لا تخرج بالة غير مربوطة.'},
+
+  /* ── 06 نقل الحركة ── */
+  {id:'06-01', ar:'عمود الإدارة', en:'PTO shaft', de:'Gelenkwelle', q:'1', t:'c', p:[1066,248],
+   fn:'ينقل القدرة من عمود إدارة الجرار إلى الكبّاسة.',
+   sp:'1000 د/د.',
+   mt:'شحّم المفاصل والأنابيب المنزلقة، وافحص غطاء الحماية وسلسلة منعه من الدوران.'},
+  {id:'06-02', ar:'قابض الانزلاق للتشغيل', en:'Start-up slip clutch', q:'1', t:'c', p:[1138,288],
+   fn:'ينزلق عند بدء التشغيل ليحمي عمود الإدارة وناقل حركة الجرار من صدمة تسريع الحدّافة الثقيلة.'},
+  {id:'06-03', ar:'قابض الحماية الآلي', en:'Automatic overload clutch', q:'1', t:'c', p:[990,206],
+   fn:'يفصل الحركة عند الحمل الزائد ويعود للتعشيق آلياً. الكبّاسة لا تستخدم مسامير قص في خط الإدارة الرئيسي.'},
+  {id:'06-04', ar:'الحدّافة', en:'Flywheel', de:'Schwungrad', q:'1', t:'c', p:[968,200],
+   fn:'تخزن طاقة الحركة وتعطيها للمكبس في لحظة الضغط القصوى، فيصبح الحمل على الجرار أهدأ.',
+   sp:'حدّافة كبيرة وزنها نحو 600 كغ.'},
+  {id:'06-05', ar:'مساعد البدء الهيدروليكي', en:'Hydraulic starter aid', q:'1', t:'c', p:[996,150],
+   fn:'يدير الحدّافة هيدروليكياً قبل تعشيق عمود الإدارة، فيقلل الإجهاد على الجرار والقوابض.',
+   sp:'سرعة نهائية حتى 400 د/د.'},
+  {id:'06-06', ar:'علبة التروس الرئيسية', en:'Main gearbox', de:'Hauptgetriebe', q:'1', t:'c', p:[905,226],
+   fn:'تخفض سرعة الدخل من 1000 د/د إلى 45 دورة في الدقيقة لأذرع الكرنك، وتوزع الحركة على بقية الوحدات.',
+   mt:'افحص مستوى الزيت قبل الموسم وبعد الساعات المحددة في الكتيب.'},
+  {id:'06-07', ar:'أعمدة الإدارة الثانوية', en:'Secondary drive shafts', q:'حسب الكتالوج', t:'c', p:[918,258],
+   fn:'توصل الحركة من علبة التروس إلى دوّار القطع وVFS والعقّادات.'},
+  {id:'06-08', ar:'سلسلة إدارة العقّادات', en:'Knotter drive chain', q:'حسب الكتالوج', t:'w', p:[812,136],
+   fn:'تنقل الحركة إلى عمود العقّادات بتزامن دقيق مع المكبس.',
+   mt:'افحص الشد. أي تغيير في السلسلة يتطلب فحص توقيت الإبر.'},
+  {id:'06-09', ar:'إدارة VFS', en:'VFS drive', q:'1', t:'c', p:[856,298],
+   fn:'تدير أسطوانة VFS بتزامن مع المكبس حتى تدخل شوكة التغذية أثناء تراجع المكبس.'},
+
+  /* ── 07 الهيدروليك ── */
+  {id:'07-01', ar:'مضخة الهيدروليك', en:'On-board hydraulic pump', q:'1', t:'c', p:[946,183],
+   fn:'تغذي الدائرة الهيدروليكية على الماكينة بالزيت المضغوط.'},
+  {id:'07-02', ar:'خزان الزيت الهيدروليكي', en:'Hydraulic oil tank', q:'1', t:'c', p:[906,120],
+   fn:'يخزن زيت الدائرة الهيدروليكية على الماكينة.',
+   mt:'افحص المستوى والنظافة، وغيّر الزيت حسب الكتيب.'},
+  {id:'07-03', ar:'كتلة الصمامات', en:'Main control valve block', q:'1', t:'c', p:[610,276],
+   fn:'توزع الزيت على الأسطوانات والمحركات حسب أوامر حاسوب الماكينة.'},
+  {id:'07-04', ar:'صمام تنظيم ضغط الكبس', en:'Baling pressure control valve', q:'1', t:'c', p:[640,292],
+   fn:'يتحكم بضغط أسطوانات أبواب الضغط لتحقيق الكثافة المطلوبة.'},
+  {id:'07-05', ar:'حساس ضغط الكبس', en:'Baling pressure sensor', q:'1', t:'c', p:[580,292],
+   fn:'يقيس ضغط دائرة الأبواب ويرسله لحاسوب الماكينة لتنظيم الكثافة آلياً.'},
+  {id:'07-06', ar:'فلتر الزيت الهيدروليكي', en:'Hydraulic filter', q:'1', t:'w', p:[942,117],
+   fn:'ينقي الزيت من الشوائب لحماية الصمامات والمضخة.',
+   mt:'غيّره حسب جدول الصيانة أو عند ظهور مؤشر الانسداد.'},
+  {id:'07-07', ar:'الخراطيم والوصلات', en:'Hoses and couplings', q:'حسب الكتالوج', t:'w', p:[540,160],
+   fn:'توصل الزيت المضغوط بين المكونات.',
+   mt:'افحص التشققات والاحتكاك والتسريب. لا تفحص التسريب بيدك تحت الضغط.'},
+  {id:'07-08', ar:'محركا مراوح PowerClean', en:'PowerClean hydraulic motors', q:'2', t:'c', p:[790,96],
+   fn:'محركات هيدروليكية تدير توربينات التنظيف فوق العقّادات.'},
+  {id:'07-09', ar:'أسطوانات إنزال صناديق الخيط', en:'Twine box lowering cylinders', q:'2', t:'c', p:[540,342],
+   fn:'تنزل صندوق الخيط إلى مستوى مريح لتعبئة البكرات ثم ترفعه.'},
+  {id:'07-10', ar:'أسطوانة قاذف البالة', en:'Bale ejector cylinder', q:'1', t:'c', p:[300,240],
+   fn:'تحرك قاذف البالة لتفريغ القناة.'},
+  {id:'07-11', ar:'أسطوانات قاع القطع', en:'Drop floor cylinders', q:'حسب الكتالوج', t:'c', p:[716,466],
+   fn:'تخفض قاع القطع وترفعه لتحرير الانسداد.'},
+
+  /* ── 08 الهيكل ── */
+  {id:'08-01', ar:'الإطار الرئيسي', en:'Main frame', q:'1', t:'c', p:[580,258],
+   fn:'الهيكل الحامل لجميع الوحدات.',
+   mt:'افحص اللحامات والشقوق خاصة حول نقاط تعليق المحور وقضيب الجر.'},
+  {id:'08-02', ar:'قضيب الجر', en:'Drawbar', de:'Zugdeichsel', q:'1', t:'c', p:[1010,288],
+   fn:'يربط الكبّاسة بالجرار.',
+   sp:'حمل عمودي 4 طن بالتجهيز القياسي.'},
+  {id:'08-03', ar:'وصلة الربط بالجرار', en:'Hitch eye / ball hitch', q:'1', t:'w', p:[1142,321],
+   fn:'حلقة أو كرة ربط حسب التجهيز.',
+   mt:'افحص تآكل الحلقة أو الكرة وقياسها.'},
+  {id:'08-04', ar:'رافعة الدعم الهيدروليكية', en:'Hydraulic support jack', q:'1', t:'c', p:[1066,380],
+   fn:'تسند مقدمة الكبّاسة عند فصلها عن الجرار.',
+   sp:'هيدروليكية مزدوجة الوظيفة.'},
+  {id:'08-05', ar:'المحور الترادفي', en:'BPW tandem axle, caster-steered', q:'1', t:'c', p:[435,423],
+   fn:'محوران متتاليان بتوجيه ذاتي يوزعان الوزن ويقللان ضغط التربة وتمزق السطح في المنعطفات.',
+   sp:'محور BPW بتوجيه ذاتي، سرعة حتى 60 كم/س حيث يسمح القانون.'},
+  {id:'08-06', ar:'نوابض القوس (البوجي)', en:'Parabolic spring bogie', q:'حسب الكتالوج', t:'c', p:[435,374],
+   fn:'تعلق المحورين وتمتص الصدمات على الطرق والحقول.'},
+  {id:'08-07', ar:'الإطارات والجنوط', en:'Tyres and rims', q:'4', t:'w', p:[370,424],
+   fn:'تحمل الكبّاسة على الطريق والحقل.',
+   sp:'قياسي 26.5 بوصة (620/55 R26.5 أو 710/50 R26.5)، واختياري 30.5 بوصة (600/60 R30.5).',
+   mt:'افحص ضغط الهواء وعزم صواميل العجلات.'},
+  {id:'08-08', ar:'نظام الفرامل', en:'Brake system', q:'حسب الكتالوج', t:'c', p:[500,446],
+   fn:'فرامل هوائية أو هيدروليكية حسب التجهيز والبلد.'},
+  {id:'08-09', ar:'قفل المحور التوجيهي', en:'Steering axle lock', q:'1', t:'c', p:[470,402],
+   fn:'يقفل التوجيه الذاتي عند الرجوع للخلف حتى لا تنحرف العجلات.'},
+  {id:'08-10', ar:'الأغطية الجانبية', en:'Side guards and hoods', q:'حسب الكتالوج', t:'c', p:[1004,100],
+   fn:'تغطي الأجزاء الدوارة لحماية العاملين وتسهيل التنظيف. أوقف العرض الداخلي لرؤيتها مغلقة على الرسم.',
+   mt:'لا تشغل الكبّاسة والأغطية مفتوحة.'},
+  {id:'08-11', ar:'الإضاءة', en:'Lighting', q:'حسب الكتالوج', t:'c', p:[227,270],
+   fn:'إضاءة الطريق وإضاءة العمل الليلي.',
+   sp:'حزم الإضاءة الاختيارية للجيل الخامس قياسية على HDP II.'},
+  {id:'08-12', ar:'منصة الصيانة والسلم', en:'Maintenance platform and ladder', q:'1', t:'c', p:[560,98],
+   fn:'للوصول الآمن إلى العقّادات وأعلى الكبّاسة.'},
+  {id:'08-13', ar:'خزان الماء مع موزع الصابون', en:'Water tank with soap dispenser', q:'1', t:'c', p:[285,387],
+   fn:'لغسل اليدين في الحقل بعد الصيانة.'},
+  {id:'08-14', ar:'صندوق العدة', en:'Tool compartment', q:'1', t:'c', p:[591,386],
+   fn:'مكان لحفظ العدة تحت قناة الكبس.'},
+  {id:'08-15', ar:'واقيات الطين', en:'Mudguards', q:'حسب الكتالوج', t:'c', p:[540,380],
+   fn:'تحمي الكبّاسة من الطين والحجارة المتطايرة من الإطارات.'},
+
+  /* ── 09 الإلكترونيات ── */
+  {id:'09-01', ar:'حاسوب الماكينة', en:'Job computer (ECU)', q:'1', t:'c', p:[812,127],
+   fn:'يقرأ الحساسات ويتحكم بالكثافة والتعبئة والربط، ويشغل وضع الصيانة AutoCheck الذي يدير الماكينة ببطء بأزرار ويفحص التوقيت والحساسات.'},
+  {id:'09-02', ar:'شاشة التحكم', en:'Terminal DS 500 / CCI 800 / CCI 1200', q:'1', t:'c', p:[1165,215],
+   fn:'شاشة في كابينة الجرار تعرض حالة الكبّاسة وتتيح ضبطها. تعمل أيضاً مع شاشة الجرار المتوافقة مع ISOBUS.',
+   sp:'DS 500 بشاشة 5.7 بوصة، CCI 800 بشاشة 8 بوصة، CCI 1200 بشاشة 12 بوصة تعرض واجهتين معاً.'},
+  {id:'09-03', ar:'عصا التحكم CCI A3', en:'CCI A3 joystick', q:'1', t:'o', p:[1140,252],
+   fn:'أزرار قابلة للبرمجة لوظائف الكبّاسة دون لمس الشاشة.'},
+  {id:'09-04', ar:'لوحة المفاتيح الخارجية', en:'External keypad', q:'1', t:'c', p:[835,331],
+   fn:'أزرار على جانب الماكينة لتشغيل وظائف الصيانة واختيار السكاكين من الأرض.'},
+  {id:'09-05', ar:'الكاميرا', en:'Camera, 120 degrees', q:'1', t:'o', p:[236,137],
+   fn:'كاميرا خلفية واسعة الزاوية لمراقبة خروج البالات، وتظهر على الشاشة.'},
+  {id:'09-06', ar:'حساس طول البالة', en:'Bale length sensor', q:'1', t:'c', p:[606,150],
+   fn:'يقرأ دوران عجلة القياس النجمية ويحسب طول البالة إلكترونياً.'},
+  {id:'09-07', ar:'حساس السرعة', en:'Speed sensor', q:'حسب الكتالوج', t:'c', p:[968,128],
+   fn:'يقيس سرعة الحدّافة أو عمود الإدارة ويستخدم في مراقبة الحمل والانزلاق.'},
+  {id:'09-08', ar:'حساس الرطوبة', en:'Moisture sensor', q:'1', t:'o', p:[520,214],
+   fn:'يقيس رطوبة المحصول في القناة ويعرضها، ويمكن ربطه بنظام الجرعات.'},
+  {id:'09-09', ar:'حساسات العقّادات', en:'Knotter monitoring sensors', q:'8', t:'c', p:[730,98],
+   fn:'تراقب حركة العقّادات وتنبه عند الخطأ.'},
+  {id:'09-10', ar:'وحدة SmartConnect', en:'KRONE SmartConnect telematics', q:'1', t:'c', p:[832,108],
+   fn:'وحدة اتصال تنقل بيانات العمل والماكينة.',
+   sp:'تجهيز قياسي.'},
+  {id:'09-11', ar:'حزمة أسلاك ISOBUS', en:'ISOBUS wiring harness', q:'1', t:'c', p:[1090,190],
+   fn:'توصل حاسوب الماكينة بالجرار والشاشة.',
+   mt:'افحص المقابس من الرطوبة والتآكل.'},
+
+  /* ── 10 التزييت ── */
+  {id:'10-01', ar:'مضخة التزييت المركزي', en:'Central lubrication pump', q:'1', t:'c', p:[943,316],
+   fn:'تضخ الشحم آلياً إلى نقاط التزييت أثناء العمل.',
+   sp:'خزان 8 كغ مع مؤشر استهلاك.',
+   mt:'املأ الخزان بالشحم المحدد في الكتيب، وتأكد أن مؤشر الاستهلاك يتحرك.'},
+  {id:'10-02', ar:'الموزعات التدريجية', en:'Progressive distributors', q:'حسب الكتالوج', t:'c', p:[857,273],
+   fn:'توزع الشحم على النقاط بالتتابع وبكميات محددة.'},
+  {id:'10-03', ar:'خطوط التزييت', en:'Lubrication lines', q:'حسب الكتالوج', t:'w', p:[700,302],
+   fn:'أنابيب رفيعة تنقل الشحم من الموزعات إلى المحامل.',
+   mt:'الخط المقطوع يترك محملاً بلا تزييت. افحصها بعد أي إصلاح قريب منها.'},
+  {id:'10-04', ar:'المزيّت الآلي للمحور التوجيهي', en:'Auto lubricator for steered axle', q:'حسب الكتالوج', t:'c', p:[470,446],
+   fn:'يخدم نقاط المحور التوجيهي التي تحتاج تزييتاً قبل 50 ساعة.'},
+  {id:'10-05', ar:'زيت علبة التروس', en:'Gearbox oil', q:'حسب الكتيب', t:'w', p:[923,242],
+   fn:'يزيت تروس ومحامل علبة التروس الرئيسية والعلب الأخرى.',
+   mt:'استخدم النوع والكمية المذكورين في كتيب المشغل.'},
+  {id:'10-06', ar:'حلمات التشحيم اليدوي', en:'Grease nipples', q:'حسب الكتالوج', t:'w', p:[1105,262],
+   fn:'نقاط تُشحّم يدوياً مثل مفاصل عمود الإدارة.'},
+
+  /* ── 11 إخراج البالات ── */
+  {id:'11-01', ar:'مزلق البالات الأسطواني', en:'Roller bale chute', de:'Ballenrutsche', q:'1', t:'c', p:[160,262],
+   fn:'بكرات تنزلق عليها البالة من القناة إلى الأرض بهدوء.',
+   mt:'افحص دوران البكرات بحرية. يُطوى للنقل.'},
+  {id:'11-02', ar:'قاذف البالة المجزأ', en:'Split bale ejector', de:'Ballenauswerfer', q:'1', t:'c', p:[350,236],
+   fn:'يدفع البالات خارج القناة في نهاية العمل أو عند تغيير الحقل.',
+   sp:'يمكنه تفريغ البالة الأخيرة فقط أو القناة كاملة.'},
+  {id:'11-03', ar:'حساس خروج البالة', en:'Bale drop sensor', q:'1', t:'c', p:[86,296],
+   fn:'يرصد سقوط البالة على الأرض ويعدّ البالات.'},
+  {id:'11-04', ar:'نظام وزن البالات', en:'Bale weighing system', q:'1', t:'o', p:[171,293],
+   fn:'يزن كل بالة على المزلق ويسجل الوزن مع بيانات العمل.'},
+  {id:'11-05', ar:'جامع البالات BaleCollect', en:'BaleCollect bale accumulator', q:'1', t:'o', p:[60,322],
+   fn:'يجمع البالات ويضعها معاً في الحقل لتسريع التحميل.',
+   sp:'حتى 3 بالات من قناة عرضها 120 سم.'}
+];
+
+const SPECS = [
+  {title:'البالة والقناة', rows:[
+    ['مقطع قناة الكبس','120 × 90 سم'],
+    ['طول البالة','0.50 – 3.20 م (قياس إلكتروني)'],
+    ['قاذف البالة','مجزأ: البالة الأخيرة أو القناة كاملة'],
+    ['قاع القناة','مخروطي مع صفائح تآكل قياسية']]},
+  {title:'القدرة ونقل الحركة', rows:[
+    ['القدرة المطلوبة (VC)','190 كيلوواط / 258 حصان'],
+    ['القدرة المطلوبة بدون قطع','170 كيلوواط / 231 حصان'],
+    ['سرعة عمود الإدارة','1000 د/د'],
+    ['ضربات المكبس','45 ضربة في الدقيقة'],
+    ['الحدّافة','نحو 600 كغ'],
+    ['مساعد البدء الهيدروليكي','حتى 400 د/د'],
+    ['الحماية','قابض انزلاق للبدء وقابض حماية آلي، بدون مسامير قص']]},
+  {title:'البيك أب', rows:[
+    ['النوع','EasyFlow بدون كامة مع بكرة تغذية نشطة'],
+    ['عرض العمل','2.35 م'],
+    ['صفوف الأصابع','5 صفوف، تباعد 55 مم'],
+    ['بكرة ضغط المحصول','ارتفاع هيدروليكي من الكابينة']]},
+  {title:'وحدة القطع VariCut', rows:[
+    ['قطر الدوّار','720 مم'],
+    ['VariCut 26','26 سكيناً، قطع من 44 مم، مجموعات 26 / 14 / 12 / 6 / 6'],
+    ['VariCut 51','51 سكيناً، قطع من 22 مم، مجموعات 51 / 26 / 25 / 12 / 5'],
+    ['الحماية','حماية فردية لكل سكين، مراقبة انزلاق للسير'],
+    ['اختياري','جهاز عكس لتحرير الانسداد']]},
+  {title:'التعبئة VFS والكثافة', rows:[
+    ['أسطوانة VFS','4 صفوف أذرع: 3 تكديس + 1 تغذية'],
+    ['الضبط من الشاشة','عتبة التفعيل والضغط المسبق'],
+    ['وضع الكثافة الآلي','من 0 إلى 100٪'],
+    ['الوضع اليدوي','من 0 إلى 200 بار (50 بار عند البدء)'],
+    ['أسطوانات الضغط','7 أسطوانات، 3 منها على الباب العلوي']]},
+  {title:'الربط', rows:[
+    ['العقّادات','8 عقّادات مزدوجة KRONE V-knotter'],
+    ['تنظيف العقّادات','PowerClean بتوربينتين هيدروليكيتين'],
+    ['سعة الخيط','48 بكرة × 15 كغ (24 لكل جانب)'],
+    ['المدى التقريبي','نحو 1500 بالة بطول 2.35 م']]},
+  {title:'الهيكل والتحكم', rows:[
+    ['المحور','BPW ترادفي بتوجيه ذاتي، حتى 60 كم/س'],
+    ['الإطارات','620/55 R26.5 · 710/50 R26.5 · 600/60 R30.5'],
+    ['حمل قضيب الجر','4 طن'],
+    ['التزييت المركزي','خزان 8 كغ مع مؤشر استهلاك'],
+    ['الشاشات','DS 500 · CCI 800 · CCI 1200 · أو شاشة ISOBUS'],
+    ['اختياري','حساس رطوبة، ميزان بالات، كاميرا، نظام جرعات 400 لتر، BaleCollect']]}
+];
+
+const FLOW = [
+  ['01','الالتقاط','أصابع البيك أب ترفع سطر التبن، والحلزونات الجانبية تجمعه نحو المنتصف، وبكرة الضغط تثبته.'],
+  ['02','القطع','دوّار القطع يسحب التبن عبر السكاكين المختارة فيتقصّر إلى طول 44 مم أو أكثر حسب عدد السكاكين.'],
+  ['03','التعبئة المسبقة','أذرع VFS تكدّس التبن في القناة المنحنية حتى يتحسس المشط أنها امتلأت.'],
+  ['03','التغذية','شوكة التغذية تدفع الشحنة كاملة إلى قناة الكبس عندما يكون المكبس متراجعاً.'],
+  ['04','الكبس','المكبس يضغط الشحنة على البالة 45 مرة في الدقيقة، وأبواب الضغط تقاوم حركة البالة لتحقيق الكثافة.'],
+  ['05','القياس والربط','عجلة القياس تحسب الطول. عند بلوغه ترتفع الإبر عبر شقوق المكبس، وتعقد العقّادات عقدتين لكل خيط.'],
+  ['11','الإخراج','البالة المربوطة تُدفع بالبالات الجديدة إلى المزلق ثم تنزل إلى الأرض.']
+];
+</script>
+<script>
+(function(){
+'use strict';
+const root=document.documentElement;
+root.lang='ar'; root.dir='rtl';
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const NS='http://www.w3.org/2000/svg';
+const PI=Math.PI, TAU=Math.PI*2;
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+PARTS.forEach(p=>{p.sys=p.id.slice(0,2);p.n=parseInt(p.id.slice(3),10);});
+const SYS={}; SYSTEMS.forEach(s=>{SYS[s.id]=s;});
+const PART={}; PARTS.forEach(p=>{PART[p.id]=p;});
+const TYPES={c:{ar:'أساسي',cls:'t-c'},w:{ar:'قطعة تآكل',cls:'t-w'},o:{ar:'اختياري',cls:'t-o'}};
+const serial=id=>'BP-'+id;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const f1=n=>Math.round(n*10)/10;
+const fmt=(n,d)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+function svgEl(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+
+/* ── أرقام الكتالوج المحفوظة على الجهاز ── */
+let catalog=store.get('bp1290.catalog',{}); if(!catalog||typeof catalog!=='object')catalog={};
+let machine=store.get('bp1290.machine',{no:'',year:''}); if(!machine||typeof machine!=='object')machine={no:'',year:''};
+function saveCatalog(){store.set('bp1290.catalog',catalog);}
+function setCatalog(id,val){
+  val=String(val||'').trim();
+  if(val)catalog[id]=val; else delete catalog[id];
+  saveCatalog();
+  document.dispatchEvent(new CustomEvent('catalogchange',{detail:{id}}));
+}
+
+let toastT=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
+
+function norm(s){return String(s||'').toLowerCase().replace(/[ً-ْـ]/g,'').replace(/[إأآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');}
+function matchPart(p,q){
+  const n=norm(q).trim(); if(!n)return true;
+  const hay=norm([p.ar,p.en,p.de||'',serial(p.id),p.id,catalog[p.id]||'',SYS[p.sys].ar,SYS[p.sys].en].join(' '));
+  return n.split(/\s+/).every(w=>hay.includes(w));
+}
+
+/* ── نافذة الحوار ── */
+const Modal={
+  open(title,body,actions){
+    $('#modalTitle').textContent=title;
+    $('#modalBody').innerHTML=body;
+    const box=$('#modalActs'); box.innerHTML='';
+    (actions||[]).forEach(ac=>{
+      const b=document.createElement('button'); b.type='button'; b.className='btn '+(ac.cls||''); b.textContent=ac.label;
+      b.addEventListener('click',()=>{ if(ac.fn&&ac.fn()===false)return; if(!ac.keep)Modal.close(); });
+      box.appendChild(b);
+    });
+    $('#modal').hidden=false;
+    const f=$('#modalBody textarea:not([readonly]), #modalBody input')||box.querySelector('button'); if(f)f.focus();
+  },
+  close(){ $('#modal').hidden=true; }
+};
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal')Modal.close(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#modal').hidden)Modal.close(); });
+
+function selectText(ta){ if(ta){ta.focus();ta.select();} toast('حدّد النص وانسخه يدوياً'); }
+function copyText(text,ta){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>toast('تم النسخ'),()=>selectText(ta));
+  } else selectText(ta);
+}
+function download(name,text,mime){
+  try{
+    const blob=new Blob([text],{type:mime+';charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);
+    toast('إذا لم يظهر الملف فاستخدم زر النسخ');
+  }catch(e){ toast('التنزيل غير متاح هنا. استخدم زر النسخ'); }
+}
+
+/* ── المظهر ── */
+(function(){
+  const modes=['system','dark','light'], names={system:'تلقائي حسب الجهاز',dark:'داكن',light:'فاتح'};
+  let mode=store.get('bp1290.theme','system'); if(!modes.includes(mode))mode='system';
+  const btn=$('#themeBtn');
+  function apply(announce){
+    if(mode==='system')root.removeAttribute('data-theme'); else root.setAttribute('data-theme',mode);
+    btn.setAttribute('aria-label','المظهر: '+names[mode]); btn.title='المظهر: '+names[mode];
+    document.dispatchEvent(new Event('themechange'));
+    if(announce)toast('المظهر: '+names[mode]);
+  }
+  btn.addEventListener('click',()=>{mode=modes[(modes.indexOf(mode)+1)%modes.length];store.set('bp1290.theme',mode);apply(true);});
+  if(window.matchMedia){
+    const mq=matchMedia('(prefers-color-scheme: dark)'), h=()=>document.dispatchEvent(new Event('themechange'));
+    if(mq.addEventListener)mq.addEventListener('change',h); else if(mq.addListener)mq.addListener(h);
+  }
+  apply(false);
+})();
+
+/* ════════════════ التشريح ════════════════ */
+const Ana=(function(){
+  const svg=$('#ana'), vp=$('#viewport'), tip=$('#tip'), ins=$('#inspector');
+  const FULL={x:30,y:50,w:1160,h:440}, AR=FULL.h/FULL.w;
+  let vb={x:FULL.x,y:FULL.y,w:FULL.w,h:FULL.h};
+  let sel=null, iso=null, showPins=false, anim=false, quiz=null;
+  const hidden=new Set((store.get('bp1290.hiddenSys',[])||[]).filter(id=>SYS[id]));
+
+  $$('.pt',svg).forEach(g=>{const s=SYS[g.dataset.sys]; if(s)g.style.setProperty('--c',s.color);});
+
+  /* عناصر متكررة تُولّد بالكود */
+  (function gen(){
+    let d=''; for(let x=36;x<1200;x+=18)d+='M'+x+' 470l-9 9'; $('#hatch').setAttribute('d',d);
+    const cr=$('#chuteRollers');
+    for(let i=0;i<7;i++){const x=222-i*23, y=250+(232-x)*0.225-5; svgEl('circle',{class:'f',cx:f1(x),cy:f1(y),r:5},cr);}
+    const rl=$('#rolls');
+    for(let r=0;r<2;r++)for(let i=0;i<9;i++){const cx=262+i*34, cy=292+r*38; svgEl('circle',{class:'f',cx,cy,r:14},rl); svgEl('circle',{class:'k',cx,cy,r:3.5},rl);}
+    let fd=''; for(let x=249;x<684;x+=11){ if(x>464&&x<474)continue; fd+='M'+x+' 157V243'; } $('#flakeLines').setAttribute('d',fd);
+    const kn=$('#knives');
+    for(let i=0;i<6;i++){const x=710+i*14; svgEl('path',{class:'k',d:`M${x} 436L${x+8} 436L${x+4} 418Z`},kn);}
+    let td=''; for(let i=0;i<10;i++){const a=i*TAU/10,a1=a-0.14,a2=a+0.14; td+=`M${f1(745+29*Math.cos(a1))} ${f1(390+29*Math.sin(a1))}L${f1(745+44*Math.cos(a))} ${f1(390+44*Math.sin(a))}L${f1(745+29*Math.cos(a2))} ${f1(390+29*Math.sin(a2))}Z`;}
+    svgEl('path',{class:'f',d:td},$('#rotorTeeth'));
+    let rd=''; for(let i=0;i<5;i++){const a=i*TAU/5; rd+=`M${f1(866+20*Math.cos(a))} ${f1(428+20*Math.sin(a))}L${f1(866+37*Math.cos(a-0.3))} ${f1(428+37*Math.sin(a-0.3))}`;}
+    svgEl('path',{class:'s',d:rd},$('#reelTines'));
+    const tine=a=>`M${f1(800+18*Math.cos(a))} ${f1(300+18*Math.sin(a))}Q${f1(800+40*Math.cos(a-0.05))} ${f1(300+40*Math.sin(a-0.05))} ${f1(800+50*Math.cos(a-0.3))} ${f1(300+50*Math.sin(a-0.3))}`;
+    svgEl('path',{class:'s',d:tine(0)+tine(PI/2)+tine(PI)},$('#packerTines'));
+    svgEl('path',{class:'s',d:tine(PI*1.5),style:'stroke-width:3.6'},$('#feederTine'));
+    let sd=''; for(let i=0;i<8;i++){const a=i*TAU/8; sd+=`M${f1(585+8*Math.cos(a))} ${f1(150+8*Math.sin(a))}L${f1(585+16*Math.cos(a))} ${f1(150+16*Math.sin(a))}`;}
+    const sw=$('#starWheel'); svgEl('circle',{class:'f',cx:585,cy:150,r:9},sw); svgEl('path',{class:'s',d:sd},sw);
+    [['#fanBlades1',618],['#fanBlades2',772]].forEach(([id,cx])=>{let bd='';for(let i=0;i<3;i++){const a=i*TAU/3;bd+=`M${cx} 106L${f1(cx+11*Math.cos(a))} ${f1(106+11*Math.sin(a))}`;} svgEl('path',{class:'s',d:bd},$(id));});
+  })();
+
+  /* آلية الكرنك والمكبس والإبر */
+  const CR={cx:905,cy:200,r:38,L:95};
+  const plM=$('#plungerMove'), conrod=$('#conrod'), crank=$('#crank'), crankPin=$('#crankPin');
+  function setMech(phi){
+    const s=Math.sin(phi), c=Math.cos(phi);
+    const pinX=CR.cx-(CR.r*c+Math.sqrt(CR.L*CR.L-CR.r*CR.r*s*s));
+    const cpx=CR.cx-CR.r*c, cpy=CR.cy+CR.r*s;
+    plM.setAttribute('transform','translate('+f1(pinX-88)+' 0)');
+    conrod.setAttribute('x1',f1(cpx)); conrod.setAttribute('y1',f1(cpy)); conrod.setAttribute('x2',f1(pinX)); conrod.setAttribute('y2',200);
+    crank.setAttribute('x2',f1(cpx)); crank.setAttribute('y2',f1(cpy));
+    crankPin.setAttribute('cx',f1(cpx)); crankPin.setAttribute('cy',f1(cpy));
+  }
+  const nPath=$('#needlePath'), nTip=$('#needleTip');
+  function setNeedle(u){
+    const tx=680+14*u, ty=268-152*u, qx=690+10*u, qy=334-34*u;
+    nPath.setAttribute('d',`M565 330Q${f1(qx)} ${f1(qy)} ${f1(tx)} ${f1(ty)}`);
+    nTip.setAttribute('cx',f1(tx)); nTip.setAttribute('cy',f1(ty));
+  }
+  const rotG={reel:[$('#reelRot'),866,428],rotor:[$('#rotorRot'),745,390],feed:[$('#feedRot'),814,406],vfs:[$('#vfsRot'),800,300],star:[$('#starRot'),585,150],w1:[$('#wheelRot1'),370,424],w2:[$('#wheelRot2'),500,424]};
+  function rot(key,deg){const r=rotG[key]; r[0].setAttribute('transform',`rotate(${f1(deg%360)} ${r[1]} ${r[2]})`);}
+  const fans=[[$('#fanBlades1'),618],[$('#fanBlades2'),772]], fly=$('#flyMarks');
+  let phi=0.62*PI, raf=0, last=0, tA=0;
+  setMech(phi); setNeedle(0);
+
+  function loop(ts){
+    raf=0; if(!anim)return;
+    const dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts; tA+=dt;
+    phi+=dt*TAU*0.35;
+    setMech(phi);
+    const loc=(phi+0.3*PI)%TAU, cyc=Math.floor((phi+0.3*PI)/TAU);
+    let u=0;
+    if(cyc%3===0){ if(loc<0.3*PI)u=ease(loc/(0.3*PI)); else if(loc<0.4*PI)u=1; else if(loc<0.75*PI)u=1-ease((loc-0.4*PI)/(0.35*PI)); }
+    setNeedle(u);
+    rot('reel',-tA*160); rot('rotor',tA*120); rot('feed',tA*200); rot('vfs',phi*180/PI); rot('star',tA*12); rot('w1',tA*40); rot('w2',tA*40);
+    fans.forEach(([g,cx])=>g.setAttribute('transform',`rotate(${f1((tA*900)%360)} ${cx} 106)`));
+    fly.setAttribute('transform',`translate(0 ${f1(((tA*240)%60)-30)})`);
+    raf=requestAnimationFrame(loop);
+  }
+  function setAnim(on){ anim=on; $('#tAnim').setAttribute('aria-pressed',String(on)); last=0; if(on&&!raf)raf=requestAnimationFrame(loop); }
+
+  /* أرقام المواقع */
+  const pinG=$('#pins'), pinEl={};
+  PARTS.forEach(p=>{
+    const g=svgEl('g',{class:'pin','data-part':p.id,'data-sys':p.sys,transform:`translate(${p.p[0]} ${p.p[1]})`},pinG);
+    g.style.setProperty('--c',SYS[p.sys].color);
+    svgEl('circle',{r:9},g);
+    const t=svgEl('text',{},g); t.textContent=String(p.n);
+    pinEl[p.id]=g;
+  });
+
+  /* العرض والتكبير */
+  function applyVB(){ svg.setAttribute('viewBox',`${f1(vb.x)} ${f1(vb.y)} ${f1(vb.w)} ${f1(vb.h)}`); }
+  function setVB(x,y,w){
+    w=clamp(w,160,FULL.w*1.25); const h=w*AR;
+    x= w>=FULL.w ? FULL.x+(FULL.w-w)/2 : clamp(x,FULL.x-w*0.35,FULL.x+FULL.w-w*0.65);
+    y= h>=FULL.h ? FULL.y+(FULL.h-h)/2 : clamp(y,FULL.y-h*0.35,FULL.y+FULL.h-h*0.65);
+    vb={x,y,w,h}; applyVB();
+  }
+  function zoomAt(f,cx,cy){ const w=clamp(vb.w*f,160,FULL.w*1.25), k=w/vb.w; setVB(cx-(cx-vb.x)*k, cy-(cy-vb.y)*k, w); }
+  let vbAnim=0;
+  function animateTo(x,y,w){
+    cancelAnimationFrame(vbAnim);
+    if(reduceMotion){setVB(x,y,w);return;}
+    const from={x:vb.x,y:vb.y,w:vb.w}, t0=performance.now();
+    const st=t=>{const q=ease(clamp((t-t0)/420,0,1)); setVB(lerp(from.x,x,q),lerp(from.y,y,q),lerp(from.w,w,q)); if(q<1)vbAnim=requestAnimationFrame(st);};
+    vbAnim=requestAnimationFrame(st);
+  }
+  function focusOn(px,py,w){ w=Math.min(vb.w,w); animateTo(px-w/2,py-w*AR/2,w); }
+  function fitSystem(id){
+    const ps=PARTS.filter(p=>p.sys===id); if(!ps.length)return;
+    const xs=ps.map(p=>p.p[0]), ys=ps.map(p=>p.p[1]);
+    const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+    const w=Math.max(x1-x0+160,(y1-y0+130)/AR,320);
+    animateTo((x0+x1)/2-w/2,(y0+y1)/2-w*AR/2,w);
+  }
+  function svgPt(cx,cy){ const m=svg.getScreenCTM(); if(!m)return{x:vb.x+vb.w/2,y:vb.y+vb.h/2}; const pt=svg.createSVGPoint(); pt.x=cx; pt.y=cy; const r=pt.matrixTransform(m.inverse()); return{x:r.x,y:r.y}; }
+
+  const ptrs=new Map(); let drag=null, pinch=null, moved=false, downT=null;
+  vp.addEventListener('pointerdown',e=>{
+    if(e.target.closest('.zoom'))return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    try{vp.setPointerCapture(e.pointerId);}catch(_){}
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){ drag={x:e.clientX,y:e.clientY,vx:vb.x,vy:vb.y}; moved=false; downT=e.target; }
+    else if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,w:vb.w,c:svgPt((a.x+b.x)/2,(a.y+b.y)/2)}; drag=null; moved=true; tip.hidden=true; }
+  });
+  vp.addEventListener('pointermove',e=>{
+    if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&ptrs.size>=2){
+      const [a,b]=[...ptrs.values()], d=Math.hypot(a.x-b.x,a.y-b.y)||1;
+      const w=clamp(pinch.w*pinch.d/d,160,FULL.w*1.25), k=w/vb.w;
+      setVB(pinch.c.x-(pinch.c.x-vb.x)*k, pinch.c.y-(pinch.c.y-vb.y)*k, w);
+      return;
+    }
+    if(drag){
+      const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+      if(!moved&&Math.hypot(dx,dy)>5){ moved=true; vp.classList.add('dragging'); tip.hidden=true; }
+      if(moved){ const m=svg.getScreenCTM(), s=m?m.a:1; setVB(drag.vx-dx/s, drag.vy-dy/s, vb.w); }
+      return;
+    }
+    if(e.pointerType==='mouse')hover(e);
+  });
+  function endPtr(e){
+    const wasDrag=drag, wasMoved=moved, t=downT;
+    ptrs.delete(e.pointerId);
+    if(ptrs.size<2)pinch=null;
+    if(ptrs.size===0){
+      vp.classList.remove('dragging');
+      if(wasDrag&&!wasMoved&&e.type==='pointerup'){ const hit=t&&t.closest?t.closest('[data-part]'):null; if(hit)onPick(hit.dataset.part); }
+      drag=null; downT=null;
+    }
+  }
+  vp.addEventListener('pointerup',endPtr);
+  vp.addEventListener('pointercancel',endPtr);
+  vp.addEventListener('pointerleave',()=>{tip.hidden=true;});
+  vp.addEventListener('wheel',e=>{ e.preventDefault(); const c=svgPt(e.clientX,e.clientY); zoomAt(e.deltaY>0?1.15:1/1.15,c.x,c.y); },{passive:false});
+  function hover(e){
+    const t=e.target.closest&&e.target.closest('[data-part]');
+    if(!t){tip.hidden=true;return;}
+    const p=PART[t.dataset.part], r=vp.getBoundingClientRect();
+    tip.textContent=quiz?'؟':(p.n+'. '+p.ar);
+    tip.style.left=(e.clientX-r.left)+'px'; tip.style.top=(e.clientY-r.top)+'px'; tip.hidden=false;
+  }
+  function onPick(id){ if(quiz){toast('اختر الإجابة من القائمة');return;} select(id); }
+  $('#zIn').addEventListener('click',()=>zoomAt(1/1.3,vb.x+vb.w/2,vb.y+vb.h/2));
+  $('#zOut').addEventListener('click',()=>zoomAt(1.3,vb.x+vb.w/2,vb.y+vb.h/2));
+  $('#zFit').addEventListener('click',()=>animateTo(FULL.x,FULL.y,FULL.w));
+
+  /* الأنظمة: إخفاء وعزل */
+  function applyHidden(){
+    $$('[data-sys]',svg).forEach(e=>e.classList.toggle('hid',hidden.has(e.dataset.sys)));
+    store.set('bp1290.hiddenSys',[...hidden]);
+    renderRail();
+  }
+  function setIso(id){
+    iso=id||null;
+    svg.classList.toggle('iso',!!iso);
+    $$('.pt, .pin',svg).forEach(e=>e.classList.toggle('on',!!iso&&e.dataset.sys===iso));
+    Object.values(pinEl).forEach(g=>g.classList.toggle('vis',!!iso&&g.dataset.sys===iso));
+    renderRail();
+  }
+  const eye=on=>'<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M1.5 10S5 4 10 4s8.5 6 8.5 6-3.5 6-8.5 6S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/>'+(on?'<circle cx="10" cy="10" r="2.6" fill="currentColor"/>':'<path d="M3 17 17 3" stroke="currentColor" stroke-width="1.6"/>')+'</svg>';
+  function renderRail(){
+    $('#sysList').innerHTML=SYSTEMS.map(s=>{
+      const n=PARTS.filter(p=>p.sys===s.id).length, off=hidden.has(s.id);
+      return `<li class="sys-item${iso===s.id?' active':''}${off?' off':''}" style="--c:${s.color}"><button type="button" class="name" data-iso="${s.id}" aria-pressed="${iso===s.id}"><span class="dot"></span><span class="nm">${esc(s.ar)}</span><span class="cnt">${n}</span></button><button type="button" class="eye" data-eye="${s.id}" aria-pressed="${!off}" aria-label="${off?'إظهار':'إخفاء'} ${esc(s.ar)}">${eye(!off)}</button></li>`;
+    }).join('');
+  }
+  $('#sysList').addEventListener('click',e=>{
+    const b=e.target.closest('[data-iso]');
+    if(b){
+      const id=b.dataset.iso;
+      if(quiz)endQuiz(true);
+      if(iso===id){ setIso(null); if(sel)renderPart(PART[sel]); }
+      else{ if(hidden.has(id)){hidden.delete(id);applyHidden();} setIso(id); renderSystem(id); fitSystem(id); }
+      return;
+    }
+    const ey=e.target.closest('[data-eye]');
+    if(ey){ const id=ey.dataset.eye; if(hidden.has(id))hidden.delete(id); else{hidden.add(id); if(iso===id)setIso(null);} applyHidden(); }
+  });
+  $('#isoOff').addEventListener('click',()=>{ setIso(null); if(sel&&!quiz)renderPart(PART[sel]); animateTo(FULL.x,FULL.y,FULL.w); });
+  $('#showAllSys').addEventListener('click',()=>{ hidden.clear(); applyHidden(); });
+
+  /* التحديد ولوحة التفاصيل */
+  function markSel(id){
+    $$('.pt.sel, .pin.sel',svg).forEach(e=>e.classList.remove('sel'));
+    $$('.pin.pulse',svg).forEach(e=>e.classList.remove('pulse'));
+    if(!id)return;
+    $$(`.pt[data-part="${id}"]`,svg).forEach(e=>e.classList.add('sel'));
+    const pe=pinEl[id];
+    if(pe){ pe.classList.add('sel'); if(!svg.querySelector(`.pt[data-part="${id}"]`)&&!reduceMotion)pe.classList.add('pulse'); }
+  }
+  function select(id,opts){
+    opts=opts||{}; const p=PART[id]; if(!p)return;
+    if(quiz)endQuiz(true);
+    sel=id;
+    if(hidden.has(p.sys)){hidden.delete(p.sys);applyHidden();}
+    if(iso&&iso!==p.sys)setIso(null);
+    markSel(id); renderPart(p);
+    if(opts.focus)focusOn(p.p[0],p.p[1],520);
+    store.set('bp1290.sel',id);
+    $('#stageInfo').textContent=serial(id)+' · '+p.ar;
+  }
+  function renderPart(p){
+    const s=SYS[p.sys], sibs=PARTS.filter(x=>x.sys===p.sys), i=sibs.indexOf(p), cat=catalog[p.id]||'';
+    const sec=(h,t)=>t?`<section class="ins-sec"><h4>${h}</h4><p>${esc(t)}</p></section>`:'';
+    ins.innerHTML=`<div class="ins-head"><span class="sys-chip" style="--c:${s.color}">${esc(s.ar)}</span><h3>${esc(p.ar)}</h3><div class="ins-en">${esc(p.en)}${p.de?' · '+esc(p.de):''}</div></div>
+      <dl class="facts">
+        <div><dt>الرقم التسلسلي</dt><dd class="mono" dir="ltr" style="text-align:right">${serial(p.id)}</dd></div>
+        <div><dt>الكمية في الماكينة</dt><dd>${esc(p.q||'1')}</dd></div>
+        <div class="span2"><dt><label for="catInput">رقم كتالوج KRONE</label></dt><dd><div class="cat-edit"><input type="text" id="catInput" dir="ltr" value="${esc(cat)}" placeholder="اكتب الرقم من الكتالوج" autocomplete="off" spellcheck="false"><button type="button" class="btn sm" id="catSave">حفظ</button></div>${cat?'':'<div class="cat-empty">غير مُدخل. انسخه من كتالوج قطع الغيار الرسمي لرقم ماكينتك.</div>'}</dd></div>
+        <div><dt>التصنيف</dt><dd><span class="pill ${TYPES[p.t].cls}">${TYPES[p.t].ar}</span></dd></div>
+        <div><dt>رقم الموقع في الرسم</dt><dd class="mono">${p.n}</dd></div>
+      </dl>
+      ${sec('الوظيفة',p.fn)}${sec('المواصفات',p.sp)}${sec('الصيانة والفحص',p.mt)}${sec('أعطال شائعة',p.fl)}
+      <div class="ins-nav"><button type="button" class="btn sm" data-nav="-1"${i<=0?' disabled':''}>→ السابق</button><span class="muted small mono">${i+1} / ${sibs.length}</span><button type="button" class="btn sm" data-nav="1"${i>=sibs.length-1?' disabled':''}>التالي ←</button></div>
+      <div class="siblings">${sibs.map(x=>`<button type="button" class="sib${x.id===p.id?' cur':''}" data-goto="${x.id}" style="--c:${s.color}">${x.n}. ${esc(x.ar)}</button>`).join('')}</div>`;
+  }
+  function renderSystem(id){
+    const s=SYS[id], ps=PARTS.filter(p=>p.sys===id);
+    ins.innerHTML=`<div class="ins-head"><span class="sys-chip" style="--c:${s.color}">النظام ${id}</span><h3>${esc(s.ar)}</h3><div class="ins-en">${esc(s.en)}</div></div>
+      <p style="margin-top:10px">${esc(s.desc)}</p>
+      <p class="muted small" style="margin-top:6px">${ps.length} جزءاً. الأرقام الظاهرة على الرسم تطابق هذه القائمة.</p>
+      <ol class="sys-parts">${ps.map(p=>`<li><button type="button" data-goto="${p.id}"><span class="n">${p.n}</span><span>${esc(p.ar)}<br><span class="muted small">${esc(p.en)}</span></span></button></li>`).join('')}</ol>`;
+  }
+  function saveCatFromInput(){
+    const inp=$('#catInput'); if(!inp||!sel)return;
+    setCatalog(sel,inp.value); renderPart(PART[sel]);
+    toast(catalog[sel]?'تم حفظ رقم الكتالوج':'تم مسح رقم الكتالوج');
+  }
+  ins.addEventListener('click',e=>{
+    const g=e.target.closest('[data-goto]');
+    if(g){ const keep=iso; select(g.dataset.goto,{focus:true}); if(keep&&PART[g.dataset.goto].sys===keep)setIso(keep); return; }
+    const nv=e.target.closest('[data-nav]');
+    if(nv&&sel){ const p=PART[sel], sibs=PARTS.filter(x=>x.sys===p.sys), nx=sibs[sibs.indexOf(p)+parseInt(nv.dataset.nav,10)]; if(nx)select(nx.id,{focus:true}); return; }
+    if(e.target.id==='catSave'){saveCatFromInput();return;}
+    const qa=e.target.closest('[data-ans]'); if(qa&&quiz){answerQuiz(qa);return;}
+    if(e.target.id==='qNext'){nextQ();return;}
+    if(e.target.id==='qEnd'){endQuiz(false);return;}
+  });
+  ins.addEventListener('keydown',e=>{ if(e.target.id==='catInput'&&e.key==='Enter'){e.preventDefault();saveCatFromInput();} });
+  document.addEventListener('catalogchange',e=>{
+    const id=e.detail&&e.detail.id;
+    if(sel&&!quiz&&(!id||id===sel)&&ins.querySelector('#catInput')&&document.activeElement!==ins.querySelector('#catInput'))renderPart(PART[sel]);
+  });
+
+  /* البحث */
+  const sIn=$('#anaSearch'), sRes=$('#anaResults');
+  function renderResults(){
+    const q=sIn.value;
+    if(!q.trim()){sRes.hidden=true;sRes.innerHTML='';return;}
+    const list=PARTS.filter(p=>matchPart(p,q)).slice(0,10);
+    sRes.innerHTML=list.length?list.map(p=>`<li><button type="button" data-goto="${p.id}"><span class="rid">${serial(p.id)}</span><span>${esc(p.ar)}</span><span class="ren">${esc(p.en)}</span></button></li>`).join(''):'<li class="muted small" style="padding:8px">لا توجد نتائج. جرّب اسماً آخر أو رقماً مثل 05-01.</li>';
+    sRes.hidden=false;
+  }
+  function pickResult(id){ sRes.hidden=true; sIn.value=''; select(id,{focus:true}); }
+  sIn.addEventListener('input',renderResults);
+  sIn.addEventListener('focus',renderResults);
+  sIn.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const b=sRes.querySelector('[data-goto]'); if(b){e.preventDefault();pickResult(b.dataset.goto);}}
+    else if(e.key==='Escape'){sRes.hidden=true;}
+    else if(e.key==='ArrowDown'){const b=sRes.querySelector('button'); if(b){e.preventDefault();b.focus();}}
+  });
+  sRes.addEventListener('click',e=>{const b=e.target.closest('[data-goto]'); if(b)pickResult(b.dataset.goto);});
+  sRes.addEventListener('keydown',e=>{
+    if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+    const bs=$$('button',sRes), i=bs.indexOf(document.activeElement), j=i+(e.key==='ArrowDown'?1:-1);
+    e.preventDefault(); if(j<0)sIn.focus(); else if(bs[j])bs[j].focus();
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.search'))sRes.hidden=true; });
+
+  /* أدوات العرض */
+  $('#tPins').addEventListener('click',()=>{ showPins=!showPins; svg.classList.toggle('showpins',showPins); $('#tPins').setAttribute('aria-pressed',String(showPins)); });
+  $('#tXray').addEventListener('click',()=>{ const solid=svg.classList.toggle('solid'); $('#tXray').setAttribute('aria-pressed',String(!solid)); toast(solid?'الأغطية مغلقة: تظهر الكبّاسة من الخارج':'عرض داخلي: الأغطية شفافة'); });
+  $('#tAnim').addEventListener('click',()=>setAnim(!anim));
+  $('#tQuiz').addEventListener('click',()=>quiz?endQuiz(false):startQuiz());
+
+  /* اختبر نفسك */
+  function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function startQuiz(){ quiz={score:0,total:0,cur:null,done:false}; $('#tQuiz').setAttribute('aria-pressed','true'); setIso(null); nextQ(); }
+  function nextQ(){
+    const pool=PARTS.filter(p=>!hidden.has(p.sys)); if(!pool.length){endQuiz(true);return;}
+    let p; do{p=pool[Math.floor(Math.random()*pool.length)];}while(quiz.cur&&p.id===quiz.cur.id&&pool.length>1);
+    quiz.cur=p; quiz.done=false;
+    const others=shuffle(PARTS.filter(x=>x.id!==p.id&&x.ar!==p.ar));
+    const same=others.filter(x=>x.sys===p.sys).slice(0,2), rest=others.filter(x=>x.sys!==p.sys).slice(0,3-same.length);
+    const opts=shuffle([p].concat(same,rest));
+    markSel(null);
+    $$('.pin.quiz',svg).forEach(e=>e.classList.remove('quiz','vis','pulse'));
+    const pe=pinEl[p.id]; pe.classList.add('quiz','vis'); if(!reduceMotion)pe.classList.add('pulse');
+    $$(`.pt[data-part="${p.id}"]`,svg).forEach(e=>e.classList.add('sel'));
+    focusOn(p.p[0],p.p[1],560);
+    ins.innerHTML=`<div class="ins-head"><span class="sys-chip" style="--c:var(--accent)">اختبر نفسك</span><h3>ما اسم الجزء المؤشَّر عليه؟</h3></div>
+      <p class="quiz-q muted">الجزء المضيء في الرسم وعليه دائرة صفراء. اختر اسمه الصحيح.</p>
+      <div class="quiz-opts">${opts.map(o=>`<button type="button" data-ans="${o.id}">${esc(o.ar)}</button>`).join('')}</div>
+      <div class="ins-nav"><span class="score">النتيجة ${quiz.score} / ${quiz.total}</span><span style="display:flex;gap:6px"><button type="button" class="btn sm" id="qNext" disabled>السؤال التالي</button><button type="button" class="btn sm ghost" id="qEnd">إنهاء</button></span></div>`;
+  }
+  function answerQuiz(btn){
+    if(quiz.done)return; quiz.done=true; quiz.total++;
+    const p=quiz.cur, ok=btn.dataset.ans===p.id; if(ok)quiz.score++;
+    $$('[data-ans]',ins).forEach(b=>{ if(b.dataset.ans===p.id)b.classList.add('right'); else if(b===btn)b.classList.add('wrong'); b.disabled=true; });
+    const fb=document.createElement('p'); fb.className='quiz-q';
+    fb.innerHTML=(ok?'<strong style="color:var(--ok)">إجابة صحيحة.</strong> ':'<strong style="color:var(--bad)">إجابة خاطئة.</strong> ')+esc(p.ar)+' <span class="mono muted" dir="ltr">'+serial(p.id)+'</span>: '+esc(p.fn);
+    $('.quiz-opts',ins).after(fb);
+    $('.score',ins).textContent=`النتيجة ${quiz.score} / ${quiz.total}`;
+    const nx=$('#qNext'); nx.disabled=false; nx.focus();
+  }
+  function endQuiz(silent){
+    if(!quiz)return; const q=quiz; quiz=null;
+    $('#tQuiz').setAttribute('aria-pressed','false');
+    $$('.pin.quiz',svg).forEach(e=>e.classList.remove('quiz','vis','pulse'));
+    markSel(null);
+    if(!silent&&q.total)toast(`انتهى الاختبار: ${q.score} من ${q.total}`);
+    if(sel){markSel(sel);renderPart(PART[sel]);}
+  }
+
+  renderRail(); applyHidden();
+  const first=store.get('bp1290.sel','05-01');
+  select(PART[first]?first:'05-01');
+
+  return {
+    select,
+    pause(){ if(raf){cancelAnimationFrame(raf);raf=0;} },
+    resume(){ if(anim&&!raf){last=0;raf=requestAnimationFrame(loop);} }
+  };
+})();
+
+/* ════════════════ جدول القطع ════════════════ */
+(function(){
+  const tb=$('#partsBody');
+  $('#pSys').insertAdjacentHTML('beforeend',SYSTEMS.map(s=>`<option value="${s.id}">${s.id} · ${esc(s.ar)}</option>`).join(''));
+  tb.innerHTML=PARTS.map(p=>{
+    const s=SYS[p.sys], c=catalog[p.id]||'';
+    return `<tr data-id="${p.id}"><td class="mono" dir="ltr" style="text-align:right">${serial(p.id)}</td><td><div class="pn">${esc(p.ar)}</div><div class="pe">${esc(p.en)}</div></td><td><span class="sys-chip" style="--c:${s.color}">${esc(s.ar)}</span></td><td>${esc(p.q||'1')}</td><td><span class="pill ${TYPES[p.t].cls}">${TYPES[p.t].ar}</span></td><td class="cat"><input type="text" id="cat-${p.id}" data-cat="${p.id}" dir="ltr" value="${esc(c)}" placeholder="غير مُدخل" class="${c?'has':''}" aria-label="رقم كتالوج ${esc(p.ar)}" autocomplete="off" spellcheck="false"></td><td><button type="button" class="btn sm ghost" data-show="${p.id}">في الرسم</button></td></tr>`;
+  }).join('');
+  const rows=$$('tr',tb);
+  function apply(){
+    const q=$('#pSearch').value, sy=$('#pSys').value, ty=$('#pType').value, ca=$('#pCat').value;
+    let shown=0;
+    rows.forEach(r=>{
+      const p=PART[r.dataset.id], has=!!catalog[p.id];
+      const ok=matchPart(p,q)&&(!sy||p.sys===sy)&&(!ty||p.t===ty)&&(!ca||(ca==='has'?has:!has));
+      r.hidden=!ok; if(ok)shown++;
+    });
+    const filled=PARTS.filter(p=>catalog[p.id]).length;
+    $('#pCount').textContent=`يعرض ${shown} من ${PARTS.length} قطعة · أرقام كتالوج مُدخلة: ${filled} من ${PARTS.length}`;
+  }
+  function syncAll(){ PARTS.forEach(p=>{const inp=$('#cat-'+p.id); if(inp){inp.value=catalog[p.id]||''; inp.classList.toggle('has',!!catalog[p.id]);}}); apply(); }
+  ['pSearch','pSys','pType','pCat'].forEach(id=>$('#'+id).addEventListener('input',apply));
+  const deb={};
+  tb.addEventListener('input',e=>{
+    const inp=e.target.closest('[data-cat]'); if(!inp)return;
+    const id=inp.dataset.cat; inp.classList.toggle('has',!!inp.value.trim());
+    clearTimeout(deb[id]); deb[id]=setTimeout(()=>setCatalog(id,inp.value),350);
+  });
+  tb.addEventListener('change',e=>{ const inp=e.target.closest('[data-cat]'); if(!inp)return; clearTimeout(deb[inp.dataset.cat]); setCatalog(inp.dataset.cat,inp.value); });
+  tb.addEventListener('click',e=>{ const b=e.target.closest('[data-show]'); if(b){ showTab('anatomy',true); Ana.select(b.dataset.show,{focus:true}); } });
+  document.addEventListener('catalogchange',e=>{
+    const id=e.detail&&e.detail.id;
+    if(!id){syncAll();return;}
+    const inp=$('#cat-'+id);
+    if(inp&&document.activeElement!==inp){inp.value=catalog[id]||''; inp.classList.toggle('has',!!catalog[id]);}
+    apply();
+  });
+
+  const mNo=$('#mNo'), mYear=$('#mYear');
+  mNo.value=machine.no||''; mYear.value=machine.year||'';
+  [mNo,mYear].forEach(i=>i.addEventListener('input',()=>{machine={no:mNo.value.trim(),year:mYear.value.trim()};store.set('bp1290.machine',machine);}));
+
+  function openText(title,desc,text,fname,mime){
+    const shown=text.replace(/^﻿/,'');
+    Modal.open(title,`<p>${esc(desc)}</p><textarea id="ioText" readonly spellcheck="false" aria-label="${esc(title)}"></textarea>`,[
+      {label:'نسخ',cls:'primary',keep:true,fn:()=>copyText(shown,$('#ioText'))},
+      {label:'تنزيل ملف',keep:true,fn:()=>download(fname,text,mime)},
+      {label:'إغلاق',cls:'ghost'}
+    ]);
+    $('#ioText').value=shown;
+  }
+  $('#expJson').addEventListener('click',()=>{
+    const data={app:'BiG Pack 1290 HDP II VC',version:1,exported:new Date().toISOString(),machine,
+      catalog:Object.fromEntries(PARTS.filter(p=>catalog[p.id]).map(p=>[serial(p.id),catalog[p.id]]))};
+    openText('تصدير أرقام الكتالوج','احفظ هذا النص في ملف أو أرسله لنفسك، ثم استورده على جهاز آخر من زر الاستيراد.',JSON.stringify(data,null,2),'bigpack1290-catalog.json','application/json');
+  });
+  $('#expCsv').addEventListener('click',()=>{
+    const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const lines=[['serial','name_ar','name_en','system','qty','type','krone_catalog_no'].join(',')]
+      .concat(PARTS.map(p=>[serial(p.id),p.ar,p.en,SYS[p.sys].ar,p.q||'1',TYPES[p.t].ar,catalog[p.id]||''].map(q).join(',')));
+    openText('جدول القطع CSV','يفتح في Excel أو Google Sheets، ويحتوي كل القطع مع أرقام الكتالوج المُدخلة.','﻿'+lines.join('\r\n'),'bigpack1290-parts.csv','text/csv');
+  });
+
+  function normId(k){const m=String(k).match(/(\d{2})\s*-\s*(\d{2})/); return m?m[1]+'-'+m[2]:null;}
+  function parseImport(txt){
+    txt=String(txt||'').replace(/^﻿/,'').trim(); if(!txt)return null;
+    const map={}; let mach=null;
+    if(txt[0]==='{'){
+      const o=JSON.parse(txt), src=(o&&o.catalog&&typeof o.catalog==='object')?o.catalog:o;
+      for(const k in src){const id=normId(k), v=src[k]; if(id&&PART[id]&&v!=null&&String(v).trim())map[id]=String(v).trim();}
+      if(o&&o.machine&&typeof o.machine==='object')mach=o.machine;
+    }else{
+      txt.split(/\r?\n/).forEach(line=>{
+        const cells=line.split(/[,;\t]/).map(c=>c.trim().replace(/^"|"$/g,'').trim());
+        if(cells.length<2)return;
+        const id=normId(cells[0]), v=cells[cells.length-1];
+        if(id&&PART[id]&&v)map[id]=v;
+      });
+    }
+    return {map,machine:mach};
+  }
+  function doImport(txt){
+    let res;
+    try{res=parseImport(txt);}catch(err){toast('تعذّرت قراءة النص. تأكد أنه ملف تصدير صحيح.');return false;}
+    if(!res||!Object.keys(res.map).length){toast('لم يُعثر على أرقام صالحة للاستيراد');return false;}
+    Object.assign(catalog,res.map); saveCatalog();
+    if(res.machine){ machine={no:String(res.machine.no||''),year:String(res.machine.year||'')}; store.set('bp1290.machine',machine); mNo.value=machine.no; mYear.value=machine.year; }
+    document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}}));
+    toast(`تم استيراد ${Object.keys(res.map).length} رقماً`);
+  }
+  $('#impBtn').addEventListener('click',()=>{
+    Modal.open('استيراد أرقام الكتالوج','<p>الصق ملف التصدير (JSON)، أو أسطراً بالشكل: BP-05-01, رقم الكتالوج. ويمكنك اختيار ملف من جهازك.</p><textarea id="ioText" spellcheck="false" aria-label="نص الاستيراد"></textarea><div style="margin-top:8px"><input type="file" id="ioFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" aria-label="اختيار ملف"></div>',[
+      {label:'استيراد',cls:'primary',fn:()=>doImport($('#ioText').value)},
+      {label:'إلغاء',cls:'ghost'}
+    ]);
+    $('#ioFile').addEventListener('change',e=>{
+      const f=e.target.files&&e.target.files[0]; if(!f)return;
+      const r=new FileReader(); r.onload=()=>{$('#ioText').value=String(r.result||'').replace(/^﻿/,'');}; r.readAsText(f);
+    });
+  });
+  $('#clrBtn').addEventListener('click',()=>{
+    const n=Object.keys(catalog).length;
+    if(!n){toast('لا توجد أرقام محفوظة');return;}
+    Modal.open('مسح أرقام الكتالوج',`<p>سيُحذف ${n} رقماً محفوظاً على هذا الجهاز. صدّرها أولاً إذا أردت الاحتفاظ بنسخة.</p>`,[
+      {label:'مسح الكل',cls:'danger',fn:()=>{ Object.keys(catalog).forEach(k=>delete catalog[k]); saveCatalog(); document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}})); toast('تم مسح الأرقام'); }},
+      {label:'إلغاء',cls:'ghost'}
+    ]);
+  });
+  apply();
+})();
+
+/* ════════════════ المواصفات ════════════════ */
+(function(){
+  $('#specTables').innerHTML=SPECS.map(g=>`<table class="spec-table"><caption>${esc(g.title)}</caption><tbody>${g.rows.map(r=>`<tr><th scope="row">${esc(r[0])}</th><td>${esc(r[1])}</td></tr>`).join('')}</tbody></table>`).join('');
+  $('#flowList').innerHTML=FLOW.map(f=>`<li style="--c:${SYS[f[0]].color}"><div><b>${esc(f[1])}</b><span>${esc(f[2])}</span></div></li>`).join('');
+})();
+
+/* ════════════════ المحاكاة ════════════════ */
+const Sim=(function(){
+  const cv=$('#simCanvas'), ctx=cv.getContext('2d');
+  /* هندسة المقطع (بكسل منطقي، 120 بكسل = 1 م) */
+  const W=1200, H=440, PX=120, A=1.2*0.9, LC=4.6;
+  const FACE=820, EXIT=FACE-LC*PX, CT=120, CB=228, GY=404;
+  const CRK={cx:1062,cy:174,r:42,L:112};
+  const TMAX=0.085;                     // أقصى سماكة رقيقة مضغوطة (م) — تقدير للمحاكاة
+  const TWINE_M_PER_KG=130, ROLLS=48, ROLL_KG=15;
+  const CHUTE_END=[110,272], CH_SL=(CHUTE_END[1]-CB)/(EXIT-CHUTE_END[0]);
+  const SC=id=>SYS[id].color;
+  /* خصائص تقريبية للمحاصيل: كثافة دنيا/قصوى (كغ/م³)، رطوبة نموذجية ومجالها، سطر نموذجي (كغ/م)، طاقة (ك.واط لكل طن/ساعة) */
+  const CROPS={
+    wheat:{ar:'تبن / قش القمح',rmin:110,rmax:205,m:14,mo:[8,18],sw:3.0,e:4.2,col:'#d9b75b',col2:'#a8853a'},
+    barley:{ar:'قش الشعير',rmin:105,rmax:195,m:14,mo:[8,18],sw:2.6,e:4.0,col:'#e0c46e',col2:'#b0903f'},
+    hay:{ar:'دريس حشائش',rmin:140,rmax:245,m:16,mo:[10,20],sw:4.0,e:3.2,col:'#bdb35a',col2:'#8c8338'},
+    alfalfa:{ar:'دريس الجت (البرسيم الحجازي)',rmin:160,rmax:265,m:16,mo:[10,18],sw:4.0,e:3.0,col:'#a9b65a',col2:'#7a8936'},
+    haylage:{ar:'هايلاج / سيلاج',rmin:250,rmax:450,m:50,mo:[40,65],sw:6.0,e:2.4,col:'#8ea24c',col2:'#617330'}
+  };
+  const KN={26:[26,14,12,6,0],51:[51,26,25,12,5,0]};
+  const DEF={crop:'wheat',speed:8,swath:3.0,moist:14,dmode:'auto',dens:80,bar:120,len:2.35,vc:26,kn:26,trig:80,simSpeed:1,starter:true,labels:true};
+  const P=Object.assign({},DEF,store.get('bp1290.sim',{})||{});
+  ['speed','swath','moist','dens','bar','len','vc','kn','trig','simSpeed'].forEach(k=>{P[k]=+P[k]; if(!isFinite(P[k]))P[k]=DEF[k];});
+  if(!CROPS[P.crop])P.crop='wheat';
+  if(!KN[P.vc])P.vc=26;
+  if(!KN[P.vc].includes(P.kn))P.kn=P.vc;
+  if(P.dmode!=='auto'&&P.dmode!=='manual')P.dmode='auto';
+  const saveP=()=>store.set('bp1290.sim',P);
+
+  const crop=()=>CROPS[P.crop];
+  const knifeFrac=()=>P.kn/P.vc;
+  const cutLen=()=>P.kn?Math.round((P.vc===26?44*26:22*51)/P.kn):0;
+  function targetRho(){
+    const c=crop();
+    const fr=P.dmode==='auto'?P.dens/100:Math.min(1.1,Math.pow(P.bar/185,0.77));
+    let r=c.rmin+(c.rmax-c.rmin)*fr;
+    r*=1+0.004*(P.moist-c.m);
+    r*=1+0.05*knifeFrac();
+    return Math.max(60,r);
+  }
+  const pressure=()=>P.dmode==='auto'?Math.round(15+170*Math.pow(P.dens/100,1.25)):P.bar;
+  const cmax=rho=>TMAX*A*rho;
+  function loadFor(charge,rho){
+    const c=crop();
+    let L=100*Math.pow(rho/(c.rmax*1.04),2.2)*(0.55+0.45*Math.min(1.3,charge/cmax(rho)));
+    if(P.crop==='haylage')L*=0.9;
+    return L;
+  }
+  function faceX(phi){const s=Math.sin(phi),c=Math.cos(phi);return CRK.cx-(CRK.r*c+Math.sqrt(CRK.L*CRK.L-CRK.r*CRK.r*s*s))-88;}
+  const N2=a=>((a%TAU)+TAU)%TAU;
+  function crossed(a0,a1,th){const x=th+TAU*Math.floor((a0-th)/TAU+1);return x>a0&&x<=a1;}
+  /* مراحل الدورة بزاوية الكرنك: 0 = نهاية شوط الكبس، π = المكبس متراجع */
+  const TH={feedStart:0.65*PI,feedEnd:1.15*PI,tie:1.75*PI,over:1.88*PI};
+
+  /* مسار جزيئات التبن من الأرض إلى قناة التعبئة */
+  const PATH=[[1170,398],[1124,392],[1094,352],[1064,344],[1040,352],[1010,380],[975,396],[942,392],[900,372],[866,318],[856,268],[862,238]];
+  const segL=[]; let pathLen=0;
+  for(let i=1;i<PATH.length;i++){const l=Math.hypot(PATH[i][0]-PATH[i-1][0],PATH[i][1]-PATH[i-1][1]); segL.push(l); pathLen+=l;}
+  function pathAt(u){
+    let d=u*pathLen;
+    for(let i=0;i<segL.length;i++){ if(d<=segL[i]){ const t=d/segL[i], a=PATH[i], b=PATH[i+1]; return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,Math.atan2(b[1]-a[1],b[0]-a[0])]; } d-=segL[i]; }
+    const L=PATH[PATH.length-1]; return [L[0],L[1],0];
+  }
+
+  let S;
+  function freshState(){
+    return {t:0,pto:'off',rpm:0,phi:PI,slip:0,pickup:true,pre:0,transit:[],partAcc:0,particles:[],
+      feed:null,loose:0,looseT:0,looseRho:0,shift:0,tieStart:null,tieThis:false,needleU:0,k1:0,k2:0,
+      flakes:[],meta:{},baleId:1,cur:{len:0,mass:0,n:0},bales:[],ground:[],
+      groundOff:0,wheel:0,reel:0,rotor:0,fan:0,fly:0,pushed:0,
+      blocked:false,ejecting:false,strokes:0,feeds:0,mass:0,twine:0,flowIn:0,load:0,loadT:0,lastFlake:null,power:0,autoLim:false,events:[]};
+  }
+  function prefill(){
+    const t=0.07, mass=t*A*targetRho();
+    S.meta[0]={tied:true}; S.meta[1]={tied:false};
+    for(let i=0;i<16;i++)S.flakes.push({len:t,mass,bale:1});
+    for(let i=0;i<34;i++)S.flakes.push({len:t,mass,bale:0});
+    S.cur={len:16*t,mass:16*mass,n:16}; S.baleId=1;
+  }
+  const intakeOn=()=>S.pickup&&S.rpm>60&&!S.blocked&&!S.ejecting&&S.pto!=='off';
+
+  /* ── سجل الأحداث ── */
+  const evLog=$('#evLog');
+  const tstr=t=>{const s=Math.floor(t);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+  function log(msg,cls){ S.events.unshift({t:S.t,msg,cls:cls||''}); if(S.events.length>60)S.events.pop(); evLog.innerHTML=S.events.map(e=>`<li><time>${tstr(e.t)}</time><span class="${e.cls}">${esc(e.msg)}</span></li>`).join(''); }
+  function renderBales(){
+    const n=S.bales.length, list=S.bales.slice(-8).reverse();
+    $('#baleLog').innerHTML=list.length?list.map((b,i)=>`<tr><td>${n-i}</td><td>${b.len.toFixed(2)}</td><td>${fmt(b.mass)}</td><td>${fmt(b.rho)}</td><td>${b.n}</td></tr>`).join(''):'<tr class="empty"><td colspan="5">لم تُربط أي بالة بعد. شغّل عمود الإدارة والبيك أب منخفض.</td></tr>';
+  }
+
+  /* ── أحداث الدورة ── */
+  function onFeedStart(rho){
+    if(S.feed||S.loose>0||S.ejecting||S.rpm<300)return;
+    const cm=cmax(rho);
+    if(S.pre<cm*P.trig/100)return;
+    const charge=Math.min(S.pre,cm*1.12);
+    let r=rho; S.autoLim=false;
+    if(P.dmode==='auto'){ const L=loadFor(charge,rho); if(L>96){ r=rho*Math.pow(96/L,1/2.2); S.autoLim=true; } }
+    S.feed={charge,done:0}; S.looseRho=r;
+  }
+  function onFeedEnd(){ if(!S.feed)return; const f=S.feed; S.feed=null; S.loose=f.charge; S.looseT=f.charge/(S.looseRho*A); S.feeds++; }
+  function onTieDecide(){ if(S.loose<=0)return; if(S.cur.len+S.looseT>=P.len-0.45*S.looseT){S.tieStart=S.phi;S.tieThis=true;} }
+  function onOverload(){
+    if(S.loose<=0)return;
+    const L=loadFor(S.loose,S.looseRho); S.load=L; S.loadT=S.t;
+    if(P.dmode==='manual'&&L>100){ S.slip=2.2; log(`حمل زائد على المكبس (${Math.round(L)}٪): فصل قابض الحماية الآلي. خفّض الضغط اليدوي أو عتبة التعبئة.`,'b'); }
+  }
+  function onFinalize(){
+    S.strokes++;
+    if(S.loose<=0)return;
+    const fl={len:S.looseT,mass:S.loose,bale:S.baleId};
+    S.flakes.unshift(fl); S.pushed+=fl.len; S.shift=0; S.loose=0;
+    S.cur.len+=fl.len; S.cur.mass+=fl.mass; S.cur.n++; S.mass+=fl.mass;
+    S.lastFlake={t:fl.len,m:fl.mass,rho:S.looseRho};
+    if(S.tieThis){S.tieThis=false;completeBale();}
+  }
+  function completeBale(){
+    const b={len:S.cur.len,mass:S.cur.mass,n:S.cur.n,rho:S.cur.mass/(S.cur.len*A)};
+    S.meta[S.baleId]={tied:true}; S.bales.push(b);
+    S.twine+=8*(2*(b.len+0.9)+0.25);
+    S.baleId++; S.meta[S.baleId]={tied:false}; S.cur={len:0,mass:0,n:0};
+    log(`ربط البالة ${S.bales.length}: ${b.len.toFixed(2)} م · ${fmt(b.mass)} كغ · ${fmt(b.rho)} كغ/م³`,'g');
+    renderBales();
+  }
+  function detach(){
+    const n=S.flakes.length; if(!n)return;
+    let s=S.shift, i=0, cut=-1, sCut=0;
+    while(i<n){
+      const id=S.flakes[i].bale, front=s; let len=0, j=i;
+      while(j<n&&S.flakes[j].bale===id){len+=S.flakes[j].len;j++;}
+      if(front>=LC&&((S.meta[id]&&S.meta[id].tied)||S.ejecting)){cut=i;sCut=front;break;}
+      s+=len; i=j;
+    }
+    if(cut<0)return;
+    const out=S.flakes.splice(cut);
+    let pos=sCut, k=0;
+    while(k<out.length){
+      const id=out[k].bale; let len=0;
+      while(k<out.length&&out[k].bale===id){len+=out[k].len;k++;}
+      S.ground.push({xf:FACE-pos*PX,yb:CB,w:len*PX,tilt:0,st:'chute',vy:0,tied:!!(S.meta[id]&&S.meta[id].tied)});
+      pos+=len;
+    }
+  }
+  function updateGround(dt,v){
+    for(const g of S.ground){
+      if(g.st==='chute'){
+        g.xf-=150*dt; const d=Math.max(0,EXIT-g.xf);
+        g.yb=CB+d*CH_SL; g.tilt=-Math.min(0.27,d/90*0.27);
+        if(g.xf<CHUTE_END[0]+12){g.st='fall';g.vy=60;}
+      }else if(g.st==='fall'){
+        g.vy+=1100*dt; g.yb+=g.vy*dt; g.xf-=(70+v*PX)*dt; g.tilt*=Math.pow(0.02,dt);
+        if(g.yb>=GY){g.yb=GY;g.st='ground';g.tilt=0;}
+      }else g.xf-=v*PX*dt;
+    }
+    if(S.ground.length&&S.ground[0].xf<-30)S.ground=S.ground.filter(g=>g.xf>-30);
+  }
+
+  /* ── خطوة الزمن ── */
+  function step(dt){
+    S.t+=dt;
+    if(S.slip>0){
+      S.slip-=dt; S.rpm=Math.max(520,S.rpm-260*dt);
+      if(S.slip<=0){S.slip=0;S.pto='engaging';log('عاد قابض الحماية للتعشيق آلياً، والمكبس يكمل الدورة.','g');}
+    }else if(S.pto==='starting'){
+      S.rpm=Math.min(400,S.rpm+105*dt);
+      if(S.rpm>=400){S.pto='engaging';log('الحدّافة وصلت 400 د/د بمساعد البدء. تعشيق عمود الإدارة.','g');}
+    }else if(S.pto==='engaging'){
+      S.rpm=Math.min(1000,S.rpm+(P.starter?190:140)*dt);
+      if(S.rpm>=1000){S.pto='on';log('السرعة الكاملة: 1000 د/د على عمود الإدارة و45 ضربة في الدقيقة.','g');}
+    }else if(S.pto==='stopping'){
+      S.rpm=Math.max(0,S.rpm-140*dt);
+      if(S.rpm<=0){S.pto='off';log('توقف عمود الإدارة والحدّافة.');refreshButtons();}
+    }
+    const spm=S.rpm*0.045, omega=S.slip>0?0:spm/60*TAU;
+    const v=(S.pto==='off'||S.blocked)?0:P.speed/3.6;
+    S.groundOff+=v*dt; S.wheel+=v*dt/0.3;
+    S.reel+=dt*TAU*2.2*S.rpm/1000; S.rotor+=dt*TAU*1.7*S.rpm/1000; S.fan+=dt*TAU*(S.rpm>0?9:0); S.fly+=dt*S.rpm/60;
+
+    const inflow=intakeOn()?v*P.swath:0;
+    S.flowIn+=(inflow-S.flowIn)*Math.min(1,dt/4);
+    if(inflow>0){
+      S.transit.push([S.t+1.0,inflow*dt]);
+      S.partAcc+=inflow*dt*4.5;
+      while(S.partAcc>=1){S.partAcc-=1; if(S.particles.length<260)S.particles.push({u:0,j:Math.random()*2-1,s:0.8+Math.random()*0.4});}
+    }
+    while(S.transit.length&&S.transit[0][0]<=S.t)S.pre+=S.transit.shift()[1];
+    if(S.particles.length){ for(const p of S.particles)p.u+=dt*p.s; if(S.particles[0].u>=1)S.particles=S.particles.filter(p=>p.u<1); }
+
+    const rho=targetRho(), a0=S.phi, a1=a0+omega*dt; S.phi=a1;
+    if(omega>0){
+      if(crossed(a0,a1,TH.feedStart))onFeedStart(rho);
+      if(crossed(a0,a1,TH.feedEnd))onFeedEnd();
+      if(crossed(a0,a1,TH.tie))onTieDecide();
+      if(crossed(a0,a1,TH.over))onOverload();
+      if(crossed(a0,a1,0))onFinalize();
+    }
+    if(S.t-S.loadT>3)S.load=Math.max(0,S.load-30*dt);
+    if(S.feed){
+      const q=clamp((N2(S.phi)-TH.feedStart)/(TH.feedEnd-TH.feedStart),0,1), want=S.feed.charge*ease(q), d=want-S.feed.done;
+      S.feed.done=want; S.pre=Math.max(0,S.pre-d); S.loose=S.feed.done;
+    }else if(S.loose>0&&!S.ejecting&&N2(S.phi)>=PI){
+      S.shift=Math.max(0,S.looseT-(faceX(S.phi)-FACE)/PX);
+    }
+    if(S.tieStart!=null){
+      const d=S.phi-S.tieStart;
+      S.needleU= d<0.25*PI?ease(d/(0.25*PI)) : d<0.37*PI?1 : d<0.7*PI?1-ease((d-0.37*PI)/(0.33*PI)) : 0;
+      S.k1=(d>0.27*PI&&d<0.39*PI)?1:0; S.k2=(d>0.7*PI&&d<0.85*PI)?1:0;
+      if(d>0.9*PI){S.tieStart=null;S.needleU=0;S.k1=S.k2=0;}
+    }
+    if(S.ejecting){
+      S.shift+=0.9*dt;
+      if(!S.flakes.length){S.ejecting=false;S.shift=0;S.cur={len:0,mass:0,n:0};S.baleId++;S.meta[S.baleId]={tied:false};log('تم تفريغ قناة الكبس بالكامل.','g');refreshButtons();}
+    }
+    detach();
+    updateGround(dt,v);
+    if(!S.blocked&&S.pre>1.35*cmax(rho)){
+      S.blocked=true;
+      log('انسداد في قناة التغذية: التبن الداخل أكثر من قدرة المكبس، فتوقف التقدم. اضغط إزالة الانسداد.','b');
+      refreshButtons();
+    }
+    const c=crop(), tph=S.flowIn*3.6, cutF=(P.vc===26?0.3:0.45)*knifeFrac();
+    const pw=(S.rpm>0?14*S.rpm/1000:0)+tph*c.e*Math.pow(rho/c.rmax,1.5)*(1+cutF);
+    S.power+=(pw-S.power)*Math.min(1,dt/2);
+  }
+
+  /* ── الرسم ── */
+  let C={};
+  function readColors(){
+    const cs=getComputedStyle(root), g=n=>cs.getPropertyValue(n).trim()||'#888888';
+    C={sky:g('--sky'),soil:g('--soil'),fg:g('--fg'),muted:g('--muted'),line:g('--line-2'),panel:g('--panel'),accent:g('--accent'),sel:g('--sel'),bad:g('--bad'),tyre:g('--tyre')};
+  }
+  function rgba(hex,a){const h=String(hex).replace('#','');if(h.length!==6)return hex;const n=parseInt(h,16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+  function circle(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,TAU);}
+  function rr(x,y,w,h,r){ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(x,y,w,h,r); else ctx.rect(x,y,w,h);}
+  function line(x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+  function gearPath(cx,cy,r0,r1,n,ang){
+    ctx.beginPath();
+    for(let i=0;i<n;i++){const a=ang+i*TAU/n; ctx.moveTo(cx+r0*Math.cos(a-0.17),cy+r0*Math.sin(a-0.17)); ctx.lineTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a)); ctx.lineTo(cx+r0*Math.cos(a+0.17),cy+r0*Math.sin(a+0.17)); ctx.closePath();}
+  }
+  function baleRect(x,y,w,h,c,tied){
+    ctx.fillStyle=rgba(c.col,0.95); ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=rgba(c.col2,0.9); ctx.lineWidth=1; ctx.beginPath();
+    for(let xx=x+8;xx<x+w-2;xx+=9){ctx.moveTo(xx,y+2);ctx.lineTo(xx,y+h-2);}
+    ctx.stroke();
+    if(tied){ctx.strokeStyle=C.fg;ctx.globalAlpha=0.6;ctx.setLineDash([4,3]);ctx.strokeRect(x+1.5,y+6,w-3,h-12);ctx.setLineDash([]);ctx.globalAlpha=1;}
+  }
+  function channelPath(){ctx.beginPath();ctx.moveTo(942,398);ctx.bezierCurveTo(880,398,830,300,826,CB);ctx.lineTo(904,CB);ctx.bezierCurveTo(905,262,925,290,948,322);ctx.closePath();}
+
+  let sc=1, dpr=1, sized=false, lastW=0;
+  function resize(){
+    const w=cv.parentElement.clientWidth; if(!w)return;
+    lastW=w; sc=w/W; dpr=Math.min(2,window.devicePixelRatio||1);
+    const h=Math.round(H*sc); cv.style.height=h+'px';
+    cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); sized=true; draw();
+  }
+  function draw(){
+    if(!sized)return;
+    const c=crop();
+    ctx.setTransform(sc*dpr,0,0,sc*dpr,0,0);
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.fillStyle=C.sky; ctx.fillRect(0,0,W,H);
+    drawGround(c); drawFrame(); drawChute();
+    for(const g of S.ground){ctx.save();ctx.translate(g.xf,g.yb);ctx.rotate(g.tilt);baleRect(-g.w,-108,g.w,108,c,g.tied);ctx.restore();}
+    drawChamber(c); drawFeed(c); drawPlunger(); drawKnotting();
+    if(P.labels)drawLabels();
+  }
+  function drawGround(c){
+    ctx.fillStyle=C.soil; ctx.fillRect(0,GY,W,H-GY);
+    const off=(S.groundOff*PX)%24;
+    ctx.strokeStyle=C.line; ctx.lineWidth=1; ctx.beginPath();
+    for(let x=-off;x<W+24;x+=24){ctx.moveTo(x,GY+5);ctx.lineTo(x-4,GY+13);ctx.moveTo(x+11,GY+18);ctx.lineTo(x+7,GY+26);}
+    ctx.stroke();
+    const hS=4+P.swath*3.2, so=S.groundOff*PX;
+    const swath=(x0,x1)=>{
+      ctx.beginPath(); ctx.moveTo(x1,GY);
+      for(let x=x1;x>=x0;x-=8)ctx.lineTo(x,GY-hS*(0.75+0.25*Math.sin((x+so)/23))-1.5*Math.sin((x+so)/7));
+      ctx.lineTo(x0,GY); ctx.closePath();
+      ctx.fillStyle=rgba(c.col,0.85); ctx.fill(); ctx.strokeStyle=rgba(c.col2,0.9); ctx.lineWidth=1; ctx.stroke();
+    };
+    swath(1080,W);
+    if(!S.pickup)swath(-10,1080);
+  }
+  function drawFrame(){
+    const k=SC('08');
+    ctx.lineWidth=1.4; ctx.strokeStyle=k; ctx.fillStyle=rgba(k,0.25);
+    rr(EXIT,CB+4,742,8,2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(1010,CB+6); ctx.lineTo(1200,CB+60); ctx.lineTo(1200,CB+72); ctx.lineTo(1010,CB+18); ctx.closePath(); ctx.fill(); ctx.stroke();
+    rr(476,CB+12,8,126,2); ctx.fill(); ctx.stroke();
+    rr(428,363,104,9,4); ctx.fill(); ctx.stroke();
+    ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(384,370); ctx.quadraticCurveTo(388,320,430,318); ctx.lineTo(530,318); ctx.quadraticCurveTo(572,320,576,370); ctx.stroke();
+    for(const x of [430,530]){
+      ctx.fillStyle=C.tyre; circle(x,368,36); ctx.fill(); ctx.strokeStyle=k; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle=rgba(k,0.3); circle(x,368,21); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); for(let i=0;i<5;i++){const a=S.wheel+i*TAU/5; ctx.moveTo(x+5*Math.cos(a),368+5*Math.sin(a)); ctx.lineTo(x+19*Math.cos(a),368+19*Math.sin(a));} ctx.stroke();
+    }
+  }
+  function drawChute(){
+    const k=SC('11');
+    ctx.strokeStyle=k; ctx.lineWidth=3; line(EXIT,CB+6,CHUTE_END[0],CHUTE_END[1]+6);
+    ctx.fillStyle=rgba(k,0.35); ctx.lineWidth=1.2;
+    for(let i=0;i<7;i++){const x=EXIT-12-i*22, y=CB+(EXIT-x)*CH_SL; circle(x,y,4.5); ctx.fill(); ctx.stroke();}
+  }
+  function drawChamber(c){
+    const k=SC('04'), yT=CT+3, hh=CB-CT-6;
+    ctx.fillStyle=rgba(k,0.07); ctx.fillRect(EXIT,CT,FACE+100-EXIT,CB-CT);
+    let s=S.shift;
+    for(let i=0;i<S.flakes.length;i++){
+      const f=S.flakes[i], xF=FACE-s*PX, xR=xF-f.len*PX; s+=f.len;
+      if(xF<-20)break;
+      ctx.fillStyle=rgba(c.col,f.bale%2?0.92:0.7); ctx.fillRect(xR,yT,xF-xR+0.6,hh);
+      ctx.strokeStyle=rgba(c.col2,0.85); ctx.lineWidth=1; line(xR+0.5,yT+2,xR+0.5,yT+hh-2);
+    }
+    /* الخيوط حول البالات */
+    ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1.2; ctx.strokeStyle=C.fg; ctx.globalAlpha=0.7;
+    let s2=S.shift, i=0; const n=S.flakes.length;
+    while(i<n){
+      const id=S.flakes[i].bale, xF=FACE-s2*PX; let len=0;
+      while(i<n&&S.flakes[i].bale===id){len+=S.flakes[i].len;i++;}
+      s2+=len; const xR=xF-len*PX;
+      ctx.beginPath();
+      if(S.meta[id]&&S.meta[id].tied)ctx.rect(xR+1.5,CT+8,xF-xR-3,CB-CT-16);
+      else{ctx.moveTo(834,CT+8);ctx.lineTo(xR+1.5,CT+8);ctx.lineTo(xR+1.5,CB-8);ctx.lineTo(Math.max(xF,826),CB-8);ctx.lineTo(820,CB+20);}
+      ctx.stroke();
+    }
+    ctx.restore();
+    /* الشحنة المفككة أمام المكبس */
+    const xFace=faceX(S.phi);
+    if(S.feed){
+      const q=S.feed.done/S.feed.charge, h=hh*q;
+      ctx.fillStyle=rgba(c.col,0.55); ctx.fillRect(826,CB-3-h,Math.max(0,Math.min(904,xFace)-826),h);
+    }else if(S.loose>0){
+      const xPF=FACE-S.shift*PX;
+      if(xFace>xPF){
+        ctx.fillStyle=rgba(c.col,0.55); ctx.fillRect(xPF,yT,xFace-xPF,hh);
+        ctx.save(); ctx.beginPath(); ctx.rect(xPF,yT,xFace-xPF,hh); ctx.clip();
+        ctx.strokeStyle=rgba(c.col2,0.7); ctx.lineWidth=1; ctx.beginPath();
+        for(let y=yT-40;y<CB+40;y+=11){ctx.moveTo(xPF-10,y);ctx.quadraticCurveTo(xPF+30,y-14,xFace+10,y+6);}
+        ctx.stroke(); ctx.restore();
+      }
+    }
+    /* الجدران وأبواب الضغط */
+    ctx.strokeStyle=k; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(EXIT,CB); ctx.lineTo(826,CB); ctx.moveTo(904,CB); ctx.lineTo(FACE+100,CB); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(600,CT); ctx.lineTo(FACE+100,CT); ctx.moveTo(EXIT,CT); ctx.lineTo(300,CT); ctx.stroke();
+    const dip=2+9*clamp(pressure()/200,0,1);
+    ctx.lineWidth=5; line(600,CT,300,CT+dip);
+    ctx.fillStyle=rgba(k,0.3); ctx.lineWidth=1.4; rr(330,78,240,7,2); ctx.fill(); ctx.stroke();
+    for(const x of [360,450,540]){const yf=CT+dip*(600-x)/300; rr(x-6,85,12,18,2); ctx.fill(); ctx.stroke(); ctx.lineWidth=3; line(x,103,x,yf-2); ctx.lineWidth=1.4;}
+    ctx.fillStyle=k;
+    ctx.beginPath(); ctx.moveTo(804,CT); ctx.lineTo(816,CT); ctx.lineTo(804,CT+9); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(804,CB); ctx.lineTo(816,CB); ctx.lineTo(804,CB-9); ctx.closePath(); ctx.fill();
+    /* عجلة القياس */
+    const k5=SC('05'), sa=(S.pushed+S.shift)/0.16;
+    ctx.strokeStyle=k5; ctx.lineWidth=2; line(660,CT,690,98);
+    ctx.beginPath(); for(let j=0;j<8;j++){const a=sa+j*TAU/8; ctx.moveTo(660+6*Math.cos(a),CT+6*Math.sin(a)); ctx.lineTo(660+17*Math.cos(a),CT+17*Math.sin(a));} ctx.stroke();
+    ctx.fillStyle=rgba(k5,0.4); circle(660,CT,7); ctx.fill(); ctx.stroke();
+  }
+  function drawFeed(c){
+    const k3=SC('03'), k2=SC('02'), k1=SC('01');
+    const cm=cmax(targetRho()), ff=clamp(S.pre/cm,0,1.4);
+    channelPath(); ctx.fillStyle=rgba(k3,0.09); ctx.fill();
+    if(ff>0.001){ctx.save();channelPath();ctx.clip();ctx.fillStyle=rgba(S.blocked?c.col2:c.col,0.85);ctx.fillRect(790,CB,180,(400-CB)*Math.min(1,ff*0.8));ctx.restore();}
+    ctx.strokeStyle=k3; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(942,398); ctx.bezierCurveTo(880,398,830,300,826,CB); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(948,322); ctx.bezierCurveTo(925,290,905,262,904,CB); ctx.stroke();
+    if(S.particles.length){
+      ctx.strokeStyle=c.col2; ctx.lineWidth=2; ctx.beginPath();
+      for(const p of S.particles){const [x,y,a]=pathAt(p.u), ox=-Math.sin(a)*p.j*5, oy=Math.cos(a)*p.j*5; ctx.moveTo(x+ox-Math.cos(a)*4,y+oy-Math.sin(a)*4); ctx.lineTo(x+ox+Math.cos(a)*4,y+oy+Math.sin(a)*4);}
+      ctx.stroke();
+    }
+    /* أسطوانة VFS: 3 أذرع تكديس + شوكة تغذية */
+    const dA=S.phi+0.75*PI;
+    for(let j=0;j<4;j++){
+      const a=dA+j*PI/2, feeder=j===3, L=feeder?(S.feed?54:24):44;
+      ctx.strokeStyle=feeder&&S.feed?C.sel:k3; ctx.lineWidth=feeder?3.6:2.4;
+      ctx.beginPath(); ctx.moveTo(972+14*Math.cos(a),268+14*Math.sin(a)); ctx.quadraticCurveTo(972+(L-12)*Math.cos(a),268+(L-12)*Math.sin(a),972+L*Math.cos(a-0.14),268+L*Math.sin(a-0.14)); ctx.stroke();
+    }
+    ctx.fillStyle=rgba(k3,0.35); ctx.strokeStyle=k3; ctx.lineWidth=1.5; circle(972,268,14); ctx.fill(); ctx.stroke();
+    const ra=PI-0.45+0.55*Math.min(1,ff);
+    ctx.lineWidth=2.4; line(910,236,910+34*Math.cos(ra),236+34*Math.sin(ra));
+    ctx.fillStyle=k3; circle(910,236,3); ctx.fill();
+    /* السكاكين ودوّار القطع */
+    const nk=Math.round(7*P.kn/P.vc);
+    for(let j=0;j<7;j++){const x=948+j*9, on=j<nk; ctx.fillStyle=on?k2:rgba(k2,0.3); ctx.beginPath(); ctx.moveTo(x-3,394); ctx.lineTo(x+3,394); ctx.lineTo(x,on?377:389); ctx.closePath(); ctx.fill();}
+    ctx.fillStyle=rgba(k2,0.3); ctx.strokeStyle=k2; ctx.lineWidth=1.2; rr(940,394,72,7,2); ctx.fill(); ctx.stroke();
+    gearPath(975,352,26,39,10,S.rotor); ctx.fillStyle=rgba(k2,0.3); ctx.fill(); ctx.stroke();
+    circle(975,352,26); ctx.fillStyle=rgba(k2,0.22); ctx.fill(); ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=k2; circle(975,352,5); ctx.fill();
+    /* البيك أب والبكرات */
+    ctx.strokeStyle=k1; ctx.lineWidth=2;
+    ctx.beginPath(); for(let j=0;j<5;j++){const a=-S.reel+j*TAU/5; ctx.moveTo(1088+14*Math.cos(a),372+14*Math.sin(a)); ctx.lineTo(1088+30*Math.cos(a-0.35),372+30*Math.sin(a-0.35));} ctx.stroke();
+    ctx.fillStyle=rgba(k1,0.3); circle(1088,372,14); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(1088,372,35,PI*0.95,PI*1.7); ctx.stroke();
+    line(1132,388,1112,358);
+    ctx.fillStyle=C.tyre; circle(1132,388,16); ctx.fill(); ctx.stroke();
+    line(1132,318,1108,334); ctx.fillStyle=rgba(k1,0.35); circle(1108,334,9); ctx.fill(); ctx.stroke();
+    circle(1040,354,11); ctx.fill(); ctx.stroke();
+    const fr=S.rotor*1.4; line(1040+9*Math.cos(fr),354+9*Math.sin(fr),1040-9*Math.cos(fr),354-9*Math.sin(fr));
+  }
+  function drawPlunger(){
+    const k=SC('04'), kd=SC('06');
+    const xf=faceX(S.phi), s=Math.sin(S.phi), co=Math.cos(S.phi), pinX=xf+88, cpx=CRK.cx-CRK.r*co, cpy=CRK.cy+CRK.r*s;
+    ctx.fillStyle=rgba(k,0.35); ctx.strokeStyle=k; ctx.lineWidth=1.5; rr(xf,CT+3,80,CB-CT-6,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=k; ctx.fillRect(xf,CT+3,5,CB-CT-6);
+    ctx.fillStyle=C.sky; for(const y of [CT+28,CT+70])ctx.fillRect(xf,y,9,3);
+    ctx.fillStyle=k; ctx.beginPath(); ctx.moveTo(xf,CB-3); ctx.lineTo(xf+18,CB-3); ctx.lineTo(xf,CB-14); ctx.closePath(); ctx.fill();
+    ctx.lineWidth=6; line(xf+80,CRK.cy,pinX,CRK.cy);
+    ctx.fillStyle=rgba(kd,0.25); ctx.strokeStyle=kd; ctx.lineWidth=1.5; rr(1030,128,64,92,8); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle=k; ctx.lineWidth=7; line(cpx,cpy,pinX,CRK.cy);
+    ctx.lineWidth=9; line(CRK.cx,CRK.cy,cpx,cpy);
+    ctx.fillStyle=k; circle(pinX,CRK.cy,4); ctx.fill(); circle(cpx,cpy,4); ctx.fill();
+    ctx.fillStyle=rgba(kd,0.25); ctx.strokeStyle=kd; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(1124,174,12,58,0,0,TAU); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.ellipse(1124,174,12,58,0,0,TAU); ctx.clip(); ctx.lineWidth=2;
+    for(let j=0;j<4;j++){const y=116+((j*29+S.fly*116)%116); line(1110,y,1138,y);} ctx.restore();
+    ctx.lineWidth=8; line(1138,180,1200,214);
+  }
+  function drawKnotting(){
+    const k=SC('05');
+    ctx.fillStyle=rgba(k,0.22); ctx.strokeStyle=k; ctx.lineWidth=1.5; rr(800,66,66,40,5); ctx.fill(); ctx.stroke();
+    circle(820,94,6); ctx.stroke(); circle(846,94,6); ctx.stroke();
+    for(const x of [782,884]){
+      circle(x,82,9); ctx.fillStyle=rgba(k,0.2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); for(let j=0;j<3;j++){const a=S.fan+j*TAU/3; ctx.moveTo(x,82); ctx.lineTo(x+8*Math.cos(a),82+8*Math.sin(a));} ctx.stroke();
+    }
+    const u=S.needleU, tx=lerp(818,832,u), ty=lerp(252,94,u), qx=lerp(800,856,u), qy=lerp(300,236,u);
+    ctx.strokeStyle=k; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(700,300); ctx.quadraticCurveTo(qx,qy,tx,ty); ctx.stroke();
+    ctx.fillStyle=k; circle(700,300,7); ctx.fill(); circle(tx,ty,3.5); ctx.fill();
+    if(S.k1||S.k2){
+      ctx.fillStyle=rgba(C.accent,0.45); circle(833,94,15); ctx.fill();
+      ctx.fillStyle=C.accent; circle(833,94,6); ctx.fill();
+    }
+  }
+  const LBL=[['البيك أب',1092,426],['دوّار القطع',966,426],['VFS',1010,268],['قناة التعبئة',772,350],['قناة الكبس',470,174],['أبواب الضغط',450,62],['العقّادات',833,50],['الإبر',742,300],['عجلة القياس',676,92],['علبة التروس',1062,114],['الحدّافة',1124,250],['المزلق',196,300]];
+  function pill(t,x,y){
+    const w=ctx.measureText(t).width;
+    ctx.fillStyle=rgba(C.panel,0.88); rr(x-w/2-6,y-10,w+12,20,10); ctx.fill();
+    ctx.strokeStyle=C.line; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=C.fg; ctx.fillText(t,x,y+0.5);
+  }
+  function drawLabels(){
+    ctx.font='600 12.5px "IBM Plex Sans Arabic", Tahoma, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    try{ctx.direction='rtl';}catch(e){}
+    LBL.forEach(l=>pill(l[0],l[1],l[2]));
+    pill('المكبس',faceX(S.phi)+40,CB-22);
+    if(S.k1)pill('العقدة الأولى',833,24); else if(S.k2)pill('العقدة الثانية',833,24);
+  }
+
+  /* ── مخطط التوقيت ── */
+  const tw=$('#tw'); let twHand, twPhase, twDeg;
+  (function(){
+    const pt=(deg,r)=>{const a=deg*PI/180;return [r*Math.sin(a),-r*Math.cos(a)];};
+    const arc=(a0,a1,r)=>{const [x0,y0]=pt(a0,r),[x1,y1]=pt(a1,r);return `M${f1(x0)} ${f1(y0)}A${r} ${r} 0 ${(a1-a0)>180?1:0} 1 ${f1(x1)} ${f1(y1)}`;};
+    const add=(tag,attrs,style)=>{const e=svgEl(tag,attrs,tw); if(style)for(const k in style)e.style[k]=style[k]; return e;};
+    [96,82,68,54].forEach(r=>add('circle',{class:'base',r}));
+    const ARCS=[[0,180,96,'var(--line-2)','شوط الرجوع: المكبس يتراجع'],[180,360,96,SC('04'),'شوط الكبس'],[117,207,82,SC('03'),'شوكة التغذية تدفع الشحنة'],[315,441,68,SC('05'),'الإبر تعبر القناة (عند الربط)'],[364,385,54,'var(--accent)','العقدة الأولى: تغلق البالة'],[441,468,54,'var(--accent)','العقدة الثانية: تبدأ البالة التالية']];
+    ARCS.forEach(a=>add('path',{class:'ring',d:arc(a[0],a[1],a[2])},{stroke:a[3]}));
+    [[0,'0°'],[90,'90°'],[180,'180°'],[270,'270°']].forEach(([d,t])=>{const [x1,y1]=pt(d,102),[x2,y2]=pt(d,107),[tx,ty]=pt(d,114); add('line',{class:'tick',x1:f1(x1),y1:f1(y1),x2:f1(x2),y2:f1(y2)}); add('text',{x:f1(tx),y:f1(ty)}).textContent=t;});
+    twHand=add('line',{class:'hand',x1:0,y1:-44,x2:0,y2:-104});
+    twPhase=add('text',{class:'phase',x:0,y:-7}); twDeg=add('text',{x:0,y:12});
+    $('#twLegend').innerHTML=ARCS.map(a=>`<li><i style="--c:${a[3]}"></i>${esc(a[4])}</li>`).join('')+'<li class="muted small">0° = المكبس في أقصى الكبس · 180° = متراجع بالكامل</li>';
+  })();
+  function phaseName(){
+    if(S.rpm<=0)return 'متوقف';
+    if(S.slip>0)return 'قابض الحماية';
+    if(S.k1)return 'العقدة الأولى';
+    if(S.k2)return 'العقدة الثانية';
+    if(S.needleU>0.05)return 'الإبر ترتفع';
+    if(S.feed)return 'التغذية';
+    return N2(S.phi)>=PI?'شوط الكبس':'شوط الرجوع';
+  }
+  function twTick(){ twHand.setAttribute('transform','rotate('+f1(N2(S.phi)*180/PI)+')'); }
+
+  /* ── القراءات والتنبيهات ── */
+  const setT=(id,v)=>{$(id).textContent=v;};
+  function meter(id,pct,warn,bad){const m=$(id); m.firstElementChild.style.width=clamp(pct,0,100)+'%'; m.classList.toggle('warn',pct>=warn&&pct<bad); m.classList.toggle('bad',pct>=bad);}
+  let chipsHTML='';
+  function refreshButtons(){
+    const off=S.pto==='off'||S.pto==='stopping', pb=$('#ptoBtn');
+    pb.textContent=off?'تشغيل عمود الإدارة':'إيقاف عمود الإدارة';
+    pb.classList.toggle('primary',off); pb.classList.toggle('on',!off);
+    $('#pickupBtn').textContent=S.pickup?'رفع البيك أب':'خفض البيك أب';
+    $('#unblockBtn').disabled=!S.blocked;
+    $('#ejectBtn').disabled=!(S.pto==='off'&&S.rpm<=0&&S.flakes.length&&!S.ejecting);
+  }
+  function refreshUI(){
+    const c=crop(), rho=targetRho(), cm=cmax(rho);
+    setT('#rRpm',fmt(S.rpm));
+    setT('#rSpm',S.rpm>0?`${(S.rpm*0.045).toFixed(1)} ضربة/دقيقة`:'المكبس متوقف');
+    const tph=S.flowIn*3.6; setT('#rTph',tph.toFixed(1));
+    const avg=S.bales.length?S.bales.reduce((a,b)=>a+b.mass,0)/S.bales.length:0;
+    const bm=avg||rho*A*P.len;
+    setT('#rBph',tph>0.2?`نحو ${fmt(S.flowIn*3600/bm)} بالة/ساعة`:'—');
+    const shownRho=S.autoLim&&S.lastFlake?S.lastFlake.rho:rho;
+    setT('#rRho',fmt(shownRho));
+    setT('#rBar',S.autoLim?'خُفّض الضغط آلياً لحماية المكبس':`${pressure()} بار · ${P.dmode==='auto'?'آلي '+P.dens+'٪':'يدوي'}`);
+    setT('#rFlake',S.lastFlake?(S.lastFlake.t*100).toFixed(1):'—');
+    setT('#rFlakeM',S.lastFlake?`${S.lastFlake.m.toFixed(1)} كغ لكل شحنة`:'—');
+    const fill=S.pre/cm*100; setT('#rFill',fmt(Math.min(fill,999))); meter('#mFill',fill,90,110);
+    const ld=S.rpm>0?S.load:0; setT('#rLoad',fmt(ld)); meter('#mLoad',ld,85,100);
+    setT('#rPow',fmt(S.power)); meter('#mPow',S.power/190*100,90,100);
+    setT('#rCut',P.kn?String(cutLen()):'—'); setT('#rKn',P.kn?`${P.kn} من ${P.vc} سكيناً`:'بدون قطع');
+    setT('#rCur',S.cur.len.toFixed(2)); meter('#mCur',S.cur.len/P.len*100,999,999);
+    setT('#rBales',String(S.bales.length)); setT('#rAvg',avg?`متوسط ${fmt(avg)} كغ`:'—');
+    setT('#rTons',(S.mass/1000).toFixed(2)); setT('#rStrokes',`${fmt(S.strokes)} ضربة · ${fmt(S.feeds)} تعبئة`);
+    setT('#rTwine',fmt(S.twine));
+    const rolls=(ROLLS*ROLL_KG*TWINE_M_PER_KG-S.twine)/(ROLL_KG*TWINE_M_PER_KG);
+    setT('#rRolls',`نحو ${Math.max(0,rolls).toFixed(1)} بكرة متبقية من 48`);
+    twPhase.textContent=phaseName(); twDeg.textContent=Math.round(N2(S.phi)*180/PI)+'°'; twTick();
+
+    const chips=[];
+    const st={off:['متوقفة',''],starting:['مساعد البدء يدير الحدّافة','w'],engaging:['تعشيق عمود الإدارة','w'],on:['تعمل','g'],stopping:['إيقاف','']}[S.pto];
+    chips.push([st[0],st[1]]);
+    if(S.rpm>0)chips.push([phaseName(),'']);
+    if(S.blocked)chips.push(['انسداد: اضغط إزالة الانسداد','b']);
+    if(S.slip>0)chips.push(['قابض الحماية مفصول','b']);
+    if(P.moist>c.mo[1])chips.push([P.crop==='haylage'?'رطوبة عالية جداً للهايلاج':'رطوبة عالية: خطر تعفن واشتعال ذاتي','w']);
+    else if(P.moist<c.mo[0])chips.push([P.crop==='haylage'?'رطوبة منخفضة للهايلاج':'رطوبة أقل من المناسب','w']);
+    if(S.pickup&&P.speed>0&&S.pto!=='off'&&S.rpm<900&&!S.blocked)chips.push(['لا تتقدم قبل وصول 1000 د/د','w']);
+    if(fill>95&&!S.blocked)chips.push(['قناة VFS ممتلئة: خفّض السرعة','w']);
+    if(S.autoLim)chips.push(['تنظيم آلي للضغط','g']);
+    if(S.power>190)chips.push(['القدرة فوق 190 كيلوواط','w']);
+    if(rolls<4)chips.push(['الخيط على وشك النفاد','w']);
+    const html=chips.map(ch=>`<span class="st ${ch[1]}">${esc(ch[0])}</span>`).join('');
+    if(html!==chipsHTML){chipsHTML=html;$('#simChips').innerHTML=html;}
+    refreshButtons();
+  }
+
+  /* ── الحلقة ── */
+  let raf=0, last=0, visible=false, uiAcc=0;
+  const active=()=>S.pto!=='off'||S.rpm>0||S.particles.length>0||S.ejecting||S.transit.length>0||S.ground.some(g=>g.st!=='ground');
+  function frame(ts){
+    raf=0; if(!visible)return;
+    const dtR=last?Math.min(0.1,(ts-last)/1000):0; last=ts;
+    let dt=dtR*P.simSpeed, guard=0;
+    while(dt>1e-6&&guard<400){const h=Math.min(dt,0.008); step(h); dt-=h; guard++;}
+    draw(); twTick();
+    uiAcc+=dtR; if(uiAcc>=0.15){uiAcc=0;refreshUI();}
+    if(active())raf=requestAnimationFrame(frame); else{last=0;refreshUI();}
+  }
+  function kick(){ if(visible&&!raf){last=0;raf=requestAnimationFrame(frame);} }
+  function changed(){ refreshUI(); if(!raf)draw(); kick(); }
+  function reset(){ S=freshState(); prefill(); log('جاهزة. في القناة بالة مربوطة وبالة قيد التشكيل من عمل سابق. اضغط تشغيل عمود الإدارة.'); renderBales(); refreshUI(); draw(); }
+
+  /* ── أدوات التحكم ── */
+  const outs=[];
+  function bindRange(id,key,out,fmtFn){
+    const el=$(id); el.value=P[key];
+    const upd=()=>{$(out).textContent=fmtFn(+el.value);}; upd(); outs.push(()=>{el.value=P[key];upd();});
+    el.addEventListener('input',()=>{P[key]=+el.value; upd(); saveP(); changed();});
+  }
+  bindRange('#cSpeed','speed','#oSpeed',v=>v.toFixed(1)+' كم/س');
+  bindRange('#cSwath','swath','#oSwath',v=>v.toFixed(1)+' كغ/م');
+  bindRange('#cMoist','moist','#oMoist',v=>v+'٪');
+  bindRange('#cDens','dens','#oDens',v=>v+'٪');
+  bindRange('#cBar','bar','#oBar',v=>v+' بار');
+  bindRange('#cLen','len','#oLen',v=>v.toFixed(2)+' م');
+  bindRange('#cTrig','trig','#oTrig',v=>v+'٪');
+  const syncOuts=()=>outs.forEach(f=>f());
+
+  const cCrop=$('#cCrop');
+  cCrop.innerHTML=Object.keys(CROPS).map(k=>`<option value="${k}">${esc(CROPS[k].ar)}</option>`).join('');
+  cCrop.value=P.crop;
+  cCrop.addEventListener('change',()=>{ P.crop=cCrop.value; const c=crop(); P.moist=c.m; P.swath=c.sw; syncOuts(); saveP(); log(`المحصول: ${c.ar}. ضُبطت الرطوبة وكثافة السطر على قيم نموذجية.`); changed(); });
+
+  function segInit(id,key,parse,after){
+    const btns=$$('button',$(id));
+    const sync=()=>btns.forEach(b=>b.setAttribute('aria-pressed',String(String(P[key])===b.dataset.v)));
+    btns.forEach(b=>b.addEventListener('click',()=>{P[key]=parse(b.dataset.v); sync(); if(after)after(); saveP(); changed();}));
+    sync(); if(after)after();
+  }
+  segInit('#cDmode','dmode',v=>v,()=>{$('#wrapDens').hidden=P.dmode!=='auto';$('#wrapBar').hidden=P.dmode!=='manual';});
+  segInit('#cSim','simSpeed',v=>+v);
+
+  const cVc=$('#cVc'), cKn=$('#cKn');
+  function fillKn(){ cKn.innerHTML=KN[P.vc].map(n=>`<option value="${n}">${n?n+' سكيناً':'بدون قطع'}</option>`).join(''); cKn.value=String(P.kn); }
+  cVc.value=String(P.vc); fillKn();
+  cVc.addEventListener('change',()=>{ P.vc=+cVc.value; P.kn=P.vc; fillKn(); saveP(); changed(); });
+  cKn.addEventListener('change',()=>{ P.kn=+cKn.value; saveP(); log(P.kn?`السكاكين العاملة ${P.kn}: طول القطع النظري ${cutLen()} مم.`:'أُخرجت كل السكاكين: كبس بدون قطع.'); changed(); });
+
+  const cStarter=$('#cStarter'), cLabels=$('#cLabels');
+  cStarter.checked=!!P.starter; cLabels.checked=!!P.labels;
+  cStarter.addEventListener('change',()=>{P.starter=cStarter.checked;saveP();});
+  cLabels.addEventListener('change',()=>{P.labels=cLabels.checked;saveP();changed();});
+
+  $('#ptoBtn').addEventListener('click',()=>{
+    if(S.pto==='off'||S.pto==='stopping'){
+      if(S.ejecting){toast('انتظر حتى ينتهي تفريغ القناة');return;}
+      S.pto=P.starter&&S.rpm<400?'starting':'engaging';
+      log(P.starter?'تشغيل: مساعد البدء الهيدروليكي يدير الحدّافة قبل تعشيق عمود الإدارة.':'تشغيل بدون مساعد البدء: قابض الانزلاق يمتص صدمة تسريع الحدّافة.');
+    }else{ S.pto='stopping'; S.slip=0; log('إيقاف عمود الإدارة. الحدّافة تتباطأ تدريجياً.'); }
+    refreshButtons(); kick();
+  });
+  $('#pickupBtn').addEventListener('click',()=>{ S.pickup=!S.pickup; log(S.pickup?'خفض البيك أب إلى وضع العمل.':'رفع البيك أب.'); refreshButtons(); changed(); });
+  $('#unblockBtn').addEventListener('click',()=>{
+    if(!S.blocked)return;
+    S.pre=Math.min(S.pre,cmax(targetRho())*0.6); S.transit=[]; S.blocked=false;
+    if(P.speed>4){P.speed=Math.round(P.speed*0.6*2)/2; syncOuts(); saveP();}
+    log(`أُزيل الانسداد بخفض قاع القطع وتشغيل العكس. خُفّضت السرعة إلى ${P.speed.toFixed(1)} كم/س.`,'g');
+    changed();
+  });
+  $('#ejectBtn').addEventListener('click',()=>{
+    if(S.pto!=='off'||S.rpm>0||!S.flakes.length)return;
+    if(S.feed){S.loose=S.feed.done;S.feed=null;}
+    if(S.loose>0){const t=S.loose/(S.looseRho*A); S.flakes.unshift({len:t,mass:S.loose,bale:S.baleId}); S.cur.len+=t; S.cur.mass+=S.loose; S.cur.n++; S.loose=0;}
+    S.shift=0; S.tieStart=null; S.tieThis=false; S.needleU=0; S.k1=S.k2=0; S.ejecting=true;
+    log('قاذف البالة يدفع محتوى القناة إلى الخارج.'); refreshButtons(); kick();
+  });
+  $('#resetBtn').addEventListener('click',()=>{ reset(); kick(); });
+
+  if(window.ResizeObserver)new ResizeObserver(()=>{ if(visible&&cv.parentElement.clientWidth!==lastW)resize(); }).observe(cv.parentElement);
+  else window.addEventListener('resize',()=>{ if(visible)resize(); });
+  document.addEventListener('themechange',()=>{ readColors(); if(visible)draw(); });
+
+  readColors(); reset();
+  return {
+    show(){ visible=true; readColors(); resize(); refreshUI(); kick(); },
+    hide(){ visible=false; if(raf){cancelAnimationFrame(raf);raf=0;} }
+  };
+})();
+
+/* ════════════════ التبويبات ════════════════ */
+const TABS=['anatomy','parts','sim','specs'];
+function showTab(name,write){
+  if(!TABS.includes(name))name='anatomy';
+  TABS.forEach(t=>{$('#tab-'+t).hidden=t!==name;});
+  $$('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
+  if(name==='sim')Sim.show(); else Sim.hide();
+  if(name==='anatomy')Ana.resume(); else Ana.pause();
+  if(write){ try{history.replaceState(null,'','#'+name);}catch(e){} window.scrollTo(0,0); }
+}
+$$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab,true)));
+window.addEventListener('hashchange',()=>showTab(location.hash.slice(1),false));
+showTab((location.hash||'').slice(1),false);
+})();
+</script>
+</body>
+</html>
