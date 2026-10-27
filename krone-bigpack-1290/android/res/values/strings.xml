@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BiG Pack 1290</string>
+    <string name="saved">تم حفظ الملف</string>
+    <string name="save_failed">تعذّر حفظ الملف</string>
+    <string name="no_picker">لا يوجد تطبيق لاختيار الملفات على هذا الجهاز</string>
+</resources>
