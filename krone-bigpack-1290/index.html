@@ -463,8 +463,9 @@ table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
       <output id="oExplode" for="explode">0٪</output>
       <button type="button" class="btn sm primary" id="btnExplode">فكّ بالتسلسل</button>
       <button type="button" class="btn sm" id="btnAssemble">تجميع</button>
+      <button type="button" class="btn sm" id="btnUndoRm" hidden>إرجاع القطعة</button>
     </div>
-    <div class="hint" id="hint">اسحب للتدوير · إصبعان أو العجلة للتكبير · زر الفأرة الأيمن للتحريك</div>
+    <div class="hint" id="hint">اسحب للتدوير · إصبعان أو العجلة للتكبير · اضغط مرتين على قطعة لفكّها</div>
     <div id="tip3d" class="tip" hidden></div>
     <div id="selLabel" class="sel-label" hidden><span></span><i></i></div>
     <div id="loading" class="loading"><div><div class="spin"></div><b>جارٍ تحميل المجسم ثلاثي الأبعاد…</b><p class="muted small" id="loadMsg" style="margin-top:6px">يحتاج اتصالاً بالإنترنت في أول مرة لتحميل محرك العرض.</p></div></div>
@@ -1513,22 +1514,48 @@ const stripeTex=canvasTex(128,128,(g,w,h)=>{
 
 /* ═══════════ المواد ═══════════ */
 const std=(color,rough,metal,extra)=>new THREE.MeshStandardMaterial(Object.assign({color,roughness:rough,metalness:metal},extra||{}));
+const coat=(color,rough,metal)=>new THREE.MeshPhysicalMaterial({color,roughness:rough,metalness:metal,clearcoat:0.6,clearcoatRoughness:0.22});
+/* غبار الحقل وتفاوت الطلاء بإحداثيات العالم، فلا يعتمد على UV الأشكال:
+   يزداد الغبار كلما اقتربت القطعة من الأرض، ويخشّن السطح ويقلل لمعانه */
+const GRIME_GLSL=`uniform vec3 gCol; uniform float gAmt,gTop,gVar; varying vec3 vGW;
+float gH(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float gN(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(mix(gH(i),gH(i+vec3(1,0,0)),f.x),mix(gH(i+vec3(0,1,0)),gH(i+vec3(1,1,0)),f.x),f.y),
+            mix(mix(gH(i+vec3(0,0,1)),gH(i+vec3(1,0,1)),f.x),mix(gH(i+vec3(0,1,1)),gH(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float gF(vec3 p){return gN(p)*.55+gN(p*2.7)*.3+gN(p*7.3)*.15;}`;
+function grime(mat,o){
+  o=Object.assign({amt:0.5,col:0x7a6646,top:1.3,v:0.05},o);
+  mat.onBeforeCompile=sh=>{
+    Object.assign(sh.uniforms,{gCol:{value:new THREE.Color(o.col)},gAmt:{value:o.amt},gTop:{value:o.top},gVar:{value:o.v}});
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vGW;')
+      .replace('#include <project_vertex>','#include <project_vertex>\nvec4 gw=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\ngw=instanceMatrix*gw;\n#endif\nvGW=(modelMatrix*gw).xyz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n'+GRIME_GLSL)
+      .replace('#include <color_fragment>','#include <color_fragment>\nfloat gn=gF(vGW*3.1);\nfloat gd=clamp(smoothstep(gTop,0.04,vGW.y)*(.35+.85*gF(vGW*1.4+7.)),0.,1.)*gAmt;\ndiffuseColor.rgb*=1.+(gn-.5)*gVar*2.;\ndiffuseColor.rgb=mix(diffuseColor.rgb,gCol,gd);')
+      .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(roughnessFactor+gd*.5+(gn-.5)*.12,.04,1.);')
+      .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor*=1.-gd*.7;');
+  };
+  mat.customProgramCacheKey=()=>'grime'+o.amt+'|'+o.col+'|'+o.top+'|'+o.v;
+  /* clone() لا ينسخ onBeforeCompile، فنعيده حتى تبقى الأتربة على مادة التحديد والإخفاء */
+  const base=mat.clone.bind(mat); mat.clone=()=>grime(base(),o);
+  return mat;
+}
 const M={
-  paint:std(0x3d8c30,.3,.12),
-  paintDark:std(0x2e6e25,.38,.15),
-  frame:std(0x2b6623,.42,.3),
-  chamber:std(0x3a8530,.4,.25),
-  steel:std(0x9aa2a7,.32,.85),
-  steelDark:std(0x4b5258,.45,.7),
-  galv:std(0xb9c0c4,.3,.85),
+  paint:grime(coat(0x3a8a2e,.34,.12)),
+  paintDark:grime(coat(0x2d6c24,.4,.14)),
+  frame:grime(coat(0x2a6421,.45,.25),{amt:.6}),
+  chamber:grime(coat(0x388230,.42,.2)),
+  steel:grime(std(0x9aa2a7,.32,.85),{amt:.35,top:1.0}),
+  steelDark:grime(std(0x4b5258,.45,.7),{amt:.35,top:1.0}),
+  galv:grime(std(0xb9c0c4,.3,.85),{amt:.25,top:1.0,v:.08}),
   chrome:std(0xf0f2f4,.08,1),
-  cast:std(0x5e666b,.68,.45),
+  cast:grime(std(0x5e666b,.68,.45),{amt:.4}),
   knife:std(0xdfe4e7,.16,.95),
-  rubber:std(0x18191b,.88,0),
-  rim:std(0xb3b8bb,.36,.55),
+  rubber:grime(std(0x18191b,.86,0),{amt:.55,col:0x8a7756,top:0.75,v:.04}),
+  rim:grime(std(0xb3b8bb,.34,.6),{amt:.45,top:1.0}),
   plastic:std(0x1f2224,.55,.05),
   dark:std(0x0e1011,.7,.2),
   guard:std(0xe0a91a,.5,.05),
+  guardDS:Object.assign(std(0xe0a91a,.5,.05),{side:THREE.DoubleSide}),
   hose:std(0x131313,.62,0),
   white:std(0xe8ecee,.5,.05),
   tankWater:std(0xeaf2f6,.3,0,{transparent:true,opacity:.75}),
@@ -1543,9 +1570,27 @@ const M={
   workLight:std(0xf4f7ff,.2,.1,{emissive:0x8fa4c8,emissiveIntensity:.5}),
   ground:std(0xffffff,1,0,{map:groundTex})
 };
-M.steelDS=M.steel.clone(); M.steelDS.side=THREE.DoubleSide;
-M.paintDS=M.paint.clone(); M.paintDS.side=THREE.DoubleSide;
-M.rimDS=M.rim.clone(); M.rimDS.side=THREE.DoubleSide;
+M.steelDS=grime(M.steel.clone(),{amt:.35,top:1.0}); M.steelDS.side=THREE.DoubleSide;
+M.paintDS=grime(M.paint.clone()); M.paintDS.side=THREE.DoubleSide;
+M.rimDS=grime(M.rim.clone(),{amt:.45,top:1.0}); M.rimDS.side=THREE.DoubleSide;
+/* ملصقات: حروف BiG PACK ولوحات التحذير */
+function decalTex(w,h,draw){const t=canvasTex(w,h,draw); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; return t;}
+const decalMat=map=>new THREE.MeshStandardMaterial({map,transparent:true,roughness:.4,metalness:.05,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4});
+M.logo=decalMat(decalTex(2048,256,(g,w,h)=>{
+  g.clearRect(0,0,w,h); g.fillStyle='#f4f6f2'; g.textBaseline='alphabetic';
+  g.font='italic 900 200px "Arial Black","Helvetica Neue",Arial,sans-serif';
+  const w1=g.measureText('BiG PACK').width; g.font='italic 700 104px "Arial Black",Arial,sans-serif';
+  const w2=g.measureText('1290 HDP II').width, k=Math.min(1,(w-60)/(w1+90+w2));
+  g.setTransform(k,0,0,k,24,0);
+  g.font='italic 900 200px "Arial Black","Helvetica Neue",Arial,sans-serif'; g.fillText('BiG PACK',0,206);
+  g.font='italic 700 104px "Arial Black",Arial,sans-serif'; g.fillText('1290 HDP II',w1+90,200);
+  g.setTransform(1,0,0,1,0,0);
+}));
+M.warn=decalMat(decalTex(256,256,(g,w,h)=>{
+  g.clearRect(0,0,w,h); g.fillStyle='#f2c200'; g.strokeStyle='#111'; g.lineWidth=16; g.lineJoin='round';
+  g.beginPath(); g.moveTo(128,18); g.lineTo(242,228); g.lineTo(14,228); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle='#111'; g.fillRect(116,80,24,90); g.beginPath(); g.arc(128,198,14,0,TAU); g.fill();
+}));
 
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240),M.ground);
 ground.rotation.x=-PI/2; ground.receiveShadow=true; scene.add(ground);
@@ -1849,28 +1894,82 @@ let FLY;
 }
 /* عمود الإدارة: قصير من الجرار إلى علبة الزاوية في قضيب الجر، ثم عمود رئيسي مستقيم إلى الحدّافة (صفحة KRONE للـHDP II) */
 const PTO1=[V(3.2,FLYC[1],0),V(4.36,FLYC[1],0)], PTO2=[V(4.68,0.98,0),V(5.4,0.72,0)];
-function ptoShaft(A,B,g,lo,hi){
-  const d=B.clone().sub(A).normalize();
-  const a1=A.clone().addScaledVector(d,0.12), b1=B.clone().addScaledVector(d,-0.12);
-  rod(a1,b1,0.032,M.steel,g);
-  const gs=a1.clone().addScaledVector(d,lo), ge=b1.clone().addScaledVector(d,-hi);
-  rod(gs,ge,0.07,M.plastic,g,20);
-  const c1=add(cyl(0.07,0.16,'x',20,0.12),M.guard,g); c1.position.copy(gs).addScaledVector(d,-0.08); orientX(c1,d.clone().negate());
-  const c2=add(cyl(0.07,0.16,'x',20,0.12),M.guard,g); c2.position.copy(ge).addScaledVector(d,0.08); orientX(c2,d);
-  for(const P of [A,B]){const y=add(rb(0.12,0.13,0.13,0.02),M.steel,g); y.position.copy(P); orientX(y,d);}
+/* عمود الإدارة: مفصلان صليبيان، أنبوبا إدارة متداخلان، وواقٍ أسود بأجراس صفراء مضلّعة.
+   يُبنى على محور x محلي ثم يُدار باتجاه A→B */
+function ujoint(s,x){
+  for(const k of [1,-1]){
+    add(rb(0.075,0.02,0.05,0.007),M.steel,s,x-0.028,k*0.048,0);
+    add(rb(0.075,0.05,0.02,0.007),M.steel,s,x+0.028,0,k*0.048);
+    add(cyl(0.019,0.016,'y',12),M.steelDark,s,x,k*0.06,0);
+    add(cyl(0.019,0.016,'z',12),M.steelDark,s,x,0,k*0.06);
+  }
+  add(cyl(0.012,0.1,'y',8),M.steelDark,s,x,0,0); add(cyl(0.012,0.1,'z',8),M.steelDark,s,x,0,0);
+  add(cyl(0.042,0.05,'x',20),M.steel,s,x-0.08,0,0); add(cyl(0.042,0.05,'x',20),M.steel,s,x+0.08,0,0);
+}
+function ptoBell(s,x0,dir,len,r0,r1){
+  const n=Math.max(3,Math.round(len/0.032)), pr=[];
+  for(let i=0;i<=n*2;i++){const t=i/(n*2), r=r0+(r1-r0)*Math.pow(t,0.7)+(i%2&&i<n*2?0.007:0); pr.push([r,x0+dir*len*t]);}
+  pr.push([r1*0.82,x0+dir*(len+0.004)]);
+  if(dir<0)pr.reverse();
+  add(latheX(pr,28),M.guardDS,s);
+  const t=new THREE.TorusGeometry(r1+0.002,0.006,6,28); t.rotateY(PI/2); add(t,M.guard,s,x0+dir*len,0,0);
+  const eye=new THREE.TorusGeometry(0.016,0.004,6,12); add(eye,M.steel,s,x0+dir*len*0.35,-(r0+(r1-r0)*0.4)-0.012,0);
+}
+function ptoShaft(A,B,g,lo,hi,bellB){
+  const D=B.clone().sub(A), L=D.length(), s=new THREE.Group(); g.add(s);
+  s.position.copy(A); orientX(s,D);
+  const j1=0.09, j2=L-0.09, mid=L*0.5;
+  add(cyl(0.05,0.04,'x',20),M.steelDark,s,0.015,0,0); add(cyl(0.05,0.04,'x',20),M.steelDark,s,L-0.015,0,0);
+  ujoint(s,j1); ujoint(s,j2);
+  rod(V(j1+0.1,0,0),V(mid+0.12,0,0),0.024,M.galv,s,6);
+  rod(V(mid-0.12,0,0),V(j2-0.1,0,0),0.033,M.steelDark,s,6);
+  const gs=0.12+lo, ge=L-0.12-hi;
+  rod(V(gs,0,0),V(mid+0.06,0,0),0.062,M.plastic,s,28);
+  rod(V(mid-0.06,0,0),V(ge,0,0),0.055,M.plastic,s,28);
+  for(const x of [gs+0.012,mid+0.05])add(new THREE.TorusGeometry(0.063,0.004,6,28).rotateY(PI/2),M.plastic,s,x,0,0);
+  ptoBell(s,gs,-1,Math.min(0.2,gs-0.02),0.063,0.122);
+  if(bellB!==false)ptoBell(s,ge,1,Math.min(0.2,L-ge-0.02),0.056,0.122);
+  else ptoBell(s,ge,1,0.05,0.056,0.08);
+  return s;
 }
 {
   const g=pg('06-01');
   ptoShaft(PTO1[0],PTO1[1],g,0.16,0.16);
-  ptoShaft(PTO2[0],PTO2[1],g,0.1,0.3);
-  add(rb(0.34,0.26,0.24,0.04),M.paintDark,g,4.52,1.02,0);
+  ptoShaft(PTO2[0],PTO2[1],g,0.1,0.3,false);
+  /* علبة تروس الذراع: جسم مصبوب بأضلاع وأغطية محامل مثبّتة ببراغٍ */
+  const gb=new THREE.Group(); gb.position.set(4.52,1.02,0); g.add(gb);
+  add(rb(0.3,0.24,0.22,0.035),M.paintDark,gb);
+  add(rb(0.26,0.03,0.25,0.01),M.paintDark,gb,0,0.125,0);
+  for(const x of [-0.11,0.11])for(const z of [-0.11,0.11])add(cyl(0.011,0.02,'y',6),M.steel,gb,x,0.145,z);
+  for(const x of [-0.07,0,0.07])for(const s2 of [1,-1])add(rb(0.016,0.2,0.02,0.005),M.paintDark,gb,x,-0.01,s2*0.115);
+  for(const [x,r] of [[-0.18,0.085],[0.18,0.08]]){
+    add(cyl(r,0.06,'x',24),M.cast,gb,x,0,0);
+    add(cyl(r+0.012,0.012,'x',24),M.paintDark,gb,x>0?x-0.025:x+0.025,0,0);
+    for(let i=0;i<6;i++){const a=i/6*TAU+0.3; add(cyl(0.009,0.016,'x',6),M.steel,gb,x>0?x-0.035:x+0.035,Math.cos(a)*(r-0.004),Math.sin(a)*(r-0.004));}
+  }
+  add(cyl(0.022,0.03,'y',6),M.steel,gb,0.06,0.155,0.06);
+  add(cyl(0.018,0.012,'z',6),M.steel,gb,0.05,-0.07,0.118);
   add(cyl(0.09,0.08,'x',20),M.cast,g,4.33,FLYC[1],0);
-  const o=add(cyl(0.08,0.1,'x',20),M.cast,g); o.position.set(4.7,0.975,0); orientX(o,PTO2[1].clone().sub(PTO2[0]));
+  for(let i=0;i<6;i++){const a=i/6*TAU; add(cyl(0.009,0.016,'x',6),M.steel,g,4.375,FLYC[1]+Math.cos(a)*0.074,Math.sin(a)*0.074);}
   ex(g,'06-01',[1.2,-0.1,0],2);
 }
 {
-  const g=pg('06-02'), [A,B]=PTO2, d=B.clone().sub(A).normalize();
-  rod(B.clone().addScaledVector(d,-0.34),B.clone().addScaledVector(d,-0.2),0.13,M.dark,g,24);
+  /* قابض الانزلاق: صفيحتا ضغط وحزمة احتكاك تشدّها نوابض حول البراغي */
+  const g=pg('06-02'), [A,B]=PTO2, D=B.clone().sub(A), L=D.length(), s=new THREE.Group(); g.add(s);
+  s.position.copy(A); orientX(s,D);
+  const c=L-0.27;
+  add(cyl(0.13,0.026,'x',36),M.paintDark,s,c-0.045,0,0);
+  add(cyl(0.13,0.026,'x',36),M.paintDark,s,c+0.045,0,0);
+  add(cyl(0.122,0.064,'x',36),M.dark,s,c,0,0);
+  for(const x of [c-0.016,c+0.016])add(new THREE.TorusGeometry(0.123,0.004,6,36).rotateY(PI/2),M.steelDark,s,x,0,0);
+  add(cyl(0.06,0.05,'x',24),M.steel,s,c-0.085,0,0);
+  for(let i=0;i<8;i++){
+    const a=i/8*TAU+0.2, y=Math.cos(a)*0.105, z=Math.sin(a)*0.105;
+    add(cyl(0.007,0.16,'x',6),M.steel,s,c+0.01,y,z);
+    add(cyl(0.015,0.045,'x',8),M.chrome,s,c+0.08,y,z);
+    add(cyl(0.012,0.01,'x',6),M.steelDark,s,c+0.108,y,z);
+    add(cyl(0.012,0.01,'x',6),M.steelDark,s,c-0.063,y,z);
+  }
   ex(g,'06-02',[1.2,-0.1,0],2);
 }
 
@@ -2171,6 +2270,7 @@ let HOOD_F, ROOF;
   for(const [t0,sd] of [[-0.35,1],[PI/2,-1]]){const gg=new THREE.CylinderGeometry(0.62,0.62,0.3,28,1,true,t0,PI/2+0.35); gg.rotateZ(-PI/2); add(gg,M.paintDS,hf,FLYC[0],FLYC[1],0,{cut:sd>0});}
   capYZ(NOSE_B.map(([y,z])=>[z,y]).concat(NOSE_B.slice().reverse().map(([y,z])=>[-z,y])),NOSE,M.paintDS,hf);
   for(let i=0;i<5;i++)add(rb(0.012,0.035,0.62,0.004),M.dark,hf,NOSE+0.008,1.95-i*0.08,0);
+  for(const zs of [0.36,-0.36]){const w=add(new THREE.PlaneGeometry(0.15,0.15),M.warn,hf,NOSE+0.006,1.58,zs,{noShadow:true}); w.rotation.y=PI/2;}
   ex(hf,'cov-hoodF',[0.9,1.2,0],0);
   /* الألواح الجانبية الكبيرة (أبواب صناديق الخيط) */
   const boltG=cyl(0.011,0.012,'z',8);
@@ -2183,6 +2283,11 @@ let HOOD_F, ROOF;
     const bolts=new THREE.InstancedMesh(boltG,M.steel,60); let k=0;
     for(const [y,z] of [SEC[0],SEC[2],SEC[4]])for(let i=0;i<20;i++){const x=BX0+0.12+i*(BX1-BX0-0.24)/19; bolts.setMatrixAt(k++,new THREE.Matrix4().makeTranslation(x,y,s*(z+0.006)));}
     d.add(bolts);
+    /* حروف BiG PACK على الواجهة القائمة من اللوح، ولوحة تحذير قرب المقدمة */
+    const th=Math.atan2(SEC[2][1]-SEC[1][1],SEC[2][0]-SEC[1][0]), zf=y=>SEC[1][1]+(y-SEC[1][0])*Math.tan(th)+0.007;
+    const lg=add(new THREE.PlaneGeometry(3.3,0.41),M.logo,d,-0.62,1.96,s*zf(1.96),{noShadow:true}); lg.rotation.set(s*th,s>0?0:PI,0);
+    const wn=add(new THREE.PlaneGeometry(0.16,0.16),M.warn,d,1.25,1.78,s*zf(1.78),{noShadow:true}); wn.rotation.set(s*th,s>0?0:PI,0);
+    for(const xr of [-2.45,-1.05,0.55])add(rb(0.07,0.035,0.012,0.004),M.amberLens,d,xr,1.64,s*(zf(1.64)-0.002));
     capYZ([[s*0.68,1.44]].concat(SEC.map(([y,z])=>[s*z,y]),[[s*0.68,2.86]]),BX0,M.paintDS,d);
     ex(d,s>0?'cov-doorL':'cov-doorR',[0,1.15,s*1.7],0);
   }
@@ -2368,6 +2473,27 @@ function makeBale(len,parent){
   return b;
 }
 { const b=makeBale(2.35,decor); b.position.set(-8.5,0.45,0.15); b.rotation.y=0.06; }
+for(const [x,z,r] of [[-15,1.4,0.18],[-21,-0.8,-0.1],[-27,2.2,0.32],[-13,-4.5,1.45]]){const b=makeBale(2.35,decor); b.position.set(x,0.45,z); b.rotation.y=r;}
+/* سطر القش الذي تلتقطه الكبّاسة: يتحرك قوامه مع الأرض أثناء المحاكاة */
+const WR_LEN=44, WR_REP=66;
+const wrTex=strawTex.clone(); wrTex.repeat.set(5,WR_REP); wrTex.needsUpdate=true;
+{
+  const g=new THREE.CylinderGeometry(1,1,WR_LEN,22,90,true,PI/2,PI); g.rotateZ(-PI/2);
+  const pa=g.attributes.position;
+  for(let i=0;i<pa.count;i++){
+    const x=pa.getX(i), y=pa.getY(i), z=pa.getZ(i), k=0.86+0.22*Math.sin(x*1.7)*Math.cos(x*0.63+z*3)+0.08*Math.sin(x*5.1+z*7);
+    pa.setXYZ(i,x,Math.max(0,y)*0.3*k,z*0.72*(0.94+0.1*Math.sin(x*0.9)));
+  }
+  g.computeVertexNormals();
+  const w=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:wrTex,roughness:1,color:0xe9dcc0}));
+  w.position.set(2.15+WR_LEN/2,0,0); w.receiveShadow=true; w.castShadow=true; decor.add(w);
+}
+{
+  const t=canvasTex(256,128,(g,w,h)=>{const gr=g.createRadialGradient(w/2,h/2,4,w/2,h/2,w/2); gr.addColorStop(0,'rgba(0,0,0,.55)'); gr.addColorStop(.6,'rgba(0,0,0,.28)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,w,h);});
+  t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;
+  const c=new THREE.Mesh(new THREE.PlaneGeometry(11.5,4.4),new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
+  c.rotation.x=-PI/2; c.position.set(-1.0,0.006,0); c.renderOrder=-1; decor.add(c);
+}
 
 /* مواقع القطع التي لا يظهر لها شكل منفصل في المجسم */
 const ANCH={'01-13':[2.1,0.9,0.9],'02-04':[0.95,0.2,0.4],'02-11':[0.95,0.62,0.9],'02-12':[0.85,0.3,-0.55],'02-13':[0.55,0.3,-0.72],'03-05':[-0.3,0.38,0.66],'03-09':[0.62,1.05,0.62],'03-10':[-0.3,0.38,-0.8],'03-11':[-0.2,0.5,-0.8],'03-12':[-0.15,0.6,-0.7],'05-07':[-1.5,0.78,-0.72],'05-13':[-0.35,2.3,0.72],'05-17':[-0.25,2.6,0.6],'07-04':[1.72,1.42,-0.95],'07-05':[1.72,1.18,-0.95],'07-09':[-1.4,1.6,1.25],'07-10':[-4.25,1.05,0],'09-02':[5.2,1.7,0],'09-03':[5.2,1.5,0],'09-06':[-0.78,2.3,0.12],'09-07':[2.95,0.52,0.15],'09-08':[-1.8,1.6,0.67],'09-09':[-0.2,2.62,-0.5],'10-04':[-0.85,0.78,1.0],'10-05':[2.3,1.25,0.35],'10-06':[4.4,0.95,0],'11-03':[-5.95,0.85,0.72],'11-05':[-7.0,0.55,0]};
@@ -2422,7 +2548,7 @@ let mode='off', stageMode=null, E=0, Eanim=null, needleU=0, needleTarget=0, labe
 const saveHidden=()=>store.set('bp1290.hid3d',[...L.hidden]);
 
 const hlCache=new Map(), ghCache=new Map(), xrCache=new Map();
-function hl(m){let h=hlCache.get(m); if(!h){h=m.clone(); h.emissive=new THREE.Color(0xff5a1f); h.emissiveIntensity=0.5; if(h.transparent)h.opacity=Math.max(h.opacity,0.9); hlCache.set(m,h);} return h;}
+function hl(m){let h=hlCache.get(m); if(!h){h=m.clone(); h.emissive=new THREE.Color(0xff6a24); h.emissiveIntensity=0.25; if(h.transparent)h.opacity=Math.max(h.opacity,0.9); hlCache.set(m,h);} return h;}
 function ghost(m,op,cache){let g=cache.get(m); if(!g){g=new THREE.MeshLambertMaterial({color:m.color?m.color.clone():new THREE.Color(0x888888),map:m.map||null,transparent:true,opacity:op,depthWrite:false,side:m.side}); cache.set(m,g);} return g;}
 function refreshLook(){
   const coverSeeThrough=L.sel.size>0&&!L.sel.has('08-10')&&mode!=='operate';
@@ -2532,6 +2658,7 @@ function select(id,focus){
 const INTRO=`<hr class="divider"><div class="ins-sec" style="margin-top:0"><h4>طريقة الاستخدام</h4><ul style="margin:4px 0 0;padding-inline-start:18px;font-size:14px;line-height:1.8">
   <li>اسحب لتدوير المجسم، وكبّر بإصبعين أو بعجلة الفأرة.</li>
   <li>اضغط أي قطعة لترى اسمها ورقمها ووظيفتها وصيانتها.</li>
+  <li>اضغط مرتين على القطعة فتنفكّ من مكانها وتختفي، وزر «إرجاع القطعة» يعيدها.</li>
   <li>حرّك شريط «التفكيك» أو اضغط «فكّ بالتسلسل» لتفكيك الكبّاسة قطعة قطعة.</li>
   <li>«مقطع داخلي» يزيل الجهة القريبة لترى القناة والمكبس والإبر من الداخل.</li>
   <li>قسم «الأعطال والإصلاح» يفكّ المجسم خطوة بخطوة حتى القطعة المطلوبة.</li></ul></div>`;
@@ -2597,7 +2724,7 @@ $('#tree').addEventListener('click',e=>{
   const ey=e.target.closest('[data-eye]');
   if(ey){const id=ey.dataset.eye; if(L.hidden.has(id))L.hidden.delete(id); else L.hidden.add(id); saveHidden(); refreshLook(); renderTree();}
 });
-$('#showAll').addEventListener('click',()=>{L.hidden.clear(); L.hiddenParts.clear(); L.iso=null; openSys=null; saveHidden(); refreshLook(); renderTree();});
+$('#showAll').addEventListener('click',()=>{L.hidden.clear(); L.hiddenParts.clear(); removed.length=0; syncUndo(); L.iso=null; openSys=null; saveHidden(); refreshLook(); renderTree();});
 
 /* البحث */
 const sIn=$('#search3d'), sRes=$('#results3d');
@@ -2617,6 +2744,42 @@ sIn.addEventListener('keydown',e=>{
 sRes.addEventListener('click',e=>{const b=e.target.closest('[data-goto]'); if(b)pickResult(b.dataset.goto);});
 document.addEventListener('click',e=>{if(!e.target.closest('.search'))sRes.hidden=true;});
 
+/* الضغط مرتين على قطعة: تنفكّ من مكانها ثم تختفي، وزر «إرجاع القطعة» يعيدها بالترتيب */
+const removed=[], fades=[]; let lastTap={id:null,t:0};
+function syncUndo(){const b=$('#btnUndoRm'); b.hidden=!removed.length; b.textContent=removed.length>1?`إرجاع القطع (${removed.length})`:'إرجاع القطعة';}
+function removePart(id){
+  if(!PG[id]||fades.some(f=>f.id===id))return;
+  const moves=EXP.some(e=>e.part===id||e.key===id);
+  if(moves)L.forced.add(id);
+  if(L.sel.size)clearSel();
+  const meshes=MESHES.filter(m=>m.userData.part===id&&m.visible);
+  /* القطع التي لا تتحرك مع التفكيك تُسحب بعيداً عن مركز الكبّاسة وللأعلى */
+  let lift=null;
+  if(!moves&&meshes.length){
+    model.updateMatrixWorld(true);
+    const box=new THREE.Box3(); meshes.forEach(m=>box.expandByObject(m));
+    const c=box.getCenter(V(0,0,0)), dir=c.clone().sub(V(-0.6,0.9,0)); dir.x*=0.4; dir.y=Math.max(dir.y,0)+0.6; dir.normalize().multiplyScalar(0.7);
+    lift=meshes.map(m=>{const p0=m.parent.worldToLocal(c.clone()), p1=m.parent.worldToLocal(c.clone().add(dir)); return {m,home:m.position.clone(),d:p1.sub(p0)};});
+  }
+  fades.push({id,meshes,lift,t:0,delay:moves?0.5:0,d:moves?0.35:0.55,mats:null}); dirty();
+}
+function stepFades(dt){
+  for(let i=fades.length-1;i>=0;i--){
+    const f=fades[i]; f.t+=dt; const q=clamp((f.t-f.delay)/f.d,0,1);
+    if(q>0&&!f.mats)f.mats=f.meshes.map(m=>{const c=m.material.clone(); c.transparent=true; c.depthWrite=false; return c;});
+    if(f.mats)f.meshes.forEach((m,j)=>{m.material=f.mats[j]; f.mats[j].opacity=1-q*q;});
+    if(f.lift)f.lift.forEach(o=>o.m.position.copy(o.home).addScaledVector(o.d,ease(q)));
+    if(q>=1){
+      fades.splice(i,1);
+      if(f.lift)f.lift.forEach(o=>o.m.position.copy(o.home));
+      L.hiddenParts.add(f.id); L.forced.delete(f.id); removed.push(f.id);
+      refreshLook(); f.mats.forEach(c=>c.dispose()); syncUndo(); toast(`فُكّت «${PART[f.id].ar}» وأُخفيت`);
+    }
+  }
+  return fades.length>0;
+}
+$('#btnUndoRm').addEventListener('click',()=>{const id=removed.pop(); if(!id)return; L.hiddenParts.delete(id); refreshLook(); syncUndo(); toast(`أُرجعت «${PART[id].ar}»`);});
+
 /* اللمس والفأرة على المجسم */
 let down=null, hoverT=0;
 const tip=$('#tip3d');
@@ -2625,7 +2788,12 @@ canvas.addEventListener('pointerup',e=>{
   if(!down)return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y), dtm=performance.now()-down.t; down=null;
   if(moved>6||dtm>650||e.button>0)return;
   const id=pick(e.clientX,e.clientY);
-  if(mode==='explore'){ if(id)select(id,false); else clearSel(); }
+  if(mode==='explore'){
+    const now=performance.now();
+    if(id&&lastTap.id===id&&now-lastTap.t<400){lastTap={id:null,t:0}; removePart(id); return;}
+    lastTap={id,t:now};
+    if(id)select(id,false); else clearSel();
+  }
   else if(id){const p=PART[id]; toast(`${p.ar} · ${serial(id)}`);}
 });
 canvas.addEventListener('pointermove',e=>{
@@ -2957,7 +3125,7 @@ const Sim=(function(){
     _q.identity();
     partIM.count=k; partIM.instanceMatrix.needsUpdate=true;
     /* الأرض والسطر */
-    groundTex.offset.x=(S.ground/4)%1;
+    groundTex.offset.x=(S.ground/4)%1; wrTex.offset.y=(S.ground*WR_REP/WR_LEN)%1;
     swathTex.offset.y=(S.ground/1.5)%1;
     const hs=0.25+P.swath*0.07; swathF.scale.set(1,hs,1); swathB.scale.set(1,hs,1); swathB.visible=!S.pickup;
   }
@@ -3079,7 +3247,7 @@ const Sim=(function(){
     enter(){op.visible=true; setKnives(P.kn,P.vc); visuals(); refreshUI(); flyTo(V(-1.2,1.25,0),V(2.4,3.0,camera.aspect<1?17:13));},
     exit(){
       op.visible=false; if(S.pto!=='off'){S.pto='off'; S.rpm=0; S.slip=0; refreshButtons();}
-      groundTex.offset.x=0; setMech(PHI); setVfs(0.4,false); setRot('needle','z',0); setRot('wheel','z',0); setKnives(26,26); FLAP.rotation.z=0;
+      groundTex.offset.x=0; wrTex.offset.y=0; setMech(PHI); setVfs(0.4,false); setRot('needle','z',0); setRot('wheel','z',0); setKnives(26,26); FLAP.rotation.z=0;
     },
     frame(dt){
       let d=dt*P.simSpeed, guard=0;
@@ -3128,9 +3296,10 @@ function loop(){
   if(controls.update())act=true;
   if(stepCam(dt))act=true;
   if(stepExplode(dt))act=true;
+  if(stepFades(dt))act=true;
   if(mode!=='operate'&&Math.abs(needleU-needleTarget)>1e-3){needleU+=clamp(needleTarget-needleU,-dt*1.2,dt*1.2); setRot('needle','z',NDL.max*ease(needleU)); act=true;}
   if(mode==='operate'){Sim.frame(dt); act=true;}
-  if(L.sel.size&&!reduceMotion){pulseT+=dt; const k=0.3+0.3*(0.5+0.5*Math.sin(pulseT*4)); hlCache.forEach(m=>{m.emissiveIntensity=k;}); act=true;}
+  if(L.sel.size&&!reduceMotion){pulseT+=dt; const k=0.12+0.24*(0.5+0.5*Math.sin(pulseT*4)); hlCache.forEach(m=>{m.emissiveIntensity=k;}); act=true;}
   if(marker.visible){pulseT+=dt*0.2; marker.scale.setScalar(1+0.25*Math.sin(pulseT*5)); mk2.lookAt(camera.position); act=true;}
   if(act||needsRender){const t0=performance.now(); renderer.render(scene,camera); needsRender=false; updateLabel(); adapt(performance.now()-t0+dt*0);}
 }
