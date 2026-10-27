@@ -202,6 +202,15 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 .t-parts button:hover{background:var(--panel-2)}
 .t-parts button.cur{color:var(--sel);font-weight:700}
 .t-parts .n{font:11.5px var(--font-mono);color:var(--muted);min-width:22px}
+.t-parts.long{max-height:340px;overflow:auto}
+.t-parts button.miss{opacity:.5}
+.t-parts button.miss::after{content:"غير موجودة";margin-inline-start:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+.xmap{display:grid;gap:4px;margin-top:10px}
+.xmap label{font-size:12px;color:var(--muted)}
+.xmap select{width:100%}
+.xnodes{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.xnodes span{font:12px var(--font-mono);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#xInfo{line-height:1.75}
 .note{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:14px}
 
 /* repair */
@@ -380,6 +389,17 @@ table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
       <div class="p-h"><h2>شجرة المجسم</h2><button type="button" class="btn sm ghost" id="showAll">إظهار الكل</button></div>
       <ul class="tree" id="tree"></ul>
       <p class="note">المجسم مبني بالقياسات المنشورة للماكينة (قناة 120 × 90 سم، دوّار 720 مم، بيك أب 2.35 م، 8 عقّادات). شكل القطع الداخلية توضيحي، فارجع لكتيب المشغل في القياسات الدقيقة وعزوم الشد.</p>
+      <hr class="divider">
+      <div class="p-h"><h2>مجسم خارجي GLB</h2><span class="muted small" id="xState">غير محمّل</span></div>
+      <p class="muted small">حمّل من جهازك مجسماً بصيغة GLB تملك حق استخدامه. كل عقدة فيه تصير قطعة تُحدَّد وتُخفى وتُفكّ، وتُربط بقطع الكتالوج تلقائياً من اسمها أو يدوياً. الملف يبقى على جهازك.</p>
+      <div class="btn-row" id="xTools">
+        <button type="button" class="btn sm" id="xPick">استيراد GLB</button><input type="file" id="xFile" accept=".glb,.gltf" hidden>
+        <button type="button" class="btn sm" id="xToggle" hidden>عرض المجسم المبني</button>
+        <button type="button" class="btn sm ghost" id="xRot" hidden>تدوير ربع دورة</button>
+        <button type="button" class="btn sm ghost" id="xDel" hidden>حذف المجسم</button>
+        <button type="button" class="btn sm ghost" id="xExport">تصدير المجسم المبني GLB</button>
+      </div>
+      <div id="xInfo" class="small"></div>
     </section>
 
     <!-- الأعطال والإصلاح -->
@@ -1388,7 +1408,7 @@ function showTab(name,write){
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab,true)));
 window.addEventListener('hashchange',()=>showTab(location.hash.slice(1),false));
 
-window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock};
+window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock,Modal};
 showTab((location.hash||'').slice(1),false);
 
 /* إذا لم يُحمّل محرك العرض خلال 20 ثانية تظهر رسالة واضحة */
@@ -2543,7 +2563,13 @@ model.traverse(o=>{
   MESHES.push(o);
 });
 
+SYS.XM={id:'XM',ar:'عقد غير مربوطة بالكتالوج',en:'Unmapped model nodes',color:'#8d96a0'};
 const L={covers:true,cut:false,xray:false,hidden:new Set((store.get('bp1290.hid3d',[])||[]).filter(id=>SYS[id])),hiddenParts:new Set(),iso:null,sel:new Set(),forced:new Set()};
+/* المجسم المستورد (GLB): on تعني أنه المعروض الآن بدل المجسم المبني */
+const XM={loaded:false,want:true,on:false,trip:false,root:null,inner:null,parser:null,name:'',sig:'',rot:0,ids:[],has:new Set(),recs:new Map(),parts:[],lastKey:null,nodeCount:0,tris:0,refBox:new THREE.Box3().setFromObject(model)};
+const isAct=m=>XM.on?!!m.userData.xm:!m.userData.xm;
+const hasGeo=id=>XM.on?XM.has.has(id):!!PG[id];
+const XCUT=[new THREE.Plane(new THREE.Vector3(0,0,-1),0)];
 let mode='off', stageMode=null, E=0, Eanim=null, needleU=0, needleTarget=0, labelId=null;
 const saveHidden=()=>store.set('bp1290.hid3d',[...L.hidden]);
 
@@ -2564,6 +2590,7 @@ function refreshLook(){
     if(id&&L.sel.has(id))mat=hl(base);
     else if(L.iso&&!(id&&L.iso.has(id)))mat=ghost(base,0.07,ghCache);
     else if(L.xray||(m.userData.cover&&coverSeeThrough))mat=ghost(base,0.2,xrCache);
+    if(m.userData.xm){const cut=L.cut&&!XM.trip, sd=cut?THREE.DoubleSide:base.userData.side0; mat.clippingPlanes=cut?XCUT:null; if(mat.side!==sd){mat.side=sd; mat.needsUpdate=true;}}
     m.material=mat; m.castShadow=mat===base||mat.emissive===undefined||!mat.transparent;
   }
   dirty();
@@ -2596,8 +2623,9 @@ function stepCam(dt){
 function partBox(ids){
   const box=new THREE.Box3();
   model.updateMatrixWorld(true);
-  for(const m of MESHES)if(ids.includes(m.userData.part))box.expandByObject(m);
-  for(const id of ids)if(!PG[id]&&ANCH[id])box.expandByPoint(V(...ANCH[id]));
+  if(XM.on)XM.root.updateMatrixWorld(true);
+  for(const m of MESHES)if(isAct(m)&&ids.includes(m.userData.part))box.expandByObject(m);
+  if(!XM.on)for(const id of ids)if(!PG[id]&&ANCH[id])box.expandByPoint(V(...ANCH[id]));
   return box;
 }
 function focusIds(ids){
@@ -2628,7 +2656,7 @@ const mkMat=new THREE.MeshBasicMaterial({color:0xff5a1f,depthTest:false,transpar
 const mk1=new THREE.Mesh(new THREE.SphereGeometry(0.045,16,12),mkMat);
 const mk2=new THREE.Mesh(new THREE.TorusGeometry(0.11,0.012,8,32),mkMat);
 marker.add(mk1,mk2); marker.renderOrder=10; mk1.renderOrder=mk2.renderOrder=10; marker.visible=false; scene.add(marker);
-function setMarker(ids){const a=(ids||[]).find(id=>!PG[id]&&ANCH[id]); marker.visible=!!a; if(a)marker.position.set(...ANCH[a]); dirty();}
+function setMarker(ids){const a=XM.on?null:(ids||[]).find(id=>!PG[id]&&ANCH[id]); marker.visible=!!a; if(a)marker.position.set(...ANCH[a]); dirty();}
 
 /* ═══════════ التحديد ═══════════ */
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
@@ -2637,12 +2665,14 @@ function pick(cx,cy){
   const r=canvas.getBoundingClientRect();
   ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
   ray.setFromCamera(ndc,camera);
-  for(const h of ray.intersectObject(model,true)){
+  for(const h of ray.intersectObject(XM.on?XM.root:model,true)){
     const o=h.object, id=o.userData.part;
     if(!id||!shown(o))continue;
     if(o.material.transparent&&o.material.opacity<0.3&&!L.sel.has(id))continue;
+    pick.key=o.userData.xkey||null;
     return id;
   }
+  pick.key=null;
   return null;
 }
 function select(id,focus){
@@ -2665,18 +2695,22 @@ const INTRO=`<hr class="divider"><div class="ins-sec" style="margin-top:0"><h4>�
 function clearSel(){L.sel=new Set(); labelId=null; refreshLook(); $('#partView').innerHTML=INTRO; marker.visible=false; renderTree(); try{localStorage.removeItem('bp1290.sel3d');}catch(e){}}
 
 const eye=on=>'<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M1.5 10S5 4 10 4s8.5 6 8.5 6-3.5 6-8.5 6S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/>'+(on?'<circle cx="10" cy="10" r="2.6" fill="currentColor"/>':'<path d="M3 17 17 3" stroke="currentColor" stroke-width="1.6"/>')+'</svg>';
-function renderPartView(id){
-  const p=PART[id], s=SYS[p.sys], cat=BP.getCatalog()[id]||'';
-  const sec=(h,t)=>t?`<section class="ins-sec"><h4>${h}</h4><p>${esc(t)}</p></section>`:'';
+function actRow(id,table){
   const isoOn=L.iso&&L.iso.size===1&&L.iso.has(id), pulled=L.forced.has(id);
-  $('#partView').innerHTML=`<hr class="divider"><div class="ins-head"><span class="sys-chip" style="--c:${s.color}">${esc(s.ar)}</span><h3>${esc(p.ar)}</h3><div class="ins-en">${esc(p.en)}${p.de?' · '+esc(p.de):''}</div></div>
-    <div class="act-row">
+  return `<div class="act-row">
       <button type="button" class="btn sm" data-act="focus">تقريب</button>
       <button type="button" class="btn sm" data-act="iso" aria-pressed="${isoOn}">${isoOn?'إلغاء العزل':'عزل القطعة'}</button>
-      ${EXP.some(e=>e.part===id)?`<button type="button" class="btn sm" data-act="pull" aria-pressed="${pulled}">${pulled?'إرجاع لمكانها':'فكّ القطعة'}</button>`:''}
+      ${EXP.some(e=>e.part===id&&!!e.xm===XM.on)?`<button type="button" class="btn sm" data-act="pull" aria-pressed="${pulled}">${pulled?'إرجاع لمكانها':'فكّ القطعة'}</button>`:''}
       <button type="button" class="btn sm" data-act="hide">إخفاء</button>
-      <button type="button" class="btn sm ghost" data-act="table">في جدول القطع</button>
-    </div>
+      ${table?'<button type="button" class="btn sm ghost" data-act="table">في جدول القطع</button>':''}
+    </div>`;
+}
+function renderPartView(id){
+  const p=PART[id], s=SYS[p.sys], cat=BP.getCatalog()[id]||'';
+  if(p.x){$('#partView').innerHTML=xNodeView(id); return;}
+  const sec=(h,t)=>t?`<section class="ins-sec"><h4>${h}</h4><p>${esc(t)}</p></section>`:'';
+  $('#partView').innerHTML=`<hr class="divider"><div class="ins-head"><span class="sys-chip" style="--c:${s.color}">${esc(s.ar)}</span><h3>${esc(p.ar)}</h3><div class="ins-en">${esc(p.en)}${p.de?' · '+esc(p.de):''}</div></div>
+    ${actRow(id,true)}
     <dl class="facts">
       <div><dt>الرقم التسلسلي</dt><dd class="mono" dir="ltr" style="text-align:right">${serial(id)}</dd></div>
       <div><dt>الكمية في الماكينة</dt><dd>${esc(p.q||'1')}</dd></div>
@@ -2685,7 +2719,7 @@ function renderPartView(id){
       <div><dt>النظام</dt><dd class="mono">${p.sys}</dd></div>
     </dl>
     ${BP.kcatBlock(id)}
-    ${PG[id]?'':'<p class="cat-empty" style="color:var(--muted)">هذه القطعة داخلية أو صغيرة ولا تظهر كشكل منفصل، والعلامة البرتقالية في المجسم تدل على مكانها.</p>'}
+    ${XM.on?xPartBlock(id):PG[id]?'':'<p class="cat-empty" style="color:var(--muted)">هذه القطعة داخلية أو صغيرة ولا تظهر كشكل منفصل، والعلامة البرتقالية في المجسم تدل على مكانها.</p>'}
     ${sec('الوظيفة',p.fn)}${sec('المواصفات',p.sp)}${sec('الصيانة والفحص',p.mt)}${sec('أعطال شائعة',p.fl)}`;
 }
 function saveCat(){const inp=$('#catInput'), id=[...L.sel][0]; if(!inp||!id)return; BP.setCatalog(id,inp.value); renderPartView(id); toast(BP.getCatalog()[id]?'تم حفظ رقم الكتالوج':'تم مسح رقم الكتالوج');}
@@ -2701,15 +2735,19 @@ $('#partView').addEventListener('click',e=>{
   else if(a==='table'){BP.showTab('parts',true); const s=$('#pSearch'); s.value=serial(id); s.dispatchEvent(new Event('input'));}
 });
 $('#partView').addEventListener('keydown',e=>{if(e.target.id==='catInput'&&e.key==='Enter'){e.preventDefault();saveCat();}});
+$('#partView').addEventListener('change',e=>{if(e.target.id==='xMapSel')xSetMap(e.target.dataset.key,e.target.value);});
 ['catalogchange','machinechange'].forEach(ev=>document.addEventListener(ev,()=>{const id=[...L.sel][0]; if(id&&stageMode==='explore'&&document.activeElement!==$('#catInput'))renderPartView(id);}));
 
 /* شجرة المجسم */
 let openSys=null;
+const partsOfSys=sid=>sid==='XM'?XM.ids.map(i=>PART[i]):PARTS.filter(p=>p.sys===sid);
 function renderTree(){
-  const cur=[...L.sel][0];
-  $('#tree').innerHTML=SYSTEMS.map(s=>{
-    const ps=PARTS.filter(p=>p.sys===s.id), off=L.hidden.has(s.id), open=openSys===s.id;
-    return `<li class="${open?'open':''}${off?' off':''}" style="--c:${s.color}"><div class="t-row"><button type="button" class="t-name" data-sys="${s.id}" aria-expanded="${open}"><span class="dot"></span><span>${esc(s.ar)}</span><span class="cnt">${ps.length}</span></button><button type="button" class="eye" data-eye="${s.id}" aria-pressed="${!off}" aria-label="${off?'إظهار':'إخفاء'} ${esc(s.ar)}">${eye(!off)}</button></div>${open?`<ul class="t-parts">${ps.map(p=>`<li><button type="button" data-part="${p.id}" class="${p.id===cur?'cur':''}"><span class="n">${p.n}</span>${esc(p.ar)}</button></li>`).join('')}</ul>`:''}</li>`;
+  const cur=[...L.sel][0], list=XM.on&&XM.ids.length?SYSTEMS.concat([SYS.XM]):SYSTEMS;
+  $('#tree').innerHTML=list.map(s=>{
+    const ps=partsOfSys(s.id), off=L.hidden.has(s.id), open=openSys===s.id;
+    const cnt=XM.on&&s.id!=='XM'?`${ps.filter(p=>XM.has.has(p.id)).length}/${ps.length}`:ps.length;
+    const cls=p=>(p.id===cur?'cur':'')+(XM.on&&!p.x&&!XM.has.has(p.id)?' miss':'');
+    return `<li class="${open?'open':''}${off?' off':''}" style="--c:${s.color}"><div class="t-row"><button type="button" class="t-name" data-sys="${s.id}" aria-expanded="${open}"><span class="dot"></span><span>${esc(s.ar)}</span><span class="cnt">${cnt}</span></button><button type="button" class="eye" data-eye="${s.id}" aria-pressed="${!off}" aria-label="${off?'إظهار':'إخفاء'} ${esc(s.ar)}">${eye(!off)}</button></div>${open?`<ul class="t-parts${ps.length>40?' long':''}">${ps.map(p=>`<li><button type="button" data-part="${p.id}" class="${cls(p)}"><span class="n">${p.n}</span>${esc(p.ar)}</button></li>`).join('')}</ul>`:''}</li>`;
   }).join('');
 }
 $('#tree').addEventListener('click',e=>{
@@ -2718,7 +2756,7 @@ $('#tree').addEventListener('click',e=>{
   if(sb){
     const id=sb.dataset.sys;
     if(openSys===id){openSys=null; L.iso=null;}
-    else{openSys=id; if(L.hidden.has(id)){L.hidden.delete(id);saveHidden();} L.iso=new Set(PARTS.filter(p=>p.sys===id).map(p=>p.id)); focusIds([...L.iso]);}
+    else{openSys=id; if(L.hidden.has(id)){L.hidden.delete(id);saveHidden();} L.iso=new Set(partsOfSys(id).map(p=>p.id)); focusIds([...L.iso]);}
     refreshLook(); renderTree(); return;
   }
   const ey=e.target.closest('[data-eye]');
@@ -2730,7 +2768,7 @@ $('#showAll').addEventListener('click',()=>{L.hidden.clear(); L.hiddenParts.clea
 const sIn=$('#search3d'), sRes=$('#results3d');
 function renderResults(){
   const q=sIn.value; if(!q.trim()){sRes.hidden=true;sRes.innerHTML='';return;}
-  const list=PARTS.filter(p=>matchPart(p,q)).slice(0,10);
+  const list=(XM.on?PARTS.concat(XM.ids.map(i=>PART[i])):PARTS).filter(p=>matchPart(p,q)).slice(0,10);
   sRes.innerHTML=list.length?list.map(p=>`<li><button type="button" data-goto="${p.id}"><span class="rid">${serial(p.id)}</span><span>${esc(p.ar)}</span></button></li>`).join(''):'<li class="muted small" style="padding:8px">لا توجد نتائج. جرّب اسماً آخر أو رقماً مثل 05-01.</li>';
   sRes.hidden=false;
 }
@@ -2748,11 +2786,11 @@ document.addEventListener('click',e=>{if(!e.target.closest('.search'))sRes.hidde
 const removed=[], fades=[]; let lastTap={id:null,t:0};
 function syncUndo(){const b=$('#btnUndoRm'); b.hidden=!removed.length; b.textContent=removed.length>1?`إرجاع القطع (${removed.length})`:'إرجاع القطعة';}
 function removePart(id){
-  if(!PG[id]||fades.some(f=>f.id===id))return;
+  if(!hasGeo(id)||fades.some(f=>f.id===id))return;
   const moves=EXP.some(e=>e.part===id||e.key===id);
   if(moves)L.forced.add(id);
   if(L.sel.size)clearSel();
-  const meshes=MESHES.filter(m=>m.userData.part===id&&m.visible);
+  const meshes=MESHES.filter(m=>m.userData.part===id&&m.visible&&isAct(m));
   /* القطع التي لا تتحرك مع التفكيك تُسحب بعيداً عن مركز الكبّاسة وللأعلى */
   let lift=null;
   if(!moves&&meshes.length){
@@ -2780,6 +2818,248 @@ function stepFades(dt){
 }
 $('#btnUndoRm').addEventListener('click',()=>{const id=removed.pop(); if(!id)return; L.hiddenParts.delete(id); refreshLook(); syncUndo(); toast(`أُرجعت «${PART[id].ar}»`);});
 
+/* ═══════════ مجسم خارجي بصيغة GLB ═══════════
+   يحمّله المستخدم من جهازه ويُحفظ في IndexedDB على الجهاز نفسه. كل عقدة فيه تصير قطعة: تُربط بقطعة من
+   الكتالوج إذا كان في اسمها رقم القطعة (مثل 05-01) أو كلمة معروفة (knotter, needle, flywheel…)، أو يربطها
+   المستخدم يدوياً، وما لا يُربط يظهر في الشجرة تحت «عقد غير مربوطة بالكتالوج». */
+const XKW=[
+  [/\bsteering (cylinder|rod)|\baxle lock/,'08-09'], [/\bbrake|\bdrum\b|bremse/,'08-08'],
+  [/\bknotter ?(shaft|drive)|\bswing ?arm/,'05-08'], [/\bbill ?hook/,'05-02'], [/\bknott?er|knoten/,'05-01'],
+  [/\bneedle|\bnadel/,'05-05'], [/\btwine ?box|garnkasten/,'05-14'], [/\btwine|\bgarn\b|\bspool/,'05-15'],
+  [/power ?clean|\bturbine|\bfan\b/,'05-16'], [/\btines?\b|zinken/,'01-02'], [/\bfeed ?roller/,'01-04'],
+  [/\b(press|crop) ?roller/,'01-05'], [/\bauger|schnecke/,'01-08'], [/\b(pu|pick ?up) ?wheel|\bcaster/,'01-06'],
+  [/\bpick ?up/,'01-01'], [/\bknife|\bknives|messer/,'02-03'], [/\brotor/,'02-01'], [/\bdrop ?floor/,'02-07'],
+  [/\bpacker|\bvfs\b/,'03-02'], [/\bfeeder|\bstuffer/,'03-03'], [/\bplunger|\bkolben|\bram\b/,'04-01'],
+  [/\bcon(necting)? ?rod|pleuel/,'04-05'], [/\bcrank|kurbel/,'04-06'], [/\bdensity|\bflaps?\b|klappe/,'04-08'],
+  [/\bchamber|presskanal/,'04-07'], [/\bfly ?wheel|schwungrad/,'06-04'], [/\bslip ?clutch/,'06-02'],
+  [/\bgear ?box|getriebe/,'06-06'], [/\bpto\b|gelenkwelle|\bdrive ?shaft/,'06-01'],
+  [/\bhoses?\b|hydraulic ?connector|schlauch|\bcoupling/,'07-07'], [/\bpump/,'07-01'],
+  [/\bdrawbar|deichsel/,'08-02'], [/\bhitch|attacher ?joint/,'08-03'], [/\bsupport ?(leg|jack|stamp|foot)|\bjack\b|st(ue|ü)tz/,'08-04'],
+  [/\baxle|achse/,'08-05'], [/\bleaf ?spring|\bbogie/,'08-06'], [/\bwheels?\b|\btyres?\b|\btires?\b|\brims?\b|reifen|felge/,'08-07'],
+  [/\bmud ?guard|\bfender/,'08-15'], [/\bcover|\bhood|\bguard|\bpanel|\bdoors?\b|haube/,'08-10'],
+  [/\blights?\b|\blamp|\bbeacon|\bmarker|\breflector|leuchte/,'08-11'], [/\bladder|\bplatform|\brailing|leiter/,'08-12'],
+  [/\bwater ?tank|\bsoap/,'08-13'], [/\btool ?box/,'08-14'], [/\bcamera|kamera/,'09-05'],
+  [/\bbale ?collect|accumulator/,'11-05'], [/\bejector/,'11-02'], [/\bchute|rutsche/,'11-01'], [/\bframe\b|\bchassis|rahmen/,'08-01']
+];
+const xnorm=t=>String(t||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[_.\-]+/g,' ').replace(/([a-zA-Z])(\d)/g,'$1 $2').toLowerCase();
+function xGuessName(t){
+  const m=String(t||'').match(/(?:^|\D)(\d\d-\d\d)(?!\d)/); if(m&&PART[m[1]]&&!PART[m[1]].x)return m[1];
+  const n=xnorm(t); if(!n)return null;
+  for(const [re,id] of XKW)if(re.test(n))return id;
+  return null;
+}
+const xMapKey=()=>'bp1290.xmap.'+XM.sig;
+const xTris=g=>Math.round((g.index?g.index.count:g.attributes.position.count)/3);
+const xLabel=n=>n.name||'عقدة بلا اسم';
+function xPath(n){const a=[]; for(let o=n;o&&o!==XM.inner;o=o.parent)if(o.name)a.unshift(o.name); return a.join(' › ');}
+
+/* يُسنِد لكل شكل قطعة ويبني بيانات التفكيك. يُعاد استدعاؤه بعد كل تغيير في الربط اليدوي */
+function xRegister(){
+  const assoc=XM.parser.associations, map=store.get(xMapKey(),{});
+  const nodeOf=o=>{for(let n=o;n&&n!==XM.inner;n=n.parent){const a=assoc.get(n); if(a&&a.nodes!==undefined)return n;} return o;};
+  const keyOf=n=>{const a=assoc.get(n); return a&&a.nodes!==undefined?'n'+a.nodes:'u'+n.id;};
+  /* اسم الأب يُورَّث لعقده غير المسماة، إلا الأب الذي يحوي معظم المجسم (مثل عقدة الجذر Baler_Frame) */
+  const cnt=new Map(); let total=0;
+  XM.inner.traverse(o=>{if(!o.isMesh)return; total++; for(let q=o;q&&q!==XM.inner;q=q.parent)cnt.set(q,(cnt.get(q)||0)+1);});
+  const resolve=n=>{let d=0; for(let o=n;o&&o!==XM.inner&&d<4;o=o.parent,d++){const k=keyOf(o); if(k in map)return map[k]||null; if(o!==n&&cnt.get(o)>Math.max(1,total*0.6))continue; const g=xGuessName(o.name); if(g)return g;} return null;};
+  XM.recs=new Map(); XM.parts=[]; XM.ids=[]; XM.has=new Set(); XM.tris=0;
+  const byNode=new Map(), xid=new Map(); let k=0;
+  XM.inner.traverse(o=>{
+    if(!o.isMesh)return;
+    o.castShadow=o.receiveShadow=true;
+    const nd=nodeOf(o), key=keyOf(nd);
+    let id=resolve(nd), part=nd;
+    /* القطعة المربوطة تتحرك كمجموعة واحدة: نصعد إلى أعلى أب يُربط بالقطعة نفسها */
+    if(id){for(let q=nd.parent;q&&q!==XM.inner&&resolve(q)===id;q=q.parent)part=q;}
+    else if(xid.has(key))id=xid.get(key);
+    else{id='XM-'+(++k); xid.set(key,id); PART[id]={id,ar:xLabel(nd),en:xPath(nd)||xLabel(nd),q:'1',t:'c',sys:'XM',n:k,x:true,key}; XM.ids.push(id);}
+    if(!XM.recs.has(key))XM.recs.set(key,{key,node:nd,id,meshes:[]});
+    XM.recs.get(key).meshes.push(o);
+    let pr=byNode.get(part); if(!pr){pr={node:part,id,meshes:[]}; byNode.set(part,pr); XM.parts.push(pr);}
+    pr.meshes.push(o);
+    if(!PART[id].x)XM.has.add(id);
+    const ud=o.userData;
+    if(!ud.xm){ud.base=o.material; if(ud.base.userData.side0===undefined)ud.base.userData.side0=ud.base.side; ud.xflags={cover:!!(ud.cover||nd.userData.cover),cut:!!(ud.cut||nd.userData.cut)};}
+    ud.part=id; ud.xm=1; ud.xkey=key; ud.cover=ud.xflags.cover||id==='08-10'; ud.cut=ud.xflags.cut;
+    XM.tris+=xTris(o.geometry);
+    MESHES.push(o);
+  });
+  XM.nodeCount=XM.recs.size;
+  /* التفكيك: كل عقدة تبتعد عن مركز المجسم، والأبعد عن المركز يُفكّ أولاً */
+  XM.root.updateMatrixWorld(true);
+  const all=new THREE.Box3().setFromObject(XM.inner), C=all.getCenter(V(0,0,0)), R=Math.max(0.4,all.getSize(V(0,0,0)).length()/2);
+  for(const pr of XM.parts){const b=new THREE.Box3(); pr.meshes.forEach(m=>b.expandByObject(m)); pr.c=b.getCenter(V(0,0,0)); pr.d=pr.c.distanceTo(C);}
+  const order=[...XM.parts].sort((a,b)=>b.d-a.d);
+  order.forEach((pr,i)=>{
+    const w=pr.c.clone().sub(C); w.x*=0.7; w.z*=1.35; w.y=w.y*0.9+0.04*R;
+    if(w.lengthSq()<1e-6)w.set(0,1,0);
+    w.normalize().multiplyScalar(0.22*R+0.55*pr.d);
+    const p0=pr.node.parent.worldToLocal(pr.c.clone()), p1=pr.node.parent.worldToLocal(pr.c.clone().add(w));
+    EXP.push({key:'x'+pr.node.id,obj:pr.node,home:pr.node.position.clone(),v:p1.sub(p0),layer:pr.id==='08-10'?0:Math.min(NL-1,Math.floor(i/order.length*NL)),cur:0,part:pr.id,xm:1});
+  });
+}
+function xUnregister(){
+  for(const e of EXP)if(e.xm)e.obj.position.copy(e.home);
+  for(const m of MESHES)if(m.userData.xm){m.material=m.userData.base; m.material.clippingPlanes=null; if(m.material.side!==m.material.userData.side0){m.material.side=m.material.userData.side0; m.material.needsUpdate=true;}}
+  for(let i=MESHES.length-1;i>=0;i--)if(MESHES[i].userData.xm)MESHES.splice(i,1);
+  for(let i=EXP.length-1;i>=0;i--)if(EXP[i].xm)EXP.splice(i,1);
+  const gone=new Set(XM.ids); XM.ids.forEach(id=>{delete PART[id];});
+  fades.length=0;
+  for(let i=removed.length-1;i>=0;i--)if(gone.has(removed[i]))removed.splice(i,1);
+  gone.forEach(id=>{L.hiddenParts.delete(id); L.forced.delete(id);});
+  if([...L.sel].some(id=>gone.has(id)))L.sel=new Set();
+  if(L.iso&&[...L.iso].some(id=>gone.has(id)))L.iso=null;
+  if(openSys==='XM')openSys=null;
+  XM.ids=[]; XM.has=new Set(); XM.recs=new Map(); XM.parts=[];
+  syncUndo();
+}
+/* المقياس والاتجاه: ملف صادر من هذا التطبيق يبقى كما هو، وغيره يُحوَّل إلى متر ويوضع طوله على محور الكبّاسة */
+function xFit(){
+  const r=XM.root; for(const e of EXP)if(e.xm)e.obj.position.copy(e.home);
+  r.position.set(0,0,0); r.rotation.set(0,0,0); r.scale.setScalar(1); r.updateMatrixWorld(true);
+  let b=new THREE.Box3().setFromObject(XM.inner);
+  if(!XM.trip){
+    /* الوحدة (متر، سنتيمتر، مليمتر، إنش) التي تجعل طوله أقرب إلى طول الكبّاسة الحقيقي */
+    const sz=b.getSize(V(0,0,0)), mx=Math.max(sz.x,sz.y,sz.z,1e-6), ref=XM.refBox.getSize(V(0,0,0)).x;
+    r.scale.setScalar([1,0.1,0.01,0.001,0.0254].reduce((a,k)=>Math.abs(Math.log(mx*k/ref))<Math.abs(Math.log(mx*a/ref))?k:a,1));
+    r.rotation.y=(sz.z>sz.x*1.15?PI/2:0)+XM.rot*PI/2; r.updateMatrixWorld(true);
+    b=new THREE.Box3().setFromObject(XM.inner);
+    const c=b.getCenter(V(0,0,0)), rc=XM.refBox.getCenter(V(0,0,0));
+    r.position.set(rc.x-c.x,-b.min.y,rc.z-c.z); r.updateMatrixWorld(true);
+    b=new THREE.Box3().setFromObject(XM.inner);
+  }
+  XCUT[0].constant=b.getCenter(V(0,0,0)).z;
+}
+function xStage(){
+  const show=XM.loaded&&XM.want&&stageMode==='explore';
+  if(show!==XM.on){L.sel=new Set(); labelId=null; L.iso=null; L.forced.clear(); marker.visible=false; openSys=null; if(stageMode==='explore')$('#partView').innerHTML=INTRO;}
+  XM.on=show; model.visible=!show; if(XM.root)XM.root.visible=show;
+  refreshLook(); renderTree(); xSync();
+}
+function xSummary(){
+  const mapped=PARTS.filter(p=>XM.has.has(p.id)).length;
+  const key=['01-01','02-01','03-02','04-01','04-05','05-01','05-05','06-04','06-06'].filter(id=>!XM.has.has(id)).map(id=>PART[id].ar);
+  return `<b dir="auto">${esc(XM.name)}</b> · ${XM.nodeCount.toLocaleString('ar')} عقدة · ${XM.tris.toLocaleString('ar')} مثلث${XM.trip?' · صادر من هذا التطبيق':''}<br>
+    مربوطة بالكتالوج: ${mapped} قطعة من ${PARTS.length} · عقد غير مربوطة: ${XM.ids.length}<br>
+    ${key.length?`<span style="color:var(--warn,#b26b00)">آليات أساسية غير موجودة كشكل منفصل في هذا المجسم: ${esc(key.join('، '))}.</span> `:''}القطع غير الموجودة تظهر باهتة في الشجرة.`;
+}
+function xSync(){
+  const on=XM.loaded;
+  $('#xToggle').hidden=!on; $('#xRot').hidden=!on||XM.trip||!XM.want; $('#xDel').hidden=!on;
+  $('#xToggle').textContent=XM.want?'عرض المجسم المبني':'عرض المجسم المستورد';
+  $('#xState').textContent=on?(XM.want?'المستورد معروض':'المبني معروض'):'غير محمّل';
+  $('#xInfo').innerHTML=on?xSummary():'';
+}
+function xMapSelect(key,cur){
+  const opts=SYSTEMS.map(sy=>`<optgroup label="${esc(sy.ar)}">${PARTS.filter(p=>p.sys===sy.id).map(p=>`<option value="${p.id}"${p.id===cur?' selected':''}>${p.id} · ${esc(p.ar)}</option>`).join('')}</optgroup>`).join('');
+  return `<div class="xmap"><label for="xMapSel">ربط العقدة «${esc(xLabel(XM.recs.get(key).node))}» بقطعة من الكتالوج</label><select id="xMapSel" data-key="${key}"><option value="">غير مربوطة</option>${opts}</select></div>`;
+}
+function xNodeView(id){
+  const p=PART[id], r=XM.recs.get(p.key), mats=[...new Set(r.meshes.map(m=>m.material&&m.userData.base.name).filter(Boolean))];
+  return `<hr class="divider"><div class="ins-head"><span class="sys-chip" style="--c:${SYS.XM.color}">${esc(SYS.XM.ar)}</span><h3 dir="auto">${esc(p.ar)}</h3><div class="ins-en" dir="ltr">${esc(p.en)}</div></div>
+    ${actRow(id,false)}
+    <dl class="facts"><div><dt>الأشكال</dt><dd>${r.meshes.length}</dd></div><div><dt>المثلثات</dt><dd>${r.meshes.reduce((a,m)=>a+xTris(m.geometry),0).toLocaleString('ar')}</dd></div>
+    ${mats.length?`<div class="span2"><dt>المواد</dt><dd dir="ltr" style="text-align:right">${esc(mats.slice(0,6).join(', '))}</dd></div>`:''}</dl>
+    ${xMapSelect(p.key,'')}
+    <p class="cat-empty" style="color:var(--muted)">لم يُعرف من اسم هذه العقدة أي قطعة هي. اختر القطعة المناسبة ليظهر اسمها ورقمها في الكتالوج ووظيفتها.</p>`;
+}
+function xPartBlock(id){
+  if(!XM.has.has(id))return '<p class="cat-empty">هذه القطعة غير موجودة كشكل منفصل في المجسم المستورد: إما أنها داخلية لم تُرسم فيه، أو مدموجة في شكل أكبر، أو لم تُربط بعد. لرؤيتها اعرض المجسم المبني.</p>';
+  const recs=[...XM.recs.values()].filter(r=>r.id===id), names=[...new Set(recs.map(r=>xLabel(r.node)))];
+  const k=XM.lastKey&&XM.recs.has(XM.lastKey)&&XM.recs.get(XM.lastKey).id===id?XM.lastKey:null;
+  return `<section class="ins-sec"><h4>في المجسم المستورد</h4><div class="xnodes">${names.slice(0,12).map(n=>`<span dir="ltr">${esc(n)}</span>`).join('')}${names.length>12?`<span>+${names.length-12}</span>`:''}</div>${k?xMapSelect(k,id):''}</section>`;
+}
+function xSetMap(key,val){
+  const map=store.get(xMapKey(),{}); map[key]=val; store.set(xMapKey(),map);
+  const nd=XM.recs.get(key).node;
+  xUnregister(); xRegister(); XM.lastKey=key;
+  const id=[...XM.recs.values()].find(r=>r.node===nd).id;
+  select(id,false); xSync(); toast(val?`رُبطت العقدة بـ«${PART[val].ar}»`:'أُلغي ربط العقدة');
+}
+const xdb={
+  open(){return this.p||(this.p=new Promise((res,rej)=>{const q=indexedDB.open('bp1290',1); q.onupgradeneeded=()=>q.result.createObjectStore('files'); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);}));},
+  async run(mode,fn){const db=await this.open(); return new Promise((res,rej)=>{const t=db.transaction('files',mode), q=fn(t.objectStore('files')); t.oncomplete=()=>res(q&&q.result); t.onerror=()=>rej(t.error);});},
+  get(k){return this.run('readonly',st=>st.get(k));}, set(k,v){return this.run('readwrite',st=>st.put(v,k));}, del(k){return this.run('readwrite',st=>st.delete(k));}
+};
+async function xParse(data){
+  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+  const loader=new GLTFLoader();
+  try{const {DRACOLoader}=await import('three/addons/loaders/DRACOLoader.js'); const d=new DRACOLoader(); d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/'); loader.setDRACOLoader(d);}catch(e){}
+  try{const {MeshoptDecoder}=await import('three/addons/libs/meshopt_decoder.module.js'); loader.setMeshoptDecoder(MeshoptDecoder);}catch(e){}
+  return new Promise((res,rej)=>loader.parse(data,'',res,rej));
+}
+async function xLoad(data,name,persist){
+  $('#xState').textContent='جارٍ القراءة…';
+  let gltf;
+  try{gltf=await xParse(data);}
+  catch(err){xSync(); toast('تعذّرت قراءة الملف: '+(/external|fetch|uri/i.test(String(err&&err.message))?'ملف gltf يعتمد على ملفات خارجية، صدّره بصيغة GLB واحدة.':(err&&err.message||'صيغة غير مدعومة'))); return false;}
+  xUnload(false);
+  XM.inner=gltf.scene; XM.parser=gltf.parser; XM.name=name; XM.sig=name+'|'+(data.byteLength||data.length);
+  XM.trip=false; XM.inner.traverse(o=>{if(o.userData&&o.userData.bp1290)XM.trip=true;});
+  XM.rot=store.get('bp1290.xrot.'+XM.sig,0); XM.want=true; store.set('bp1290.xwant',true);
+  XM.root=new THREE.Group(); XM.root.name='imported'; XM.root.add(XM.inner); scene.add(XM.root);
+  xFit(); xRegister(); XM.loaded=true;
+  if(persist){try{await xdb.set('glb',{name,data});}catch(e){toast('حُمّل المجسم، لكن تعذّر حفظه على الجهاز لفتحه لاحقاً');}}
+  XM.on=false; xStage(); if(stageMode==='explore')goView('iso');
+  return true;
+}
+function xUnload(forget){
+  if(XM.root){
+    xUnregister();
+    XM.root.traverse(o=>{
+      if(!o.isMesh)return; o.geometry.dispose();
+      const m=o.userData.base||o.material;
+      for(const c of [hlCache,ghCache,xrCache]){const g=c.get(m); if(g){g.dispose(); c.delete(m);}}
+      for(const k in m){const v=m[k]; if(v&&v.isTexture)v.dispose();} m.dispose();
+    });
+    scene.remove(XM.root);
+  }
+  Object.assign(XM,{loaded:false,on:false,trip:false,root:null,inner:null,parser:null,name:'',sig:'',nodeCount:0,tris:0,lastKey:null});
+  model.visible=true;
+  if(forget){xdb.del('glb').catch(()=>{}); renderTree(); refreshLook(); if(stageMode==='explore')clearSel(); xSync();}
+}
+$('#xPick').addEventListener('click',()=>$('#xFile').click());
+$('#xFile').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f)return;
+  if(!/\.(glb|gltf)$/i.test(f.name)){toast('اختر ملفاً بصيغة GLB أو glTF. ملفات I3D الخاصة بالألعاب لا تُقرأ هنا.'); return;}
+  const data=/\.gltf$/i.test(f.name)?await f.text():await f.arrayBuffer();
+  if(await xLoad(data,f.name,true))toast('حُمّل المجسم. اضغط أي قطعة لترى ربطها بالكتالوج');
+});
+$('#xToggle').addEventListener('click',()=>{XM.want=!XM.want; store.set('bp1290.xwant',XM.want); xStage(); goView('iso');});
+$('#xRot').addEventListener('click',()=>{XM.rot=(XM.rot+1)%4; store.set('bp1290.xrot.'+XM.sig,XM.rot); xFit(); dirty();});
+$('#xDel').addEventListener('click',()=>BP.Modal.open('حذف المجسم المستورد','<p>سيُحذف الملف من هذا الجهاز ويعود العرض إلى المجسم المبني. ملفك الأصلي لا يتأثر.</p>',[{label:'حذف',fn:()=>{xUnload(true); toast('حُذف المجسم المستورد');}}]));
+
+/* تصدير المجسم المبني: كل قطعة عقدة باسم رقمها، فيُعدَّل في Blender ثم يُستورد ويبقى مربوطاً بالكتالوج */
+function saveBlob(name,blob){const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500);}
+async function xExportBuilt(){
+  const btn=$('#xExport'); btn.disabled=true; toast('جارٍ تجهيز ملف GLB…');
+  const saved=[];
+  try{
+    const {GLTFExporter}=await import('three/addons/exporters/GLTFExporter.js');
+    for(const e of EXP)if(!e.xm){saved.push([e,e.obj.position.clone()]); e.obj.position.copy(e.home);}
+    model.updateMatrixWorld(true);
+    const out=new THREE.Group(); out.name='BiG Pack 1290 HDP II'; out.userData={bp1290:1};
+    const groups=new Map();
+    for(const m of MESHES){
+      if(m.userData.xm)continue;
+      const id=m.userData.part||null;
+      let g=groups.get(id);
+      if(!g){g=new THREE.Group(); g.name=id?`${id} ${PART[id].en}`:'00-00 Structure'; if(id)g.userData={partId:id,ar:PART[id].ar}; out.add(g); groups.set(id,g);}
+      const flags={}; if(m.userData.cover)flags.cover=1; if(m.userData.cut)flags.cut=1;
+      /* الأشكال المتكررة (الأصابع، بكرات الخيط…) تبقى مكررة على كرت الشاشة عبر EXT_mesh_gpu_instancing */
+      const c=m.isInstancedMesh?new THREE.InstancedMesh(m.geometry,m.userData.base,m.count):new THREE.Mesh(m.geometry,m.userData.base);
+      if(m.isInstancedMesh){c.instanceMatrix.copy(m.instanceMatrix); if(m.instanceColor)c.instanceColor=m.instanceColor.clone();}
+      c.name=`${id||'00-00'}_${g.children.length+1}`; m.matrixWorld.decompose(c.position,c.quaternion,c.scale); c.userData={...flags}; g.add(c);
+    }
+    saved.forEach(([e,v])=>e.obj.position.copy(v)); saved.length=0; model.updateMatrixWorld(true);
+    const glb=await new Promise((res,rej)=>new GLTFExporter().parse(out,res,rej,{binary:true,onlyVisible:false}));
+    saveBlob('bigpack-1290-hdp2.glb',new Blob([glb],{type:'model/gltf-binary'}));
+    toast(`صُدّر المجسم (${(glb.byteLength/1048576).toFixed(1)} م.ب)`);
+  }catch(err){saved.forEach(([e,v])=>e.obj.position.copy(v)); toast('تعذّر التصدير: '+(err&&err.message||err));}
+  btn.disabled=false; dirty();
+}
+if($('#xExport'))$('#xExport').addEventListener('click',xExportBuilt);
+
 /* اللمس والفأرة على المجسم */
 let down=null, hoverT=0;
 const tip=$('#tip3d');
@@ -2791,7 +3071,7 @@ canvas.addEventListener('pointerup',e=>{
   if(mode==='explore'){
     const now=performance.now();
     if(id&&lastTap.id===id&&now-lastTap.t<400){lastTap={id:null,t:0}; removePart(id); return;}
-    lastTap={id,t:now};
+    lastTap={id,t:now}; XM.lastKey=pick.key;
     if(id)select(id,false); else clearSel();
   }
   else if(id){const p=PART[id]; toast(`${p.ar} · ${serial(id)}`);}
@@ -2859,8 +3139,8 @@ function updateLabel(){
   const id=labelId&&L.sel.has(labelId)?labelId:null;
   if(!id||mode==='operate'){selLabel.hidden=true;return;}
   let pt;
-  if(!PG[id]&&ANCH[id])pt=V(...ANCH[id]);
-  else{const b=new THREE.Box3(); for(const m of MESHES)if(m.userData.part===id&&m.visible)b.expandByObject(m); if(b.isEmpty()){selLabel.hidden=true;return;} pt=b.getCenter(V(0,0,0)); pt.y=b.max.y;}
+  if(!XM.on&&!PG[id]&&ANCH[id])pt=V(...ANCH[id]);
+  else{const b=new THREE.Box3(); for(const m of MESHES)if(m.userData.part===id&&m.visible&&isAct(m))b.expandByObject(m); if(b.isEmpty()){selLabel.hidden=true;return;} pt=b.getCenter(V(0,0,0)); pt.y=b.max.y;}
   pt.project(camera);
   if(pt.z>1||Math.abs(pt.x)>1.1||Math.abs(pt.y)>1.1){selLabel.hidden=true;return;}
   selLabel.style.left=((pt.x+1)/2*stage.clientWidth)+'px';
@@ -3277,6 +3557,7 @@ function setMode(m){
     if(!L.sel.size){const id=store.get('bp1290.sel3d',null); if(id&&PART[id])select(id,false); else{refreshLook(); $('#partView').innerHTML=INTRO;}} else refreshLook();
     if(prev)goView('iso');
   }
+  xStage();
   dirty();
 }
 const clock=new THREE.Clock(); let pulseT=0;
@@ -3311,6 +3592,7 @@ $('#loading').hidden=true;
 window.BP3D={setMode,select:(id,focus)=>{if(stageMode!=='explore')return; select(id,focus);}};
 setMode(BP.tab()==='parts'||BP.tab()==='specs'?'off':BP.tab());
 loop();
+xdb.get('glb').then(r=>{if(r&&r.data)xLoad(r.data,r.name,false).then(ok=>{if(ok&&!store.get('bp1290.xwant',true)){XM.want=false; xStage();}});}).catch(()=>{});
 
 </script>
 </body>
