@@ -1417,8 +1417,8 @@ const std=(color,rough,metal,extra)=>new THREE.MeshStandardMaterial(Object.assig
 const M={
   paint:std(0x3d8c30,.3,.12),
   paintDark:std(0x2e6e25,.38,.15),
-  frame:std(0x33383c,.55,.55),
-  chamber:std(0x6f797e,.5,.6),
+  frame:std(0x2b6623,.42,.3),
+  chamber:std(0x3a8530,.4,.25),
   steel:std(0x9aa2a7,.32,.85),
   steelDark:std(0x4b5258,.45,.7),
   galv:std(0xb9c0c4,.3,.85),
@@ -1446,6 +1446,7 @@ const M={
 };
 M.steelDS=M.steel.clone(); M.steelDS.side=THREE.DoubleSide;
 M.paintDS=M.paint.clone(); M.paintDS.side=THREE.DoubleSide;
+M.rimDS=M.rim.clone(); M.rimDS.side=THREE.DoubleSide;
 
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(240,240),M.ground);
 ground.rotation.x=-PI/2; ground.receiveShadow=true; scene.add(ground);
@@ -1563,7 +1564,7 @@ const VFSC={x:-0.3,y:0.38};
 const NDL={x:-1.5,y:0.78,max:0.70};
 const KN={x:-0.2,y:2.42};
 const ZN=[...Array(8)].map((_,i)=>-0.525+i*0.15);  // مواقع الإبر والعقّادات الثماني
-const CHUTE={x0:-4.62,y0:1.05,x1:-6.05,y1:0.65};
+const CHUTE={x0:-4.62,y0:1.05,x1:-6.4,y1:0.55};
 function plungerFace(phi){const s=Math.sin(phi),c=Math.cos(phi);return CRK.cx-(CRK.r*c+Math.sqrt(CRK.L*CRK.L-CRK.r*CRK.r*s*s))-1.0;}
 function roundRectPts(x0,y0,x1,y1,r){
   const p=[], arc=(cx,cy,a0)=>{for(let i=0;i<=6;i++){const a=a0+i*PI/12; p.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);}};
@@ -1691,8 +1692,8 @@ function setMech(phi){
 /* ── نقل الحركة ── */
 {
   const g=pg('06-06');
-  add(rb(0.62,0.82,0.6,0.07),M.cast,g,2.3,1.62,0);
-  add(cyl(0.17,0.32,'x',24),M.cast,g,2.7,1.62,0);
+  add(rb(0.62,0.82,0.6,0.07),M.paintDark,g,2.3,1.62,0);
+  add(cyl(0.17,0.32,'x',24),M.paintDark,g,2.7,1.62,0);
   for(const s of [1,-1])add(cyl(0.15,0.12,'z',24),M.cast,g,2.3,1.6,s*0.34);
   for(const x of [2.08,2.52])add(rb(0.035,0.7,0.64,0.01),M.cast,g,x,1.62,0);
   add(cyl(0.035,0.06,'y',12),M.guard,g,2.4,2.06,0.12);
@@ -1911,10 +1912,10 @@ function knifeArm(p,z){
   for(const s of [1,-1]){
     const sg=sub(g,{cut:s>0});
     add(rb(2.42,1.02,0.02,0.004),M.galv,sg,-1.4,2.1,s*0.74);
-    for(const y of [1.6,1.94,2.28,2.61])add(rb(2.42,0.02,0.46,0.004),M.galv,sg,-1.4,y,s*0.97);
-    for(const x of [-2.61,-0.19])add(rb(0.02,1.02,0.46,0.004),M.galv,sg,x,2.1,s*0.97);
+    for(const y of [1.6,1.94,2.28,2.6])add(rb(2.42,0.02,0.42,0.004),M.galv,sg,-1.4,y,s*0.95);
+    for(const x of [-2.61,-0.19])add(rb(0.02,1.02,0.42,0.004),M.galv,sg,x,2.1,s*0.95);
     const rg=pg('05-15',sg), im=new THREE.InstancedMesh(rollGeo,M.twine,24); let k=0;
-    for(let i=0;i<8;i++)for(let t=0;t<3;t++)im.setMatrixAt(k++,new THREE.Matrix4().makeTranslation(-2.45+i*0.3,1.77+t*0.34,s*0.97));
+    for(let i=0;i<8;i++)for(let t=0;t<3;t++)im.setMatrixAt(k++,new THREE.Matrix4().makeTranslation(-2.45+i*0.3,1.77+t*0.34,s*0.95));
     im.castShadow=im.receiveShadow=true; rg.add(im);
     const bg=pg('05-11',sg); for(let i=0;i<8;i++)add(rb(0.07,0.06,0.06,0.01),M.cast,bg,-0.12,1.72+i*0.11,s*0.86);
     const tg=pg('05-12',sg); rod([-0.12,2.6,s*0.86],[0.2,2.72,s*0.62],0.012,M.steel,tg); rod([-0.12,2.55,s*0.9],[0.2,2.66,s*0.66],0.012,M.steel,tg);
@@ -2006,25 +2007,64 @@ function knifeArm(p,z){
 { const g=pg('01-11'); add(cyl(0.09,0.07,'z',22),M.dark,g,REEL.x,REEL.y,1.25); ex(g,'01-11',[2.3,0,0.25],2); }
 { const g=pg('01-12'); beam([ROTOR.x,ROTOR.y,1.26],[REEL.x,REEL.y,1.26],0.06,0.17,M.paint,g); ex(g,'01-12',[1.9,0,0.3],2); }
 
-/* ── الأغطية 08-10 والإضاءة والملحقات ── */
-let HOOD_F;
+/* ── الهيكل الخارجي 08-10: ألواح جانبية مضلّعة، مقدمة هرمية، سقف، غطاء خلفي ──
+   الشكل مأخوذ من صور المجسم والفيديو الرسمي: مقطع مضلّع يتسع في الوسط ويضيق للسقف */
+function loft(rows,mat,parent,opt){
+  const pos=[];
+  for(let r=0;r<rows.length-1;r++){
+    const A=rows[r], B=rows[r+1];
+    for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1],c=B[i+1],d=B[i]; pos.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,a.x,a.y,a.z,c.x,c.y,c.z,d.x,d.y,d.z);}
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(pos.length/3*2),2));
+  g.computeVertexNormals();
+  return add(g,mat,parent,0,0,0,opt);
+}
+function capYZ(pts,x,mat,parent,opt){
+  const g=new THREE.ShapeGeometry(shape2(pts)); g.rotateY(-PI/2); g.translate(x,0,0);
+  return add(g,mat,parent,0,0,0,opt);
+}
+const SEC=[[1.44,1.0],[1.6,1.4],[2.2,1.46],[2.58,1.2],[2.86,0.74]];     // مقطع اللوح الأيسر [y,z]
+const BX0=-2.75, BX1=1.7, NOSE=3.3;
+const NOSE_A=[[2.86,0],[2.86,0.74],[2.58,1.2],[2.2,1.46],[1.6,1.4],[1.44,1.0],[1.2,0.62]];
+const NOSE_B=[[2.25,0],[2.25,0.38],[2.16,0.5],[1.85,0.56],[1.35,0.54],[1.08,0.46],[0.95,0.3]];
+let HOOD_F, ROOF;
 {
   const g=pg('08-10');
+  /* المقدمة الهرمية (نصفان: الأيسر يُزال في المقطع الداخلي) */
   const hf=sub(g,{cover:true}); HOOD_F=hf;
-  for(const s of [1,-1])add(rb(1.45,1.5,0.03,0.012),M.paint,hf,2.56,1.73,s*0.82,{cut:s>0});
-  add(rb(1.48,0.03,1.68,0.012),M.paint,hf,2.56,2.49,0);
-  add(rb(0.03,1.5,1.68,0.012),M.paint,hf,3.29,1.73,0);
-  for(let i=0;i<6;i++)add(rb(0.012,0.04,1.2,0.005),M.dark,hf,3.307,1.95+i*0.07,0);
-  ex(hf,'cov-hoodF',[0.6,1.5,0],0);
+  for(const s of [1,-1]){
+    const o={cut:s>0};
+    loft([NOSE_A.map(([y,z])=>V(BX1,y,s*z)),NOSE_B.map(([y,z])=>V(NOSE,y,s*z))],M.paintDS,hf,o);
+    for(let i=1;i<NOSE_A.length-1;i++)tube([[BX1,NOSE_A[i][0],s*(NOSE_A[i][1]+0.004)],[NOSE,NOSE_B[i][0],s*(NOSE_B[i][1]+0.004)]],0.006,M.paintDark,hf,2,false,o);
+  }
+  capYZ(NOSE_B.map(([y,z])=>[z,y]).concat(NOSE_B.slice().reverse().map(([y,z])=>[-z,y])),NOSE,M.paintDS,hf);
+  for(let i=0;i<5;i++)add(rb(0.012,0.035,0.62,0.004),M.dark,hf,NOSE+0.008,1.95-i*0.08,0);
+  ex(hf,'cov-hoodF',[0.9,1.2,0],0);
+  /* الألواح الجانبية الكبيرة (أبواب صناديق الخيط) */
+  const boltG=cyl(0.011,0.012,'z',8);
   for(const s of [1,-1]){
     const d=sub(g,{cover:true,cut:s>0});
-    add(rb(2.5,1.08,0.03,0.015),M.paint,d,-1.4,2.1,s*1.215);
-    add(rb(0.2,0.03,0.03,0.006),M.dark,d,-0.45,1.72,s*1.235);
-    add(cyl(0.015,2.4,'x',10),M.steel,d,-1.4,2.63,s*1.22);
-    ex(d,s>0?'cov-doorL':'cov-doorR',[0,0.25,s*1.7],0);
+    loft([SEC.map(([y,z])=>V(BX0,y,s*z)),SEC.map(([y,z])=>V(BX1,y,s*z))],M.paintDS,d);
+    for(let i=1;i<SEC.length-1;i++)tube([[BX0,SEC[i][0],s*(SEC[i][1]+0.004)],[BX1,SEC[i][0],s*(SEC[i][1]+0.004)]],0.006,M.paintDark,d,2);
+    for(const xs of [-1.25,0.3])tube(SEC.map(([y,z])=>[xs,y,s*(z+0.005)]),0.007,M.paintDark,d,16);
+    for(const xh of [-2.0,-0.47,1.0])add(rb(0.22,0.035,0.03,0.008),M.dark,d,xh,1.66,s*1.415);
+    const bolts=new THREE.InstancedMesh(boltG,M.steel,60); let k=0;
+    for(const [y,z] of [SEC[0],SEC[2],SEC[4]])for(let i=0;i<20;i++){const x=BX0+0.12+i*(BX1-BX0-0.24)/19; bolts.setMatrixAt(k++,new THREE.Matrix4().makeTranslation(x,y,s*(z+0.006)));}
+    d.add(bolts);
+    capYZ([[s*0.68,1.44]].concat(SEC.map(([y,z])=>[s*z,y]),[[s*0.68,2.86]]),BX0,M.paintDS,d);
+    ex(d,s>0?'cov-doorL':'cov-doorR',[0,1.15,s*1.7],0);
   }
-  const kh=sub(g,{cover:true}); add(rb(1.05,0.6,1.42,0.12),M.paint,kh,-0.08,2.43,0); ex(kh,'cov-knot',[0,1.6,0],0);
-  const bg=sub(g,{cover:true,cut:true}); plate(roundRectPts(0.55,0.28,2.3,1.42,0.12),0.025,M.paint,bg,0.885); ex(bg,'cov-belt',[0,0,1.6],0);
+  /* السقف فوق العقّادات (يحمل الدرابزين والإنارة) */
+  const kh=sub(g,{cover:true}); ROOF=kh;
+  add(rb(BX1-BX0,0.04,1.52,0.01),M.paint,kh,(BX0+BX1)/2,2.88,0);
+  add(rb(1.25,0.09,1.2,0.04),M.paint,kh,-0.15,2.94,0);
+  for(const z of [-0.45,0.45])add(rb(1.15,0.025,0.05,0.008),M.paintDark,kh,-0.15,2.995,z);
+  capYZ([[-0.68,2.2],[0.68,2.2],[0.68,2.86],[-0.68,2.86]],BX0,M.paintDS,kh);
+  ex(kh,'cov-knot',[0,1.7,0],0);
+  /* غطاء السير الأيسر تحت اللوح */
+  const bg=sub(g,{cover:true,cut:true}); plate(roundRectPts(0.55,0.28,2.3,1.36,0.12),0.025,M.paint,bg,0.885); ex(bg,'cov-belt',[0,0,1.6],0);
 }
 {
   const g=pg('08-11');
@@ -2037,79 +2077,90 @@ let HOOD_F;
     add(new THREE.BoxGeometry(0.01,0.3,0.3),M.stripe,g,-4.665,1.66,s*1.06);
   }
   ex(g,'08-11',[-0.6,0,0],1);
-  const bh=pg('08-11',HOOD_F);
-  add(cyl(0.09,0.05,'y',20),M.plastic,bh,2.9,2.53,-0.55);
-  add(cyl(0.065,0.13,'y',20),M.beacon,bh,2.9,2.62,-0.55);
-  for(const s of [1,-1]){add(rb(0.12,0.08,0.06,0.01),M.plastic,bh,3.26,2.4,s*0.6); add(rb(0.006,0.06,0.05,0.002),M.workLight,bh,3.322,2.4,s*0.6);}
+  const bh=pg('08-11',ROOF);
+  add(cyl(0.09,0.05,'y',20),M.plastic,bh,1.45,2.925,-0.55);
+  add(cyl(0.065,0.13,'y',20),M.beacon,bh,1.45,3.01,-0.55);
+  const wl=pg('08-11',HOOD_F);
+  for(const s of [1,-1]){add(rb(0.06,0.08,0.12,0.01),M.plastic,wl,NOSE+0.03,2.12,s*0.3); add(rb(0.004,0.06,0.1,0.002),M.workLight,wl,NOSE+0.062,2.12,s*0.3);}
 }
 {
-  const g=pg('08-12');
-  add(rb(1.25,0.03,1.3,0.005),M.galv,g,1.13,2.12,0);
-  for(const x of [0.56,1.72])for(const s of [1,-1])rod([x,2.13,s*0.66],[x,3.0,s*0.66],0.018,M.guard,g);
-  for(const s of [1,-1]){rod([0.56,3.0,s*0.66],[1.72,3.0,s*0.66],0.018,M.guard,g); rod([0.56,2.58,s*0.66],[1.72,2.58,s*0.66],0.014,M.guard,g);}
-  const lad=sub(g,{cut:true});
-  for(const z of [0.98,1.32])rod([0.95,0.2,z],[0.72,2.12,z],0.018,M.galv,lad);
-  for(let i=0;i<7;i++){const t=(i+0.5)/7; rod([lerp(0.95,0.72,t),lerp(0.2,2.12,t),0.98],[lerp(0.95,0.72,t),lerp(0.2,2.12,t),1.32],0.014,M.galv,lad);}
-  ex(g,'08-12',[0,0.9,0],1);
+  /* الدرابزين على السقف والسلم الخلفي */
+  const g=pg('08-12',ROOF);
+  for(const [x0,x1] of [[0.35,1.55],[-2.6,-1.35]]){
+    for(const s of [1,-1]){
+      const o={cut:s>0};
+      for(const x of [x0,(x0+x1)/2,x1])rod([x,2.9,s*0.68],[x,3.72,s*0.68],0.02,M.paint,g,16,o);
+      rod([x0,3.72,s*0.68],[x1,3.72,s*0.68],0.022,M.paint,g,16,o); rod([x0,3.3,s*0.68],[x1,3.3,s*0.68],0.016,M.paint,g,16,o);
+    }
+    rod([x1,3.72,0.68],[x1,3.72,-0.68],0.022,M.paint,g); rod([x0,3.72,-0.68],[x0,3.72,0.68],0.022,M.paint,g);
+  }
+  const lad=pg('08-12'), ls=sub(lad,{cut:true});
+  for(const z of [0.95,1.35])rod([-3.08,0.15,z],[-2.86,2.92,z],0.02,M.paint,ls);
+  for(let i=0;i<10;i++){const t=(i+0.5)/10; rod([lerp(-3.08,-2.86,t),lerp(0.15,2.92,t),0.95],[lerp(-3.08,-2.86,t),lerp(0.15,2.92,t),1.35],0.015,M.galv,ls);}
+  beam([-2.86,2.6,1.15],[-2.75,2.6,0.9],0.05,0.05,M.paint,ls);
+  ex(lad,'08-12',[-0.7,0,0.6],1);
 }
 { const g=pg('08-13'); add(rb(0.36,0.3,0.24,0.04),M.tankWater,g,-3.95,0.82,0.92); add(cyl(0.02,0.05,'y',10),M.plastic,g,-3.95,0.99,0.92); ex(g,'08-13',[-0.4,-0.1,0.6],1); }
 { const g=pg('08-14'); add(rb(0.6,0.24,0.5,0.03),M.frame,g,-4.0,0.85,-0.3); add(rb(0.1,0.02,0.02,0.005),M.steel,g,-4.0,0.86,-0.56); ex(g,'08-14',[-0.4,-0.3,-0.6],1); }
 {
-  const g=pg('08-15'), pts=[];
-  for(let i=0;i<=44;i++){const a=0.22+(PI-0.44)*i/44; pts.push([-1.55+1.5*Math.cos(a),0.62+0.93*Math.sin(a)]);}
-  for(const s of [1,-1]){
-    const sg=sub(g,{cut:s>0}); plate(strip(pts,-0.03),0.7,M.paint,sg,s*1.18);
-    beam([-1.55,1.05,s*0.78],[-1.55,1.5,s*0.9],0.05,0.06,M.frame,sg);
-    ex(sg,'fender'+(s>0?'L':'R'),[0,0.1,s*0.9],1);
-  }
+  /* بطانة تجويف العجلات تحت الألواح */
+  const g=pg('08-15');
+  for(const s of [1,-1]){const sg=sub(g,{cut:s>0}); add(rb(3.0,0.03,0.74,0.008),M.paintDark,sg,-1.55,1.425,s*1.12); ex(sg,'fender'+(s>0?'L':'R'),[0,0.1,s*0.9],1);}
 }
 
-/* ── المحاور والعجلات ── */
+/* ── المحاور والعجلات (إطارات عريضة 26.5 بوصة وجنوط فضية) ── */
+const WZ=1.15, WY=0.69;
 {
   const g=pg('08-05');
-  for(const x of [-0.85,-2.25])add(cyl(0.07,2.2,'z',20),M.frame,g,x,0.68,0);
-  for(const s of [1,-1]){add(rb(1.62,0.16,0.1,0.02),M.frame,g,-1.55,0.68,s*0.86); add(rb(0.24,0.36,0.12,0.02),M.frame,g,-1.55,0.86,s*0.86); add(cyl(0.06,0.16,'z',16),M.steel,g,-1.55,0.72,s*0.86);}
+  for(const x of [-0.85,-2.25])add(cyl(0.07,2.2,'z',20),M.frame,g,x,WY,0);
+  for(const s of [1,-1]){add(rb(1.62,0.16,0.1,0.02),M.frame,g,-1.55,WY,s*0.72); add(rb(0.24,0.3,0.12,0.02),M.frame,g,-1.55,0.86,s*0.72); add(cyl(0.06,0.16,'z',16),M.steel,g,-1.55,0.72,s*0.72);}
   ex(g,'08-05',[0,-0.45,0],7);
 }
-{ const g=pg('08-06'); for(const s of [1,-1])for(let k=0;k<3;k++)tube([[-2.2,0.78+k*0.028,s*0.86],[-1.55,0.95+k*0.028,s*0.86],[-0.9,0.78+k*0.028,s*0.86]],0.012,M.steelDark,g,24); ex(g,'08-06',[0,-0.25,0],7); }
-{ const g=pg('08-09'); hcyl([-0.85,0.78,0.25],[-0.85,0.78,0.6],0.03,g); ex(g,'08-09',[0,-0.3,0],7); }
+{ const g=pg('08-06'); for(const s of [1,-1])for(let k=0;k<3;k++)tube([[-2.2,0.79+k*0.028,s*0.72],[-1.55,0.93+k*0.028,s*0.72],[-0.9,0.79+k*0.028,s*0.72]],0.012,M.steelDark,g,24); ex(g,'08-06',[0,-0.25,0],7); }
+{ const g=pg('08-09'); hcyl([-0.85,0.79,0.2],[-0.85,0.79,0.55],0.03,g); ex(g,'08-09',[0,-0.3,0],7); }
 {
   const g=pg('08-07'), b=pg('08-08');
-  const tyreG=latheZ([[0.345,-0.27],[0.40,-0.30],[0.55,-0.31],[0.64,-0.29],[0.675,-0.24],[0.682,-0.1],[0.682,0.1],[0.675,0.24],[0.64,0.29],[0.55,0.31],[0.40,0.30],[0.345,0.27]],60);
-  const rimG=new THREE.CylinderGeometry(0.338,0.338,0.56,40,1,true); rimG.rotateX(PI/2);
-  const lugG=new THREE.BoxGeometry(0.055,0.032,0.27), nutG=cyl(0.018,0.03,'z',6);
+  const tyreG=latheZ([[0.345,-0.33],[0.42,-0.355],[0.56,-0.362],[0.65,-0.345],[0.684,-0.29],[0.692,-0.12],[0.692,0.12],[0.684,0.29],[0.65,0.345],[0.56,0.362],[0.42,0.355],[0.345,0.33]],64);
+  const rimG=new THREE.CylinderGeometry(0.338,0.338,0.66,44,1,true); rimG.rotateX(PI/2);
+  const lugG=new THREE.BoxGeometry(0.05,0.026,0.29), nutG=cyl(0.018,0.03,'z',6);
   for(const [x,s] of [[-0.85,1],[-2.25,1],[-0.85,-1],[-2.25,-1]]){
-    const sg=sub(g), p=pivot(sg,'wheel',x,0.68,s*1.18); if(s<0)p.scale.z=-1;
+    const sg=sub(g), p=pivot(sg,'wheel',x,WY,s*WZ); if(s<0)p.scale.z=-1;
     add(tyreG,M.rubber,p);
-    const lugs=new THREE.InstancedMesh(lugG,M.rubber,72); let k=0;
-    for(let row=0;row<2;row++)for(let i=0;i<36;i++){
-      const a=i*TAU/36+row*TAU/72, m=new THREE.Matrix4().makeRotationZ(a-PI/2).multiply(new THREE.Matrix4().makeRotationY(row?0.35:-0.35));
-      m.setPosition(0.692*Math.cos(a),0.692*Math.sin(a),row?0.14:-0.14); lugs.setMatrixAt(k++,m);
+    const lugs=new THREE.InstancedMesh(lugG,M.rubber,84); let k=0;
+    for(let row=0;row<2;row++)for(let i=0;i<42;i++){
+      const a=i*TAU/42+row*TAU/84, m=new THREE.Matrix4().makeRotationZ(a-PI/2).multiply(new THREE.Matrix4().makeRotationY(row?0.4:-0.4));
+      m.setPosition(0.7*Math.cos(a),0.7*Math.sin(a),row?0.165:-0.165); lugs.setMatrixAt(k++,m);
     }
     lugs.castShadow=true; p.add(lugs);
-    add(rimG,M.steelDS,p); add(cyl(0.3,0.02,'z',40),M.rim,p,0,0,0.1); add(cyl(0.11,0.12,'z',24),M.rim,p,0,0,0.13);
+    add(rimG,M.steelDS,p);
+    add(latheZ([[0.33,0.04],[0.3,0.1],[0.2,0.14],[0.12,0.14],[0.1,0.2],[0.03,0.2]],40),M.rimDS,p);
     const nuts=new THREE.InstancedMesh(nutG,M.steel,10);
-    for(let i=0;i<10;i++){const a=i*TAU/10; nuts.setMatrixAt(i,new THREE.Matrix4().makeTranslation(0.17*Math.cos(a),0.17*Math.sin(a),0.125));}
+    for(let i=0;i<10;i++){const a=i*TAU/10; nuts.setMatrixAt(i,new THREE.Matrix4().makeTranslation(0.16*Math.cos(a),0.16*Math.sin(a),0.15));}
     p.add(nuts);
     ex(sg,'wheel'+x+s,[0,0,s*1.3],7);
-    add(cyl(0.24,0.16,'z',28),M.cast,b,x,0.68,s*0.96);
+    add(cyl(0.2,0.22,'z',28),M.cast,b,x,WY,s*1.05);
   }
   ex(b,'08-08',[0,-0.15,0],7);
 }
+/* ── قضيب الجر: يخرج من أعلى المقدمة وينزل بشوكة يمر بينها عمود الكردان ── */
+const HITCH=[5.05,0.5];
 {
   const g=pg('08-02');
-  for(const s of [1,-1])beam([2.75,1.0,s*0.6],[4.25,0.62,s*0.1],0.14,0.17,M.paint,g);
-  beam([4.2,0.62,0],[4.88,0.54,0],0.18,0.16,M.paint,g);
-  beam([3.4,0.84,0.39],[3.4,0.84,-0.39],0.1,0.1,M.paint,g);
+  for(const s of [1,-1]){add(rb(0.06,1.5,0.1,0.015),M.paint,g,3.18,1.65,s*0.26); beam([2.0,2.45,s*0.42],[3.15,2.36,s*0.2],0.1,0.12,M.paint,g);}
+  beam([3.1,2.37,0],[4.72,1.14,0],0.3,0.22,M.paint,g);
+  for(const s of [1,-1])beam([4.64,1.22,s*0.16],[HITCH[0]-0.04,HITCH[1]+0.07,s*0.16],0.04,0.2,M.paint,g);
+  add(rb(0.24,0.05,0.36,0.01),M.paint,g,HITCH[0]-0.05,HITCH[1]+0.04,0);
+  beam([3.15,1.0,0.3],[3.15,1.0,-0.3],0.08,0.08,M.paint,g);
 }
-{ const g=pg('08-03'), t=new THREE.TorusGeometry(0.055,0.022,10,24); t.rotateX(PI/2); add(t,M.steel,g,4.97,0.53,0); add(rb(0.1,0.1,0.14,0.02),M.steel,g,4.9,0.53,0); }
+{ const g=pg('08-03'), t=new THREE.TorusGeometry(0.055,0.022,10,24); t.rotateX(PI/2); add(t,M.steel,g,HITCH[0]+0.06,HITCH[1],0); add(rb(0.12,0.1,0.16,0.02),M.steel,g,HITCH[0]-0.02,HITCH[1],0); }
 {
-  const g=pg('08-04');
-  add(cyl(0.055,0.48,'y',18),M.paint,g,4.0,0.54,-0.34);
-  add(cyl(0.035,0.26,'y',14),M.chrome,g,4.0,0.17,-0.34);
-  add(rb(0.22,0.025,0.22,0.006),M.steelDark,g,4.0,0.04,-0.34);
-  beam([4.0,0.7,-0.34],[4.0,0.7,-0.16],0.06,0.06,M.paint,g);
-  ex(g,'08-04',[0.4,0,-0.4],2);
+  const g=pg('08-04'), y0=1.5, z=-0.27;
+  add(cyl(0.06,y0-0.5,'y',18),M.paint,g,4.15,(y0+0.5)/2,z);
+  add(cyl(0.038,0.46,'y',14),M.chrome,g,4.15,0.27,z);
+  add(rb(0.24,0.025,0.24,0.006),M.steelDark,g,4.15,0.03,z);
+  beam([4.15,1.4,-0.12],[4.15,1.4,z],0.1,0.1,M.paint,g);
+  rod([4.15,y0+0.03,z],[4.15,y0+0.03,z-0.22],0.012,M.steel,g);
+  ex(g,'08-04',[0.4,0,-0.5],2);
 }
 
 /* ── الهيدروليك والإلكترونيات والتزييت ── */
@@ -2133,15 +2184,18 @@ let HOOD_F;
 { const g=pg('10-02'); for(const x of [1.6,-1.0,-3.0])add(rb(0.12,0.08,0.05,0.008),M.guard,g,x,1.0,0.81); }
 { const g=pg('10-03'); tube([[2.4,0.9,0.5],[1.6,1.0,0.82],[-1.0,1.0,0.82],[-3.0,1.0,0.82]],0.005,M.white,g,60); tube([[-1.0,1.0,0.82],[-1.4,0.85,0.86],[-1.55,0.75,0.92]],0.005,M.white,g,16); }
 
-/* ── مزلق البالات ── */
+/* ── مزلق البالات: بكرات على سكتين ودعامتان من أعلى الإطار الخلفي ── */
 {
-  const g=pg('11-01');
-  for(const s of [1,-1])beam([CHUTE.x0,CHUTE.y0,s*0.66],[CHUTE.x1,CHUTE.y1,s*0.66],0.05,0.08,M.frame,g);
-  const im=new THREE.InstancedMesh(cyl(0.05,1.28,'z',18),M.galv,9);
-  for(let i=0;i<9;i++){const t=(i+0.5)/9; im.setMatrixAt(i,new THREE.Matrix4().makeTranslation(lerp(CHUTE.x0,CHUTE.x1,t),lerp(CHUTE.y0,CHUTE.y1,t)+0.045,0));}
+  const g=pg('11-01'), N=12;
+  for(const s of [1,-1]){
+    beam([CHUTE.x0,CHUTE.y0,s*0.66],[CHUTE.x1,CHUTE.y1,s*0.66],0.06,0.12,M.paint,g);
+    beam([-4.56,2.3,s*0.7],[CHUTE.x1+0.3,CHUTE.y1+0.1,s*0.68],0.045,0.045,M.paint,g);
+  }
+  const im=new THREE.InstancedMesh(cyl(0.05,1.28,'z',18),M.galv,N);
+  for(let i=0;i<N;i++){const t=(i+0.5)/N; im.setMatrixAt(i,new THREE.Matrix4().makeTranslation(lerp(CHUTE.x0,CHUTE.x1,t),lerp(CHUTE.y0,CHUTE.y1,t)+0.045,0));}
   im.castShadow=im.receiveShadow=true; g.add(im);
   add(cyl(0.035,1.4,'z',14),M.steel,g,CHUTE.x0,CHUTE.y0,0);
-  for(const s of [1,-1])rod([-4.52,2.2,s*0.72],[CHUTE.x1+0.05,CHUTE.y1+0.06,s*0.68],0.008,M.steelDark,g,6);
+  beam([CHUTE.x1,CHUTE.y1,0.69],[CHUTE.x1,CHUTE.y1,-0.69],0.06,0.06,M.paint,g);
   ex(g,'11-01',[-1.2,0,0],2);
 }
 { const g=pg('11-04'); for(const s of [1,-1])add(rb(0.08,0.05,0.08,0.01),M.plastic,g,-5.35,0.79,s*0.66); ex(g,'11-04',[-1.2,0,0],2); }
@@ -2157,10 +2211,10 @@ function makeBale(len,parent){
   b.add(strands); if(parent)parent.add(b);
   return b;
 }
-{ const b=makeBale(2.35,decor); b.position.set(-7.9,0.45,0.15); b.rotation.y=0.06; }
+{ const b=makeBale(2.35,decor); b.position.set(-8.5,0.45,0.15); b.rotation.y=0.06; }
 
 /* مواقع القطع التي لا يظهر لها شكل منفصل في المجسم */
-const ANCH={'01-13':[2.1,0.9,0.9],'02-04':[0.95,0.2,0.4],'02-11':[0.95,0.62,0.9],'02-12':[0.85,0.3,-0.55],'02-13':[0.55,0.3,-0.72],'03-05':[-0.3,0.38,0.66],'03-09':[0.62,1.05,0.62],'03-10':[-0.3,0.38,-0.8],'03-11':[-0.2,0.5,-0.8],'03-12':[-0.15,0.6,-0.7],'05-07':[-1.5,0.78,-0.72],'05-13':[-0.35,2.3,0.72],'05-17':[-0.25,2.6,0.6],'07-04':[1.72,1.42,-0.95],'07-05':[1.72,1.18,-0.95],'07-09':[-1.4,1.6,1.25],'07-10':[-4.25,1.05,0],'09-02':[5.2,1.7,0],'09-03':[5.2,1.5,0],'09-06':[-0.78,2.3,0.12],'09-07':[2.95,1.08,0.5],'09-08':[-1.8,1.6,0.67],'09-09':[-0.2,2.62,-0.5],'10-04':[-0.85,0.78,1.0],'10-05':[2.3,1.25,0.35],'10-06':[4.4,0.95,0],'11-03':[-5.95,0.85,0.72],'11-05':[-6.8,0.6,0]};
+const ANCH={'01-13':[2.1,0.9,0.9],'02-04':[0.95,0.2,0.4],'02-11':[0.95,0.62,0.9],'02-12':[0.85,0.3,-0.55],'02-13':[0.55,0.3,-0.72],'03-05':[-0.3,0.38,0.66],'03-09':[0.62,1.05,0.62],'03-10':[-0.3,0.38,-0.8],'03-11':[-0.2,0.5,-0.8],'03-12':[-0.15,0.6,-0.7],'05-07':[-1.5,0.78,-0.72],'05-13':[-0.35,2.3,0.72],'05-17':[-0.25,2.6,0.6],'07-04':[1.72,1.42,-0.95],'07-05':[1.72,1.18,-0.95],'07-09':[-1.4,1.6,1.25],'07-10':[-4.25,1.05,0],'09-02':[5.2,1.7,0],'09-03':[5.2,1.5,0],'09-06':[-0.78,2.3,0.12],'09-07':[2.95,1.08,0.5],'09-08':[-1.8,1.6,0.67],'09-09':[-0.2,2.62,-0.5],'10-04':[-0.85,0.78,1.0],'10-05':[2.3,1.25,0.35],'10-06':[4.4,0.95,0],'11-03':[-5.95,0.85,0.72],'11-05':[-7.0,0.55,0]};
 
 /* الوضع الافتراضي للأجزاء المتحركة */
 let PHI=0.62*PI;
@@ -2281,7 +2335,7 @@ function focusIds(ids){
 const VIEWS={iso:[[8.6,4.6,11.8],[-0.8,1.2,0]],side:[[-0.6,1.9,14.5],[-0.6,1.3,0]],front:[[10.5,2.6,1.2],[1.0,1.2,0]],rear:[[-13.5,3.0,2.2],[-1.4,1.2,0]],top:[[-0.6,16,0.4],[-0.6,1.0,0]]};
 function goView(k,d){
   const v=VIEWS[k], t=V(...v[1]), p=V(...v[0]), off=p.clone().sub(t);
-  if(camera.aspect<1.1)off.multiplyScalar(Math.min(1.9,1.1/Math.max(0.45,camera.aspect)));
+  if(camera.aspect<1.1)off.multiplyScalar(Math.min(2.0,1.2/Math.max(0.45,camera.aspect)));
   flyTo(t,t.clone().add(off),d);
 }
 $$('#views button').forEach(b=>b.addEventListener('click',()=>goView(b.dataset.view)));

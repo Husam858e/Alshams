@@ -20,7 +20,9 @@
 
 ## عن المجسم
 
-المجسم مبني داخل التطبيق من القياسات المنشورة للماكينة: القناة 120 × 90 سم، والدوّار 720 مم، والبيك أب 2.35 م، و8 عقّادات وإبر، و48 بكرة خيط، والمحور الترادفي بإطارات 26.5 بوصة. شكل القطع الداخلية الصغيرة توضيحي. لم يُنسخ من مجسمات الشركة ولا من لعبة Farming Simulator، لأن مجسمات اللعبة ملك لشركة GIANTS Software ولا يجوز نسخها.
+المجسم مبني داخل التطبيق من القياسات المنشورة للماكينة: القناة 120 × 90 سم، والدوّار 720 مم، والبيك أب 2.35 م، و8 عقّادات وإبر، و48 بكرة خيط، والمحور الترادفي بإطارات 26.5 بوصة. شكل القطع الداخلية الصغيرة توضيحي.
+
+الشكل الخارجي مرسوم بالرجوع إلى صور الماكينة وفيديو KRONE الرسمي: الألواح الجانبية المضلّعة التي تُفتح للأعلى، والمقدمة الهرمية فوق الحدّافة، وقضيب الجر الخارج من أعلى المقدمة، والسقف بدرابزينه، والسلم الخلفي، والمزلق الطويل بدعامتيه، والإطارات العريضة. لم يُنسخ أي ملف مجسم جاهز. لم يُنسخ من مجسمات الشركة ولا من لعبة Farming Simulator، لأن مجسمات اللعبة ملك لشركة GIANTS Software ولا يجوز نسخها.
 
 ## الرقم التسلسلي ورقم الكتالوج
 
@@ -43,3 +45,4 @@
 - [KRONE North America: BiG Pack HDP II 1290 (VC)](https://www.krone-northamerica.com/products/large-square-balers/big-pack-hdp-ii-1290-vc)
 - [top agrar: Krone stellt die neue BiG Pack HDP II vor](https://www.topagrar.com/technik/news/krone-stellt-die-neue-big-pack-hdp-ii-grosspackenpresse-vor-20017783.html)
 - [Terre-net: La presse Krone Big Pack HDP II](https://www.terre-net.fr/recoltes/article/887461/la-presse-krone-big-pack-hdp-ii-repousse-la-limite-du-debit-de-chantier)
+- [KRONE BiG Pack 3D-Animation (YouTube)](https://youtu.be/RH0-d60T4wY)
