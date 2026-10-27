@@ -771,7 +771,7 @@ const PARTS = [
   /* ── 06 نقل الحركة ── */
   {id:'06-01', ar:'عمود الإدارة', en:'PTO shaft', de:'Gelenkwelle', q:'1', t:'c',
    fn:'ينقل القدرة من عمود إدارة الجرار إلى الكبّاسة.',
-   sp:'1000 د/د.',
+   sp:'1000 د/د. عمودان: قصير من الجرار إلى علبة الزاوية في قضيب الجر، ثم عمود رئيسي مستقيم إلى الحدّافة.',
    mt:'شحّم المفاصل والأنابيب المنزلقة، وافحص غطاء الحماية وسلسلة منعه من الدوران.'},
   {id:'06-02', ar:'قابض الانزلاق للتشغيل', en:'Start-up slip clutch', q:'1', t:'c',
    fn:'ينزلق عند بدء التشغيل ليحمي عمود الإدارة وناقل حركة الجرار من صدمة تسريع الحدّافة الثقيلة.'},
@@ -779,12 +779,13 @@ const PARTS = [
    fn:'يفصل الحركة عند الحمل الزائد ويعود للتعشيق آلياً. الكبّاسة لا تستخدم مسامير قص في خط الإدارة الرئيسي.'},
   {id:'06-04', ar:'الحدّافة', en:'Flywheel', de:'Schwungrad', q:'1', t:'c',
    fn:'تخزن طاقة الحركة وتعطيها للمكبس في لحظة الضغط القصوى، فيصبح الحمل على الجرار أهدأ.',
-   sp:'حدّافة كبيرة وزنها نحو 600 كغ.'},
+   sp:'حدّافة كبيرة وزنها نحو 600 كغ، ومعها فرامل للحدّافة.'},
   {id:'06-05', ar:'مساعد البدء الهيدروليكي', en:'Hydraulic starter aid', q:'1', t:'c',
    fn:'يدير الحدّافة هيدروليكياً قبل تعشيق عمود الإدارة، فيقلل الإجهاد على الجرار والقوابض.',
    sp:'سرعة نهائية حتى 400 د/د.'},
   {id:'06-06', ar:'علبة التروس الرئيسية', en:'Main gearbox', de:'Hauptgetriebe', q:'1', t:'c',
    fn:'تخفض سرعة الدخل من 1000 د/د إلى 45 دورة في الدقيقة لأذرع الكرنك، وتوزع الحركة على بقية الوحدات.',
+   sp:'علبة طويلة عمودية: الدخل من الحدّافة في أسفلها، وعمود أذرع الكرنك في أعلاها.',
    mt:'افحص مستوى الزيت قبل الموسم وبعد الساعات المحددة في الكتيب.'},
   {id:'06-07', ar:'أعمدة الإدارة الثانوية', en:'Secondary drive shafts', q:'حسب الكتالوج', t:'c',
    fn:'توصل الحركة من علبة التروس إلى دوّار القطع وVFS والعقّادات.'},
@@ -1576,7 +1577,8 @@ function roundRectPts(x0,y0,x1,y1,r){
 {
   const g=pg('08-01');
   for(const s of [1,-1])add(rb(7.6,0.15,0.12,0.015),M.frame,g,-0.82,1.02,s*0.72);
-  for(const x of [-4.5,-3.6,-2.6,-1.55,2.05,2.75])add(rb(0.12,0.12,1.56,0.012),M.frame,g,x,1.0,0);
+  for(const x of [-4.5,-3.6,-2.6,-1.55,2.05])add(rb(0.12,0.12,1.56,0.012),M.frame,g,x,1.0,0);
+  add(rb(0.12,0.12,1.56,0.012),M.frame,g,2.7,0.8,0);
   for(const s of [1,-1]){
     add(rb(0.12,1.37,0.12,0.012),M.frame,g,2.0,1.765,s*0.72);
     add(rb(0.1,1.17,0.1,0.01),M.frame,g,-4.52,1.665,s*0.72);
@@ -1689,27 +1691,41 @@ function setMech(phi){
   for(const m of RODS){m.position.x=(cpx+pinX)/2; m.position.y=(cpy+CRK.cy)/2; m.rotation.z=Math.atan2(cpy-CRK.cy,cpx-pinX);}
 }
 
-/* ── نقل الحركة ── */
+/* ── نقل الحركة: علبة رئيسية طويلة، الدخل من الحدّافة في أسفلها والكرنك في أعلاها (أشكال الكتالوج 84 و85 و87 و88) ── */
+const FLYC=[2.95,1.12];
 {
   const g=pg('06-06');
-  add(rb(0.62,0.82,0.6,0.07),M.paintDark,g,2.3,1.62,0);
-  add(cyl(0.17,0.32,'x',24),M.paintDark,g,2.7,1.62,0);
-  for(const s of [1,-1])add(cyl(0.15,0.12,'z',24),M.cast,g,2.3,1.6,s*0.34);
-  for(const x of [2.08,2.52])add(rb(0.035,0.7,0.64,0.01),M.cast,g,x,1.62,0);
-  add(cyl(0.035,0.06,'y',12),M.guard,g,2.4,2.06,0.12);
-  add(rb(0.5,0.08,0.66,0.02),M.frame,g,2.3,1.18,0);
+  plate(roundRectPts(2.12,0.76,2.56,2.2,0.18),0.44,M.paintDark,g,0);
+  plate(roundRectPts(2.1,0.74,2.58,2.22,0.19),0.03,M.paintDark,g,0);
+  for(const s of [1,-1]){
+    for(const x of [2.2,2.34,2.48])add(rb(0.025,1.1,0.03,0.006),M.paintDark,g,x,1.42,s*0.23);
+    add(cyl(0.13,0.12,'z',28),M.cast,g,CRK.cx,CRK.cy,s*0.28);
+  }
+  add(cyl(0.14,0.3,'x',28),M.cast,g,2.705,FLYC[1],0);
+  add(cyl(0.18,0.03,'x',28),M.paintDark,g,2.575,FLYC[1],0);
+  add(cyl(0.04,0.04,'y',12),M.steelDark,g,2.34,0.73,0);
+  add(cyl(0.03,0.07,'y',12),M.guard,g,2.45,2.24,0.12);
+  beam([2.32,2.2,0.08],[2.0,2.42,0.08],0.2,0.1,M.frame,g);
   ex(g,'06-06',[0.5,2.1,0],5);
 }
 let FLY;
 {
-  const g=pg('06-04'); FLY=pivot(g,'fly',2.95,1.6,0);
-  add(latheX([[0.09,-0.075],[0.6,-0.075],[0.625,-0.05],[0.625,0.05],[0.6,0.075],[0.5,0.075],[0.47,0.035],[0.18,0.035],[0.15,0.075],[0.09,0.075]],64),M.cast,FLY);
-  add(rb(0.02,0.12,0.05,0.004),M.white,FLY,0.08,0.55,0);
-  add(cyl(0.1,0.24,'x',20),M.steel,FLY);
+  const g=pg('06-04'); FLY=pivot(g,'fly',FLYC[0],FLYC[1],0);
+  add(latheX([[0.45,-0.1],[0.555,-0.1],[0.565,-0.09],[0.565,0.09],[0.555,0.1],[0.45,0.1],[0.45,-0.1]],64),M.cast,FLY);
+  const web=new THREE.Shape(); web.absarc(0,0,0.46,0,TAU,false);
+  for(let i=0;i<3;i++){const a=PI/2+i*TAU/3, h=new THREE.Path(); h.absarc(0.26*Math.cos(a),0.26*Math.sin(a),0.12,0,TAU,true); web.holes.push(h);}
+  const wg=new THREE.ExtrudeGeometry(web,{depth:0.05,bevelEnabled:false,curveSegments:20}); wg.translate(0,0,-0.025); wg.rotateY(PI/2);
+  add(wg,M.cast,FLY);
+  add(cyl(0.11,0.26,'x',24),M.steel,FLY);
+  add(rb(0.02,0.1,0.05,0.004),M.white,FLY,0.105,0.5,0);
+  /* فرامل الحدّافة: شريط فوق الإطار مع ذراعه */
+  const band=new THREE.CylinderGeometry(0.585,0.585,0.11,24,1,true,1.15*PI,0.7*PI); band.rotateZ(-PI/2);
+  add(band,M.steelDS,g,FLYC[0],FLYC[1],0);
+  rod([FLYC[0],FLYC[1]+0.6,0.2],[FLYC[0]-0.25,FLYC[1]+0.75,0.35],0.015,M.steel,g);
   ex(g,'06-04',[1.5,0.25,0],5);
 }
-{ const g=pg('06-03'); add(cyl(0.17,0.1,'x',28),M.dark,g,3.12,1.6,0); add(cyl(0.12,0.06,'x',24),M.steel,g,3.2,1.6,0); ex(g,'06-03',[1.75,0.25,0],5); }
-{ const g=pg('06-05'); add(cyl(0.075,0.2,'x',18),M.paintDark,g,2.62,2.12,0.2); tube([[2.52,2.12,0.25],[2.3,2.3,0.35],[2.0,2.3,0.6]],0.01,M.hose,g,16); ex(g,'06-05',[0.5,2.4,0.3],5); }
+{ const g=pg('06-03'); add(cyl(0.17,0.1,'x',28),M.dark,g,3.12,FLYC[1],0); add(cyl(0.12,0.06,'x',24),M.steel,g,3.2,FLYC[1],0); ex(g,'06-03',[1.75,0.25,0],5); }
+{ const g=pg('06-05'); add(cyl(0.075,0.2,'x',18),M.paintDark,g,2.66,1.5,0.22); tube([[2.56,1.5,0.27],[2.45,2.0,0.3],[2.2,2.35,0.3],[2.0,2.35,0.6]],0.01,M.hose,g,24); ex(g,'06-05',[0.5,2.4,0.3],5); }
 {
   const g=pg('06-07');
   rod([2.2,1.25,0.25],[2.0,1.15,0.76],0.03,M.steel,g);
@@ -1733,19 +1749,29 @@ let FLY;
   beam([ROTOR.x,ROTOR.y-0.12,-0.76],[VFSC.x,VFSC.y-0.1,-0.76],0.02,0.03,M.dark,g);
   ex(g,'06-09',[0,0,-0.6],4);
 }
-{
-  const g=pg('06-01'), A=V(3.2,1.6,0), B=V(5.05,0.62,0), d=B.clone().sub(A).normalize();
+/* عمود الإدارة: قصير من الجرار إلى علبة الزاوية في قضيب الجر، ثم عمود رئيسي مستقيم إلى الحدّافة (صفحة KRONE للـHDP II) */
+const PTO1=[V(3.2,FLYC[1],0),V(4.36,FLYC[1],0)], PTO2=[V(4.68,0.98,0),V(5.4,0.72,0)];
+function ptoShaft(A,B,g,lo,hi){
+  const d=B.clone().sub(A).normalize();
   const a1=A.clone().addScaledVector(d,0.12), b1=B.clone().addScaledVector(d,-0.12);
   rod(a1,b1,0.032,M.steel,g);
-  const gs=a1.clone().addScaledVector(d,0.16), ge=b1.clone().addScaledVector(d,-0.34);
+  const gs=a1.clone().addScaledVector(d,lo), ge=b1.clone().addScaledVector(d,-hi);
   rod(gs,ge,0.07,M.plastic,g,20);
-  const c1=add(cyl(0.07,0.16,'x',20,0.12),M.guard,g); c1.position.copy(a1).addScaledVector(d,0.08); orientX(c1,d.clone().negate());
+  const c1=add(cyl(0.07,0.16,'x',20,0.12),M.guard,g); c1.position.copy(gs).addScaledVector(d,-0.08); orientX(c1,d.clone().negate());
   const c2=add(cyl(0.07,0.16,'x',20,0.12),M.guard,g); c2.position.copy(ge).addScaledVector(d,0.08); orientX(c2,d);
   for(const P of [A,B]){const y=add(rb(0.12,0.13,0.13,0.02),M.steel,g); y.position.copy(P); orientX(y,d);}
+}
+{
+  const g=pg('06-01');
+  ptoShaft(PTO1[0],PTO1[1],g,0.16,0.16);
+  ptoShaft(PTO2[0],PTO2[1],g,0.1,0.3);
+  add(rb(0.34,0.26,0.24,0.04),M.paintDark,g,4.52,1.02,0);
+  add(cyl(0.09,0.08,'x',20),M.cast,g,4.33,FLYC[1],0);
+  const o=add(cyl(0.08,0.1,'x',20),M.cast,g); o.position.set(4.7,0.975,0); orientX(o,PTO2[1].clone().sub(PTO2[0]));
   ex(g,'06-01',[1.2,-0.1,0],2);
 }
 {
-  const g=pg('06-02'), B=V(5.05,0.62,0), A=V(3.2,1.6,0), d=B.clone().sub(A).normalize();
+  const g=pg('06-02'), [A,B]=PTO2, d=B.clone().sub(A).normalize();
   rod(B.clone().addScaledVector(d,-0.34),B.clone().addScaledVector(d,-0.2),0.13,M.dark,g,24);
   ex(g,'06-02',[1.2,-0.1,0],2);
 }
@@ -1922,18 +1948,23 @@ function knifeArm(p,z){
     ex(sg,'box'+(s>0?'L':'R'),[0,0.2,s*1.15],1);
   }
 }
+/* توربينتا PowerClean خلف العقّادات تدفعان الهواء إلى الأمام فوقها (صفحة KRONE للـHDP II) */
 {
-  const g=pg('05-16'), m=pg('07-08');
+  const g=pg('05-16'), m=pg('07-08'), FX=-0.78;
   for(const s of [1,-1]){
     const h=new THREE.CylinderGeometry(0.17,0.17,0.14,32,1,true); h.rotateZ(-PI/2);
-    add(h,M.paintDS,g,0.62,2.62,s*0.34);
-    add(new THREE.TorusGeometry(0.165,0.008,6,32),M.steel,g,0.55,2.62,s*0.34).rotation.y=PI/2;
-    const p=pivot(g,'fan',0.62,2.62,s*0.34);
+    add(h,M.paintDS,g,FX,2.62,s*0.34);
+    const o=new THREE.CylinderGeometry(0.13,0.17,0.2,32,1,true); o.rotateZ(-PI/2);
+    add(o,M.paintDS,g,FX+0.17,2.62,s*0.34);
+    add(new THREE.TorusGeometry(0.165,0.008,6,32),M.steel,g,FX-0.07,2.62,s*0.34).rotation.y=PI/2;
+    for(const a of [0,TAU/3,2*TAU/3])beam([FX-0.08,2.62,s*0.34],[FX-0.08,2.62+0.16*Math.cos(a),s*0.34+0.16*Math.sin(a)],0.012,0.012,M.steelDark,g);
+    const p=pivot(g,'fan',FX,2.62,s*0.34);
     add(cyl(0.04,0.06,'x',14),M.steelDark,p);
     for(let i=0;i<6;i++){const a=i*TAU/6, b=add(rb(0.012,0.12,0.045,0.003),M.steel,p,0,0.085*Math.cos(a),0.085*Math.sin(a)); b.rotation.x=a; b.rotation.y=0.35;}
-    add(cyl(0.055,0.1,'x',16),M.paintDark,m,0.76,2.62,s*0.34);
+    add(cyl(0.055,0.1,'x',16),M.paintDark,m,FX-0.13,2.62,s*0.34);
+    tube([[FX-0.18,2.62,s*0.34],[FX-0.32,2.66,s*0.4],[FX-0.5,2.7,s*0.6]],0.009,M.hose,m,12);
   }
-  ex(g,'05-16',[0.3,0.9,0],1); ex(m,'07-08',[0.3,0.9,0],1);
+  ex(g,'05-16',[-0.3,0.9,0],1); ex(m,'07-08',[-0.3,0.9,0],1);
 }
 
 /* ── البيك أب ── */
@@ -2039,6 +2070,7 @@ let HOOD_F, ROOF;
     loft([NOSE_A.map(([y,z])=>V(BX1,y,s*z)),NOSE_B.map(([y,z])=>V(NOSE,y,s*z))],M.paintDS,hf,o);
     for(let i=1;i<NOSE_A.length-1;i++)tube([[BX1,NOSE_A[i][0],s*(NOSE_A[i][1]+0.004)],[NOSE,NOSE_B[i][0],s*(NOSE_B[i][1]+0.004)]],0.006,M.paintDark,hf,2,false,o);
   }
+  for(const [t0,sd] of [[-0.35,1],[PI/2,-1]]){const gg=new THREE.CylinderGeometry(0.62,0.62,0.3,28,1,true,t0,PI/2+0.35); gg.rotateZ(-PI/2); add(gg,M.paintDS,hf,FLYC[0],FLYC[1],0,{cut:sd>0});}
   capYZ(NOSE_B.map(([y,z])=>[z,y]).concat(NOSE_B.slice().reverse().map(([y,z])=>[-z,y])),NOSE,M.paintDS,hf);
   for(let i=0;i<5;i++)add(rb(0.012,0.035,0.62,0.004),M.dark,hf,NOSE+0.008,1.95-i*0.08,0);
   ex(hf,'cov-hoodF',[0.9,1.2,0],0);
@@ -2110,14 +2142,39 @@ let HOOD_F, ROOF;
 
 /* ── المحاور والعجلات (إطارات عريضة 26.5 بوصة وجنوط فضية) ── */
 const WZ=1.15, WY=0.69;
+const SPZ=0.72, BOGX=-1.55;
 {
   const g=pg('08-05');
-  for(const x of [-0.85,-2.25])add(cyl(0.07,2.2,'z',20),M.frame,g,x,WY,0);
-  for(const s of [1,-1]){add(rb(1.62,0.16,0.1,0.02),M.frame,g,-1.55,WY,s*0.72); add(rb(0.24,0.3,0.12,0.02),M.frame,g,-1.55,0.86,s*0.72); add(cyl(0.06,0.16,'z',16),M.steel,g,-1.55,0.72,s*0.72);}
+  for(const x of [-0.85,-2.25]){
+    add(cyl(0.07,2.0,'z',20),M.frame,g,x,WY,0);
+    for(const s of [1,-1])add(rb(0.16,0.05,0.13,0.01),M.cast,g,x,0.77,s*SPZ);
+  }
+  for(const s of [1,-1]){
+    add(rb(0.24,0.08,0.16,0.02),M.frame,g,BOGX,0.95,s*SPZ);
+    add(cyl(0.04,0.2,'z',16),M.steel,g,BOGX,0.93,s*SPZ);
+    beam([-2.3,WY,s*0.86],[-2.42,0.63,s*0.84],0.04,0.05,M.cast,g);
+  }
+  rod([-2.42,0.63,-0.86],[-2.42,0.63,0.86],0.022,M.steel,g);
   ex(g,'08-05',[0,-0.45,0],7);
 }
-{ const g=pg('08-06'); for(const s of [1,-1])for(let k=0;k<3;k++)tube([[-2.2,0.79+k*0.028,s*0.72],[-1.55,0.93+k*0.028,s*0.72],[-0.9,0.79+k*0.028,s*0.72]],0.012,M.steelDark,g,24); ex(g,'08-06',[0,-0.25,0],7); }
-{ const g=pg('08-09'); hcyl([-0.85,0.79,0.2],[-0.85,0.79,0.55],0.03,g); ex(g,'08-09',[0,-0.3,0],7); }
+{
+  /* نوابض قوسية بورقتين مستدقّتين، مثبتة في الوسط ومرتكزة على المحورين */
+  const g=pg('08-06');
+  const leaf=(L,y0,t0,z)=>{
+    const top=[], bot=[], a=0.012/((L/2)*(L/2));
+    for(let i=0;i<=16;i++){const dx=-L/2+L*i/16, yb=y0-a*dx*dx, t=t0*Math.sqrt(Math.max(0.22,1-Math.abs(dx)/(L/2))); bot.push([BOGX+dx,yb]); top.push([BOGX+dx,yb+t]);}
+    plate(top.concat(bot.reverse()),0.09,M.steelDark,g,z);
+  };
+  for(const s of [1,-1]){
+    const z=s*SPZ;
+    leaf(1.56,0.802,0.04,z); leaf(1.36,0.846,0.034,z);
+    add(rb(0.2,0.02,0.14,0.004),M.cast,g,BOGX,0.79,z);
+    add(rb(0.2,0.025,0.14,0.006),M.cast,g,BOGX,0.892,z);
+    for(const dx of [-0.07,0.07])for(const dz of [-0.06,0.06])rod([BOGX+dx,0.775,z+dz],[BOGX+dx,0.915,z+dz],0.009,M.steel,g,8);
+  }
+  ex(g,'08-06',[0,-0.25,0],7);
+}
+{ const g=pg('08-09'); hcyl([-2.3,0.64,0.06],[-2.42,0.63,0.5],0.028,g); ex(g,'08-09',[0,-0.3,0],7); }
 {
   const g=pg('08-07'), b=pg('08-08');
   const tyreG=latheZ([[0.345,-0.33],[0.42,-0.355],[0.56,-0.362],[0.65,-0.345],[0.684,-0.29],[0.692,-0.12],[0.692,0.12],[0.684,0.29],[0.65,0.345],[0.56,0.362],[0.42,0.355],[0.345,0.33]],64);
@@ -2138,7 +2195,8 @@ const WZ=1.15, WY=0.69;
     for(let i=0;i<10;i++){const a=i*TAU/10; nuts.setMatrixAt(i,new THREE.Matrix4().makeTranslation(0.16*Math.cos(a),0.16*Math.sin(a),0.15));}
     p.add(nuts);
     ex(sg,'wheel'+x+s,[0,0,s*1.3],7);
-    add(cyl(0.2,0.22,'z',28),M.cast,b,x,WY,s*1.05);
+    add(cyl(0.25,0.2,'z',28),M.cast,b,x,WY,s*1.0); add(cyl(0.27,0.02,'z',28),M.steelDark,b,x,WY,s*0.89);
+    add(cyl(0.065,0.1,'z',16),M.dark,b,x+0.22,WY-0.14,s*0.82);
   }
   ex(b,'08-08',[0,-0.15,0],7);
 }
@@ -2150,7 +2208,7 @@ const HITCH=[5.05,0.5];
   beam([3.1,2.37,0],[4.72,1.14,0],0.3,0.22,M.paint,g);
   for(const s of [1,-1])beam([4.64,1.22,s*0.16],[HITCH[0]-0.04,HITCH[1]+0.07,s*0.16],0.04,0.2,M.paint,g);
   add(rb(0.24,0.05,0.36,0.01),M.paint,g,HITCH[0]-0.05,HITCH[1]+0.04,0);
-  beam([3.15,1.0,0.3],[3.15,1.0,-0.3],0.08,0.08,M.paint,g);
+  beam([3.15,2.05,0.3],[3.15,2.05,-0.3],0.08,0.08,M.paint,g);
 }
 { const g=pg('08-03'), t=new THREE.TorusGeometry(0.055,0.022,10,24); t.rotateX(PI/2); add(t,M.steel,g,HITCH[0]+0.06,HITCH[1],0); add(rb(0.12,0.1,0.16,0.02),M.steel,g,HITCH[0]-0.02,HITCH[1],0); }
 {
@@ -2166,7 +2224,7 @@ const HITCH=[5.05,0.5];
 /* ── الهيدروليك والإلكترونيات والتزييت ── */
 { const g=pg('07-02'); add(rb(0.5,0.32,0.38,0.04),M.frame,g,2.4,0.78,-0.42); add(cyl(0.04,0.04,'y',12),M.guard,g,2.25,0.96,-0.3); ex(g,'07-02',[0,-0.5,-0.45],5); }
 { const g=pg('07-06'); add(cyl(0.05,0.16,'y',16),M.white,g,2.6,1.02,-0.42); ex(g,'07-06',[0,-0.5,-0.45],5); }
-{ const g=pg('07-01'); add(cyl(0.07,0.2,'x',18),M.paintDark,g,2.7,1.3,0.15); ex(g,'07-01',[0.9,1.9,0.3],5); }
+{ const g=pg('07-01'); add(cyl(0.07,0.2,'x',18),M.paintDark,g,2.7,1.32,-0.2); ex(g,'07-01',[0.9,1.9,0.3],5); }
 { const g=pg('07-03'); add(rb(0.22,0.18,0.1,0.01),M.cast,g,1.72,1.3,-0.86); for(let i=0;i<4;i++)add(cyl(0.012,0.04,'z',8),M.steel,g,1.64+i*0.055,1.36,-0.92); ex(g,'07-03',[0,0,-0.6],2); }
 {
   const g=pg('07-07');
@@ -2214,7 +2272,7 @@ function makeBale(len,parent){
 { const b=makeBale(2.35,decor); b.position.set(-8.5,0.45,0.15); b.rotation.y=0.06; }
 
 /* مواقع القطع التي لا يظهر لها شكل منفصل في المجسم */
-const ANCH={'01-13':[2.1,0.9,0.9],'02-04':[0.95,0.2,0.4],'02-11':[0.95,0.62,0.9],'02-12':[0.85,0.3,-0.55],'02-13':[0.55,0.3,-0.72],'03-05':[-0.3,0.38,0.66],'03-09':[0.62,1.05,0.62],'03-10':[-0.3,0.38,-0.8],'03-11':[-0.2,0.5,-0.8],'03-12':[-0.15,0.6,-0.7],'05-07':[-1.5,0.78,-0.72],'05-13':[-0.35,2.3,0.72],'05-17':[-0.25,2.6,0.6],'07-04':[1.72,1.42,-0.95],'07-05':[1.72,1.18,-0.95],'07-09':[-1.4,1.6,1.25],'07-10':[-4.25,1.05,0],'09-02':[5.2,1.7,0],'09-03':[5.2,1.5,0],'09-06':[-0.78,2.3,0.12],'09-07':[2.95,1.08,0.5],'09-08':[-1.8,1.6,0.67],'09-09':[-0.2,2.62,-0.5],'10-04':[-0.85,0.78,1.0],'10-05':[2.3,1.25,0.35],'10-06':[4.4,0.95,0],'11-03':[-5.95,0.85,0.72],'11-05':[-7.0,0.55,0]};
+const ANCH={'01-13':[2.1,0.9,0.9],'02-04':[0.95,0.2,0.4],'02-11':[0.95,0.62,0.9],'02-12':[0.85,0.3,-0.55],'02-13':[0.55,0.3,-0.72],'03-05':[-0.3,0.38,0.66],'03-09':[0.62,1.05,0.62],'03-10':[-0.3,0.38,-0.8],'03-11':[-0.2,0.5,-0.8],'03-12':[-0.15,0.6,-0.7],'05-07':[-1.5,0.78,-0.72],'05-13':[-0.35,2.3,0.72],'05-17':[-0.25,2.6,0.6],'07-04':[1.72,1.42,-0.95],'07-05':[1.72,1.18,-0.95],'07-09':[-1.4,1.6,1.25],'07-10':[-4.25,1.05,0],'09-02':[5.2,1.7,0],'09-03':[5.2,1.5,0],'09-06':[-0.78,2.3,0.12],'09-07':[2.95,0.52,0.15],'09-08':[-1.8,1.6,0.67],'09-09':[-0.2,2.62,-0.5],'10-04':[-0.85,0.78,1.0],'10-05':[2.3,1.25,0.35],'10-06':[4.4,0.95,0],'11-03':[-5.95,0.85,0.72],'11-05':[-7.0,0.55,0]};
 
 /* الوضع الافتراضي للأجزاء المتحركة */
 let PHI=0.62*PI;
