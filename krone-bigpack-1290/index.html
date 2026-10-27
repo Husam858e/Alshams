@@ -280,6 +280,29 @@ table.parts{width:100%;border-collapse:collapse;font-size:14px;min-width:860px}
 .parts .pe{font-size:12px;color:var(--muted);direction:ltr;text-align:right}
 .parts .cat input{width:160px;font-family:var(--font-mono);direction:ltr;text-align:left;padding:5px 8px}
 .parts .cat input.has{border-color:var(--ok)}
+.kcat-card{padding:12px 14px;margin-bottom:12px}
+.kcat-card h3{font-size:16px;margin-bottom:4px}
+.kcat-card .row{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:8px}
+.kcat-card .grow{flex:1 1 240px}
+.kres{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px;max-height:340px;overflow:auto}
+.kres button{all:unset;cursor:pointer;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}
+.kres button:hover,.kres button:focus-visible{border-color:var(--accent)}
+.kid{font:600 13px var(--font-mono);white-space:nowrap}
+.kref{font:12px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kdesc{grid-column:1 / -1;font-size:13px;min-width:0}
+.kdesc small{display:block;color:var(--muted)}
+.krows{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.krows li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}
+.krows li.on{border-color:var(--ok)}
+.krows li.off{opacity:.55}
+.kfig-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.modal-box.wide{max-width:1020px}
+table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+.kt th{position:sticky;top:0;background:var(--panel-2);text-align:start;font-size:11.5px;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.kt td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.kt td small{color:var(--muted)}
+.kt tr.hl td{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.kt tr.off td{opacity:.5}
 .specs{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:960px){.specs{grid-template-columns:minmax(0,1fr)}}
 .spec-table{width:100%;border-collapse:collapse;font-size:14.5px}
@@ -461,13 +484,23 @@ table.parts{width:100%;border-collapse:collapse;font-size:14px;min-width:860px}
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2 19 18H1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 8v4.5M10 14.6v.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
       <div>
         <strong>عن أرقام كتالوج KRONE</strong>
-        <p>أرقام القطع الرسمية تتغير حسب رقم الماكينة وسنة الصنع، لذلك لم يُكتب هنا أي رقم غير مؤكد. خذ الرقم من كتالوج قطع الغيار الرسمي لماكينتك واكتبه في الخانة. يُحفظ على هذا الجهاز، ويمكنك تصدير القائمة واستيرادها على جهاز آخر.</p>
+        <p>أرقام القطع الرسمية تتغير حسب رقم الماكينة وسنة الصنع، لذلك لم يُكتب هنا أي رقم غير مؤكد. خذ الرقم من كتالوج قطع الغيار الرسمي لماكينتك واكتبه في الخانة. يُحفظ على هذا الجهاز، ويمكنك تصدير القائمة واستيرادها على جهاز آخر. وإذا عندك ملف كتالوج كامل (JSON) فاستورده من زر «استيراد»، فيظهر لكل قطعة رقمها وجدول شكلها. يبقى الملف على هذا الجهاز فقط.</p>
       </div>
     </div>
     <div class="card machine">
       <h3>بيانات ماكينتك</h3>
       <div class="field"><label for="mNo">رقم الماكينة (من لوحة التعريف)</label><input type="text" id="mNo" dir="ltr" autocomplete="off"></div>
       <div class="field"><label for="mYear">سنة الصنع</label><input type="text" id="mYear" dir="ltr" inputmode="numeric" autocomplete="off" style="width:110px"></div>
+    </div>
+    <div class="card kcat-card" id="kcatCard">
+      <h3>كتالوج قطع الغيار المستورد</h3>
+      <p class="muted small" id="kcatInfo"></p>
+      <div class="row" id="kcatTools" hidden>
+        <div class="field grow"><label for="kSearch">بحث في الكتالوج</label><input type="search" id="kSearch" dir="auto" placeholder="رقم القطعة أو اسمها بالإنجليزي أو الألماني" autocomplete="off"></div>
+        <button type="button" class="btn" id="kFigs">فهرس الأشكال</button>
+        <button type="button" class="btn ghost danger" id="kDel">حذف الكتالوج</button>
+      </div>
+      <ul class="kres" id="kRes"></ul>
     </div>
     <div class="ptools">
       <div class="field grow"><label for="pSearch">بحث</label><input type="search" id="pSearch" placeholder="الاسم بالعربي أو الإنجليزي أو الرقم" autocomplete="off"></div>
@@ -1130,7 +1163,8 @@ function matchPart(p,q){
 let toastT=0;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800);}
 const Modal={
-  open(title,body,actions){
+  open(title,body,actions,wide){
+    $('#modal .modal-box').classList.toggle('wide',!!wide);
     $('#modalTitle').textContent=title; $('#modalBody').innerHTML=body;
     const box=$('#modalActs'); box.innerHTML='';
     (actions||[]).forEach(ac=>{
@@ -1182,6 +1216,66 @@ function download(name,text,mime){
 function setHdr(){root.style.setProperty('--hdr',$('header.top').offsetHeight+'px');}
 setHdr(); window.addEventListener('resize',setHdr);
 
+/* كتالوج قطع غيار يستورده المستخدم من ملف خاص به؛ يُحفظ على هذا الجهاز فقط
+   الصف: [البند، رقم القطعة، الوصف الألماني، الوصف الإنجليزي، نطاق الماكينات، كمية النوع 1، كمية النوع 2، ملاحظة] */
+const KC=(function(){
+  const KEY='bp1290.kcat';
+  let data=store.get(KEY,null); if(!data||!Array.isArray(data.figures))data=null;
+  const fig=t=>data&&data.figures.find(f=>f.t===t);
+  const mach=()=>{const n=parseInt(String(machine.no||'').replace(/\D/g,''),10); return n>99999?n:null;};
+  const rr=(f,r)=>r[4]||f.valid||'';
+  const fits=r=>{const n=mach(); if(!r||n==null)return null; const [a,b]=r.split('-'); return (!a||n>=+a)&&(!b||n<=+b);};
+  function save(d){try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){return false;} data=d; return true;}
+  function clear(){try{localStorage.removeItem(KEY);}catch(e){} data=null;}
+  function openFigure(t,hl){
+    const f=fig(t); if(!f)return;
+    const hs=new Set(hl||[]), ty=(data.source&&data.source.types)||['',''], n=mach();
+    const rows=f.rows.map(r=>{const ok=fits(rr(f,r));
+      return `<tr class="${hs.has(r[1])?'hl':''}${ok===false?' off':''}" data-q="${esc((r[1].replace(/ /g,'')+' '+r[1]+' '+r[2]+' '+r[3]).toLowerCase())}"><td class="mono">${r[0]==null?'':r[0]}</td><td class="mono" dir="ltr">${esc(r[1])}</td><td dir="ltr">${esc(r[3])}<br><small>${esc(r[2])}</small></td><td class="mono" dir="ltr">${esc(r[5]||'–')} / ${esc(r[6]||'–')}</td><td class="mono" dir="ltr">${esc(r[4])}</td><td dir="ltr">${esc(r[7])}</td></tr>`;}).join('');
+    Modal.open(`الشكل ${t} · ${f.en}`,`<p><bdi dir="ltr">${esc(f.de)}</bdi> · رسم <bdi dir="ltr">${esc(f.drawing)}</bdi> · ماكينات <bdi dir="ltr">${esc(f.valid)}</bdi>${n?` · ماكينتك <bdi dir="ltr">${n}</bdi>`:''}. في عمود الكمية: x تعني حسب الحاجة، و«–» تعني لا تُستخدم في هذا النوع.</p><div class="field"><label for="kfq">تصفية الجدول</label><input type="search" id="kfq" dir="auto" autocomplete="off"></div><div class="table-wrap" style="margin-top:8px"><table class="kt"><thead><tr><th>البند</th><th>رقم القطعة</th><th>الوصف</th><th>الكمية ${esc(ty[0])} / ${esc(ty[1])}</th><th>الماكينات</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody></table></div>`,[{label:'إغلاق',cls:'ghost'}],true);
+    const q=$('#kfq'); q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase().replace(/\s+/g,' '); $$('#modalBody tbody tr').forEach(tr=>{tr.hidden=!!v&&!tr.dataset.q.includes(v)&&!tr.dataset.q.includes(v.replace(/ /g,''));});});
+    const h=$('#modalBody tr.hl'); if(h)h.scrollIntoView({block:'center'});
+  }
+  function partBlock(id){
+    if(!data)return '';
+    const m=data.map&&data.map[id], s=data.source||{};
+    const head=`<h4>من كتالوج KRONE المستورد</h4><p class="small muted"><bdi dir="ltr">${esc(s.model||'')}</bdi> · ماكينات <bdi dir="ltr">${esc(s.machines||'')}</bdi></p>`;
+    if(!m||(!m.keys.length&&!m.figs.length))return `<section class="ins-sec">${head}<p class="small muted">لا يوجد في هذا الكتالوج ما يقابل هذه القطعة.</p></section>`;
+    const byFig={};
+    const items=m.keys.map(([t,pos,pid])=>{const f=fig(t), r=f&&f.rows.find(x=>x[0]===pos&&x[1]===pid); if(!r)return '';
+      (byFig[t]=byFig[t]||[]).push(pid); const g=rr(f,r), ok=fits(g);
+      return `<li class="${ok===true?'on':ok===false?'off':''}"><span class="kid" dir="ltr">${esc(pid)}</span><span class="kref" dir="ltr">${t} / ${pos}${g?' · '+esc(g):''}</span><span class="kdesc" dir="ltr">${esc(r[3])}<small>${esc(r[2])}${r[7]?' · '+esc(r[7]):''}</small></span>${ok===true?'<span class="kdesc small" style="color:var(--ok)">يناسب رقم ماكينتك</span>':ok===false?'<span class="kdesc small">لا يناسب رقم ماكينتك</span>':''}</li>`;}).join('');
+    const figs=m.figs.map(t=>{const f=fig(t); return f?`<button type="button" class="btn sm ghost" data-kfig="${t}" data-khl="${esc((byFig[t]||[]).join(','))}">الشكل ${t}: ${esc(f.en)}</button>`:'';}).join('');
+    return `<section class="ins-sec">${head}${items?`<ul class="krows">${items}</ul>`:''}<div class="kfig-btns">${figs}</div></section>`;
+  }
+  function search(){
+    const box=$('#kRes'), raw=$('#kSearch').value.trim().toLowerCase(); box.innerHTML='';
+    if(!data||raw.length<2)return;
+    const dig=raw.replace(/\s+/g,''), out=[];
+    for(const f of data.figures){for(const r of f.rows){
+      if((/^\d+$/.test(dig)&&r[1].replace(/ /g,'').includes(dig))||(r[3]+' '+r[2]).toLowerCase().includes(raw))out.push([f,r]);
+      if(out.length>=80)break;} if(out.length>=80)break;}
+    box.innerHTML=out.length?out.map(([f,r])=>`<li><button type="button" data-kfig="${f.t}" data-khl="${esc(r[1])}"><span class="kid" dir="ltr">${esc(r[1])}</span><span class="kref" dir="ltr">${f.t} / ${r[0]==null?'':r[0]} · ${esc(f.en)}</span><span class="kdesc" dir="ltr">${esc(r[3])}<small>${esc(r[2])}${r[7]?' · '+esc(r[7]):''}</small></span></button></li>`).join(''):'<li class="small muted">لا نتائج.</li>';
+  }
+  function render(){
+    const info=$('#kcatInfo'), tools=$('#kcatTools');
+    if(!data){info.textContent='لم يُستورد كتالوج بعد. إذا عندك ملف كتالوج (JSON) فاستورده من زر «استيراد» تحت، فيظهر لكل قطعة رقمها وجدول شكلها. يبقى على هذا الجهاز فقط.'; tools.hidden=true; $('#kRes').innerHTML=''; return;}
+    const s=data.source||{}, n=data.figures.reduce((a,f)=>a+f.rows.length,0), ok=fits(s.machines||''), mn=mach();
+    const L_=v=>`<bdi dir="ltr">${esc(v)}</bdi>`;
+    info.innerHTML=`${L_(s.model||'')} · ماكينات ${L_(s.machines||'')} · كتالوج ${L_(s.catalog||'')}${s.date?' ('+L_(s.date)+')':''} · ${data.figures.length} شكلاً و${n} سطراً.`+(mn==null?' اكتب رقم ماكينتك أعلاه لتظهر الأرقام المناسبة لها.':ok?` رقم ماكينتك ${L_(mn)} ضمن نطاق هذا الكتالوج.`:` تنبيه: رقم ماكينتك ${L_(mn)} خارج نطاق هذا الكتالوج، فقد لا تناسبها أرقامه.`);
+    tools.hidden=false; search();
+  }
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-kfig]'); if(!b)return; openFigure(b.dataset.kfig,(b.dataset.khl||'').split(',').filter(Boolean));});
+  $('#kSearch').addEventListener('input',search);
+  $('#kFigs').addEventListener('click',()=>{ if(!data)return;
+    Modal.open('فهرس أشكال الكتالوج',`<ul class="kres" style="max-height:none">${data.figures.map(f=>`<li><button type="button" data-kfig="${f.t}"><span class="kid" dir="ltr">${f.t}</span><span class="kref" dir="ltr">${esc(f.valid)} · ${f.rows.length}</span><span class="kdesc" dir="ltr">${esc(f.en)}<small>${esc(f.de)}</small></span></button></li>`).join('')}</ul>`,[{label:'إغلاق',cls:'ghost'}],true);});
+  $('#kDel').addEventListener('click',()=>{
+    Modal.open('حذف الكتالوج المستورد','<p>يُحذف ملف الكتالوج من هذا الجهاز. أرقام الكتالوج المكتوبة بجانب القطع تبقى كما هي.</p>',[
+      {label:'حذف',cls:'danger',fn:()=>{clear(); render(); document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}})); toast('تم حذف الكتالوج');}},{label:'إلغاء',cls:'ghost'}]);});
+  document.addEventListener('machinechange',render);
+  return {get:()=>data,save,render,partBlock,openFigure};
+})();
+
 /* جدول القطع */
 (function(){
   const tb=$('#partsBody');
@@ -1214,7 +1308,7 @@ setHdr(); window.addEventListener('resize',setHdr);
   });
   const mNo=$('#mNo'), mYear=$('#mYear');
   mNo.value=machine.no||''; mYear.value=machine.year||'';
-  [mNo,mYear].forEach(i=>i.addEventListener('input',()=>{machine={no:mNo.value.trim(),year:mYear.value.trim()};store.set('bp1290.machine',machine);}));
+  [mNo,mYear].forEach(i=>i.addEventListener('input',()=>{machine={no:mNo.value.trim(),year:mYear.value.trim()};store.set('bp1290.machine',machine);document.dispatchEvent(new Event('machinechange'));}));
   function openText(title,desc,text,fname,mime){
     const shown=text.replace(/^﻿/,'');
     Modal.open(title,`<p>${esc(desc)}</p><textarea id="ioText" readonly spellcheck="false" aria-label="${esc(title)}"></textarea>`,[
@@ -1236,29 +1330,33 @@ setHdr(); window.addEventListener('resize',setHdr);
   function normId(k){const m=String(k).match(/(\d{2})\s*-\s*(\d{2})/); return m?m[1]+'-'+m[2]:null;}
   function parseImport(txt){
     txt=String(txt||'').replace(/^﻿/,'').trim(); if(!txt)return null;
-    const map={}; let mach=null;
+    const map={}; let mach=null, kc=null;
     if(txt[0]==='{'){
       const o=JSON.parse(txt), src=(o&&o.catalog&&typeof o.catalog==='object')?o.catalog:o;
       for(const k in src){const id=normId(k), v=src[k]; if(id&&PART[id]&&v!=null&&String(v).trim())map[id]=String(v).trim();}
       if(o&&o.machine&&typeof o.machine==='object')mach=o.machine;
+      if(o&&o.type==='krone-catalog'&&Array.isArray(o.figures))kc=o;
     }else{
       txt.split(/\r?\n/).forEach(line=>{const cells=line.split(/[,;\t]/).map(c=>c.trim().replace(/^"|"$/g,'').trim()); if(cells.length<2)return; const id=normId(cells[0]), v=cells[cells.length-1]; if(id&&PART[id]&&v)map[id]=v;});
     }
-    return {map,machine:mach};
+    return {map,machine:mach,kcat:kc};
   }
   function doImport(txt){
     let res; try{res=parseImport(txt);}catch(err){toast('تعذّرت قراءة النص. تأكد أنه ملف تصدير صحيح.');return false;}
-    if(!res||!Object.keys(res.map).length){toast('لم يُعثر على أرقام صالحة للاستيراد');return false;}
+    if(!res||(!res.kcat&&!Object.keys(res.map).length)){toast('لم يُعثر على أرقام صالحة للاستيراد');return false;}
+    if(res.kcat&&!KC.save(res.kcat)){toast('تعذّر حفظ الكتالوج على هذا الجهاز: المساحة غير كافية');return false;}
     Object.assign(catalog,res.map); saveCatalog();
     if(res.machine){machine={no:String(res.machine.no||''),year:String(res.machine.year||'')}; store.set('bp1290.machine',machine); mNo.value=machine.no; mYear.value=machine.year;}
     document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}}));
-    toast(`تم استيراد ${Object.keys(res.map).length} رقماً`);
+    KC.render();
+    toast(res.kcat?`تم استيراد الكتالوج: ${res.kcat.figures.length} شكلاً، و${Object.keys(res.map).length} رقماً للقطع`:`تم استيراد ${Object.keys(res.map).length} رقماً`);
   }
   $('#impBtn').addEventListener('click',()=>{
-    Modal.open('استيراد أرقام الكتالوج','<p>الصق ملف التصدير (JSON)، أو أسطراً بالشكل: BP-05-01, رقم الكتالوج. ويمكنك اختيار ملف من جهازك.</p><textarea id="ioText" spellcheck="false" aria-label="نص الاستيراد"></textarea><div style="margin-top:8px"><input type="file" id="ioFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" aria-label="اختيار ملف"></div>',[
+    Modal.open('استيراد أرقام الكتالوج','<p>الصق ملف التصدير أو ملف الكتالوج (JSON)، أو أسطراً بالشكل: BP-05-01, رقم الكتالوج. ويمكنك اختيار ملف من جهازك.</p><textarea id="ioText" spellcheck="false" aria-label="نص الاستيراد"></textarea><div style="margin-top:8px"><input type="file" id="ioFile" accept=".json,.csv,.txt,application/json,text/csv,text/plain" aria-label="اختيار ملف"></div>',[
       {label:'استيراد',cls:'primary',fn:()=>doImport($('#ioText').value)},{label:'إلغاء',cls:'ghost'}]);
     $('#ioFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{$('#ioText').value=String(r.result||'').replace(/^﻿/,'');}; r.readAsText(f);});
   });
+  KC.render();
   $('#clrBtn').addEventListener('click',()=>{
     const n=Object.keys(catalog).length; if(!n){toast('لا توجد أرقام محفوظة');return;}
     Modal.open('مسح أرقام الكتالوج',`<p>سيُحذف ${n} رقماً محفوظاً على هذا الجهاز. صدّرها أولاً إذا أردت الاحتفاظ بنسخة.</p>`,[
@@ -1289,7 +1387,7 @@ function showTab(name,write){
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab,true)));
 window.addEventListener('hashchange',()=>showTab(location.hash.slice(1),false));
 
-window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab};
+window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock};
 showTab((location.hash||'').slice(1),false);
 
 /* إذا لم يُحمّل محرك العرض خلال 20 ثانية تظهر رسالة واضحة */
@@ -2459,6 +2557,7 @@ function renderPartView(id){
       <div><dt>التصنيف</dt><dd><span class="pill ${TYPES[p.t].cls}">${TYPES[p.t].ar}</span></dd></div>
       <div><dt>النظام</dt><dd class="mono">${p.sys}</dd></div>
     </dl>
+    ${BP.kcatBlock(id)}
     ${PG[id]?'':'<p class="cat-empty" style="color:var(--muted)">هذه القطعة داخلية أو صغيرة ولا تظهر كشكل منفصل، والعلامة البرتقالية في المجسم تدل على مكانها.</p>'}
     ${sec('الوظيفة',p.fn)}${sec('المواصفات',p.sp)}${sec('الصيانة والفحص',p.mt)}${sec('أعطال شائعة',p.fl)}`;
 }
@@ -2475,7 +2574,7 @@ $('#partView').addEventListener('click',e=>{
   else if(a==='table'){BP.showTab('parts',true); const s=$('#pSearch'); s.value=serial(id); s.dispatchEvent(new Event('input'));}
 });
 $('#partView').addEventListener('keydown',e=>{if(e.target.id==='catInput'&&e.key==='Enter'){e.preventDefault();saveCat();}});
-document.addEventListener('catalogchange',()=>{const id=[...L.sel][0]; if(id&&stageMode==='explore'&&document.activeElement!==$('#catInput'))renderPartView(id);});
+['catalogchange','machinechange'].forEach(ev=>document.addEventListener(ev,()=>{const id=[...L.sel][0]; if(id&&stageMode==='explore'&&document.activeElement!==$('#catInput'))renderPartView(id);}));
 
 /* شجرة المجسم */
 let openSys=null;
