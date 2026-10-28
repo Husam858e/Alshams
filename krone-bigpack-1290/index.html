@@ -3771,21 +3771,77 @@ function benchMat(it){
   const t=it.cls.type; if(/^(bolt|nut|washer)/.test(t)&&/black|allen/.test(it.dims.en))return 'black';
   return /yellow|galv/.test(it.dims.en)?'yzinc':'zinc';
 }
+/* القطعة الحقيقية من المجسم تُقسم إلى أجزائها المنفصلة (كل مجموعة مثلثات متصلة: برغي، صفيحة، عمود…)،
+   فتنقص جزءاً بعد جزء مع كل خطوة فك، ويخرج جزء الكتالوج من مكان الجزء الذي انفصل عنها */
+/* مجموعات المثلثات المتصلة في شكل غير مفهرس؛ side=true يفصل أيضاً كل وجه (أعلى، جانب، طرف…) لوحاً مستقلاً */
+function benchComps(g,side){
+  const pos=g.attributes.position, tri=pos.count/3, par=new Int32Array(tri), grp=new Int8Array(tri);
+  for(let i=0;i<tri;i++)par[i]=i;
+  if(side){const A=V(0,0,0),B=V(0,0,0),C=V(0,0,0); for(let t=0;t<tri;t++){A.fromBufferAttribute(pos,t*3); B.fromBufferAttribute(pos,t*3+1).sub(A); C.fromBufferAttribute(pos,t*3+2).sub(A); B.cross(C); const ax=[Math.abs(B.x),Math.abs(B.y),Math.abs(B.z)], k=ax.indexOf(Math.max(...ax)); grp[t]=k*2+(B.getComponent(k)>0?1:0);}}
+  const find=x=>{while(par[x]!==x){par[x]=par[par[x]]; x=par[x];} return x;}, key=new Map();
+  for(let t=0;t<tri;t++)for(let k=0;k<3;k++){const v=t*3+k, kk=Math.round(pos.getX(v)*2e3)+'|'+Math.round(pos.getY(v)*2e3)+'|'+Math.round(pos.getZ(v)*2e3)+'|'+grp[t], o=key.get(kk); if(o===undefined)key.set(kk,t); else{const a=find(o),b=find(t); if(a!==b)par[a]=b;}}
+  const comps=new Map(); for(let t=0;t<tri;t++){const r=find(t); if(!comps.has(r))comps.set(r,[]); comps.get(r).push(t);}
+  return [...comps.values()];
+}
+function benchSub(g,tris){
+  const geo=new THREE.BufferGeometry();
+  for(const nm of Object.keys(g.attributes)){const at=g.attributes[nm], is=at.itemSize, arr=new Float32Array(tris.length*3*is); let o=0; for(const t of tris)for(let k=0;k<3;k++){const v=t*3+k; for(let j=0;j<is;j++)arr[o++]=at.array[v*is+j];} geo.setAttribute(nm,new THREE.BufferAttribute(arr,is));}
+  return geo;
+}
+/* القطعة الحقيقية من المجسم تُقسم إلى أجزائها المنفصلة (برغي، صفيحة، عمود…)،
+   فتنقص جزءاً بعد جزء مع كل خطوة فك، ويخرج جزء الكتالوج من مكان الجزء الذي انفصل عنها */
+function benchPush(out,geo,mw){geo.computeBoundingBox(); const c=geo.boundingBox.getCenter(V(0,0,0)), sz=geo.boundingBox.getSize(V(0,0,0)).length(); geo.translate(-c.x,-c.y,-c.z); out.push({geo,mw:mw.clone().multiply(new THREE.Matrix4().makeTranslation(c.x,c.y,c.z)),sz});}
+function benchIslands(mesh){
+  const out=[];
+  if(mesh.isInstancedMesh){
+    const IM=new THREE.Matrix4();
+    for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,IM); const g=mesh.geometry.index?mesh.geometry.toNonIndexed():mesh.geometry.clone(); benchPush(out,g,mesh.matrixWorld.clone().multiply(IM));}
+    return out;
+  }
+  const g=mesh.geometry.index?mesh.geometry.toNonIndexed():mesh.geometry;
+  for(const tris of benchComps(g,false))benchPush(out,benchSub(g,tris),mesh.matrixWorld);
+  return out;
+}
 function benchBuild(){
   const root=BENCH.root; while(root.children.length)root.remove(root.children[0]);
-  BENCH.ring.visible=false; BENCH.anim=[];
-  /* القطعة كما هي في المجسم، في مؤخرة المنضدة */
-  const asm=new THREE.Group(); BENCH.asmMats=[];
+  (BENCH.islGeos||[]).forEach(g=>g.dispose()); BENCH.islGeos=[];
+  BENCH.ring.visible=false; BENCH.anim=[]; BENCH.asmMats=[];
+  /* القطعة كما هي في المجسم، في مؤخرة المنضدة، مقسومة إلى أجزائها */
+  const asm=new THREE.Group(); let isl=[];
   model.updateMatrixWorld(true);
   for(const m of MESHES){
     if(m.userData.part!==BENCH.id||m.userData.xm)continue;
-    const c=m.clone(); c.material=m.userData.base.clone(); c.material.transparent=true; BENCH.asmMats.push(c.material);
-    m.matrixWorld.decompose(c.position,c.quaternion,c.scale); c.castShadow=c.receiveShadow=true; asm.add(c);
+    for(const o of benchIslands(m))isl.push(Object.assign(o,{mat:m.userData.base}));
   }
+  /* الأجزاء الكبيرة (جسم، قناة، صندوق) تُقسم ألواحاً حسب وجوهها، فتُفك لوحاً بعد لوح */
+  {const maxS=Math.max(0,...isl.map(o=>o.sz)), out=[];
+   for(const o of isl){
+     const tri=o.geo.attributes.position.count/3;
+     if(o.sz>0.3*maxS&&tri>12&&tri<60000){const cs=benchComps(o.geo,true); if(cs.length>1&&cs.length<400){for(const tris of cs)benchPush(out,benchSub(o.geo,tris),o.mw); out.forEach(x=>{if(!x.mat)x.mat=o.mat;}); continue;}}
+     out.push(o);
+   }
+   isl=out;}
+  /* جزء صغير جداً أو عدد كبير جداً: الأصغر تُجمع في كتل حتى لا يكثر الرسم */
+  if(isl.length>320){
+    isl.sort((a,b)=>b.sz-a.sz); const keep=isl.slice(0,280), rest=isl.slice(280), byMat=new Map();
+    for(const o of rest){if(!byMat.has(o.mat))byMat.set(o.mat,[]); byMat.get(o.mat).push(o);}
+    for(const [mat,list] of byMat){const n=Math.ceil(list.length/Math.max(1,Math.round(40*list.length/rest.length)));
+      for(let i=0;i<list.length;i+=n){const gs=list.slice(i,i+n).map(o=>{const src=o.geo.index?o.geo.toNonIndexed():o.geo; if(!src.attributes.normal)src.computeVertexNormals(); const gg=new THREE.BufferGeometry(); gg.setAttribute('position',src.attributes.position.clone()); gg.setAttribute('normal',src.attributes.normal.clone()); return gg.applyMatrix4(o.mw);});
+        const mg=mergeGeometries(gs,false); if(mg){mg.computeBoundingBox(); const c=mg.boundingBox.getCenter(V(0,0,0)), sz=mg.boundingBox.getSize(V(0,0,0)).length(); mg.translate(-c.x,-c.y,-c.z); keep.push({geo:mg,mw:new THREE.Matrix4().makeTranslation(c.x,c.y,c.z),sz,mat});}}}
+    isl=keep;
+  }
+  BENCH.isl=[];
+  for(const o of isl){const me=new THREE.Mesh(o.geo,o.mat); o.mw.decompose(me.position,me.quaternion,me.scale); me.castShadow=me.receiveShadow=true; asm.add(me); BENCH.islGeos.push(o.geo); BENCH.isl.push({mesh:me,home:me.position.clone(),s0:me.scale.clone(),sz:o.sz});}
   if(asm.children.length){
-    const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=0.85/Math.max(sz.x,sz.y,sz.z,0.01), c=b.getCenter(V(0,0,0));
-    const w=new THREE.Group(); w.add(asm); asm.position.set(-c.x,-b.min.y,-c.z); w.scale.setScalar(k); w.position.set(0,0,-0.78); root.add(w); BENCH.asm=w;
-  }else BENCH.asm=null;
+    const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=0.95/Math.max(sz.x,sz.y,sz.z,0.01), c=b.getCenter(V(0,0,0));
+    const w=new THREE.Group(); w.add(asm); asm.position.set(-c.x,-b.min.y,-c.z); w.scale.setScalar(k); w.position.set(0,0,-0.8); root.add(w); BENCH.asm=w; BENCH.asmK=k;
+    /* ترتيب الإزالة: الصغير والبعيد عن المركز أولاً، والكبير في الوسط أخيراً */
+    const R=Math.max(sz.x,sz.y,sz.z)/2||1, maxS=Math.max(...BENCH.isl.map(o=>o.sz),1e-6);
+    for(const o of BENCH.isl){const d=o.home.clone().sub(c); o.dir=d.lengthSq()>1e-8?d.clone().normalize():V(0,1,0); o.dir.y=Math.abs(o.dir.y)+0.35; o.dir.normalize(); o.score=0.35*(o.sz/maxS)-0.65*Math.min(1,d.length()/R);}
+    BENCH.isl.sort((a,b)=>a.score-b.score);
+    /* أكبر جزء (الجسم الرئيسي) يبقى للخطوة الأخيرة */
+    const big=BENCH.isl.reduce((m,o)=>o.sz>m.sz?o:m,BENCH.isl[0]); BENCH.isl.splice(BENCH.isl.indexOf(big),1); BENCH.isl.push(big);
+  }else{BENCH.asm=null; BENCH.isl=[];}
   /* قطع الكتالوج مصفوفة على المنضدة أمامها، صفاً بعد صف؛ تصغر كلها معاً إذا لم تتسع المنضدة */
   for(const it of BENCH.items){
     const p=benchPiece(it.cls.type,it.dims,benchMat(it));
@@ -3813,30 +3869,42 @@ function benchBuild(){
     grp.visible=false; root.add(grp);
   }
   BENCH.depth=z+rowD;
+  const n=BENCH.items.length, M=BENCH.isl.length;
+  root.updateMatrixWorld(true);
+  /* كل خطوة تزيل من القطعة نصيباً من حجمها يساوي نصيبها من الخطوات، فيتغير شكلها تدريجياً */
+  const wts=BENCH.isl.map(o=>o.sz*o.sz), tot=wts.slice(0,-1).reduce((a,b)=>a+b,0)||1; let j=0, cum=0;
+  BENCH.items.forEach((it,i)=>{
+    it.isl=[];
+    if(i===n-1){it.isl=BENCH.isl.slice(j); j=M;}
+    else{const lim=tot*(i+1)/Math.max(1,n-1); while(j<M-1&&(cum+wts[j]*0.5<=lim||(M-1-j)>(n-1-i)*4)){it.isl.push(BENCH.isl[j]); cum+=wts[j]; j++;}}
+    const src=it.isl[0]||BENCH.isl[Math.min(M-1,j)];
+    it.from=src?src.mesh.getWorldPosition(V(0,0,0)):V(0,0.3,-0.6);
+  });
   benchPose(true);
 }
-const benchFrom=()=>BENCH.asm?V(0,0.35,-0.78):V(0,0.3,-0.6);
-/* موضع كل قطعة حسب حالتها: داخل القطعة (مخفية) أو على المنضدة */
+const benchFrom=()=>BENCH.asm?V(0,0.4,-0.8):V(0,0.3,-0.6);
+/* موضع كل قطعة حسب حالتها: داخل القطعة أو على المنضدة */
 function benchPose(snap){
   BENCH.items.forEach((it,i)=>{const want=i<BENCH.done?1:0; if(snap)it.t=want; it.want=want;});
   if(snap)BENCH.items.forEach(benchPlace);
-  benchAsmLook(); dirty();
+  dirty();
 }
 function benchPlace(it){
-  const t=ease(clamp(it.t,0,1)), a=benchFrom();
-  it.grp.visible=it.t>0.001;
-  it.grp.position.lerpVectors(a,it.slot,t); it.grp.position.y+=Math.sin(t*PI)*0.35;
-  it.grp.scale.setScalar(0.3+0.7*t);
-}
-function benchAsmLook(){
-  if(!BENCH.asm)return;
-  const all=BENCH.done>=BENCH.items.length&&BENCH.items.length>0, op=all?0:BENCH.done?0.9:1;
-  BENCH.asmMats.forEach(m=>{m.opacity=op; m.depthWrite=op>0.95;}); BENCH.asm.visible=!all;
+  const t=clamp(it.t,0,1);
+  /* أجزاء المجسم: تنزلق خارج القطعة ثم تصغر حتى تختفي */
+  const out=ease(clamp(t/0.5,0,1)), gone=ease(clamp((t-0.3)/0.4,0,1)), D=0.28/(BENCH.asmK||1);
+  for(const o of it.isl){o.mesh.position.copy(o.home).addScaledVector(o.dir,out*D); o.mesh.scale.copy(o.s0).multiplyScalar(1-gone); o.mesh.visible=gone<0.999;}
+  /* قطعة الكتالوج: تظهر من مكان الجزء المنفصل وتنتقل إلى موضعها على المنضدة */
+  const q=ease(clamp((t-0.3)/0.7,0,1));
+  it.grp.visible=t>0.3;
+  const a=it.from.clone().add(V(0,0.12,0.12));
+  it.grp.position.lerpVectors(a,it.slot,q); it.grp.position.y+=Math.sin(q*PI)*0.22;
+  it.grp.scale.setScalar(0.15+0.85*q);
 }
 function stepBench(dt){
   if(!BENCH.on)return false;
   let moving=false;
-  for(const it of BENCH.items){if(Math.abs(it.t-it.want)>1e-4){it.t+=Math.sign(it.want-it.t)*Math.min(Math.abs(it.want-it.t),dt*(reduceMotion?50:1.8)); benchPlace(it); moving=true;}}
+  for(const it of BENCH.items){if(Math.abs(it.t-it.want)>1e-4){it.t+=Math.sign(it.want-it.t)*Math.min(Math.abs(it.want-it.t),dt*(reduceMotion?50:1.1)); benchPlace(it); moving=true;}}
   if(BENCH.sel>=0){const it=BENCH.items[BENCH.sel]; BENCH.ring.visible=it.grp.visible&&it.t>0.99; if(BENCH.ring.visible){BENCH.ring.position.copy(it.grp.position).add(V(0,0.004,0)); moving=true; BENCH.ring.scale.setScalar(1+0.08*Math.sin(performance.now()/180));}}
   return moving;
 }
@@ -3847,7 +3915,7 @@ function benchOverview(){
 }
 function benchFollow(it){
   if(!it||!it.slot)return;
-  const ar=camera.aspect<1.1?Math.min(1.6,1.0/Math.max(0.5,camera.aspect)):1, t=it.slot.clone().lerp(benchFrom(),0.35); t.y=0.08;
+  const ar=camera.aspect<1.1?Math.min(1.6,1.0/Math.max(0.5,camera.aspect)):1, t=it.slot.clone().lerp(it.from||benchFrom(),0.45); t.y=0.15;
   flyTo(t,t.clone().add(V(0.15,0.75*ar,1.05*ar)),0.7);
 }
 function benchStep(n,follow){
@@ -3882,7 +3950,7 @@ function benchExit(restore){
   clearTimeout(benchRun); BENCH.on=false; $('#stage').classList.remove('bench'); $('#benchBar').hidden=true; if(BENCH.hint)$('#hint').textContent=BENCH.hint; BENCH.ring.visible=false;
   controls.minDistance=BENCH.saved.min;
   if(restore!==false){flyTo(BENCH.saved.tgt,BENCH.saved.pos); if(BENCH.id&&L.sel.has(BENCH.id))renderPartView(BENCH.id);}
-  BENCH.asmMats.forEach(m=>m.dispose()); dirty();
+  dirty();
 }
 function benchPanel(){
   const p=PART[BENCH.id], KC=BP.KC, data=KC.get(), m=data&&data.map&&data.map[BENCH.id], f=BENCH.fig&&KC.fig(BENCH.fig);
