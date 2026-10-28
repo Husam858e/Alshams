@@ -258,6 +258,21 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 .b-next .b-pos{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .b-own .b-txt b{color:var(--accent)}
 .b-sel{border-color:var(--accent)!important;opacity:1}
+.bb-how{font-size:12px;line-height:1.45;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bb-how b{color:var(--fg);font-weight:600}
+.b-card-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.b-step{font-size:12px;font-weight:700;color:var(--accent)}
+.b-renew{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--warn);color:var(--accent-ink)}
+.b-tool,.b-fit{margin-top:4px;line-height:1.55}
+.b-tool span,.b-fit span{display:block;font-size:11.5px;font-weight:700;color:var(--muted)}
+.b-tool{font-weight:600}
+.b-steps{margin:4px 0 0;padding-inline-start:20px;display:grid;gap:3px;line-height:1.55}
+.b-warn{margin-top:4px;padding:5px 9px;border-inline-start:3px solid var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent);border-radius:6px;line-height:1.5}
+.b-prep{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--panel-2);font-size:13px;line-height:1.55}
+.b-prep summary{cursor:pointer;font-weight:700}
+.b-prep ul{margin:6px 0 2px;padding-inline-start:18px;display:grid;gap:2px}
+.b-sub{font-weight:700;font-size:12.5px;margin-top:6px;color:var(--muted)}
+.b-sheet{white-space:pre-wrap;font:13px/1.65 var(--font-body);max-height:62vh;overflow:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;user-select:text}
 .acc{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel-2)}
 .acc-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .acc-h h4{font:700 14px var(--font-body);color:var(--accent)}
@@ -3405,7 +3420,7 @@ const BTYPES=[
   [/hydraulic line|hyd\. line|hydraulic pipe|plastic tube|^tube$|inner tube|outer tube|blowtube/,'line','ماسورة هيدروليك',1],
   [/\bhose\b(?! clamp| support| connector)/,'hose','خرطوم ضغط عالٍ',1],
   [/harness|^cable|extension cable|connecting cable|connection cable|adapter wire/,'harness','حزمة أسلاك',1],
-  [/^(spring|pressure spring|leg spring|belleville spring|gas spring|twine tensioning spring)/,'spring','نابض',8],
+  [/^(spring(?! washer| pin| tine)|pressure spring|leg spring|belleville spring|gas spring|twine tensioning spring)/,'spring','نابض',8],
   [/tension spring/,'spring:tension','نابض شد',8],
   [/plate spring|leaf spring|spring bow/,'leaf','نابض قوسي',8],
   [/^(namursensor|angle sensor|pressure sensor|power sensor|touch sensor|limit switch|normally open contact|sensor$)/,'sensor','حساس',1],
@@ -3485,6 +3500,7 @@ function benchDims(type,rem,en){
   if((m=t.match(/\b(6[0-4]\d\d|3[0-3]\d\d|222\d\d|302\d\d|322\d\d)\b/)))o.bore=(+m[1].slice(-2))*5||20;
   if((m=t.match(/Z\s*=?\s*(\d+)/i)))o.z=+m[1];
   if((m=t.match(/=\s*(\d+)\s*m\b/i)))o.len=+m[1]*1000;
+  if((m=t.match(/\bRd\.?\s*(\d+)/i)))o.rd=+m[1];
   return o;
 }
 const BM={
@@ -3611,6 +3627,8 @@ function benchPiece(type,dm,matKey){
     for(const s of [1,-1]){const e=pts[s>0?4:0]; if(hose)bmesh(bG('fr'+d,()=>new THREE.CylinderGeometry(d*0.62,d*0.62,d*2.2,18).rotateZ(PI/2)),BM.zinc,g,e.x-s*d*1.1,e.y,e.z); bmesh(bG('fn'+d,()=>extY(polyShape(6,d*0.95,0),d*1.1,mm(0.6)).rotateZ(PI/2)),BM.yzinc,g,e.x+s*(hose?0:d*0.2),e.y,e.z);}
     break;}
   case 'fitting':case 'plug':case 'nipple':case 'breather':{
+    if(base==='plug'&&!dm.d&&dm.rd){/* غطاء يُضغط في فتحته: قرص بحافة */
+      const D=mm(dm.rd); bmesh(bG('pc'+D,()=>extY(ringShape(D/2,0),D*0.03,D*0.006)),BM.steel,g); bmesh(bG('pr'+D,()=>extY(ringShape(D/2,D/2-D*0.025),D*0.1,0)),BM.steel,g); break;}
     const d=mm(dm.d||dm.a||12);
     bmesh(bG('fh'+d,()=>extY(polyShape(6,d*1.0,0),d*0.7,mm(0.5))),BM.yzinc,g,0,d*0.9,0);
     bmesh(bG('ft'+d,()=>threadGeo(d,d*0.9)),BM.yzinc,g);
@@ -3685,7 +3703,7 @@ function benchPiece(type,dm,matKey){
     if(base==='cover'||/angle|lug|bracket/.test(dm.en||'')){const m2=bmesh(m.geometry,m.material,g,-W/2,0,0); m2.rotation.z=PI/2.4; m2.scale.set(0.45,1,1);}
     break;}
   case 'lid':{
-    const D=mm(dm.b||dm.a||Math.max(120,(dm.d||0)*1)||160);
+    const D=mm(dm.b||dm.a||dm.rd||Math.max(120,(dm.d||0)*1)||160);
     bmesh(bG('ld'+D,()=>{const s2=ringShape(D/2,0); for(let i=0;i<8;i++){const a=i/8*TAU, h=new THREE.Path(); h.absarc(Math.cos(a)*D*0.41,Math.sin(a)*D*0.41,D*0.03,0,TAU,true); s2.holes.push(h);} return extY(s2,D*0.06,D*0.01);}),BM.paint,g);
     bmesh(bG('lb'+D,()=>new THREE.CylinderGeometry(D*0.25,D*0.3,D*0.12,32)),BM.paint,g,0,D*0.12,0);
     break;}
@@ -3754,6 +3772,20 @@ function balloon(txt){
   const t=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#fffdf5'; g.strokeStyle='#1a1d20'; g.lineWidth=7; g.beginPath(); g.arc(64,64,52,0,TAU); g.fill(); g.stroke(); g.fillStyle='#1a1d20'; g.font='700 52px "IBM Plex Mono",monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt,64,68);});
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false})); s.scale.setScalar(0.065); s.renderOrder=5; return s;
 }
+/* ترتيب الفك كما يُعمل على الماكينة: تصريف الزيت، ثم الوصلات والكهرباء، ثم البراغي مع صواميلها ووردها،
+   ثم الأغطية والحشيات، ثم الحلقات والمسامير والأذرع، ثم التروس والرولمان وموانع التسرب، ثم الأعمدة، والجسم أخيراً */
+const PHASE={line:1,hose:1,fitting:1,plug:1,nipple:1,breather:1,plugel:1,harness:1,sensor:1,ecu:1,valve:1,clamp:1,nut:2,bolt:2,washer:2,cover:3,lid:3,plate:3,
+  circlip:4,cotter:4,pin:4,key:4,spring:4,chain:4,lever:4,knife:4,tine:4,rubber:4,gear:5,bearing:5,bush:5,seal:5,bhousing:5,hub:5,shoe:5,
+  shaft:6,pto:6,roller:6,cyl:6,tank:6,chamber:6,needle:6,housing:7,frame:7,tyre:7,leaf:7,tag:8};
+function benchPhase(it){
+  const [b,s]=it.cls.type.split(':'), en=it.dims.en;
+  if(b==='kit')return /\boil\b/.test(en)?0:8;
+  /* وردة كبيرة أو رقيقة جداً فهي من الداخل (رقيقة ضبط أو قرص)، لا وردة برغي */
+  if(s==='shim'||(b==='washer'&&((it.dims.a||0)>32||(it.dims.c!=null&&it.dims.c<=0.5))))return 5;
+  if(b==='washer'&&!it.dims.a&&!it.dims.d&&!/\d/.test(String(it.row[7]||'')))return 4;
+  if(b==='seal'&&/gasket|sealant|strip/.test(en))return 3.5;
+  return b in PHASE?PHASE[b]:6;
+}
 /* سطور الشكل: سطر لكل رقم موقع، والبديل المناسب لرقم الماكينة إن وُجد */
 function benchRows(f){
   const KC=BP.KC, by=new Map();
@@ -3764,7 +3796,15 @@ function benchRows(f){
     const cls=benchType(pick[3]), q=/^\d+$/.test(String(pick[5]||''))?+pick[5]:/^\d+$/.test(String(pick[6]||''))?+pick[6]:1;
     out.push({pos,row:pick,variants:rs.length,cls,qty:q,dims:Object.assign(benchDims(cls.type,pick[7],pick[3]),{en:pick[3].toLowerCase()})});
   }
-  out.sort((a,b)=>a.cls.ord-b.cls.ord||(+a.pos||0)-(+b.pos||0));
+  /* براغي المقاس الواحد مع صواميلها ووردها: الصامولة ثم البرغي ثم الوردة */
+  const fd=it=>it.dims.d||(it.cls.type.startsWith('washer')?(it.dims.a||+((String(it.row[7]||'').match(/(\d+)/)||[])[1]||0)):0);
+  out.forEach(it=>{it.ph=benchPhase(it);});
+  const sizes=out.filter(it=>it.ph===2&&/^(nut|bolt)/.test(it.cls.type)).map(fd).filter(Boolean), gmin=new Map();
+  out.forEach(it=>{if(it.ph!==2)return; let d=fd(it);
+    let alone=false; if(it.cls.type.startsWith('washer')){const m=d&&sizes.filter(b=>d-b>=-0.5&&d-b<=2.6).sort((a,b)=>(d-a)-(d-b))[0]; if(m)d=m; else alone=true;}
+    /* وردة لا يقابلها برغي في الشكل تأتي بعد مجموعات البراغي */
+    it.grpD=(alone?1000:0)+(d||999); it.sub=it.cls.type.startsWith('nut')?0:it.cls.type.startsWith('bolt')?1:2; gmin.set(it.grpD,Math.min(gmin.has(it.grpD)?gmin.get(it.grpD):1e4,(alone?1000:0)+(+it.pos||999)));});
+  out.sort((a,b)=>a.ph-b.ph||(a.ph===2?(gmin.get(a.grpD)-gmin.get(b.grpD))||(a.grpD-b.grpD)||(a.sub-b.sub):0)||a.cls.ord-b.cls.ord||(+a.pos||0)-(+b.pos||0));
   return out;
 }
 function benchMat(it){
@@ -3805,7 +3845,7 @@ function benchIslands(mesh){
 function benchBuild(){
   const root=BENCH.root; while(root.children.length)root.remove(root.children[0]);
   (BENCH.islGeos||[]).forEach(g=>g.dispose()); BENCH.islGeos=[];
-  BENCH.ring.visible=false; BENCH.anim=[]; BENCH.asmMats=[];
+  BENCH.ring.visible=false; BENCH.anim=[]; (BENCH.asmMats||[]).forEach(m=>m.dispose()); BENCH.asmMats=[];
   /* القطعة كما هي في المجسم، في مؤخرة المنضدة، مقسومة إلى أجزائها */
   const asm=new THREE.Group(); let isl=[];
   model.updateMatrixWorld(true);
@@ -3830,18 +3870,21 @@ function benchBuild(){
         const mg=mergeGeometries(gs,false); if(mg){mg.computeBoundingBox(); const c=mg.boundingBox.getCenter(V(0,0,0)), sz=mg.boundingBox.getSize(V(0,0,0)).length(); mg.translate(-c.x,-c.y,-c.z); keep.push({geo:mg,mw:new THREE.Matrix4().makeTranslation(c.x,c.y,c.z),sz,mat});}}}
     isl=keep;
   }
-  BENCH.isl=[];
-  for(const o of isl){const me=new THREE.Mesh(o.geo,o.mat); o.mw.decompose(me.position,me.quaternion,me.scale); me.castShadow=me.receiveShadow=true; asm.add(me); BENCH.islGeos.push(o.geo); BENCH.isl.push({mesh:me,home:me.position.clone(),s0:me.scale.clone(),sz:o.sz});}
+  BENCH.isl=[]; BENCH.gv=0;
+  /* نسخ خاصة بالمنضدة من مواد المجسم، تصير شفافة أثناء الفك فيظهر الجزء الذي يُفك من داخلها */
+  const mm=new Map(), gm=m=>{if(Array.isArray(m))return m.map(gm); if(!mm.has(m)){const c=m.clone(); c.onBeforeCompile=m.onBeforeCompile; c.customProgramCacheKey=m.customProgramCacheKey; c.transparent=true; mm.set(m,c); BENCH.asmMats.push(c);} return mm.get(m);};
+  for(const o of isl){const me=new THREE.Mesh(o.geo,gm(o.mat)); o.mw.decompose(me.position,me.quaternion,me.scale); me.castShadow=me.receiveShadow=true; asm.add(me); BENCH.islGeos.push(o.geo); BENCH.isl.push({mesh:me,home:me.position.clone(),s0:me.scale.clone(),sz:o.sz});}
   if(asm.children.length){
     const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=0.95/Math.max(sz.x,sz.y,sz.z,0.01), c=b.getCenter(V(0,0,0));
     const w=new THREE.Group(); w.add(asm); asm.position.set(-c.x,-b.min.y,-c.z); w.scale.setScalar(k); w.position.set(0,0,-0.8); root.add(w); BENCH.asm=w; BENCH.asmK=k;
+    BENCH.asmC=V(0,sz.y*k/2,-0.8); BENCH.asmR=sz.length()*k/2;
     /* ترتيب الإزالة: الصغير والبعيد عن المركز أولاً، والكبير في الوسط أخيراً */
     const R=Math.max(sz.x,sz.y,sz.z)/2||1, maxS=Math.max(...BENCH.isl.map(o=>o.sz),1e-6);
     for(const o of BENCH.isl){const d=o.home.clone().sub(c); o.dir=d.lengthSq()>1e-8?d.clone().normalize():V(0,1,0); o.dir.y=Math.abs(o.dir.y)+0.35; o.dir.normalize(); o.score=0.35*(o.sz/maxS)-0.65*Math.min(1,d.length()/R);}
     BENCH.isl.sort((a,b)=>a.score-b.score);
     /* أكبر جزء (الجسم الرئيسي) يبقى للخطوة الأخيرة */
     const big=BENCH.isl.reduce((m,o)=>o.sz>m.sz?o:m,BENCH.isl[0]); BENCH.isl.splice(BENCH.isl.indexOf(big),1); BENCH.isl.push(big);
-  }else{BENCH.asm=null; BENCH.isl=[];}
+  }else{BENCH.asm=null; BENCH.isl=[]; BENCH.asmC=null;}
   /* قطع الكتالوج مصفوفة على المنضدة أمامها، صفاً بعد صف؛ تصغر كلها معاً إذا لم تتسع المنضدة */
   for(const it of BENCH.items){
     const p=benchPiece(it.cls.type,it.dims,benchMat(it));
@@ -3872,15 +3915,295 @@ function benchBuild(){
   const n=BENCH.items.length, M=BENCH.isl.length;
   root.updateMatrixWorld(true);
   /* كل خطوة تزيل من القطعة نصيباً من حجمها يساوي نصيبها من الخطوات، فيتغير شكلها تدريجياً */
+  /* الزيت والملصقات والمواد لا تزيل شيئاً من المجسم؛ الجسم الرئيسي لآخر قطعة فعلية */
   const wts=BENCH.isl.map(o=>o.sz*o.sz), tot=wts.slice(0,-1).reduce((a,b)=>a+b,0)||1; let j=0, cum=0;
-  BENCH.items.forEach((it,i)=>{
-    it.isl=[];
-    if(i===n-1){it.isl=BENCH.isl.slice(j); j=M;}
-    else{const lim=tot*(i+1)/Math.max(1,n-1); while(j<M-1&&(cum+wts[j]*0.5<=lim||(M-1-j)>(n-1-i)*4)){it.isl.push(BENCH.isl[j]); cum+=wts[j]; j++;}}
-    const src=it.isl[0]||BENCH.isl[Math.min(M-1,j)];
+  let real=BENCH.items.filter(it=>it.ph>0&&it.ph<8); if(!real.length)real=BENCH.items.slice();
+  const nr=real.length;
+  BENCH.items.forEach(it=>{it.isl=[]; it.j0=0;});
+  real.forEach((it,r)=>{
+    it.j0=j;
+    if(r===nr-1){it.isl=BENCH.isl.slice(j); j=M;}
+    else{const lim=tot*(r+1)/Math.max(1,nr-1); while(j<M-1&&(cum+wts[j]*0.5<=lim||(M-1-j)>(nr-1-r)*4)){it.isl.push(BENCH.isl[j]); cum+=wts[j]; j++;}}
+  });
+  BENCH.items.forEach(it=>{
+    const src=it.isl[0]||BENCH.isl[it.ph>=8?M-1:Math.min(M-1,it.j0)]; it.srcIsl=src;
     it.from=src?src.mesh.getWorldPosition(V(0,0,0)):V(0,0.3,-0.6);
   });
+  BENCH.items.forEach(it=>{it.how=benchHow(it); benchRig(it);});
   benchPose(true);
+}
+/* ═══ الفك على أرض الواقع: العدة ومقاسها وطريقة الفك وعزم التركيب لكل جزء ═══
+   المقاسات قياسية (ISO/DIN): مفتاح الرأس حسب قطر البرغي، ومفتاح ألن، وصامولة الوصلة الهيدروليكية حسب قطر الأنبوب.
+   العزوم قيم عامة لبراغي فئة 8.8 و10.9 بلا تزييت؛ جدول عزوم الكتيب هو المرجع. */
+const AFT={3:'5.5',4:'7',5:'8',6:'10',8:'13',10:'16 أو 17',12:'18 أو 19',14:'21 أو 22',16:'24',18:'27',20:'30',22:'32 أو 34',24:'36',27:'41',30:'46',36:'55',42:'65',45:'70',48:'75'};
+const HEXK={3:'2.5',4:'3',5:'4',6:'5',8:'6',10:'8',12:'10',14:'12',16:'14',18:'14',20:'17',22:'17',24:'19',27:'19',30:'22'};
+const TQ88={4:3,5:6,6:10,8:25,10:49,12:85,14:135,16:210,18:290,20:410,22:550,24:710,27:1050,30:1420};
+/* صامولة الوصلة: حسب قطر الأنبوب (سلسلة L الخفيفة) أو حسب سن الوصلة الناعم M×1.5 */
+const TUBE={6:14,8:17,10:19,12:22,15:27,18:32,22:36,28:41,35:50,42:60}, FINE={12:14,14:17,16:19,18:22,22:27,26:32,30:36,36:41,45:50,52:60};
+const nearV=(tab,d)=>{if(d==null||isNaN(d))return null; let b=null; for(const k in tab)if(Math.abs(+k-d)<=0.6&&(b==null||Math.abs(+k-d)<Math.abs(b-d)))b=+k; return b==null?null:tab[b];};
+const posTxt=it=>String(it.pos).replace(/^\?.*/,'·');
+function benchHow(it){
+  const [base,sub]=it.cls.type.split(':'), dm=it.dims, d=dm.d, en=dm.en||'', rem=String(it.row[7]||'');
+  const af=nearV(AFT,d), hk=nearV(HEXK,d), tq=nearV(TQ88,d), g109=/10[.,]9/.test(rem);
+  const tube=+((rem.match(/\bL\s*(\d+)\b/)||rem.match(/^(\d+)\s*X\s*[\d,.]+$/)||[])[1]||0);
+  const fine=/X\s*(1[,.]5|2)\b/.test(rem)&&d?nearV(FINE,d):null, lnut=tube?nearV(TUBE,tube):fine;
+  const nutPair=BENCH.items.some(o=>o!==it&&o.cls.type.startsWith('nut')&&o.dims.d===d);
+  const torque=tq?(g109?`اربطه بعزم نحو ${Math.round(tq*1.45/5)*5} نيوتن·متر (فئة 10.9 كما في الكتالوج).`:`اربطه بعزم نحو ${tq} نيوتن·متر لفئة 8.8 (الرقم على الرأس)، أو ${Math.round(tq*1.45/5)*5} لفئة 10.9.`):'اربطه بالعزم المناسب لمقاسه من جدول الكتيب.';
+  const H={tool:'',short:'',steps:[],fit:'',warn:'',renew:false,motion:'lift',tk:'hands',turns:4};
+  const S=(...a)=>H.steps.push(...a);
+  switch(base){
+  case 'bolt':
+    H.motion='unscrew'; H.tk='spanner'; H.short='فكّه بعكس عقارب الساعة';
+    if(sub==='allen'||sub==='csk'){H.tk='hexkey'; H.tool=hk?`مفتاح ألن ${hk} مم`:'مفتاح ألن بمقاس رأسه';}
+    else if(sub==='coach'){H.tool=af?`مفتاح ${af} مم للصامولة`:'مفتاح للصامولة'; H.short='فكّ صامولته: رقبته المربعة تمنعه من الدوران'; H.motion='drive'; H.tk='punch';}
+    else if(sub==='eye'){H.tk='hands'; H.tool='قضيب معدني داخل العين'; H.short='أدره بالقضيب بعكس عقارب الساعة';}
+    else H.tool=af?`مفتاح ${af} مم (حلقي أو لقمة)`:'مفتاح بمقاس رأسه';
+    if(nutPair&&sub!=='coach')H.tool+='، ومفتاح ثانٍ بالمقاس نفسه لمسك الصامولة';
+    S('نظّف الرأس من الطين والطلاء حتى يدخل المفتاح إلى آخره.');
+    if(nutPair&&sub!=='coach')S('أمسك الصامولة من الجهة الأخرى بالمفتاح الثاني حتى لا تدور معه.');
+    if(sub==='coach')S('فكّ الصامولة، ثم اطرق البرغي للخارج برفق.');
+    else S('فكّه بعكس عقارب الساعة. إذا علِق فرشّ مزيل صدأ وانتظر عشر دقائق، ولا تستعمل مفتاحاً غير مقاسه حتى لا تُتلف زوايا الرأس.');
+    H.fit=torque+(dm.l?` طوله ${dm.l} مم، فلا تضع بدله برغياً أطول أو أقصر.`:'');
+    break;
+  case 'nut':
+    H.motion='unscrew'; H.tk='spanner'; H.turns=3; H.tool=af?`مفتاح ${af} مم`:'مفتاح بمقاس الصامولة'; H.short='فكّها بعكس عقارب الساعة';
+    if(sub==='castle'){S('أزل الخابور المشقوق الذي يقفلها أولاً.','فكّها بعكس عقارب الساعة.'); H.fit='اربطها حتى تقابل إحدى فتحاتها ثقب الخابور، ثم ضع خابوراً جديداً. في صرة العجلة اضبط خلوص المحامل حسب الكتيب.';}
+    else{S('أمسك رأس البرغي من الجهة الأخرى بمفتاح.','فكّها بعكس عقارب الساعة.'); H.fit=torque;}
+    if(sub==='lock'){H.renew=true; H.warn='صامولة القفل (بحلقة نايلون) لا تُستعمل مرة ثانية: ضع جديدة.';}
+    break;
+  case 'washer':
+    H.tool='باليد'; H.short='ارفعها ولاحظ وجهها';
+    if(sub==='shim'){H.tool='قدمة لقياس السماكة'; H.short='عدّها وسجّل سماكتها'; S('عدّ رقائق الضبط وقِس سماكتها بالقدمة، وسجّل عددها ومكانها.'); H.fit='أعدها بالعدد والسماكة نفسها، فهي التي تحدد الخلوص.';}
+    else if(sub==='serr'){S('ارفع الوردة ولاحظ جهة أسنانها.'); H.fit='الوجه المسنن نحو القطعة.';}
+    else if(sub==='spring'){S('ارفع الوردة الزنبركية.'); H.fit='بدّلها إذا فقدت انحناءها.';}
+    else{S('ارفع الوردة ولاحظ إن كانت تحت الرأس أو تحت الصامولة.'); H.fit='أعدها إلى مكانها نفسه.';}
+    break;
+  case 'circlip':{
+    const inner=/^\s*[IJ]\s*\d/.test(rem)||/bore|internal/.test(en);
+    H.motion='spread'; H.tk='pliers'; H.tool=`كماشة حلقات تثبيت ${inner?'داخلية (للثقوب)، تُغلق الحلقة':'خارجية (للأعمدة)، تفتح الحلقة'}`; H.short=inner?'اضغطها بالكماشة واسحبها من المجرى':'افتحها بالكماشة واسحبها من المجرى';
+    S('ضع طرفي الكماشة في ثقبي الحلقة.',`${inner?'اضغطها':'افتحها'} بالقدر الذي يحررها فقط، ثم اسحبها من مجراها.`,'غطّها بيدك أو بقطعة قماش حتى لا تقفز.');
+    H.fit='ضع حلقة جديدة إذا تشوهت، وتأكد أنها جلست كاملة في المجرى وأن وجهها الحاد للخارج.'; H.warn='البس نظارة واقية.';
+    break;}
+  case 'cotter':
+    H.motion='pull'; H.tk='pliers'; H.tool='كماشة، وسنبك صغير'; H.short='افرد طرفيه واسحبه'; H.renew=true;
+    S('افرد طرفي الخابور حتى يستقيما.','اسحبه من رأسه بالكماشة، أو اطرقه للخارج بالسنبك.');
+    H.fit='خابور جديد دائماً، واثنِ طرفيه حول المحور.';
+    break;
+  case 'key':
+    H.motion='pull'; H.tk='pliers'; H.tool='كماشة أو إزميل صغير'; H.short='أخرجه من مجراه';
+    S('بعد سحب الترس أو البكرة أخرج الخابور من مجراه، واحفظه مع القطعة.'); H.fit='تأكد أنه جالس كاملاً في مجراه قبل تركيب الترس.';
+    break;
+  case 'pin':
+    H.motion='drive'; H.tk='punch';
+    if(sub==='roll'){const pd=dm.a||d; H.tool=`سنبك ${pd?pd+' مم':'بقطر المسمار'} ومطرقة`; H.short='اطرقه للخارج بالسنبك'; H.renew=true;
+      S('ادعم القطعة من الجهة المقابلة بقطعة خشب أو جلبة.','اطرق المسمار المرن للخارج بالسنبك.'); H.fit='ضع مسماراً جديداً إذا انضغط شقّه، واجعل الشق بعيداً عن جهة الحمل.';}
+    else{H.tool='مطرقة نحاس أو بلاستيك، وسنبك'; H.short='اسحبه أو اطرقه برفق';
+      S('أزل ما يقفل المحور أولاً: حلقة تثبيت أو خابور أو برغي.','ادعم القطع المعلقة عليه، ثم اسحبه أو اطرقه للخارج برفق.'); H.fit='نظّفه وادهنه بالشحم، وافحص تآكله وتآكل جلبته.';}
+    break;
+  case 'bearing':{
+    const b=dm.bore||dm.a; H.motion='pull'; H.tk='puller'; H.tool='ساحب رولمان بفكين أو ثلاثة'; H.short='اسحبه بالساحب';
+    S('أزل حلقة التثبيت أو الصامولة التي تمسكه.','ركّب الساحب على الحلقة الداخلية إن كان على عمود، أو على الخارجية إن كان في بيت.','اسحبه بشد متساوٍ، ولا تطرق على الحلقة الأخرى.');
+    H.fit=(b?`قطره الداخلي ${b} مم. `:'')+'سخّنه إلى 80–100°م، أو اضغطه على الحلقة المشدودة فقط، ثم شحّمه.'+(sub==='taper'?' اضبط الخلوص المحوري للرولمان المخروطي حسب الكتيب.':'');
+    H.warn='إذا كان دورانه خشناً أو فيه لعب فلا تُعِد تركيبه.';
+    break;}
+  case 'lever':
+    H.motion='pull'; H.tk='puller'; H.tool='مفتاح لبرغي التثبيت، وساحب إن كان مشدوداً'; H.short='علّم وضعه ثم اسحبه عن محوره';
+    S('علّم وضع الذراع على العمود بخط من قلم علّام، فهذا يحدد زاويته.','فكّ برغي الشد أو الخابور الذي يثبته.','اسحبه عن العمود، وبالساحب إن كان مشدوداً.'); H.fit='طابق العلامة قبل ربط برغي الشد.';
+    break;
+  case 'bhousing':
+    H.motion='pull'; H.tk='puller'; H.tool='مفاتيح لبراغي التثبيت، وساحب'; H.short='فكّ براغيه واسحبه عن العمود';
+    S('فكّ برغي القفل الصغير على حلقة المحمل الداخلية إن وُجد.','فكّ براغي تثبيت البيت.','اسحبه عن العمود بالساحب.'); H.fit='اربط براغيه بالتقاطع، ثم اقفل الحلقة الداخلية باتجاه الدوران.';
+    break;
+  case 'bush':
+    H.motion='pull'; H.tk='puller'; H.tool='ساحب داخلي، أو مكبس مع قطعة دفع بقطرها'; H.short='اضغطها للخارج';
+    S('اضغط الجلبة للخارج بقطعة دفع بقطرها الخارجي، أو اسحبها بالساحب.'); H.fit='اضغطها مستقيمة، واجعل ثقب التشحيم مقابل الحلمة إن وُجد.';
+    break;
+  case 'seal':
+    H.motion='pull'; H.tk='pry'; H.renew=true;
+    if(/o-ring|gasket|sealant|strip|bellows|boot/.test(en)){H.tool='أداة رفيعة غير حادة'; H.short='انزعها من مجراها'; S('انزعها من مجراها دون خدش السطح.'); H.fit='جديدة دائماً، ونظّف السطحين من بقايا القديمة.';}
+    else{H.tool='أداة قلع موانع التسرب، أو مفك مسطح ملفوف بشريط'; H.short='اقلعه دون خدش مقعده'; S('اقلع المانع دون خدش مقعده أو العمود.'); H.fit='جديد دائماً: ادهن شفته بالشحم واجعلها نحو الزيت، واضغطه مستقيماً بقطعة دفع.';}
+    break;
+  case 'spring':
+    H.motion='stretch'; H.tk='pliers'; H.tool='أداة سحب النوابض أو كماشة'; H.short='أرخِ الشد ثم افصله';
+    S('أرخِ المشد أولاً إن وُجد.','افصل طرف النابض بالأداة.'); H.fit='افحص طوله الحر وحلقاته، والمشقوق يُستبدل.'; H.warn='النابض مشدود ويخزن قوة: لا تضع يدك أو وجهك في مساره.';
+    break;
+  case 'leaf':
+    H.tk='hook'; H.tool='رافعة تحت المحور، ومفاتيح لصواميل الأقواس'; H.short='ادعم المحور ثم فكّه';
+    S('ارفع الماكينة وادعمها على حوامل ثابتة، ثم ادعم المحور.','فكّ صواميل أقواس التثبيت U وأنزل النابض.'); H.warn='لا تعمل تحت ماكينة محمولة على الرافعة وحدها.';
+    break;
+  case 'gear':
+    H.motion='pull'; H.tk='puller'; H.tool='ساحب تروس'; H.short='علّمه ثم اسحبه بالساحب';
+    S('أزل حلقة التثبيت أو برغي الطرف.','علّم موضعه بالنسبة للترس المقابل أو السلسلة، فهذا هو التوقيت.','اسحبه بالساحب، ثم أخرج الخابور من العمود.');
+    H.fit='نظّف العمود وادهنه، وطابق علامات التوقيت قبل الربط.'; if(/^05-/.test(BENCH.id))H.warn='توقيت العقّادة والإبر مهم: لا تُدر الأعمدة بعد الفك.';
+    break;
+  case 'chain':
+    H.motion='pull'; H.tk='pliers'; H.tool='كماشة'; H.short='أرخِها وافتح الوصلة';
+    S('أرخِ مشد السلسلة.','افتح الوصلة القابلة للفك وأخرج مشبكها.','اسحب السلسلة عن الترس وعلّم اتجاه دورانها.'); H.fit='ركّب مشبك الوصلة وطرفه المغلق باتجاه الدوران، ثم اضبط الشد.';
+    break;
+  case 'shaft':case 'pto':
+    H.motion='pull'; H.tk=base==='pto'?'hands':'puller'; H.tool=base==='pto'?'باليد، مع الضغط على زر القفل':'مطرقة بلاستيك، أو ساحب'; H.short='اسحبه على محوره';
+    S(base==='pto'?'اضغط زر قفل الطرف واسحبه عن المحور.':'تأكد أن كل ما عليه فُكّ.','اسحبه على محوره وادعمه حتى لا يسقط.');
+    H.fit=base==='pto'?'شحّم المفاصل والأنابيب، وثبّت سلسلة الواقي.':'افحص أماكن المحامل ومانع التسرب على العمود.';
+    break;
+  case 'line':case 'hose':case 'fitting':case 'plug':case 'nipple':case 'breather':{
+    const w=/\bLL\b/.test(rem)?'بمقاس الصامولة':lnut?`${lnut} مم`:af?`${af} مم`:'بمقاس الصامولة';
+    H.motion=base==='hose'||base==='line'?'disconnect':'unscrew'; H.tk='spanner'; H.turns=2.5;
+    if(base==='plug'&&!/M\s*\d/.test(rem)){H.tool='مفك مسطح أو أداة قلع'; H.tk='pry'; H.motion='pull'; H.short='اقلعها من حافتها'; S('اقلع الغطاء من حافته برفق دون خدش مقعده.'); H.fit='غطاء جديد يُضغط مستقيماً حتى يستوي مع السطح.'; H.renew=true; break;}
+    if(base==='plug'){H.tool='مفتاح بمقاس رأسها (سداسي أو ألن)'; H.short='ضع وعاءً تحتها ثم فكّها'; S('ضع وعاءً نظيفاً تحتها قبل الفك.','فكّها بعكس عقارب الساعة.'); H.fit='حلقة إحكام جديدة تحتها، ولا تربطها بقوة زائدة.'; H.renew=true; break;}
+    if(base==='nipple'){H.tool=`مفتاح ${d>9?11:d>7?9:7} مم`; H.short='فكّها ونظّفها'; S('نظّفها، وإذا لم يدخل منها الشحم فبدّلها.'); H.fit='اربطها باعتدال، فسنّها صغير.'; break;}
+    if(base==='breather'){H.tool='باليد'; H.tk='hands'; H.short='فكّها باليد'; S('فكّها ونظّفها بالهواء المضغوط.'); break;}
+    if(/cutting ring/.test(en)){H.tool='تبقى على الأنبوب'; H.tk='hands'; H.motion='lift'; H.short='تخرج مع طرف الأنبوب'; S('حلقة القطع مضغوطة على الأنبوب وتخرج معه.'); H.fit='إذا تلفت يُستبدل طرف الأنبوب معها: حلقة جديدة تُشد باليد ثم دورة ونصف بالمفتاح.'; break;}
+    H.tool=`مفتاحان ${w}`; H.short='امسك الوصلة وفكّ الصامولة'; H.nut=lnut||(tube?tube*2.2:14);
+    H.warn='خفّف الضغط في الدائرة أولاً والمحرك متوقف (في الهيدروليك بتحريك أذرع التحكم)، فالزيت المضغوط يخترق الجلد.';
+    S('ضع وعاءً تحت الوصلة.','أمسك جسم الوصلة بمفتاح، وفكّ الصامولة بالمفتاح الآخر.','سدّ الطرفين بسدادات نظيفة، وعلّم الخرطوم ومكانه.');
+    H.fit='باليد حتى المقاومة، ثم نحو ربع دورة بالمفتاح. لا تربط بقوة زائدة.';
+    break;}
+  case 'sensor':
+    H.motion='unscrew'; H.tk='spanner'; H.turns=2; H.tool=af?`مفتاحان ${af} مم`:'مفتاحان للصامولتين'; H.short='افصل قابسه ثم فكّه';
+    S('افصل القابس الكهربائي.','قِس المسافة بين الحساس والهدف وسجّلها (عادة 2–3 مم).','فكّ الصامولة الخارجية واسحب الحساس.'); H.fit='أعد المسافة نفسها، واربط الصامولتين دون إفراط.';
+    break;
+  case 'plugel':case 'harness':case 'ecu':
+    H.tool='باليد'; H.short='افصل القابس من جسمه'; S('افصل الجرار أو البطارية.','اضغط لسان القفل واسحب القابس من جسمه لا من السلك.'); H.fit='تأكد من نظافة الأطراف وأن القفل ثبت بصوت.';
+    break;
+  case 'valve':
+    H.tk='spanner'; H.tool='مفاتيح للوصلات والبراغي'; H.short='علّم الخراطيم ثم فكّه'; H.warn='خفّف ضغط الهيدروليك أولاً.';
+    S('علّم كل خرطوم ومنفذه.','فكّ الوصلات وسدّها، ثم براغي التثبيت.'); H.fit='حلقات O جديدة، واربط البراغي بالتقاطع.';
+    break;
+  case 'cyl':case 'chamber':case 'tank':
+    H.tk='hook'; H.tool='مفاتيح للوصلات، ومطرقة نحاس للمحاور'; H.short='ادعمه وفكّ وصلاته ثم ارفعه';
+    H.warn=base==='cyl'?'أنزل ما تحمله الأسطوانة أو ادعمه قبل الفك، وخفّف الضغط.':'فرّغ الهواء من خزان الفرامل أولاً.';
+    S('افصل الخراطيم أو الأنابيب وسدّها.','أزل محاور أو براغي التثبيت.','ارفعه بعناية.'); H.fit='شحّم المحاور، وافحص الأختام والقضيب.';
+    break;
+  case 'hub':case 'shoe':
+    H.tk='hook'; H.tool='رافعة، ومفتاح لصامولة الصرة'; H.short=base==='hub'?'ارفع الماكينة وفكّ الصرة':'فكّ نوابض الحذاء';
+    S('ارفع الماكينة وادعمها على حوامل ثابتة.',base==='hub'?'فكّ غطاء الصرة والصامولة، واسحب الصرة مع الطبلة.':'فكّ نوابض الحذاء بأداة النوابض وارفعه.');
+    H.warn='لا تنفخ غبار الفرامل بالهواء، ونظّفه مبللاً.'; H.fit=base==='hub'?'اضبط خلوص المحامل حسب الكتيب.':'غيّر أحذية المحور كلها معاً.';
+    break;
+  case 'housing':case 'frame':case 'tyre':
+    H.tk='hook'; H.tool=base==='tyre'?'رافعة، ومفتاح صواميل العجلة':'رافعة أو شخصان'; H.short='ادعمه ثم ارفعه'; H.warn='ثقيل: ادعمه قبل فك آخر برغي، ولا تقف تحته.';
+    if(base==='tyre'){S('ارفع الماكينة وادعمها على حوامل ثابتة.','فكّ صواميل العجلة بالتقاطع، ثم أنزلها.'); H.fit='اربط الصواميل بالتقاطع وبعزمها، وأعد الربط بعد أول 10 ساعات.';}
+    else{S('تأكد أن كل براغيه ووصلاته فُكّت.','ارفعه بالرافعة أو بشخصين.'); H.fit=base==='housing'?'حشية جديدة، واملأ الزيت بالكمية والنوع من الكتيب.':'اربط براغيه بالتقاطع وبعزمها.';}
+    break;
+  case 'lid':case 'cover':case 'plate':
+    H.tool=base==='lid'?'مطرقة بلاستيك':'باليد'; H.short='ارفعه بعد فكّ براغيه';
+    S('تأكد أن كل براغيه فُكّت.',base==='lid'?'ارفعه. إن كان ملتصقاً بمادة إحكام فاطرق حوافه برفق بمطرقة بلاستيك، ولا تُدخل مفكاً بين السطحين.':'ارفعه ولاحظ اتجاهه.');
+    H.fit=base==='lid'?'نظّف السطحين وضع حشية أو مادة إحكام جديدة.':'أعده إلى مكانه بالاتجاه نفسه.';
+    break;
+  case 'knife':
+    H.tool='قفازات مقاومة للقطع'; H.short='فكّ تثبيته واسحبه'; S('البس القفازات.','فكّ ما يثبت السكين واسحبه.'); H.fit='اشحذه أو بدّله، ولا تضع سكيناً أطول من الآخر.'; H.warn='حافته حادة.';
+    break;
+  case 'needle':
+    H.tk='hook'; H.tool='مفاتيح، ودعامة'; H.short='ارفع الإبر وادعمها ثم فكّها'; S('ارفع الإبر بوضع الصيانة من الشاشة وادعمها.','فكّ محورها أو براغي تثبيتها.'); H.fit='تأكد من استقامتها وتوقيتها مع العقّادة قبل التشغيل.'; H.warn='لا تقف في مسار الإبر.';
+    break;
+  case 'tag':H.tool='باليد'; H.short='بدّله إن كان تالفاً'; S('لا يلزم نزعه للفك. بدّله إن كان تالفاً أو غير مقروء.'); H.fit='ألصق الجديد على سطح نظيف جاف.'; return H;
+  case 'kit':{
+    const oil=/\boil\b/.test(en), l=/ltr|liter|litre/.test(en)&&it.qty>1?it.qty:0;
+    H.tool=oil?'وعاء نظيف يتسع للزيت':'حسب المادة'; H.short=oil?'صرّف الزيت وافحصه':'جهّز المادة';
+    if(oil){S('شغّل الماكينة قليلاً قبل التصريف إن أمكن، فالزيت الدافئ ينزل أسرع.','افتح فتحة التعبئة ثم سدادة التصريف، وصرّف الزيت في الوعاء.','افحصه: البرادة المعدنية أو اللون الحليبي يعنيان تآكلاً أو دخول ماء.'); H.fit=`املأ ${l?l+' لتراً تقريباً ':''}من الزيت المحدد في الكتيب حتى علامة المستوى أو فتحة المراقبة.`;}
+    else S('جهّز المادة للتركيب حسب تعليماتها.');
+    return H;}
+  default:
+    H.tool='حسب طريقة تثبيتها'; H.short='فكّ ما يثبتها ثم ارفعها'; S('فكّ ما يثبتها ثم ارفعها.');
+  }
+  if(it.qty>1)S(`كرّر ذلك للقطع الـ${it.qty}.`);
+  S(H.tk==='hook'||it.ph>=6?`ضعه على حامل خشبي أو منصة ثابتة، واكتب عليه Pos ${posTxt(it)}.`:`ضعها في كيس أو صندوق مكتوب عليه Pos ${posTxt(it)}.`);
+  return H;
+}
+function benchToolsList(){const s=new Set(); BENCH.items.forEach(it=>{const t=it.how.tool; if(t&&!/^(باليد|تبقى)/.test(t))s.add(t);}); return [...s];}
+const benchRenew=()=>BENCH.items.filter(it=>it.how.renew);
+const BENCH_PREP=['أوقف الجرار واسحب المفتاح، وانتظر توقف الحدّافة تماماً، وادعم الأجزاء المرفوعة.','نظّف القطعة من الخارج، وصوّرها من عدة جهات قبل الفك، وعلّم أوضاع الأجزاء بقلم علّام.','جهّز أكياساً أو صناديق مكتوباً عليها أرقام المواقع (Pos)، وضع كل جزء في كيسه.','رتّب الأجزاء على المنضدة بترتيب فكها، فالتجميع بالترتيب العكسي.'];
+function benchSheetText(){
+  const p=PART[BENCH.id], f=BP.KC.fig(BENCH.fig), o=[];
+  o.push(`تفكيك منفرد: ${p.ar} (${p.en})`,`الشكل ${BENCH.fig}: ${f.en} / ${f.de}`,'','قبل البدء:',...BENCH_PREP.map(s=>'- '+s),'','العدة:',...benchToolsList().map(t=>'- '+t),'');
+  const rn=benchRenew(); if(rn.length)o.push('تُستبدل بجديدة عند التركيب:',...rn.map(it=>`- Pos ${posTxt(it)} ${it.cls.ar} ${it.row[1]} ×${it.qty}`),'');
+  o.push('خطوات الفك:');
+  BENCH.items.forEach((it,i)=>{const H=it.how; o.push('',`${i+1}. Pos ${posTxt(it)} · ${it.cls.ar}${it.qty>1?' ×'+it.qty:''} · ${it.row[1]} · ${it.row[3]}${it.row[7]?' ('+it.row[7]+')':''}`,`   العدة: ${H.tool}`,...H.steps.map(s=>'   - '+s),...(H.fit?['   عند التركيب: '+H.fit]:[]),...(H.warn?['   تنبيه: '+H.warn]:[]));});
+  o.push('','التجميع بالترتيب العكسي، من الخطوة الأخيرة إلى الأولى، مع القطع الجديدة والعزوم أعلاه.','العزوم والمقاسات قيم قياسية عامة، والمرجع جدول العزوم وتعليمات KRONE في كتيب المشغل.');
+  return o.join('\n');
+}
+function benchSheet(){
+  const txt=benchSheetText(), p=PART[BENCH.id];
+  BP.Modal.open(`ورقة العمل: ${p.ar}`,`<p>كل خطوات الفك بالعدة والعزوم لتطبيقها على الماكينة. التجميع بالترتيب العكسي.</p><pre class="b-sheet">${esc(txt)}</pre>`,[
+    {label:'نسخ',cls:'primary',keep:true,fn:()=>{const ok=()=>toast('تم النسخ'), no=()=>{const r=document.createRange(); r.selectNodeContents($('#modalBody .b-sheet')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('حدّد النص وانسخه يدوياً');}; if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,no); else no();}},
+    ...(BP.saveFile?[{label:'حفظ ملف',keep:true,fn:()=>{BP.saveFile(`فك-${BENCH.fig}.txt`,new Blob(['﻿'+txt],{type:'text/plain;charset=utf-8'}));}}]:[]),
+    {label:'إغلاق',cls:'ghost'}],true);
+}
+
+/* ═══ العدة ثلاثية الأبعاد: تظهر على الجزء وتعمل معه ═══
+   تُبنى في إطار الجزء نفسه (محوره y من 0 إلى L وعرضه D)، فتتبعه في الدوران والحركة */
+const TM={chrome:std(0xd9dee2,.22,1),red:std(0xc4261d,.5,.05),black:std(0x24272a,.42,.6),yellow:std(0xe0a91a,.45,.1),blue:std(0x2c59c9,.42,.2),sling:std(0x2f8f3a,.8,0)};
+function benchTool(kind,D,L,circ){
+  const g=new THREE.Group(), add=(geo,mat,x,y,z,p)=>{const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=true; (p||g).add(m); return m;};
+  switch(kind){
+  case 'spanner':{/* مفتاح حلقي حول الرأس، وذراعه أفقية */
+    const y=L-Math.min(L/2,D*0.17), R=D*0.6, t=D*0.1;
+    add(new THREE.TorusGeometry(R,t,10,32).rotateX(PI/2),TM.chrome,0,y,0);
+    add(new RoundedBoxGeometry(D*6,t*1.5,D*0.4,2,t*0.5),TM.chrome,R+D*3,y,0);
+    add(new THREE.TorusGeometry(R*0.85,t*0.9,8,24).rotateX(PI/2),TM.chrome,R*1.85+D*6,y,0);
+    break;}
+  case 'hexkey':{/* مفتاح ألن: الساق القصيرة في الرأس والطويلة ذراع */
+    const r=D*0.26, y0=L-D*0.3, h=D*1.4;
+    add(new THREE.CylinderGeometry(r,r,h,6),TM.black,0,y0+h/2,0);
+    add(new THREE.SphereGeometry(r,10,8),TM.black,0,y0+h,0);
+    add(new THREE.CylinderGeometry(r,r,D*4.2,6).rotateZ(PI/2),TM.black,D*2.1,y0+h,0);
+    break;}
+  case 'pliers':{/* كماشة: الطرفان في الجزء، والمقبضان للأعلى */
+    const u=Math.max(D,L*0.3)*0.5, gap=circ?D*0.2:Math.max(D*0.1,u*0.12), w=new THREE.Group(); g.add(w); w.position.y=L;
+    if(circ){w.position.x=D*0.42; w.rotation.y=PI/2;}
+    for(const s of [1,-1]){const a=new THREE.Group(); a.userData.arm=s; a.userData.gap=gap; a.position.x=s*gap; w.add(a);
+      add(new THREE.CylinderGeometry(u*0.07,u*0.05,u*1.4,8),TM.chrome,0,u*0.7,0,a);
+      add(new RoundedBoxGeometry(u*0.3,u*3.4,u*0.34,2,u*0.1),TM.red,s*u*0.5,u*3.3,0,a).rotation.z=-s*0.15;}
+    add(new THREE.CylinderGeometry(u*0.2,u*0.2,u*0.5,12).rotateX(PI/2),TM.chrome,0,u*1.5,0,w);
+    break;}
+  case 'punch':{/* سنبك تحت الجزء، والمطرقة تضربه */
+    const r=D*0.3, len=Math.max(D*4,L*0.7), hs=D*1.3, hm=new THREE.Group();
+    add(new THREE.CylinderGeometry(r*0.75,r,len,12),TM.chrome,0,-len/2-D*0.04,0);
+    hm.position.y=-len-D*0.04; hm.userData.hammer=1; hm.userData.y0=hm.position.y; hm.userData.amp=hs*1.6; g.add(hm);
+    add(new RoundedBoxGeometry(hs,hs*2.4,hs,2,hs*0.12),TM.black,0,-hs*1.2,0,hm);
+    add(new THREE.CylinderGeometry(hs*0.17,hs*0.2,hs*6,10).rotateZ(PI/2),TM.yellow,hs*3.4,-hs*1.2,0,hm);
+    break;}
+  case 'puller':{/* ساحب: فكّان تحت الجزء، والعمود الملولب يدفع العمود */
+    const U=D*0.5, top=L+U*0.5, sc=new THREE.Group();
+    add(new RoundedBoxGeometry(D*1.7,U*0.45,U*0.6,2,U*0.1),TM.blue,0,top,0);
+    sc.position.y=top; sc.userData.screw=1; g.add(sc);
+    add(new THREE.CylinderGeometry(U*0.15,U*0.15,U*3,12),TM.chrome,0,U*0.6,0,sc);
+    add(new THREE.CylinderGeometry(U*0.3,U*0.3,U*0.35,6),TM.chrome,0,U*2.15,0,sc);
+    for(const s of [1,-1]){add(new THREE.BoxGeometry(U*0.22,top+U*0.25,U*0.4),TM.blue,s*U*1.32,top/2-U*0.12,0); add(new THREE.BoxGeometry(U*0.45,U*0.18,U*0.4),TM.blue,s*U*1.16,-U*0.12,0);}
+    break;}
+  case 'pry':{/* أداة رفيعة تقلع مانع التسرب من حافته */
+    const s=Math.max(D*0.22,L*0.5), p=new THREE.Group(); p.userData.pry=1; p.position.set(D*0.48,L*0.6,0); p.rotation.z=-0.75; g.add(p);
+    add(new THREE.CylinderGeometry(s*0.06,s*0.06,s*2.2,8),TM.chrome,0,s*1.1,0,p);
+    add(new THREE.CylinderGeometry(s*0.2,s*0.16,s*1.2,12),TM.red,0,s*2.8,0,p);
+    break;}
+  case 'hook':{/* خطاف رافعة وحبلا رفع للقطع الثقيلة */
+    const s=D*0.16, hy=L+D*0.45;
+    add(new THREE.TorusGeometry(s,s*0.22,8,20,PI*1.5).rotateZ(PI*0.75),TM.yellow,0,hy,0);
+    for(let i=0;i<5;i++){const k=add(new THREE.TorusGeometry(s*0.45,s*0.11,6,14),TM.chrome,0,hy+s*1.3+i*s*0.75,0); k.rotation.y=i%2?PI/2:0;}
+    for(const x of [-D*0.36,D*0.36]){const dy=L-hy+s*0.6, len=Math.hypot(x,dy); add(new THREE.CylinderGeometry(s*0.08,s*0.08,len,6),TM.sling,x/2,hy-s*0.6+dy/2,0).rotation.z=Math.atan2(-x,dy);}
+    break;}
+  }
+  return g;
+}
+const AXIS_X=new Set(['shaft','line','hose','cyl','roller','pto','tank']);
+/* يُحسب مرة عند بناء المنضدة: حجم الجزء ووضعه في مكانه من القطعة، والعدة التي تعمل عليه */
+function benchRig(it){
+  const H=it.how, [base]=it.cls.type.split(':'), k=it.lay.k, src=it.isl[0], near=it.srcIsl;
+  it.dirW=(near&&near.dir?near.dir:V(0.2,1,0.4)).clone().normalize();
+  it.axL=AXIS_X.has(base)?V(1,0,0):V(0,1,0); it.axT=it.axL.x?V(0,0,1):V(1,0,0);
+  it.qSrc=H.motion==='lift'?new THREE.Quaternion():new THREE.Quaternion().setFromUnitVectors(it.axL,it.dirW);
+  const real=Math.max(it.sz.x,it.sz.y,it.sz.z,1e-4), want=clamp(real*(BENCH.asmK||0.5),0.045,0.32);
+  it.gSrc=want/(real*k); it.sizeW=want;
+  /* للخرطوم والماسورة: المفتاح على صامولة الطرف، فعرضه من مقاس الصامولة لا من انحناء الخرطوم */
+  const L=(it.axL.x?it.sz.x:it.sz.y)*k, D=H.nut&&it.axL.x?H.nut*1.15/1000*k:(it.axL.x?Math.max(it.sz.y,it.sz.z):Math.max(it.sz.x,it.sz.z))*k;
+  it.lenW=L*it.gSrc; it.swap0=!!src&&src.sz*(BENCH.asmK||1)<=want*2.2;
+  it.copies=it.grp.children.filter(c=>!c.isSprite); it.sprites=it.grp.children.filter(c=>c.isSprite); it.c0x=it.copies[0].position.x;
+  it.tool=null; it.toolParts=[];
+  if(H.tk!=='hands'){
+    const w=new THREE.Group(), tm=benchTool(H.tk,D,it.axL.x?L/2:L,base==='circlip'); w.add(tm);
+    if(it.axL.x){w.rotation.z=-PI/2; tm.rotation.y=PI; w.position.y=it.sz.y*k/2;}
+    w.visible=false; it.grp.add(w); it.tool=w;
+    tm.traverse(o=>{if(o.userData.arm||o.userData.hammer||o.userData.screw||o.userData.pry)it.toolParts.push(o);});
+  }
 }
 const benchFrom=()=>BENCH.asm?V(0,0.4,-0.8):V(0,0.3,-0.6);
 /* موضع كل قطعة حسب حالتها: داخل القطعة أو على المنضدة */
@@ -3889,47 +4212,99 @@ function benchPose(snap){
   if(snap)BENCH.items.forEach(benchPlace);
   dirty();
 }
+/* الفك خطوة واحدة حسب t: 0–0.15 يحل جزء الكتالوج محل جزء المجسم وتظهر العدة،
+   0.15–0.65 الفك نفسه بحركة نوع الجزء (فكّ لولبي، فتح حلقة، طرق، سحب، شد نابض، فصل خرطوم، رفع)،
+   0.65–1 ينتقل الجزء إلى مكانه على المنضدة. وبالعكس عند التجميع */
+const Q0=new THREE.Quaternion(), _bq=new THREE.Quaternion(), _bq2=new THREE.Quaternion(), _bv=V(0,0,0);
 function benchPlace(it){
-  const t=clamp(it.t,0,1);
-  /* أجزاء المجسم: تنزلق خارج القطعة ثم تصغر حتى تختفي */
-  const out=ease(clamp(t/0.5,0,1)), gone=ease(clamp((t-0.3)/0.4,0,1)), D=0.28/(BENCH.asmK||1);
-  for(const o of it.isl){o.mesh.position.copy(o.home).addScaledVector(o.dir,out*D); o.mesh.scale.copy(o.s0).multiplyScalar(1-gone); o.mesh.visible=gone<0.999;}
-  /* قطعة الكتالوج: تظهر من مكان الجزء المنفصل وتنتقل إلى موضعها على المنضدة */
-  const q=ease(clamp((t-0.3)/0.7,0,1));
-  it.grp.visible=t>0.3;
-  const a=it.from.clone().add(V(0,0.12,0.12));
-  it.grp.position.lerpVectors(a,it.slot,q); it.grp.position.y+=Math.sin(q*PI)*0.22;
-  it.grp.scale.setScalar(0.15+0.85*q);
+  const t=clamp(it.t,0,1), tA=clamp(t/0.15,0,1), tB=clamp((t-0.15)/0.5,0,1), tC=clamp((t-0.65)/0.35,0,1), eA=ease(tA), eB=ease(tB), eC=ease(tC);
+  /* أجزاء المجسم: الأول يختفي في مكانه ويحل محله جزء الكتالوج، والبقية تنزلق للخارج مع الفك وتختفي */
+  const D=0.15/(BENCH.asmK||1);
+  it.isl.forEach((o,i)=>{const sw=i===0&&it.swap0, g=sw?eA:ease(clamp((t-0.3)/0.35,0,1)); o.mesh.position.copy(o.home).addScaledVector(o.dir,sw?0:eB*D); o.mesh.scale.copy(o.s0).multiplyScalar(Math.max(1e-3,1-g)); o.mesh.visible=g<0.999;});
+  it.grp.visible=t>0.005;
+  if(!it.grp.visible||!it.how)return;
+  const m=it.how.motion, S=it.sizeW, L=Math.max(it.lenW,S*0.3);
+  let along=0, spin=0, tilt=0, sx=1, sy=1, lift=0, open=0;
+  if(m==='unscrew'){spin=-eB*TAU*it.how.turns; along=eB*Math.max(L*1.15,S*0.7);}
+  else if(m==='spread'){open=Math.sin(Math.min(1,tB*2.2)*PI/2); sx=1+0.2*open; along=ease(clamp(tB*2-1,0,1))*S*0.9;}
+  else if(m==='drive'){const n=Math.min(5,Math.floor(tB*6)), f=tB*6-n; along=(n+ease(Math.min(1,f*2.5)))/6*Math.max(L,S)*1.1;}
+  else if(m==='pull'){along=eB*Math.max(L,S)*1.2;}
+  else if(m==='stretch'){sy=1+0.5*Math.sin(eB*PI); along=eB*S*0.6;}
+  else if(m==='disconnect'){tilt=Math.sin(tB*PI*6)*0.08*(1-eB); along=eB*S*0.4; lift=eB*S*0.3;}
+  else{lift=eB*S*0.9; along=eB*S*0.5; tilt=eB*0.15;}
+  const p=_bv.copy(it.from).addScaledVector(it.dirW,along); p.y+=lift;
+  it.grp.position.lerpVectors(p,it.slot,eC); it.grp.position.y+=Math.sin(eC*PI)*0.22;
+  _bq.copy(it.qSrc); if(spin)_bq.multiply(_bq2.setFromAxisAngle(it.axL,spin)); if(tilt)_bq.multiply(_bq2.setFromAxisAngle(it.axT,tilt));
+  it.grp.quaternion.slerpQuaternions(_bq,Q0,eC);
+  const gs=it.gSrc+(1-it.gSrc)*eC; it.grp.scale.setScalar(Math.max(1e-3,gs*eA));
+  /* نسخة واحدة في مكانها أثناء الفك، وبقية النسخ والأرقام تظهر على المنضدة */
+  const c0=it.copies[0], k=it.lay.k; c0.position.x=it.c0x*eC; c0.scale.set(k*(sx+(1-sx)*eC),k*(sy+(1-sy)*eC),k*(sx+(1-sx)*eC));
+  for(let i=1;i<it.copies.length;i++)it.copies[i].visible=tC>0.4;
+  for(const s of it.sprites)s.visible=tC>0.8;
+  /* العدة تعمل أثناء الفك ثم تختفي حين ينتقل الجزء */
+  if(it.tool){
+    const vis=tC<0.5; it.tool.visible=vis;
+    if(vis){it.tool.scale.setScalar(Math.max(1e-3,it.gSrc/gs*(1-ease(clamp(tC/0.5,0,1)))));
+      for(const o of it.toolParts){const u=o.userData;
+        if(u.arm)o.position.x=u.arm*u.gap*(1+0.22*open);
+        else if(u.hammer){const sw=Math.abs(Math.sin(tB*6*PI)); o.position.y=u.y0-sw*u.amp; o.rotation.z=sw*0.35;}
+        else if(u.screw)o.rotation.y=tB*TAU*3;
+        else if(u.pry)o.rotation.z=-0.75+0.3*Math.sin(Math.min(1,tB*1.6)*PI/2);
+      }}
+  }
 }
 function stepBench(dt){
   if(!BENCH.on)return false;
   let moving=false;
-  for(const it of BENCH.items){if(Math.abs(it.t-it.want)>1e-4){it.t+=Math.sign(it.want-it.t)*Math.min(Math.abs(it.want-it.t),dt*(reduceMotion?50:1.1)); benchPlace(it); moving=true;}}
+  for(const it of BENCH.items){if(Math.abs(it.t-it.want)>1e-4){it.t+=Math.sign(it.want-it.t)*Math.min(Math.abs(it.want-it.t),dt*(reduceMotion?50:(it.spd||1.1))); benchPlace(it); moving=true;}}
+  /* أثناء فك جزء واحد تصير بقية القطعة شفافة (كالرسم الشبحي في كتيبات الصيانة) ثم تعود */
+  const gw=BENCH.items.some(it=>it.spd<1&&it.t>0.03&&it.t<0.68)?1:0;
+  if(Math.abs(BENCH.gv-gw)>1e-3){BENCH.gv=reduceMotion?gw:BENCH.gv+(gw-BENCH.gv)*Math.min(1,dt*6); if(Math.abs(BENCH.gv-gw)<0.01)BENCH.gv=gw; for(const m of BENCH.asmMats){m.opacity=1-0.74*BENCH.gv; m.depthWrite=BENCH.gv<0.02;} moving=true;}
+  /* الكاميرا: على مكان الفك أثناء العمل، ثم على المنضدة حين ينتقل الجزء إليها */
+  const c=BENCH.cam; if(c&&!c.done){const it=c.it; if(it.want===1&&it.t>0.64){c.done=1; benchSlotView(it);} else if(it.want===0&&it.t<0.66){c.done=1; benchSrcView(it);}}
   if(BENCH.sel>=0){const it=BENCH.items[BENCH.sel]; BENCH.ring.visible=it.grp.visible&&it.t>0.99; if(BENCH.ring.visible){BENCH.ring.position.copy(it.grp.position).add(V(0,0.004,0)); moving=true; BENCH.ring.scale.setScalar(1+0.08*Math.sin(performance.now()/180));}}
   return moving;
 }
-/* الكاميرا: منظر المنضدة كاملة، أو تقترب من القطعة التي تُفك الآن */
+/* الكاميرا: منظر المنضدة كاملة، أو قريبة من الجزء الذي يُفك الآن */
 function benchOverview(){
+  BENCH.cam=null;
   const ar=camera.aspect<1.1?Math.min(2.1,1.25/Math.max(0.45,camera.aspect)):1, dp=BENCH.depth||0;
   flyTo(V(0,0.1,0.15+dp*0.25),V(0,(2.0+dp*0.45)*ar,(2.75+dp*0.6)*ar));
 }
-function benchFollow(it){
-  if(!it||!it.slot)return;
-  const ar=camera.aspect<1.1?Math.min(1.6,1.0/Math.max(0.5,camera.aspect)):1, t=it.slot.clone().lerp(it.from||benchFrom(),0.45); t.y=0.15;
-  flyTo(t,t.clone().add(V(0.15,0.75*ar,1.05*ar)),0.7);
+const benchAr=()=>camera.aspect<1.1?Math.min(1.7,1.0/Math.max(0.5,camera.aspect)):1;
+/* قريبة من مكان الفك ومن جهته، وخارج حدود القطعة حتى لا يحجبها جسمها */
+function benchSrcView(it){
+  const ar=benchAr(), S=it.sizeW, u=it.dirW.clone().multiplyScalar(0.7).add(V(0,0.45,0.55)).normalize();
+  const tg=it.from.clone().addScaledVector(it.dirW,Math.max(it.lenW,S)*0.6);
+  let d=clamp(0.35+S*2.6,0.45,1.4);
+  if(BENCH.asmC){const o=tg.clone().sub(BENCH.asmC), b=o.dot(u), disc=b*b-(o.lengthSq()-BENCH.asmR*BENCH.asmR); if(disc>0)d=Math.max(d,-b+Math.sqrt(disc)+0.08);}
+  flyTo(tg,tg.clone().addScaledVector(u,d*ar),0.8);
 }
-function benchStep(n,follow){
+/* القطعة والجزء الذي وُضع على المنضدة معاً */
+function benchSlotView(it){
+  const ar=benchAr(), t=it.slot.clone().lerp(BENCH.asmC||it.from,0.5); t.y=0.2;
+  const d=Math.max(1.3,it.slot.distanceTo(BENCH.asmC||it.from)*1.15+0.5)*ar;
+  flyTo(t,t.clone().add(V(0.1,0.62,0.78).normalize().multiplyScalar(d)),0.9);
+}
+function benchFollow(it,n){
+  if(!it||!it.slot)return;
+  BENCH.cam={it,done:0};
+  if(n<0)benchSlotView(it); else benchSrcView(it);
+}
+function benchStep(n,follow,fast){
   const was=BENCH.done; BENCH.done=clamp(BENCH.done+n,0,BENCH.items.length);
   if(BENCH.done===was){toast(n>0?'فُكّت كل القطع':'القطعة مجمّعة'); return;}
-  BENCH.sel=n>0?BENCH.done-1:BENCH.done; benchPose(false); benchPanel();
-  if(follow)benchFollow(BENCH.items[BENCH.sel]);
-  const it=BENCH.items[BENCH.sel]; if(it&&n>0&&Math.abs(n)===1)toast(`فُكّ: Pos ${it.pos} · ${it.cls.ar} · \u2066${it.row[1]}\u2069`);
+  if(was===0&&n>0)BENCH.prepOpen=false;
+  BENCH.sel=n>0?BENCH.done-1:BENCH.done;
+  const it=BENCH.items[BENCH.sel]; it.spd=fast?1.8:n>0?0.4:0.55;
+  benchPose(false); benchPanel();
+  if(follow)benchFollow(it,n); else if(!fast)BENCH.cam=null;
 }
 let benchRun=null;
 function benchRunTo(target){
   clearTimeout(benchRun);
   benchOverview();
-  const tick=()=>{if(!BENCH.on||BENCH.done===target)return; benchStep(BENCH.done<target?1:-1); benchRun=setTimeout(tick,reduceMotion?30:260);};
+  const tick=()=>{if(!BENCH.on||BENCH.done===target)return; benchStep(BENCH.done<target?1:-1,false,true); benchRun=setTimeout(tick,reduceMotion?30:300);};
   tick();
 }
 function benchEnter(id,figT){
@@ -3939,7 +4314,7 @@ function benchEnter(id,figT){
   if(!BENCH.on)BENCH.hint=$('#hint').textContent;
   BENCH.on=true; $('#stage').classList.add('bench'); $('#hint').textContent='اسحب للتدوير · اضغط مرتين على القطعة في الخلف لفكّ التالية · اضغط أي قطعة لترى رقمها'; tip.hidden=true; selLabel.hidden=true; marker.visible=false;
   const f=BENCH.fig&&KC.fig(BENCH.fig);
-  BENCH.items=f?benchRows(f):[]; BENCH.done=0; BENCH.sel=-1; BENCH.listTop=0;
+  BENCH.items=f?benchRows(f):[]; BENCH.done=0; BENCH.sel=-1; BENCH.listTop=0; BENCH.prepOpen=true; BENCH.cam=null;
   benchScene(); benchBuild(); benchPanel();
   controls.minDistance=0.25;
   benchOverview();
@@ -3947,7 +4322,7 @@ function benchEnter(id,figT){
 }
 function benchExit(restore){
   if(!BENCH.on)return;
-  clearTimeout(benchRun); BENCH.on=false; $('#stage').classList.remove('bench'); $('#benchBar').hidden=true; if(BENCH.hint)$('#hint').textContent=BENCH.hint; BENCH.ring.visible=false;
+  clearTimeout(benchRun); BENCH.on=false; BENCH.cam=null; $('#stage').classList.remove('bench'); $('#benchBar').hidden=true; if(BENCH.hint)$('#hint').textContent=BENCH.hint; BENCH.ring.visible=false;
   controls.minDistance=BENCH.saved.min;
   if(restore!==false){flyTo(BENCH.saved.tgt,BENCH.saved.pos); if(BENCH.id&&L.sel.has(BENCH.id))renderPartView(BENCH.id);}
   dirty();
@@ -3963,7 +4338,24 @@ function benchPanel(){
   const figs=m.figs.length>1?`<div class="seg" style="margin-top:6px">${m.figs.map(t=>`<button type="button" data-bench-fig="${t}" aria-pressed="${t===BENCH.fig}">${t}</button>`).join('')}</div>`:'';
   const list=BENCH.items.map((it,i)=>{const st=i<BENCH.done?'done':i===BENCH.done?'next':'wait', r=it.row;
     return `<li class="b-${st}${i===BENCH.sel?' b-sel':''}${BENCH.keys.has(it.pos)?' b-own':''}" data-bi="${i}"><span class="b-pos">${esc(String(it.pos).replace(/^\?.*/,'·'))}</span><span class="b-txt"><b>${esc(it.cls.ar)}${it.qty>1?` ×${it.qty}`:''}</b><bdi dir="ltr">${esc(r[3])}</bdi><small dir="ltr">${esc(r[2])}${r[7]?' · '+esc(r[7]):''}</small></span><span class="b-num" dir="ltr">${esc(r[1])}${it.variants>1?`<small>+${it.variants-1} بديل</small>`:''}</span></li>`;}).join('');
-  const sel=BENCH.sel>=0&&BENCH.items[BENCH.sel];
+  /* بطاقة الخطوة: الجزء الذي فُكّ للتو أو المختار، وإلا فالتالي، بعدّته وطريقة فكّه وما يلزم عند التركيب */
+  const sel=BENCH.sel>=0?BENCH.items[BENCH.sel]:BENCH.items[BENCH.done], si=sel?BENCH.items.indexOf(sel):-1, H=sel&&sel.how;
+  const card=sel?`<div class="b-card">
+      <div class="b-card-h"><span class="b-step">الخطوة ${si+1} من ${n}${si<BENCH.done?' · فُكّت':si===BENCH.done?' · التالية':' · لم تُفك بعد'}</span>${H.renew?'<span class="b-renew">تُستبدل بجديدة</span>':''}</div>
+      <div><span class="b-pos">${esc(posTxt(sel))}</span> <b>${esc(sel.cls.ar)}</b>${sel.qty>1?(/ltr|liter|litre/.test(sel.dims.en)?` · ${sel.qty} لتر`:` · العدد ${sel.qty}`):''} ·<span class="b-num" dir="ltr">${esc(sel.row[1])}</span></div>
+      <div class="small muted" dir="ltr">${esc(sel.row[3])} · ${esc(sel.row[2])}${sel.row[7]?' · '+esc(sel.row[7]):''}</div>
+      ${BENCH.keys.has(sel.pos)?'<div class="small" style="color:var(--accent);font-weight:700">هذا هو رقم القطعة المختارة</div>':''}
+      <div class="b-tool"><span>العدة</span>${esc(H.tool)}</div>
+      <ol class="b-steps">${H.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+      ${H.fit?`<div class="b-fit"><span>عند التركيب</span>${esc(H.fit)}</div>`:''}
+      ${H.warn?`<div class="b-warn">${esc(H.warn)}</div>`:''}
+    </div>`:'';
+  const tools=benchToolsList(), rn=benchRenew();
+  const prep=`<details class="b-prep"${BENCH.prepOpen?' open':''}><summary>قبل البدء: السلامة والعدة${rn.length?' والقطع الجديدة':''}</summary>
+      <ul>${BENCH_PREP.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
+      <div class="b-sub">العدة اللازمة (${tools.length})</div><ul>${tools.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+      ${rn.length?`<div class="b-sub">تُستبدل بجديدة عند التركيب</div><ul>${rn.map(it=>`<li>Pos ${esc(posTxt(it))} · ${esc(it.cls.ar)} ×${it.qty} · <span class="mono" dir="ltr">${esc(it.row[1])}</span></li>`).join('')}</ul>`:''}
+    </details>`;
   $('#partView').innerHTML=`<hr class="divider">${back}
     <div class="ins-head" style="margin-top:10px"><span class="sys-chip" style="--c:${SYS[p.sys].color}">تفكيك منفرد</span><h3>${esc(p.ar)}</h3><div class="ins-en" dir="ltr">${esc(BENCH.fig)} · ${esc(f.en)} · ${esc(f.de)}</div></div>${figs}
     <div class="b-prog"><span style="width:${n?BENCH.done/n*100:0}%"></span></div>
@@ -3974,22 +4366,25 @@ function benchPanel(){
       ${lastOwn>=0&&BENCH.done<=lastOwn&&n>own.length?`<button type="button" class="btn sm" data-bench="own">فكّ حتى ${esc(p.ar)}</button>`:''}
       <button type="button" class="btn sm" data-bench="all"${BENCH.done>=n?' disabled':''}>فكّ الكل</button>
       <button type="button" class="btn sm ghost" data-bench="none"${BENCH.done<=0?' disabled':''}>تجميع</button>
+      <button type="button" class="btn sm" data-bench="sheet">ورقة العمل</button>
     </div>
-    ${sel?`<div class="b-card"><div><span class="b-pos">${esc(String(sel.pos))}</span> <b>${esc(sel.cls.ar)}</b>${sel.qty>1?` · العدد ${sel.qty}`:''}</div><div class="b-num" dir="ltr">${esc(sel.row[1])}</div><div dir="ltr">${esc(sel.row[3])} · ${esc(sel.row[2])}${sel.row[7]?' · '+esc(sel.row[7]):''}</div>${BENCH.keys.has(sel.pos)?'<div class="small" style="color:var(--accent);font-weight:700">هذا هو رقم القطعة المختارة</div>':''}</div>`:''}
-    <p class="note" style="margin-top:8px">الترتيب مقترح: الوصلات والخراطيم، ثم الحلقات والصواميل والبراغي والوردات، ثم القطع الصغيرة، والجسم الرئيسي أخيراً. أشكال القطع تمثيل من وصفها ومقاسها في الكتالوج. اضغط مرتين على القطعة في الخلف لفكّ التالية، واضغط أي قطعة على المنضدة لترى رقمها.</p>
+    ${prep}${card}
+    <p class="note" style="margin-top:8px">الترتيب مقترح كما يُعمل على الماكينة: تصريف الزيت، ثم الوصلات والكهرباء، ثم البراغي مع صواميلها ووردها، ثم الأغطية والحشيات، ثم الحلقات والمسامير، ثم التروس والرولمان وموانع التسرب، ثم الأعمدة، والجسم أخيراً. راجع صورة الشكل في الكتالوج قبل كل خطوة. أشكال القطع تمثيل من وصفها ومقاسها في الكتالوج. مقاسات العدة والعزوم قيم قياسية عامة، والمرجع كتيب KRONE. اضغط أي سطر لترى طريقة فكّه.</p>
     <ol class="b-list">${list}</ol>`;
   const ls=$('#partView .b-list'), s=$('#partView .b-sel');
   if(ls){ls.style.scrollBehavior='auto'; ls.scrollTop=BENCH.listTop||0; ls.style.scrollBehavior='';
     if(s)ls.scrollTop=s.offsetTop-ls.offsetTop-ls.clientHeight/2+s.offsetHeight/2;
     ls.addEventListener('scroll',()=>{BENCH.listTop=ls.scrollTop;},{passive:true});}
+  const pd=$('#partView .b-prep'); if(pd)pd.addEventListener('toggle',()=>{BENCH.prepOpen=pd.open;});
   benchBar();
 }
 /* شريط المنضدة: الجزء الذي فُكّ للتو والأزرار، فوق المجسم مباشرة */
 function benchBar(){
-  const bar=$('#benchBar'), n=BENCH.items.length, it=BENCH.sel>=0?BENCH.items[BENCH.sel]:null;
+  const bar=$('#benchBar'), n=BENCH.items.length, it=BENCH.sel>=0?BENCH.items[BENCH.sel]:BENCH.items[BENCH.done];
   bar.hidden=!BENCH.on||!n;
   if(bar.hidden)return;
-  $('#bbInfo').innerHTML=`<b>${BENCH.done} / ${n}</b> · `+(it?`<span class="b-pos">${esc(String(it.pos).replace(/^\?.*/,'·'))}</span>${esc(it.cls.ar)}${it.qty>1?` ×${it.qty}`:''} · <span class="mono" dir="ltr">${esc(it.row[1])}</span>${BENCH.sel<BENCH.done?'':' · لم تُفك بعد'}`:'اضغط «فكّ التالية» أو اضغط مرتين على القطعة');
+  const st=!it?'':BENCH.items.indexOf(it)<BENCH.done?'':BENCH.items.indexOf(it)===BENCH.done?'التالية: ':'لم تُفك بعد: ';
+  $('#bbInfo').innerHTML=`<b>${BENCH.done} / ${n}</b> · `+(it?`${st}<span class="b-pos">${esc(posTxt(it))}</span>${esc(it.cls.ar)}${it.qty>1?` ×${it.qty}`:''} · <span class="mono" dir="ltr">${esc(it.row[1])}</span><div class="bb-how"><b>${esc(it.how.tool)}</b> · ${esc(it.how.short)}</div>`:'فُكّت كل القطع');
   bar.querySelector('[data-bench="next"]').disabled=BENCH.done>=n;
   bar.querySelector('[data-bench="all"]').disabled=BENCH.done>=n;
   bar.querySelector('[data-bench="prev"]').disabled=BENCH.done<=0;
@@ -3999,7 +4394,7 @@ $('#partView').addEventListener('click',e=>{
   if(!BENCH.on)return;
   const b=e.target.closest('[data-bench]'), fb=e.target.closest('[data-bench-fig]'), li=e.target.closest('[data-bi]');
   if(fb){benchEnter(BENCH.id,fb.dataset.benchFig); return;}
-  if(li){const i=+li.dataset.bi; BENCH.sel=i; benchPanel(); if(i>=BENCH.done)toast(`لم تُفك بعد. فكّ أولاً ما قبلها (${BENCH.done+1} من ${BENCH.items.length})`); dirty(); return;}
+  if(li){BENCH.sel=+li.dataset.bi; benchPanel(); dirty(); return;}
   if(!b)return;
   /* على الجوال اللوحة تحت المجسم: نُظهر المجسم لترى الفك */
   if(/^(next|prev|all|none|own)$/.test(b.dataset.bench)){const r=$('#stage').getBoundingClientRect(), vis=Math.min(r.bottom,innerHeight)-Math.max(r.top,0); if(vis<r.height*0.6)$('#stage').scrollIntoView({block:'start',behavior:reduceMotion?'auto':'smooth'});}
@@ -4012,6 +4407,7 @@ function benchAction(a){
   else if(a==='next')benchStep(1,true);
   else if(a==='prev')benchStep(-1,true);
   else if(a==='view')benchOverview();
+  else if(a==='sheet')benchSheet();
   else if(a==='all')benchRunTo(BENCH.items.length);
   else if(a==='none')benchRunTo(0);
   else if(a==='own'){const own=BENCH.items.map((it,i)=>BENCH.keys.has(it.pos)?i:-1).filter(i=>i>=0); benchRunTo(Math.max(...own)+1);}
