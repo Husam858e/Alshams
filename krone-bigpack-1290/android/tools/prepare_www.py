@@ -120,6 +120,11 @@ def main(src, out, cache):
         sys.exit('prepare_www: network URLs left: ' + ', '.join(left))
     write(os.path.join(out, 'index.html'), html.encode('utf-8'))
 
+    catalog = os.environ.get('CATALOG')
+    if catalog:
+        # نسخة شخصية: ملف الكتالوج الخاص بصاحب الماكينة يُضمّن ليُستورد تلقائياً عند أول تشغيل
+        shutil.copyfile(catalog, os.path.join(out, 'catalog.json'))
+        print('prepare_www: bundled private catalog ' + os.path.basename(catalog))
     files = vendor_three(out, cache)
     nfonts = vendor_fonts(out, cache)
     notice = ['Third-party components bundled in this app\n']

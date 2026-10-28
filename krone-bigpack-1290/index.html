@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>تشريح كبّاسة BiG Pack 1290</title>
+<title>ميكانيكي BiG Pack 1290</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="مجسم ثلاثي الأبعاد بالعربي لكبّاسة KRONE BiG Pack 1290 HDP II VC: تفكيك القطع، دليل الأعطال والإصلاح، ومحاكاة الكبس.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -215,6 +215,11 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 
 /* repair */
 .faults{display:grid;gap:8px}
+.f-filter{display:grid;gap:8px;margin-bottom:10px}
+.f-filter input{width:100%}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .fault{display:block;width:100%;text-align:start;border:1px solid var(--line-2);background:var(--panel-2);border-radius:10px;padding:10px 12px;cursor:pointer}
 .fault:hover{border-color:var(--accent)}
 .fault b{display:block;font-size:14.5px}
@@ -225,6 +230,25 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 .safety svg{flex:none;color:var(--bad);margin-top:2px}
 .f-sec h4{font:700 13.5px var(--font-body);color:var(--accent);margin:12px 0 4px}
 .f-sec ul{margin:0;padding-inline-start:18px;font-size:14px}
+.t-ok{color:var(--ok);border-color:currentColor}
+.acc{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel-2)}
+.acc-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.acc-h h4{font:700 14px var(--font-body);color:var(--accent)}
+.acc-list{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:4px}
+.acc-list li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;font-size:13.5px;line-height:1.45}
+.acc-n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 11.5px var(--font-mono);border:1.5px solid var(--line-2);color:var(--muted)}
+.acc-done .acc-t{color:var(--muted)}
+.acc-done .acc-n{border-color:var(--ok);background:var(--ok);color:var(--panel)}
+.acc-next{background:var(--panel)}
+.acc-next .acc-n{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.acc-wait{opacity:.6}
+.acc-ok{font-size:12px;font-weight:700;color:var(--ok)}
+.acc-note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0 0 8px;padding-inline-start:8px;border-inline-start:3px solid var(--accent)}
+.acc.shake{animation:shake .45s}
+@keyframes shake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.acc.shake{animation:none;outline:2px solid var(--warn)}}
+.btn.locked{opacity:.55}
+.btn.locked::before{content:"";width:10px;height:11px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 11'%3E%3Cpath d='M2 5V3.5a3 3 0 0 1 6 0V5h1v6H1V5zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 11'%3E%3Cpath d='M2 5V3.5a3 3 0 0 1 6 0V5h1v6H1V5zm1.5 0h3V3.5a1.5 1.5 0 0 0-3 0z'/%3E%3C/svg%3E") center/contain no-repeat}
 .steps{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px;counter-reset:s}
 .steps li{counter-increment:s}
 .steps button{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;text-align:start;border:1px solid var(--line);background:transparent;border-radius:9px;padding:8px 10px;cursor:pointer;font-size:14px;line-height:1.55}
@@ -357,11 +381,11 @@ table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
       </svg>
       <div>
         <div class="b-title">BiG Pack 1290 HDP II <span>VC</span></div>
-        <div class="b-sub">مجسم ثلاثي الأبعاد للتفكيك والإصلاح</div>
+        <div class="b-sub">دليل الميكانيكي: الوصول والفك والقطع والأعطال</div>
       </div>
     </div>
     <nav class="tabs" role="tablist" aria-label="أقسام التطبيق">
-      <button type="button" role="tab" data-tab="explore" aria-selected="true">المجسم والتفكيك</button>
+      <button type="button" role="tab" data-tab="explore" aria-selected="true">الوصول والفك</button>
       <button type="button" role="tab" data-tab="repair" aria-selected="false">الأعطال والإصلاح</button>
       <button type="button" role="tab" data-tab="operate" aria-selected="false">التشغيل والمحاكاة</button>
       <button type="button" role="tab" data-tab="parts" aria-selected="false">القطع والأرقام</button>
@@ -378,7 +402,7 @@ table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
 
     <!-- المجسم والتفكيك -->
     <section id="pExplore" aria-labelledby="h-exp">
-      <div class="p-h"><h2 id="h-exp">المجسم والتفكيك</h2><span class="muted small">اضغط أي قطعة</span></div>
+      <div class="p-h"><h2 id="h-exp">الوصول والفك</h2><span class="muted small">اضغط أي قطعة</span></div>
       <div class="search">
         <label for="search3d" class="sr">ابحث عن قطعة</label>
         <input id="search3d" type="search" placeholder="ابحث: إبرة، عقّادة، knotter، 05-01…" autocomplete="off">
@@ -407,6 +431,11 @@ table.kt{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
       <div id="faultList">
         <div class="p-h"><h2 id="h-rep">الأعطال والإصلاح</h2></div>
         <p class="muted small" style="margin-bottom:10px">اختر العطل. كل خطوة تفكك المجسم إلى القطعة المطلوبة وتضيئها.</p>
+        <div class="f-filter">
+          <label for="fSearch" class="sr">ابحث في الأعطال</label>
+          <input id="fSearch" type="search" placeholder="ابحث: عقدة، خيط، فرامل، تسريب…" autocomplete="off">
+          <div class="seg" id="fSev" role="group" aria-label="الخطورة"><button type="button" data-sev="" aria-pressed="true">الكل</button><button type="button" data-sev="hi" aria-pressed="false">خطر عالٍ</button><button type="button" data-sev="md" aria-pressed="false">متوسط</button><button type="button" data-sev="lo" aria-pressed="false">بسيط</button></div>
+        </div>
         <div class="faults" id="faults"></div>
       </div>
       <div id="faultView" hidden></div>
@@ -1141,6 +1170,108 @@ const FAULTS = [
     {t:'افحص الخراطيم ووصلاتها على طول القناة وعند كتلة الصمامات.', show:['07-07','07-03']},
     {t:'افحص أسطوانات الضغط وأسطوانات البيك أب وقاع القطع.', show:['04-10','01-09','07-11']},
     {t:'أكمل مستوى الزيت في الخزان بعد الإصلاح.', show:['07-02'], rm:['cov-hoodF']}
+   ]},
+  {id:'vfs', sev:'md', t:'شحنات غير ممتلئة أو شوكة التغذية لا تعمل', s:'رقائق رقيقة أو غير متساوية، أو شوكة التغذية تعمل في كل دورة دون أن تمتلئ القناة.',
+   causes:['مشط الاستشعار عالق أو نابضه مرتخٍ','حساس الامتلاء متسخ أو مفصول','آلية تفعيل شوكة التغذية متآكلة أو غير مضبوطة','أذرع التكديس مكسورة أو بكرات المسار متآكلة'],
+   steps:[
+    {t:'تحقق من عتبة التعبئة VFS في الشاشة: القيمة المنخفضة جداً تجعل الشوكة تعمل قبل الامتلاء.', show:['03-09','09-02']},
+    {t:'اخفض قاع القطع وافحص قناة الضغط المسبق ومشط الاستشعار: يتحرك بحرية ويعود بنابضه.', show:['03-07','03-08'], rm:['02-07'], cut:1},
+    {t:'افحص أذرع التكديس وشوكة التغذية وبكرات المسار المجزأ من الأسفل.', show:['03-02','03-03','03-05'], rm:['02-07','03-02'], cut:1},
+    {t:'افحص آلية التفعيل وقابض الحماية الخاص بنظام VFS، ونظّف الحساس.', show:['03-10','03-12','03-09'], cut:1}
+   ]},
+  {id:'plungerknife', sev:'md', t:'الرقائق ممزقة أو البالة خشنة عند المدخل', s:'رقائق متقطعة وحواف ممزقة، وحمل أعلى على المكبس.',
+   causes:['سكين المكبس كليلة','السكين الثابتة كليلة أو المسافة بينهما كبيرة','بكرات توجيه المكبس متآكلة فيتأرجح المكبس'],
+   steps:[
+    {t:'افتح اللوح الجانبي الأيسر وأنزل صندوق الخيط لتصل إلى فتحة الفحص على جانب القناة.', show:['05-14','04-07'], rm:['cov-doorL','boxL']},
+    {t:'أدر الماكينة يدوياً حتى يصل المكبس إلى الأمام، وافحص سكين المكبس والسكين الثابتة.', show:['04-03','04-04'], rm:['cov-doorL','boxL'], cut:1},
+    {t:'اشحذ السكينين أو بدّلهما واضبط المسافة بينهما حسب الكتيب.', show:['04-03','04-04'], rm:['cov-doorL','boxL'], cut:1},
+    {t:'افحص بكرات توجيه المكبس ومساراتها، فاللعب الزائد يبعد السكين عن السكين الثابتة.', show:['04-02'], rm:['cov-doorL','boxL'], cut:1}
+   ]},
+  {id:'ejector', sev:'lo', t:'البالة الأخيرة لا تخرج من القناة', s:'عند تفريغ القناة تبقى البالة الأخيرة داخلها.',
+   causes:['قاذف البالة لا يتحرك (ضغط هيدروليكي أو صمام)','أسطوانة القاذف تسرب','قاع القناة متسخ أو صفائح التآكل بارزة'],
+   steps:[
+    {t:'افتح أبواب الضغط من الشاشة أولاً، فالبالة لا تخرج والأبواب مشدودة.', show:['04-08','04-09']},
+    {t:'شغّل تفريغ القناة وراقب قاذف البالة المجزأ: يجب أن يتحرك للخلف على طول القاع.', show:['11-02'], cut:1},
+    {t:'افحص أسطوانة القاذف وخراطيمها من أي تسريب.', show:['07-10','07-07'], cut:1},
+    {t:'افحص قاع القناة وصفائح التآكل، وأزل البقايا المتراكمة.', show:['04-11'], rm:['04-09'], cut:1}
+   ]},
+  {id:'chute', sev:'lo', t:'البالة تعلق على المزلق', s:'البالة تتوقف على المزلق ولا تنزل إلى الأرض.',
+   causes:['زاوية المزلق غير مناسبة','بكرات المزلق لا تدور','حساس خروج البالة متسخ فيعطي إنذاراً خاطئاً'],
+   steps:[
+    {t:'تأكد أن المزلق في وضع العمل وبالزاوية الصحيحة.', show:['11-01']},
+    {t:'افحص البكرات: تدور بحرية دون صوت، ونظّف ما بينها.', show:['11-01']},
+    {t:'نظّف حساس خروج البالة وتحقق من إشارته على الشاشة.', show:['11-03','09-02']}
+   ]},
+  {id:'powerclean', sev:'md', t:'غبار متراكم على العقّادات (التنظيف لا يعمل)', s:'العقّادات مغطاة بالغبار والقش، وأعطال عقد متكررة في القش الجاف.',
+   causes:['مراوح PowerClean متوقفة أو بطيئة','محرك المراوح الهيدروليكي لا يصله زيت كافٍ','شبكة سحب المراوح مسدودة'],
+   steps:[
+    {t:'افتح غطاء العقّادات وراقب المراوح بعد تشغيل الهيدروليك: يجب أن تدور بسرعة ثابتة.', show:['05-16'], rm:['cov-knot']},
+    {t:'افحص محركي المراوح وخراطيمهما.', show:['07-08','07-07'], rm:['cov-knot']},
+    {t:'نظّف شبكة السحب والعقّادات بالهواء المضغوط.', show:['05-16','05-01'], rm:['cov-knot']}
+   ]},
+  {id:'pickupdrive', sev:'md', t:'البيك أب يتوقف وصوت طقطقة من جانبه', s:'الأصابع تتوقف عن الدوران مع صوت طقطقة متكرر من الجهة اليسرى.',
+   causes:['قابض حماية البيك أب يفصل بسبب انسداد','سلسلة الإدارة مرتخية أو مكسورة','جسم غريب عالق بين الأصابع'],
+   steps:[
+    {t:'خفّف السرعة وارفع البيك أب، وأزل أي جسم عالق بين الأصابع وشرائح التوجيه.', show:['01-01','01-03']},
+    {t:'افحص قابض الحماية على الجهة اليسرى: الطقطقة تعني أنه يفصل لحماية الإدارة.', show:['01-11']},
+    {t:'افحص سلسلة الإدارة وتروسها وشدّها، وزيّتها.', show:['01-12']}
+   ]},
+  {id:'rotorbelt', sev:'md', t:'سير الدوّار ينزلق أو تفوح منه رائحة احتراق', s:'إنذار انزلاق السير، أو السير ساخن ومهترئ.',
+   causes:['شد السير ضعيف','حمل زائد على الدوّار (سكاكين كليلة أو محصول رطب)','بكرة متآكلة أو قابض حماية الدوّار يفصل'],
+   steps:[
+    {t:'أزل غطاء السير على الجهة اليسرى.', show:['02-08'], rm:['cov-belt']},
+    {t:'افحص شد السير وحالته، وبدّل المتشقق أو المحروق.', show:['02-08'], rm:['cov-belt']},
+    {t:'افحص قابض حماية الدوّار وحساس الانزلاق.', show:['02-09','02-10'], rm:['cov-belt']},
+    {t:'افحص السكاكين، فالكليلة تزيد الحمل على السير.', show:['02-03'], rm:['02-07','02-05'], cut:1}
+   ]},
+  {id:'lube', sev:'md', t:'إنذار التزييت المركزي أو نقاط جافة', s:'إنذار على الشاشة، أو محامل وسلاسل جافة رغم التشغيل.',
+   causes:['خزان الشحم فارغ','خط تزييت مقطوع أو مسدود','موزع تدريجي مسدود فيوقف كل ما بعده'],
+   steps:[
+    {t:'أزل الغطاء الأمامي وافحص مستوى خزان مضخة التزييت.', show:['10-01'], rm:['cov-hoodF']},
+    {t:'افحص الموزعات التدريجية: إذا انسد واحد توقفت كل النقاط التي بعده.', show:['10-02']},
+    {t:'تتبع خطوط التزييت وابحث عن خط مقطوع أو وصلة مفكوكة.', show:['10-03']},
+    {t:'زيّت يدوياً النقاط التي لا يصلها النظام حسب جدول الكتيب.', show:['10-06']}
+   ]},
+  {id:'start', sev:'md', t:'صعوبة تشغيل الحدّافة', s:'الجرار يختنق عند وصل عمود الإدارة، أو قابض الانزلاق يسخن عند البدء.',
+   causes:['مساعد البدء الهيدروليكي لا يعمل','قابض الانزلاق مرتخٍ أو صفائحه ملتصقة','فرامل الحدّافة لم تُحرر'],
+   steps:[
+    {t:'تأكد أن فرامل الحدّافة محررة قبل وصل عمود الإدارة.', show:['06-04'], rm:['cov-hoodF']},
+    {t:'شغّل مساعد البدء الهيدروليكي وابدأ بسرعة محرك منخفضة.', show:['06-05'], rm:['cov-hoodF']},
+    {t:'افحص قابض الانزلاق على عمود الإدارة: إن التصقت صفائحه فكّ النوابض وحرّرها حسب الكتيب.', show:['06-02','06-01']}
+   ]},
+  {id:'isobus', sev:'lo', t:'الشاشة لا تتصل بالماكينة', s:'رسالة انقطاع ISOBUS، أو الشاشة لا تعرض قائمة الماكينة.',
+   causes:['قابس ISOBUS غير محكم أو متسخ','فيوز حاسوب الماكينة','حزمة أسلاك محتكة'],
+   steps:[
+    {t:'افصل القابس عند الجرار ونظّفه ثم أعد توصيله جيداً.', show:['09-11']},
+    {t:'افتح اللوح الجانبي الأيمن وافحص حاسوب الماكينة وفيوزاته.', show:['09-01'], rm:['cov-doorR']},
+    {t:'تتبع حزمة الأسلاك على طول قضيب الجر وابحث عن احتكاك.', show:['09-11','08-02']}
+   ]},
+  {id:'brakes', sev:'hi', t:'فرامل الماكينة ضعيفة أو تسخن', s:'الماكينة تدفع الجرار في النزول، أو طبول الفرامل ساخنة بعد الطريق.',
+   causes:['خطوط الهواء أو الهيدروليك غير موصولة جيداً','تيل الفرامل متآكل أو الضبط غير صحيح','فرامل يد غير محررة'],
+   steps:[
+    {t:'تأكد من توصيل خطوط الفرامل وتحرير فرامل اليد قبل السير.', show:['08-08','07-07']},
+    {t:'ارفع الماكينة وثبّتها بأمان، وفكّ العجلات لفحص طبول الفرامل.', show:['08-08'], rm:['08-07']},
+    {t:'افحص التيل والضبط والأسطوانات. لا تسر على الطريق والفرامل غير سليمة.', show:['08-08'], rm:['08-07']}
+   ]},
+  {id:'steer', sev:'md', t:'المحور الخلفي يتمايل على الطريق', s:'العجلات الخلفية تتأرجح عند السرعة أو في الرجوع للخلف.',
+   causes:['قفل المحور التوجيهي غير مفعّل على الطريق أو في الرجوع','المزيّت الآلي للمحور فارغ','وصلات المحور متآكلة'],
+   steps:[
+    {t:'فعّل قفل المحور التوجيهي للطريق وللرجوع للخلف.', show:['08-09']},
+    {t:'افحص المزيّت الآلي للمحور واملأه.', show:['10-04']},
+    {t:'افحص المحاور ووصلات التوجيه من أي لعب.', show:['08-05','08-06']}
+   ]},
+  {id:'retainer', sev:'lo', t:'الرقائق ترتد نحو المكبس', s:'المحصول يرجع إلى الأمام بعد كل شوط، وتتفكك البالة.',
+   causes:['ماسكات منع الارتداد مكسورة أو عالقة','نوابض الماسكات ضعيفة'],
+   steps:[
+    {t:'افتح اللوح الأيسر وأنزل صندوق الخيط للوصول إلى جانب القناة.', show:['04-12'], rm:['cov-doorL','boxL']},
+    {t:'افحص الماسكات: تتحرك بحرية وتعود بنوابضها، وبدّل المكسور.', show:['04-12'], rm:['cov-doorL','boxL'], cut:1}
+   ]},
+  {id:'twinebox', sev:'lo', t:'صندوق الخيط لا ينزل أو لا يرتفع', s:'صندوق الخيط يبقى في مكانه عند أمر الإنزال لتعبئة البكرات.',
+   causes:['أسطوانات إنزال الصندوق لا يصلها ضغط','الصمام أو الوصلة','عائق تحت الصندوق'],
+   steps:[
+    {t:'افتح اللوح الجانبي وتأكد من عدم وجود عائق تحت الصندوق.', show:['05-14'], rm:['cov-doorL']},
+    {t:'افحص أسطوانات الإنزال وخراطيمها.', show:['07-09','07-07'], rm:['cov-doorL']},
+    {t:'افحص كتلة الصمامات وأمر الإنزال من الشاشة.', show:['07-03','09-02'], rm:['cov-doorR']}
    ]}
 ];
 </script>
@@ -1387,6 +1518,16 @@ const KC=(function(){
     $('#ioFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{$('#ioText').value=String(r.result||'').replace(/^﻿/,'');}; r.readAsText(f);});
   });
   KC.render();
+  /* النسخة الشخصية من التطبيق قد تحمل ملف الكتالوج بجانب الصفحة (catalog.json): يُستورد مرة واحدة
+     دون أن يغيّر أرقاماً كتبها المستخدم. النسخة المنشورة لا تحمله */
+  if(!KC.get()&&!store.get('bp1290.kcatAuto',false)&&/^https?:$/.test(location.protocol)){
+    fetch('catalog.json',{cache:'no-store'}).then(r=>r.ok?r.text():null).then(t=>{
+      const res=t&&parseImport(t); if(!res||!res.kcat||!KC.save(res.kcat))return;
+      for(const k in res.map)if(!catalog[k])catalog[k]=res.map[k];
+      saveCatalog(); store.set('bp1290.kcatAuto',true);
+      document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}})); KC.render();
+    }).catch(()=>{});
+  }
   $('#clrBtn').addEventListener('click',()=>{
     const n=Object.keys(catalog).length; if(!n){toast('لا توجد أرقام محفوظة');return;}
     Modal.open('مسح أرقام الكتالوج',`<p>سيُحذف ${n} رقماً محفوظاً على هذا الجهاز. صدّرها أولاً إذا أردت الاحتفاظ بنسخة.</p>`,[
@@ -1417,7 +1558,7 @@ function showTab(name,write){
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab,true)));
 window.addEventListener('hashchange',()=>showTab(location.hash.slice(1),false));
 
-window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock,Modal,saveFile:typeof saveFile==='function'?saveFile:null};
+window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock,Modal,norm,saveFile:typeof saveFile==='function'?saveFile:null};
 showTab((location.hash||'').slice(1),false);
 
 /* إذا لم يُحمّل محرك العرض خلال 20 ثانية تظهر رسالة واضحة */
@@ -1569,10 +1710,12 @@ function grime(mat,o){
   return mat;
 }
 const M={
-  paint:grime(coat(0x3a8a2e,.34,.12)),
-  paintDark:grime(coat(0x2d6c24,.4,.14)),
-  frame:grime(coat(0x2a6421,.45,.25),{amt:.6}),
-  chamber:grime(coat(0x388230,.42,.2)),
+  paint:grime(coat(0x4a8a24,.34,.12)),
+  paintDark:grime(coat(0x37691a,.4,.14)),
+  frame:grime(coat(0x33621a,.45,.25),{amt:.6}),
+  chamber:grime(coat(0x457f22,.42,.2)),
+  yellow:grime(coat(0xd8c136,.34,.06),{amt:.35}),
+  blackTop:grime(coat(0x1c2023,.42,.2),{amt:.2,top:1.0}),
   steel:grime(std(0x9aa2a7,.32,.85),{amt:.35,top:1.0}),
   steelDark:grime(std(0x4b5258,.45,.7),{amt:.35,top:1.0}),
   galv:grime(std(0xb9c0c4,.3,.85),{amt:.25,top:1.0,v:.08}),
@@ -1602,7 +1745,35 @@ const M={
 M.steelDS=grime(M.steel.clone(),{amt:.35,top:1.0}); M.steelDS.side=THREE.DoubleSide;
 M.paintDS=grime(M.paint.clone()); M.paintDS.side=THREE.DoubleSide;
 M.rimDS=grime(M.rim.clone(),{amt:.45,top:1.0}); M.rimDS.side=THREE.DoubleSide;
-/* ملصقات: حروف BiG PACK ولوحات التحذير */
+/* طلاء KRONE للألواح الجانبية: u من الخلف (0) إلى الأمام (1)، v من الأسفل (0) إلى الأعلى (1).
+   للجهة اليمنى تُعكس الكتابة فقط حتى تُقرأ من الخارج */
+function liveryTex(mirror){
+  return canvasTex(2048,1024,(g,w,h)=>{
+    const Y=v=>(1-v)*h, X=u=>u*w;
+    g.fillStyle='#d8c136'; g.fillRect(0,0,w,h);
+    const sh=g.createLinearGradient(0,0,0,h); sh.addColorStop(0,'rgba(255,255,255,.10)'); sh.addColorStop(.5,'rgba(255,255,255,0)'); sh.addColorStop(1,'rgba(0,0,0,.08)'); g.fillStyle=sh; g.fillRect(0,0,w,h);
+    /* الشريط الأخضر السفلي: عريض في الخلف وينزل نحو الأمام */
+    const band=(off,col)=>{g.beginPath(); g.moveTo(0,h); g.lineTo(0,Y(.50+off)); g.bezierCurveTo(X(.30),Y(.50+off),X(.42),Y(.20+off),X(.70),Y(.15+off)); g.bezierCurveTo(X(.86),Y(.12+off),X(.95),Y(.10+off),w,Y(.09+off)); g.lineTo(w,h); g.closePath(); g.fillStyle=col; g.fill();};
+    band(.025,'#2f5a16'); band(0,'#4a8a24');
+    g.fillStyle='#4a8a24'; g.fillRect(0,0,w,Y(.91)); g.fillStyle='#2f5a16'; g.fillRect(0,Y(.91),w,6);
+    /* عاكسات جانبية برتقالية */
+    g.fillStyle='#f2a312'; for(const u of [.08,.4,.75])g.fillRect(X(u),Y(.28)-14,46,22);
+    const text=(t,font,u,v,col)=>{g.save(); g.font=font; const tw=g.measureText(t).width; g.translate(X(u),Y(v)); if(mirror)g.scale(-1,1); g.fillStyle=col; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t,0,0); g.restore(); return tw;};
+    text('KRONE','italic 900 150px "Arial Black","Helvetica Neue",Arial,sans-serif',.6,.66,'#2f5a16');
+    g.save(); g.translate(X(.86),Y(.43)); if(mirror)g.scale(-1,1); g.textAlign='center'; g.textBaseline='middle';
+    g.font='italic 900 64px "Arial Black",Arial,sans-serif'; g.fillStyle='#2f5a16'; g.fillText('BiG PACK',0,0);
+    g.font='italic 700 34px "Arial Black",Arial,sans-serif'; g.fillText('1290 HDP II',0,48); g.restore();
+  });
+}
+M.coverL=grime(new THREE.MeshPhysicalMaterial({map:liveryTex(false),roughness:.34,metalness:.06,clearcoat:.6,clearcoatRoughness:.22,side:THREE.DoubleSide}),{amt:.35});
+M.coverR=grime(new THREE.MeshPhysicalMaterial({map:liveryTex(true),roughness:.34,metalness:.06,clearcoat:.6,clearcoatRoughness:.22,side:THREE.DoubleSide}),{amt:.35});
+/* المقدمة: سقف أسود في الأعلى، أصفر في الوسط، أخضر في الأسفل */
+M.nose=grime(new THREE.MeshPhysicalMaterial({map:canvasTex(256,512,(g,w,h)=>{
+  g.fillStyle='#d8c136'; g.fillRect(0,0,w,h);
+  g.fillStyle='#1c2023'; g.fillRect(0,0,w,h*.16);
+  g.fillStyle='#2f5a16'; g.fillRect(0,h*.62,w,h*.02); g.fillStyle='#4a8a24'; g.fillRect(0,h*.64,w,h*.36);
+}),roughness:.34,metalness:.06,clearcoat:.6,clearcoatRoughness:.22,side:THREE.DoubleSide}),{amt:.35});
+/* ملصقات: لوحات التحذير */
 function decalTex(w,h,draw){const t=canvasTex(w,h,draw); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; return t;}
 const decalMat=map=>new THREE.MeshStandardMaterial({map,transparent:true,roughness:.4,metalness:.05,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4});
 M.logo=decalMat(decalTex(2048,256,(g,w,h)=>{
@@ -2266,26 +2437,29 @@ function knifeArm(p,z){
 
 /* ── الهيكل الخارجي 08-10: ألواح جانبية مضلّعة، مقدمة هرمية، سقف، غطاء خلفي ──
    الشكل مأخوذ من صور المجسم والفيديو الرسمي: مقطع مضلّع يتسع في الوسط ويضيق للسقف */
-function loft(rows,mat,parent,opt){
-  const pos=[];
-  for(let r=0;r<rows.length-1;r++){
-    const A=rows[r], B=rows[r+1];
-    for(let i=0;i<A.length-1;i++){const a=A[i],b=A[i+1],c=B[i+1],d=B[i]; pos.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,a.x,a.y,a.z,c.x,c.y,c.z,d.x,d.y,d.z);}
-  }
+/* سطح ممتد بين صفوف من النقاط، بنقاط مشتركة حتى تكون الإنارة ناعمة */
+function loft(rows,mat,parent,opt,uvAt){
+  const n=rows[0].length, pos=[], uv=[], idx=[];
+  rows.forEach((row,r)=>row.forEach((p,i)=>{pos.push(p.x,p.y,p.z); uv.push(...(uvAt?uvAt(r,i):[0,0]));}));
+  for(let r=0;r<rows.length-1;r++)for(let i=0;i<n-1;i++){const a=r*n+i,b=a+1,c=b+n,d=a+n; idx.push(a,b,c,a,c,d);}
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-  g.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(pos.length/3*2),2));
-  g.computeVertexNormals();
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx); g.computeVertexNormals();
   return add(g,mat,parent,0,0,0,opt);
 }
 function capYZ(pts,x,mat,parent,opt){
   const g=new THREE.ShapeGeometry(shape2(pts)); g.rotateY(-PI/2); g.translate(x,0,0);
   return add(g,mat,parent,0,0,0,opt);
 }
-const SEC=[[1.44,1.0],[1.6,1.4],[2.2,1.46],[2.58,1.2],[2.86,0.74]];     // مقطع اللوح الأيسر [y,z]
+/* مقطع اللوح الأيسر [y,z]: سطح منحنٍ أملس كما في غطاء HDP II، يتسع في الوسط وينحني نحو السقف */
+const SEC0=[[1.44,1.0],[1.6,1.38],[2.05,1.48],[2.5,1.32],[2.86,0.74]];
+const SEC=smooth(SEC0,18);
 const BX0=-2.75, BX1=1.7, NOSE=3.3;
-const NOSE_A=[[2.86,0],[2.86,0.74],[2.58,1.2],[2.2,1.46],[1.6,1.4],[1.44,1.0],[1.2,0.62]];
-const NOSE_B=[[2.25,0],[2.25,0.38],[2.16,0.5],[1.85,0.56],[1.35,0.54],[1.08,0.46],[0.95,0.3]];
+const NOSE_A=smooth([[2.86,0],[2.9,0.5],[2.86,0.74],[2.5,1.32],[2.05,1.48],[1.6,1.38],[1.44,1.0],[1.2,0.62]],22);
+const NOSE_B=smooth([[2.3,0],[2.3,0.3],[2.24,0.42],[2.02,0.56],[1.7,0.6],[1.35,0.56],[1.08,0.46],[0.95,0.3]],22);
+const arcV=pts=>{const d=[0]; for(let i=1;i<pts.length;i++)d.push(d[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return d.map(x=>x/d[d.length-1]);};
+const SEC_V=arcV(SEC), NOSE_V=arcV(NOSE_A);
 let HOOD_F, ROOF;
 {
   const g=pg('08-10');
@@ -2293,38 +2467,34 @@ let HOOD_F, ROOF;
   const hf=sub(g,{cover:true}); HOOD_F=hf;
   for(const s of [1,-1]){
     const o={cut:s>0};
-    loft([NOSE_A.map(([y,z])=>V(BX1,y,s*z)),NOSE_B.map(([y,z])=>V(NOSE,y,s*z))],M.paintDS,hf,o);
-    for(let i=1;i<NOSE_A.length-1;i++)tube([[BX1,NOSE_A[i][0],s*(NOSE_A[i][1]+0.004)],[NOSE,NOSE_B[i][0],s*(NOSE_B[i][1]+0.004)]],0.006,M.paintDark,hf,2,false,o);
+    loft([NOSE_A.map(([y,z])=>V(BX1,y,s*z)),NOSE_B.map(([y,z])=>V(NOSE,y,s*z))],M.nose,hf,o,(r,i)=>[r,NOSE_V[i]]);
   }
   for(const [t0,sd] of [[-0.35,1],[PI/2,-1]]){const gg=new THREE.CylinderGeometry(0.62,0.62,0.3,28,1,true,t0,PI/2+0.35); gg.rotateZ(-PI/2); add(gg,M.paintDS,hf,FLYC[0],FLYC[1],0,{cut:sd>0});}
-  capYZ(NOSE_B.map(([y,z])=>[z,y]).concat(NOSE_B.slice().reverse().map(([y,z])=>[-z,y])),NOSE,M.paintDS,hf);
-  for(let i=0;i<5;i++)add(rb(0.012,0.035,0.62,0.004),M.dark,hf,NOSE+0.008,1.95-i*0.08,0);
+  /* الواجهة الأمامية: صفراء وأسفلها أخضر، وشبكة تهوية سوداء */
+  capYZ(NOSE_B.map(([y,z])=>[z,y]).concat(NOSE_B.slice().reverse().map(([y,z])=>[-z,y])),NOSE,M.yellow,hf);
+  add(rb(0.03,0.44,1.1,0.06),M.paint,hf,NOSE+0.012,1.2,0);
+  add(rb(0.02,0.012,1.12,0.004),M.paintDark,hf,NOSE+0.022,1.43,0);
+  for(let i=0;i<5;i++)add(rb(0.012,0.035,0.62,0.004),M.dark,hf,NOSE+0.008,2.08-i*0.07,0);
   for(const zs of [0.36,-0.36]){const w=add(new THREE.PlaneGeometry(0.15,0.15),M.warn,hf,NOSE+0.006,1.58,zs,{noShadow:true}); w.rotation.y=PI/2;}
   ex(hf,'cov-hoodF',[0.9,1.2,0],0);
   /* الألواح الجانبية الكبيرة (أبواب صناديق الخيط) */
-  const boltG=cyl(0.011,0.012,'z',8);
   for(const s of [1,-1]){
     const d=sub(g,{cover:true,cut:s>0});
-    loft([SEC.map(([y,z])=>V(BX0,y,s*z)),SEC.map(([y,z])=>V(BX1,y,s*z))],M.paintDS,d);
-    for(let i=1;i<SEC.length-1;i++)tube([[BX0,SEC[i][0],s*(SEC[i][1]+0.004)],[BX1,SEC[i][0],s*(SEC[i][1]+0.004)]],0.006,M.paintDark,d,2);
-    for(const xs of [-1.25,0.3])tube(SEC.map(([y,z])=>[xs,y,s*(z+0.005)]),0.007,M.paintDark,d,16);
-    for(const xh of [-2.0,-0.47,1.0])add(rb(0.22,0.035,0.03,0.008),M.dark,d,xh,1.66,s*1.415);
-    const bolts=new THREE.InstancedMesh(boltG,M.steel,60); let k=0;
-    for(const [y,z] of [SEC[0],SEC[2],SEC[4]])for(let i=0;i<20;i++){const x=BX0+0.12+i*(BX1-BX0-0.24)/19; bolts.setMatrixAt(k++,new THREE.Matrix4().makeTranslation(x,y,s*(z+0.006)));}
-    d.add(bolts);
-    /* حروف BiG PACK على الواجهة القائمة من اللوح، ولوحة تحذير قرب المقدمة */
-    const th=Math.atan2(SEC[2][1]-SEC[1][1],SEC[2][0]-SEC[1][0]), zf=y=>SEC[1][1]+(y-SEC[1][0])*Math.tan(th)+0.007;
-    const lg=add(new THREE.PlaneGeometry(3.3,0.41),M.logo,d,-0.62,1.96,s*zf(1.96),{noShadow:true}); lg.rotation.set(s*th,s>0?0:PI,0);
-    const wn=add(new THREE.PlaneGeometry(0.16,0.16),M.warn,d,1.25,1.78,s*zf(1.78),{noShadow:true}); wn.rotation.set(s*th,s>0?0:PI,0);
-    for(const xr of [-2.45,-1.05,0.55])add(rb(0.07,0.035,0.012,0.004),M.amberLens,d,xr,1.64,s*(zf(1.64)-0.002));
+    loft([SEC.map(([y,z])=>V(BX0,y,s*z)),SEC.map(([y,z])=>V(BX1,y,s*z))],s>0?M.coverL:M.coverR,d,undefined,(r,i)=>[r,SEC_V[i]]);
+    /* حافة سفلية سوداء فوق العجلات، ومقبضان، ومفصلات علوية */
+    tube([[BX0,1.44,s*1.0],[BX1,1.44,s*1.0]],0.018,M.dark,d,2);
+    const zAt=y=>{for(let i=1;i<SEC.length;i++)if(SEC[i][0]>=y){const a=SEC[i-1],b=SEC[i],t=(y-a[0])/(b[0]-a[0]); return a[1]+(b[1]-a[1])*t;} return SEC[SEC.length-1][1];};
+    for(const xh of [-1.6,0.6])add(rb(0.2,0.03,0.03,0.008),M.dark,d,xh,1.72,s*(zAt(1.72)+0.012));
+    for(const xh of [-2.2,-0.5,1.2])add(cyl(0.022,0.12,'x',12),M.steelDark,d,xh,2.86,s*0.76);
     capYZ([[s*0.68,1.44]].concat(SEC.map(([y,z])=>[s*z,y]),[[s*0.68,2.86]]),BX0,M.paintDS,d);
     ex(d,s>0?'cov-doorL':'cov-doorR',[0,1.15,s*1.7],0);
   }
   /* السقف فوق العقّادات (يحمل الدرابزين والإنارة) */
   const kh=sub(g,{cover:true}); ROOF=kh;
   add(rb(BX1-BX0,0.04,1.52,0.01),M.paint,kh,(BX0+BX1)/2,2.88,0);
-  add(rb(1.25,0.09,1.2,0.04),M.paint,kh,-0.15,2.94,0);
-  for(const z of [-0.45,0.45])add(rb(1.15,0.025,0.05,0.008),M.paintDark,kh,-0.15,2.995,z);
+  add(rb(1.9,0.14,1.3,0.06),M.blackTop,kh,0.55,2.95,0);
+  for(const z of [-0.5,0.5])add(rb(1.7,0.03,0.05,0.01),M.dark,kh,0.55,3.03,z);
+  add(rb(1.0,0.08,1.1,0.04),M.paint,kh,-1.55,2.93,0);
   capYZ([[-0.68,2.2],[0.68,2.2],[0.68,2.86],[-0.68,2.86]],BX0,M.paintDS,kh);
   ex(kh,'cov-knot',[0,1.7,0],0);
   /* غطاء السير الأيسر تحت اللوح */
@@ -2697,7 +2867,8 @@ function select(id,focus){
 const INTRO=`<hr class="divider"><div class="ins-sec" style="margin-top:0"><h4>طريقة الاستخدام</h4><ul style="margin:4px 0 0;padding-inline-start:18px;font-size:14px;line-height:1.8">
   <li>اسحب لتدوير المجسم، وكبّر بإصبعين أو بعجلة الفأرة.</li>
   <li>اضغط أي قطعة لترى اسمها ورقمها ووظيفتها وصيانتها.</li>
-  <li>اضغط مرتين على القطعة فتنفكّ من مكانها وتختفي، وزر «إرجاع القطعة» يعيدها.</li>
+  <li>لكل قطعة قسم «كيفية الوصول»: ما يجب فتحه أو فكّه قبلها بالترتيب. لا تُفكّ القطعة قبل الوصول إليها.</li>
+  <li>بعد الوصول اضغط مرتين على القطعة فتنفكّ وتختفي، وزر «إرجاع القطعة» يعيدها.</li>
   <li>حرّك شريط «التفكيك» أو اضغط «فكّ بالتسلسل» لتفكيك الكبّاسة قطعة قطعة.</li>
   <li>«مقطع داخلي» يزيل الجهة القريبة لترى القناة والمكبس والإبر من الداخل.</li>
   <li>قسم «الأعطال والإصلاح» يفكّ المجسم خطوة بخطوة حتى القطعة المطلوبة.</li></ul></div>`;
@@ -2705,12 +2876,12 @@ function clearSel(){L.sel=new Set(); labelId=null; refreshLook(); $('#partView')
 
 const eye=on=>'<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M1.5 10S5 4 10 4s8.5 6 8.5 6-3.5 6-8.5 6S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/>'+(on?'<circle cx="10" cy="10" r="2.6" fill="currentColor"/>':'<path d="M3 17 17 3" stroke="currentColor" stroke-width="1.6"/>')+'</svg>';
 function actRow(id,table){
-  const isoOn=L.iso&&L.iso.size===1&&L.iso.has(id), pulled=L.forced.has(id);
+  const isoOn=L.iso&&L.iso.size===1&&L.iso.has(id), pulled=L.forced.has(id), lock=accMissing(id).length>0||(!accSafe&&!XM.on);
   return `<div class="act-row">
       <button type="button" class="btn sm" data-act="focus">تقريب</button>
       <button type="button" class="btn sm" data-act="iso" aria-pressed="${isoOn}">${isoOn?'إلغاء العزل':'عزل القطعة'}</button>
-      ${EXP.some(e=>e.part===id&&!!e.xm===XM.on)?`<button type="button" class="btn sm" data-act="pull" aria-pressed="${pulled}">${pulled?'إرجاع لمكانها':'فكّ القطعة'}</button>`:''}
-      <button type="button" class="btn sm" data-act="hide">إخفاء</button>
+      ${EXP.some(e=>e.part===id&&!!e.xm===XM.on)?`<button type="button" class="btn sm${!pulled&&lock?' locked':''}" data-act="pull" aria-pressed="${pulled}">${pulled?'إرجاع لمكانها':'فكّ القطعة'}</button>`:''}
+      <button type="button" class="btn sm${lock?' locked':''}" data-act="hide">إخفاء</button>
       ${table?'<button type="button" class="btn sm ghost" data-act="table">في جدول القطع</button>':''}
     </div>`;
 }
@@ -2720,6 +2891,7 @@ function renderPartView(id){
   const sec=(h,t)=>t?`<section class="ins-sec"><h4>${h}</h4><p>${esc(t)}</p></section>`:'';
   $('#partView').innerHTML=`<hr class="divider"><div class="ins-head"><span class="sys-chip" style="--c:${s.color}">${esc(s.ar)}</span><h3>${esc(p.ar)}</h3><div class="ins-en">${esc(p.en)}${p.de?' · '+esc(p.de):''}</div></div>
     ${actRow(id,true)}
+    ${accBlock(id)}
     <dl class="facts">
       <div><dt>الرقم التسلسلي</dt><dd class="mono" dir="ltr" style="text-align:right">${serial(id)}</dd></div>
       <div><dt>الكمية في الماكينة</dt><dd>${esc(p.q||'1')}</dd></div>
@@ -2735,17 +2907,125 @@ function saveCat(){const inp=$('#catInput'), id=[...L.sel][0]; if(!inp||!id)retu
 $('#partView').addEventListener('click',e=>{
   const id=[...L.sel][0]; if(!id)return;
   if(e.target.id==='catSave'){saveCat();return;}
+  const ac=e.target.closest('[data-acc]'); if(ac){accClick(id,ac.dataset.acc); return;}
   const b=e.target.closest('[data-act]'); if(!b)return;
   const a=b.dataset.act;
   if(a==='focus')focusIds([id]);
   else if(a==='iso'){L.iso=(L.iso&&L.iso.size===1&&L.iso.has(id))?null:new Set([id]); refreshLook(); renderPartView(id); if(L.iso)focusIds([id]);}
-  else if(a==='pull'){if(L.forced.has(id))L.forced.delete(id); else L.forced.add(id); renderPartView(id); dirty(); setTimeout(()=>focusIds([id]),60);}
-  else if(a==='hide'){L.hiddenParts.add(id); clearSel(); toast('أُخفيت القطعة. «إظهار الكل» يعيدها');}
+  else if(a==='pull'){if(L.forced.has(id)){L.forced.delete(id); renderPartView(id); dirty();} else tryRemove(id,'pull');}
+  else if(a==='hide')tryRemove(id,'hide');
   else if(a==='table'){BP.showTab('parts',true); const s=$('#pSearch'); s.value=serial(id); s.dispatchEvent(new Event('input'));}
 });
 $('#partView').addEventListener('keydown',e=>{if(e.target.id==='catInput'&&e.key==='Enter'){e.preventDefault();saveCat();}});
 $('#partView').addEventListener('change',e=>{if(e.target.id==='xMapSel')xSetMap(e.target.dataset.key,e.target.value);});
 ['catalogchange','machinechange'].forEach(ev=>document.addEventListener(ev,()=>{const id=[...L.sel][0]; if(id&&stageMode==='explore'&&document.activeElement!==$('#catInput'))renderPartView(id);}));
+
+/* ═══════════ كيفية الوصول ═══════════
+   لكل قطعة ما يجب فتحه أو فكّه قبلها بالترتيب. لا تُفكّ القطعة ولا تُخفى قبل أن يُفتح كل ما يحجبها،
+   وقبل تأكيد إيقاف الماكينة. القوائم مبنية على مواضع القطع في الماكينة، والكتيب هو المرجع للتفاصيل. */
+const ACC_KEYS={
+  'cov-hoodF':'الغطاء الأمامي فوق الحدّافة وعلبة التروس',
+  'cov-doorL':'اللوح الجانبي الأيسر (باب صندوق الخيط)',
+  'cov-doorR':'اللوح الجانبي الأيمن (باب صندوق الخيط)',
+  'cov-knot':'غطاء العقّادات العلوي',
+  'cov-belt':'غطاء سير دوّار القطع (الجهة اليسرى)',
+  'boxL':'صندوق الخيط الأيسر',
+  'boxR':'صندوق الخيط الأيمن'
+};
+const ACCESS={
+  '01-01':['01-05','01-06','01-12'], '01-02':['01-05','01-03'], '01-03':['01-05'], '01-04':['01-05'], '01-08':['01-05'],
+  '02-01':['02-14','cov-belt','02-08'], '02-02':['02-03'], '02-03':['02-07','02-05'], '02-05':['02-07'], '02-06':['02-05'],
+  '02-08':['cov-belt'], '02-09':['cov-belt'], '02-10':['cov-belt'], '02-14':['02-03'],
+  '03-01':['03-02','03-03'], '03-02':['02-07'], '03-03':['02-07'], '03-04':['03-02'], '03-06':['03-02'], '03-07':['02-07'], '03-08':['03-07'],
+  '04-01':['04-05'], '04-02':['cov-doorL','boxL'], '04-03':['cov-doorL','boxL'], '04-04':['cov-doorL','boxL'], '04-05':['cov-hoodF'], '04-06':['cov-hoodF'],
+  '04-07':['cov-doorL','cov-doorR','cov-knot'], '04-11':['04-09'], '04-12':['cov-doorL','boxL'],
+  '05-01':['cov-knot'], '05-02':['05-04'], '05-03':['cov-knot'], '05-04':['cov-knot'], '05-18':['05-02','05-03'],
+  '05-06':['05-05'], '05-08':['05-01'], '05-09':['cov-knot','cov-doorR'], '05-10':['cov-knot'], '05-11':['cov-doorL'], '05-12':['cov-knot'],
+  '05-14':['cov-doorL','cov-doorR'], '05-15':['cov-doorL','cov-doorR'], '05-16':['cov-knot'],
+  '06-03':['cov-hoodF'], '06-04':['06-03'], '06-05':['cov-hoodF'], '06-06':['06-04','04-05'], '06-07':['cov-hoodF','cov-belt'], '06-08':['cov-doorR'],
+  '07-01':['cov-hoodF'], '07-02':['cov-hoodF'], '07-03':['cov-doorR'], '07-06':['cov-hoodF'], '07-08':['cov-knot'],
+  '08-01':['cov-hoodF','cov-doorL','cov-doorR','cov-knot'], '08-02':['06-01'], '08-05':['08-07'], '08-06':['08-07'], '08-08':['08-07'], '08-15':['cov-doorL','cov-doorR'],
+  '09-01':['cov-doorR'], '09-04':['cov-doorR'], '09-10':['cov-doorR'], '09-11':['cov-hoodF','cov-doorR'],
+  '10-01':['cov-hoodF'], '10-05':['cov-hoodF'], '11-02':['11-01']
+};
+/* طريقة الفك نفسها حيث تختلف عن «افتح ثم فكّ» */
+const ACC_NOTE={
+  '01-02':'ارفع البيك أب إلى أعلى وضع واسند بالدعامة، ثم فكّ شريحة التوجيه فوق الإصبع وبدّله مع حلقة الإمساك.',
+  '02-03':'اخفض قاع القطع من الشاشة، ثم اسحب درج السكاكين إلى الجانب. السكاكين تُفك يدوياً بعد إلغاء ضغط الحماية.',
+  '02-05':'لا يخرج الدرج إلا بعد خفض قاع القطع وفصل مجموعات السكاكين من الشاشة.',
+  '02-08':'أرخِ نابض الشد قبل نزع السير، ولا تلفّ السير على البكرة باليد.',
+  '04-03':'أدر الماكينة يدوياً حتى يصل المكبس إلى الأمام ليظهر من فتحة الفحص الجانبية.',
+  '05-02':'أدر العقّادة يدوياً إلى وضع الصيانة، وفكّ ذراع السكين قبل سحب خطاف العقدة من محوره.',
+  '05-05':'ارفع الإبر بوضع الصيانة في الشاشة، ولا تقف في مسارها.',
+  '06-04':'فعّل فرامل الحدّافة وانتظر توقفها تماماً قبل أي عمل في المقدمة.',
+  '06-06':'صرّف الزيت قبل فك علبة التروس، وادعم المكبس حتى لا يتحرك.',
+  '08-07':'ارفع الماكينة برافعة مناسبة تحت نقطة الرفع، وثبّت العجلات الأخرى بالسدّادات.',
+  '08-08':'لا تفتح الفرامل والماكينة على العجلات دون سدّادات.'
+};
+const accLabel=k=>ACC_KEYS[k]||(PART[k]?PART[k].ar:k);
+const accVerb=k=>k.startsWith('box')?'أنزل':ACC_KEYS[k]?'افتح':'فكّ';
+let accSafe=false, accRun=null;
+/* القائمة كاملة بالترتيب: ما تحتاجه كل خطوة يأتي قبلها */
+function accSteps(id,seen){
+  seen=seen||new Set(); const out=[];
+  for(const k of ACCESS[id]||[]){ if(seen.has(k))continue; if(PART[k])out.push(...accSteps(k,seen)); if(!seen.has(k)){seen.add(k); out.push(k);} }
+  return out;
+}
+function accOpen(k){
+  if(k.startsWith('cov-'))return !L.covers||L.forced.has(k)||L.forced.has('08-10')||L.hiddenParts.has('08-10');
+  if(k.startsWith('box'))return L.forced.has(k)||L.forced.has('05-14')||L.hiddenParts.has('05-14');
+  return L.hiddenParts.has(k)||L.forced.has(k)||EXP.some(e=>e.part===k&&!e.xm&&L.forced.has(e.key));
+}
+const accMissing=id=>XM.on?[]:accSteps(id).filter(k=>!accOpen(k));
+function accOpenKey(k){ L.forced.add(k); dirty(); }
+/* كل محاولة لفك قطعة أو إخفائها تمر من هنا */
+function tryRemove(id,how){
+  const miss=accMissing(id);
+  if(miss.length){
+    if(!L.sel.has(id))select(id,false);
+    const box=$('#accBox'); if(box){box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); box.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});}
+    toast(`لا يمكن الوصول إلى «${PART[id].ar}» بعد. ${accVerb(miss[0])} أولاً: ${accLabel(miss[0])}${miss.length>1?` (+${miss.length-1})`:''}`);
+    return false;
+  }
+  if(!accSafe&&!XM.on){
+    BP.Modal.open('قبل الفك',`<p>أوقف الجرار واسحب المفتاح، وفعّل فرامل الحدّافة وانتظر توقفها تماماً، واسند البيك أب والأجزاء المرفوعة. لا تعمل تحت جزء يحمله الهيدروليك وحده.</p>`,
+      [{label:'أكدت، الماكينة متوقفة',cls:'primary',fn:()=>{accSafe=true; if(L.sel.has(id))renderPartView(id); tryRemove(id,how);}},{label:'إلغاء',cls:'ghost'}]);
+    return false;
+  }
+  if(how==='pull'){L.forced.add(id); if(L.sel.has(id))renderPartView(id); dirty(); setTimeout(()=>focusIds([id]),60);}
+  else if(how==='hide'){L.hiddenParts.add(id); clearSel(); toast('أُخفيت القطعة. «إظهار الكل» يعيدها');}
+  else removePart(id);
+  return true;
+}
+function accBlock(id){
+  if(XM.on||PART[id].x)return '';
+  const st=accSteps(id), next=st.findIndex(k=>!accOpen(k)), ready=next<0, has=hasGeo(id);
+  const row=(cls,num,txt,btn)=>`<li class="acc-${cls}"><span class="acc-n">${num}</span><span class="acc-t">${txt}</span>${btn||''}</li>`;
+  const items=[row(accSafe?'done':'next','!','أوقف الجرار واسحب المفتاح وانتظر توقف الحدّافة',accSafe?'<span class="acc-ok">تم</span>':'<button type="button" class="btn sm" data-acc="safe">أكدت</button>')];
+  st.forEach((k,i)=>{
+    const done=accOpen(k), cur=i===next&&accSafe;
+    items.push(row(done?'done':cur?'next':'wait',i+1,`${accVerb(k)} ${esc(accLabel(k))}`,done?'<span class="acc-ok">مفتوح</span>':cur?`<button type="button" class="btn sm" data-acc="${k}">${accVerb(k)}</button>`:''));
+  });
+  const goalBtn=has?`<button type="button" class="btn sm ${ready&&accSafe?'primary':''}" data-acc="goal"${ready&&accSafe?'':' aria-disabled="true"'}>فكّ القطعة</button>`:'';
+  items.push(row(ready&&accSafe?'next':'wait','✓',`${has?'فكّ':'افحص'} ${esc(PART[id].ar)}`,goalBtn));
+  const left=st.filter(k=>!accOpen(k)).length;
+  return `<section class="acc" id="accBox"><div class="acc-h"><h4>كيفية الوصول</h4><span class="pill ${left?'t-w':'t-ok'}">${st.length?(left?`يحجبها ${left}`:'يمكن الوصول'):'مباشرة'}</span></div>
+    <ol class="acc-list">${items.join('')}</ol>
+    ${ACC_NOTE[id]?`<p class="acc-note">${esc(ACC_NOTE[id])}</p>`:''}
+    ${left?'<button type="button" class="btn sm" data-acc="all">افتح كل ما يحجبها بالترتيب</button>':''}</section>`;
+}
+function accClick(id,a){
+  if(a==='safe'){accSafe=true; renderPartView(id); return;}
+  if(a==='goal'){tryRemove(id,'remove'); return;}
+  if(a==='all'){
+    if(!accSafe){accSafe=true;}
+    clearTimeout(accRun);
+    const step=()=>{const m=accMissing(id); if(!m.length||!L.sel.has(id)){if(L.sel.has(id)){renderPartView(id); focusIds([id]);} return;} accOpenKey(m[0]); renderPartView(id); accRun=setTimeout(step,reduceMotion?60:750);};
+    step(); return;
+  }
+  if(accMissing(id)[0]!==a){toast('افتح الأجزاء بالترتيب من الأعلى'); return;}
+  accOpenKey(a); renderPartView(id);
+}
 
 /* شجرة المجسم */
 let openSys=null;
@@ -2821,6 +3101,7 @@ function stepFades(dt){
       if(f.lift)f.lift.forEach(o=>o.m.position.copy(o.home));
       L.hiddenParts.add(f.id); L.forced.delete(f.id); removed.push(f.id);
       refreshLook(); f.mats.forEach(c=>c.dispose()); syncUndo(); toast(`فُكّت «${PART[f.id].ar}» وأُخفيت`);
+      const cur=[...L.sel][0]; if(cur&&stageMode==='explore')renderPartView(cur);
     }
   }
   return fades.length>0;
@@ -3078,7 +3359,7 @@ canvas.addEventListener('pointerup',e=>{
   const id=pick(e.clientX,e.clientY);
   if(mode==='explore'){
     const now=performance.now();
-    if(id&&lastTap.id===id&&now-lastTap.t<400){lastTap={id:null,t:0}; removePart(id); return;}
+    if(id&&lastTap.id===id&&now-lastTap.t<400){lastTap={id:null,t:0}; tryRemove(id,'remove'); return;}
     lastTap={id,t:now}; XM.lastKey=pick.key;
     if(id)select(id,false); else clearSel();
   }
@@ -3111,7 +3392,14 @@ $('#btnAssemble').addEventListener('click',()=>{L.forced.clear(); Eanim={from:E,
 
 /* ═══════════ الأعطال والإصلاح ═══════════ */
 let curF=null, curStep=0;
-$('#faults').innerHTML=FAULTS.map(f=>`<button type="button" class="fault" data-f="${f.id}"><span class="sev ${f.sev}">${SEV[f.sev]}</span><b>${esc(f.t)}</b><span>${esc(f.s)}</span></button>`).join('');
+let fSev='';
+function renderFaults(){
+  const q=BP.norm($('#fSearch').value).trim(), list=FAULTS.filter(f=>(!fSev||f.sev===fSev)&&(!q||q.split(/\s+/).every(w=>BP.norm([f.t,f.s,...f.causes].join(' ')).includes(w))));
+  $('#faults').innerHTML=list.length?list.map(f=>`<button type="button" class="fault" data-f="${f.id}"><span class="sev ${f.sev}">${SEV[f.sev]}</span><b>${esc(f.t)}</b><span>${esc(f.s)}</span></button>`).join(''):'<p class="muted small">لا توجد أعطال مطابقة.</p>';
+}
+renderFaults();
+$('#fSearch').addEventListener('input',renderFaults);
+$('#fSev').addEventListener('click',e=>{const b=e.target.closest('[data-sev]'); if(!b)return; fSev=b.dataset.sev; $$('#fSev button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); renderFaults();});
 $('#faults').addEventListener('click',e=>{const b=e.target.closest('[data-f]'); if(b)openFault(b.dataset.f);});
 function openFault(id){curF=FAULTS.find(f=>f.id===id); curStep=0; $('#faultList').hidden=true; $('#faultView').hidden=false; renderFault(); applyStep(); $('#panel').scrollTop=0;}
 function closeFault(){curF=null; $('#faultList').hidden=false; $('#faultView').hidden=true; resetRepair(); goView('iso');}

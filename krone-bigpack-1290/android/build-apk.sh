@@ -2,6 +2,7 @@
 # يبني APK للتطبيق بأدوات Android SDK مباشرة (بدون Gradle).
 # المتطلبات: JDK 17 أو أحدث، و Android SDK فيه platforms;android-36 و build-tools;36.0.0.
 #   ANDROID_HOME=/path/to/sdk ./build-apk.sh
+# CATALOG=/path/catalog.json يضمّن ملف كتالوج شخصياً يُستورد عند أول تشغيل. لا تنشر APK فيه كتالوج.
 # التوقيع: KEYSTORE (افتراضياً build/release.keystore ويُنشأ إن لم يوجد)، KS_PASS، KS_ALIAS.
 # احتفظ بملف المفتاح نفسه لكل الإصدارات، وإلا فلن يُثبَّت التحديث فوق النسخة السابقة.
 set -euo pipefail
