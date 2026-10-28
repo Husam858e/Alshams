@@ -231,6 +231,26 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
 .f-sec h4{font:700 13.5px var(--font-body);color:var(--accent);margin:12px 0 4px}
 .f-sec ul{margin:0;padding-inline-start:18px;font-size:14px}
 .t-ok{color:var(--ok);border-color:currentColor}
+.stage.bench .ov-top,.stage.bench #explodeBar{display:none}
+.b-prog{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}
+.b-prog span{display:block;height:100%;background:var(--accent);transition:width .25s}
+.b-count{font-size:12.5px;color:var(--muted);margin-top:4px}
+.b-card{margin-top:10px;border:1px solid var(--accent);border-radius:10px;padding:8px 10px;background:var(--panel-2);display:grid;gap:3px;font-size:13px}
+.b-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px}
+.b-list li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;border:1px solid transparent;cursor:pointer;font-size:12.5px;line-height:1.4}
+.b-list li:hover{border-color:var(--line-2)}
+.b-txt{display:grid;min-width:0}
+.b-txt b{font-size:13px}
+.b-txt bdi,.b-txt small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.b-pos{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 4px;border-radius:999px;border:1.5px solid var(--line-2);font:600 11.5px var(--font-mono)}
+.b-num{font:600 11.5px var(--font-mono);text-align:end;white-space:nowrap}
+.b-num small{display:block;font:500 10.5px var(--font-body);color:var(--muted)}
+.b-done{opacity:.55}
+.b-done .b-pos{background:var(--ok);border-color:var(--ok);color:var(--panel)}
+.b-next{background:var(--panel-2)}
+.b-next .b-pos{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.b-own .b-txt b{color:var(--accent)}
+.b-sel{border-color:var(--accent)!important;opacity:1}
 .acc{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel-2)}
 .acc-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
 .acc-h h4{font:700 14px var(--font-body);color:var(--accent)}
@@ -1434,7 +1454,7 @@ const KC=(function(){
     Modal.open('حذف الكتالوج المستورد','<p>يُحذف ملف الكتالوج من هذا الجهاز. أرقام الكتالوج المكتوبة بجانب القطع تبقى كما هي.</p>',[
       {label:'حذف',cls:'danger',fn:()=>{clear(); render(); document.dispatchEvent(new CustomEvent('catalogchange',{detail:{}})); toast('تم حذف الكتالوج');}},{label:'إلغاء',cls:'ghost'}]);});
   document.addEventListener('machinechange',render);
-  return {get:()=>data,save,render,partBlock,openFigure};
+  return {get:()=>data,save,render,partBlock,openFigure,fig,fits,rr};
 })();
 
 /* جدول القطع */
@@ -1558,7 +1578,7 @@ function showTab(name,write){
 $$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab,true)));
 window.addEventListener('hashchange',()=>showTab(location.hash.slice(1),false));
 
-window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock,Modal,norm,saveFile:typeof saveFile==='function'?saveFile:null};
+window.BP={store,SYS,PART,TYPES,serial,esc,clamp,fmt,toast,matchPart,setCatalog,getCatalog:()=>catalog,showTab,tab:()=>tab,kcatBlock:KC.partBlock,KC,Modal,norm,saveFile:typeof saveFile==='function'?saveFile:null};
 showTab((location.hash||'').slice(1),false);
 
 /* إذا لم يُحمّل محرك العرض خلال 20 ثانية تظهر رسالة واضحة */
@@ -2856,6 +2876,7 @@ function pick(cx,cy){
 }
 function select(id,focus){
   if(!PART[id])return;
+  if(BENCH.on)benchExit(false);
   L.sel=new Set([id]); labelId=id;
   const s=id.slice(0,2); if(L.hidden.has(s)){L.hidden.delete(s);saveHidden();}
   L.hiddenParts.delete(id);
@@ -2882,10 +2903,12 @@ function actRow(id,table){
       <button type="button" class="btn sm" data-act="iso" aria-pressed="${isoOn}">${isoOn?'إلغاء العزل':'عزل القطعة'}</button>
       ${EXP.some(e=>e.part===id&&!!e.xm===XM.on)?`<button type="button" class="btn sm${!pulled&&lock?' locked':''}" data-act="pull" aria-pressed="${pulled}">${pulled?'إرجاع لمكانها':'فكّ القطعة'}</button>`:''}
       <button type="button" class="btn sm${lock?' locked':''}" data-act="hide">إخفاء</button>
+      ${table&&!XM.on?`<button type="button" class="btn sm${lock?' locked':''}" data-act="bench">تفكيك منفرد</button>`:''}
       ${table?'<button type="button" class="btn sm ghost" data-act="table">في جدول القطع</button>':''}
     </div>`;
 }
 function renderPartView(id){
+  if(BENCH.on)return;
   const p=PART[id], s=SYS[p.sys], cat=BP.getCatalog()[id]||'';
   if(p.x){$('#partView').innerHTML=xNodeView(id); return;}
   const sec=(h,t)=>t?`<section class="ins-sec"><h4>${h}</h4><p>${esc(t)}</p></section>`:'';
@@ -2914,6 +2937,7 @@ $('#partView').addEventListener('click',e=>{
   else if(a==='iso'){L.iso=(L.iso&&L.iso.size===1&&L.iso.has(id))?null:new Set([id]); refreshLook(); renderPartView(id); if(L.iso)focusIds([id]);}
   else if(a==='pull'){if(L.forced.has(id)){L.forced.delete(id); renderPartView(id); dirty();} else tryRemove(id,'pull');}
   else if(a==='hide')tryRemove(id,'hide');
+  else if(a==='bench')tryRemove(id,'bench');
   else if(a==='table'){BP.showTab('parts',true); const s=$('#pSearch'); s.value=serial(id); s.dispatchEvent(new Event('input'));}
 });
 $('#partView').addEventListener('keydown',e=>{if(e.target.id==='catInput'&&e.key==='Enter'){e.preventDefault();saveCat();}});
@@ -2992,6 +3016,7 @@ function tryRemove(id,how){
       [{label:'أكدت، الماكينة متوقفة',cls:'primary',fn:()=>{accSafe=true; if(L.sel.has(id))renderPartView(id); tryRemove(id,how);}},{label:'إلغاء',cls:'ghost'}]);
     return false;
   }
+  if(how==='bench'){benchEnter(id); return true;}
   if(how==='pull'){L.forced.add(id); if(L.sel.has(id))renderPartView(id); dirty(); setTimeout(()=>focusIds([id]),60);}
   else if(how==='hide'){L.hiddenParts.add(id); clearSel(); toast('أُخفيت القطعة. «إظهار الكل» يعيدها');}
   else removePart(id);
@@ -3020,7 +3045,7 @@ function accClick(id,a){
   if(a==='all'){
     if(!accSafe){accSafe=true;}
     clearTimeout(accRun);
-    const step=()=>{const m=accMissing(id); if(!m.length||!L.sel.has(id)){if(L.sel.has(id)){renderPartView(id); focusIds([id]);} return;} accOpenKey(m[0]); renderPartView(id); accRun=setTimeout(step,reduceMotion?60:750);};
+    const step=()=>{if(BENCH.on)return; const m=accMissing(id); if(!m.length||!L.sel.has(id)){if(L.sel.has(id)){renderPartView(id); focusIds([id]);} return;} accOpenKey(m[0]); renderPartView(id); accRun=setTimeout(step,reduceMotion?60:750);};
     step(); return;
   }
   if(accMissing(id)[0]!==a){toast('افتح الأجزاء بالترتيب من الأعلى'); return;}
@@ -3349,6 +3374,545 @@ async function xExportBuilt(){
 }
 if($('#xExport'))$('#xExport').addEventListener('click',xExportBuilt);
 
+/* ═══════════ التفكيك المنفرد (منضدة الفك) ═══════════
+   تُفتح القطعة وحدها على منضدة عمل، ويُفك كل سطر من شكلها في كتالوج KRONE قطعةً مستقلة بالترتيب:
+   الوصلات والخراطيم، ثم الحلقات والصواميل والبراغي والوردات، ثم القطع الصغيرة، والجسم الرئيسي أخيراً.
+   شكل كل قطعة يُبنى من وصفها ومقاسها في الكتالوج (M 16 X 110، 8,4 X 17 X 1,6، 6206…)، فهو تمثيل وليس رسمها الهندسي. */
+const BTYPES=[
+  [/\bsupport\b|\bholder\b|bracket/,'plate','صفيحة / حامل',9],
+  [/screw plug|blind plug|sealing cap|plug screw|sight glass|dipstick/,'plug','سدادة لولبية',1],
+  [/grease ni/,'nipple','حلمة تشحيم',1],
+  [/breather|air filter/,'breather','فتحة تهوية',1],
+  [/^valve|valve$|valve unit|valve core/,'valve','صمام',13],
+  [/hydraulic line|hyd\. line|hydraulic pipe|plastic tube|^tube$|inner tube|outer tube|blowtube/,'line','ماسورة هيدروليك',1],
+  [/\bhose\b(?! clamp| support| connector)/,'hose','خرطوم ضغط عالٍ',1],
+  [/harness|^cable|extension cable|connecting cable|connection cable|adapter wire/,'harness','حزمة أسلاك',1],
+  [/^(spring|pressure spring|leg spring|belleville spring|gas spring|twine tensioning spring)/,'spring','نابض',8],
+  [/tension spring/,'spring:tension','نابض شد',8],
+  [/plate spring|leaf spring|spring bow/,'leaf','نابض قوسي',8],
+  [/^(namursensor|angle sensor|pressure sensor|power sensor|touch sensor|limit switch|normally open contact|sensor$)/,'sensor','حساس',1],
+  [/job computer|^terminal/,'ecu','حاسوب / شاشة',1],
+  [/^plug|^socket|coupling socket|connector plug|collar socket|casing|socket base|socket holder/,'plugel','قابس كهربائي',1],
+  [/connector|union|nipple|fitting|reduc|elbow|snap-on|connection|adapter|cutting ring|nozzle disc cap|pipe socket|hollow screw/,'fitting','وصلة هيدروليك',1],
+  [/circlip|snap ring|retaining ring|lock ring/,'circlip','حلقة تثبيت (سيركلب)',3],
+  [/clamp|clip|cable band|tension band/,'clamp','مشبك',2],
+  [/cotter|split pin|needle groove/,'cotter','خابور مشقوق',3],
+  [/castellated nut/,'nut:castle','صامولة مشقوقة',4],
+  [/locknut|lock nut/,'nut:lock','صامولة قفل',4],
+  [/\bnut\b/,'nut','صامولة',4],
+  [/allen screw|socket head/,'bolt:allen','برغي ألن',5],
+  [/countersunk/,'bolt:csk','برغي غاطس',5],
+  [/coach bolt|carriage bolt/,'bolt:coach','برغي عربة',5],
+  [/eye ?screw|eye ?bolt/,'bolt:eye','برغي بعين',5],
+  [/roll pin|spiral pin|spring pin/,'pin:roll','مسمار مرن',7],
+  [/bearing bolt|hinge pin|wheel pin|threaded pin|cyl\. pin|grooved pin|locking pin|drive pin|\bpin$|^pin\b/,'pin','محور / مسمار',7],
+  [/\bbolt\b|\bscrew\b|threaded rod|screwcore|\bstud\b/,'bolt','برغي سداسي الرأس',5],
+  [/o-ring|sealing|\bseal\b|gasket|dust boot|bellows|sealant/,'seal','مانع تسرب',11],
+  [/detent edged washer|serrated/,'washer:serr','وردة مسننة',6],
+  [/spring washer|lock washer/,'washer:spring','وردة زنبركية',6],
+  [/shim/,'washer:shim','رقيقة ضبط',6],
+  [/fit-in key|feather key|locking key/,'key','خابور تثبيت',7],
+  [/spring tine|\btine\b/,'tine','إصبع زنبركي',12],
+  [/taper roller bearing/,'bearing:taper','رولمان مخروطي',11],
+  [/bearing housing|flange bearing|bearing block/,'bhousing','بيت محمل',11],
+  [/needle roller|bearing(?! bush| bolt| plate| strap)|ball race/,'bearing','رولمان',11],
+  [/bush|sleeve|spacer(?! plate)|collar/,'bush','جلبة',11],
+  [/brake drum|\bhub\b|clutch|flywheel/,'hub','صرة / طبلة / حدّافة',12],
+  [/brake band/,'shoe','حزام فرامل',11],
+  [/shock absorber|damper/,'cyl','مخمد',13],
+  [/wire rope/,'line','حبل فولاذي',1],
+  [/power take-off/,'pto','عمود كردان ومفاصله',12],
+  [/brake shoe|brake lining/,'shoe','حذاء فرامل',11],
+  [/cylinder membr|brake cylinder/,'chamber','أسطوانة فرامل هوائية',13],
+  [/container|reservoir|\btank\b/,'tank','خزان',13],
+  [/housing cover|gearbox cover|\bcap\b|end cover/,'lid','غطاء مصبوب',9],
+  [/washer|supporting disc|thrust ring|spacer ring|sliding ring|interlayer|\bring\b|\bdisc\b/,'washer','وردة',6],
+  [/tyre|tire|\brim\b|^wheel$/,'tyre','عجلة',14],
+  [/sprocket|chain wheel/,'gear:sprocket','ترس سلسلة',10],
+  [/bevel wheel$|bevel gear/,'gear:bevel','ترس مخروطي',10],
+  [/pto|drive shaft|cardan|cross assy|yoke/,'pto','عمود كردان ومفاصله',12],
+  [/\bshaft\b|\baxle\b(?! plate)|spindle|journal/,'shaft','عمود',12],
+  [/gearbox|angle gear|gear pump|^housing/,'housing','علبة تروس / جسم مصبوب',14],
+  [/gear|pinion|worm|toothed/,'gear','ترس',10],
+  [/chain(?! guide)|\blink\b/,'chain','سلسلة',10],
+  [/cylinder(?! guard| support)/,'cyl','أسطوانة هيدروليك',13],
+  [/^roller|pulley|cam roller|rotor|\bdrum\b|reel|auger|feed roller|supporting roller/,'roller','بكرة / دوّار',12],
+  [/lever|crank|strut|rod control|steering rod|conrod|connecting rod|\barm\b|tappet|stripper|hook|jaw|\bcam\b|cam track|\brod\b/,'lever','ذراع',10],
+  [/knife|blade|cutter/,'knife','سكين',12],
+  [/needle(?! roller| groove| brake)/,'needle','إبرة',12],
+  [/hydraulic motor|\bmotor\b/,'hub','محرك هيدروليكي',13],
+  [/roller|pick-up/,'roller','بكرة / دوّار',12],
+  [/ratchet|swivel|joint head|clevis|coupler|rocker|u-bow|ball knob|hitch|feeler/,'lever','ذراع / وصلة',10],
+  [/plunger|anvil|floor|trough|strip|scraper|baffle|blank|distance piece|came track/,'plate','صفيحة / حامل',9],
+  [/\btag\b|label|sticker|decal/,'tag','ملصق',15],
+  [/\boil\b|grease|\bkit\b/,'kit','مواد ولوازم',15],
+  [/drawbar|beam|traverse|frame|rail|\bstep\b|tread/,'frame','إطار / عارضة',14],
+  [/cover|guard|hood|protection|plating|panel|sheet|hopper|door|flap|cup/,'cover','غطاء / واقٍ',9],
+  [/plate|lug|angle|bracket|support|holder|stop|strap|clamping piece|flange|extension|console|carrier|retainer|tensioner|saddle|guide/,'plate','صفيحة / حامل',9],
+  [/rubber|pad|cloth|buffer/,'rubber','قطعة مطاطية',9]
+];
+/* يُحذف ما بعد « -» حين يكون مكاناً أو ملحقاً (يسار، لكل محور، يشمل…) حتى لا يغيّر نوع القطعة */
+const benchNorm=en=>String(en||'').toLowerCase().replace(/\s*-?\s*(cpl|kpl)\.?/g,'').replace(/\s+-\s*(per |on request|optional|left|right|lh|rh|incl|id\.|middle|front|back|inside|outside|below|top|pu |for |with |without |red|yellow|green|blue|beige|\d).*$/,'').replace(/,\s*(lh|rh|incl).*$/,'').trim();
+function benchType(en){
+  const t=benchNorm(en);
+  for(const [re,type,ar,ord] of BTYPES)if(re.test(t))return {type,ar,ord};
+  return {type:'block',ar:'قطعة',ord:9};
+}
+/* المقاسات من خانة الملاحظات في الكتالوج، بالمليمتر */
+function benchDims(type,rem,en){
+  const t=String(rem||'')+' '+String(en||''), num=v=>parseFloat(String(v).replace(',','.'));
+  const o={};
+  let m=t.match(/M\s*(\d+(?:[.,]\d+)?)\s*(?:X\s*(\d+(?:[.,]\d+)?))?/i); if(m){o.d=num(m[1]); if(m[2])o.l=num(m[2]);}
+  if(!m&&(m=t.match(/(\d+(?:[.,]\d+)?)\s*[Xx]\s*(\d+(?:[.,]\d+)?)(?:\s*[Xx]\s*(\d+(?:[.,]\d+)?))?/))){const a=num(m[1]),b=num(m[2]),c=m[3]?num(m[3]):null; o.a=a; o.b=b; o.c=c;}
+  if((m=t.match(/\b(6[0-4]\d\d|3[0-3]\d\d|222\d\d|302\d\d|322\d\d)\b/)))o.bore=(+m[1].slice(-2))*5||20;
+  if((m=t.match(/Z\s*=?\s*(\d+)/i)))o.z=+m[1];
+  if((m=t.match(/=\s*(\d+)\s*m\b/i)))o.len=+m[1]*1000;
+  return o;
+}
+const BM={
+  zinc:std(0xc8ccc4,.3,.9), yzinc:std(0xd6bf74,.28,.88), black:std(0x2a2c2f,.42,.65), steel:std(0xb4bbc0,.36,.8),
+  bright:std(0xdfe4e8,.14,1), brass:std(0xc9a14a,.3,.9), rubber:std(0x151618,.82,0), plastic:std(0x1d2023,.5,.05),
+  nylon:std(0x2b5fd9,.45,0), white:std(0xf1f1ec,.55,0), cast:std(0x7a8287,.62,.5),
+  paint:coat(0x4a8a24,.34,.12), yellow:coat(0xd8c136,.34,.06), chrome:std(0xf0f2f4,.08,1), bronze:std(0xb07a3e,.35,.85)
+};
+const bgeo=new Map(); const bG=(k,f)=>{let g=bgeo.get(k); if(!g){g=f(); bgeo.set(k,g);} return g;};
+const mm=v=>v/1000;
+function ringShape(R,r,n){const s=new THREE.Shape(); s.absarc(0,0,R,0,TAU,false); if(r>0){const h=new THREE.Path(); h.absarc(0,0,r,0,TAU,true); s.holes.push(h);} return s;}
+function polyShape(n,R,r){const s=new THREE.Shape(); for(let i=0;i<=n;i++){const a=i/n*TAU+PI/n; i?s.lineTo(R*Math.cos(a),R*Math.sin(a)):s.moveTo(R*Math.cos(a),R*Math.sin(a));} if(r>0){const h=new THREE.Path(); h.absarc(0,0,r,0,TAU,true); s.holes.push(h);} return s;}
+/* بثق شكل ثنائي على المحور y مع شطف صغير */
+function extY(shape,h,bev){const g=new THREE.ExtrudeGeometry(shape,{depth:h,bevelEnabled:!!bev,bevelSize:bev||0,bevelThickness:bev||0,bevelSegments:1,curveSegments:24}); g.rotateX(-PI/2); g.computeVertexNormals(); return g;}
+/* سن اللولب: مقطع منشاري يدور حول المحور */
+function threadGeo(d,len){
+  const p=Math.max(mm(0.7),d*0.13), R=d/2, r=R-p*0.55, pts=[V(0,0,0)];
+  pts.push(new THREE.Vector2(r*0.9,0));
+  for(let y=0;y<len;y+=p){pts.push(new THREE.Vector2(R,y+p*0.45)); pts.push(new THREE.Vector2(r,y+p));}
+  pts.push(new THREE.Vector2(0,len));
+  return new THREE.LatheGeometry(pts.map(v=>new THREE.Vector2(v.x,v.y)),20);
+}
+const bmesh=(g,mat,grp,x,y,z)=>{const m=new THREE.Mesh(g,mat); m.position.set(x||0,y||0,z||0); m.castShadow=m.receiveShadow=true; grp.add(m); return m;};
+function tubeAlong(pts,r,mat,grp,seg){const c=new THREE.CatmullRomCurve3(pts); return bmesh(new THREE.TubeGeometry(c,seg||48,r,12,false),mat,grp);}
+/* يبني القطعة بمقاسها الحقيقي (متر)، قائمةً على المحور y */
+function benchPiece(type,dm,matKey){
+  const g=new THREE.Group(), [base,sub]=type.split(':');
+  const zinc=BM[matKey]||BM.zinc;
+  switch(base){
+  case 'bolt':{
+    const d=mm(dm.d||dm.a||12), l=mm(dm.l||dm.b||(dm.d||12)*3.2), k=d*0.65;
+    if(sub==='allen'){bmesh(bG('ah'+d,()=>{const s=ringShape(d*0.75,0); const h=new THREE.Path(); for(let i=0;i<=6;i++){const a=i/6*TAU; i?h.lineTo(d*0.3*Math.cos(a),d*0.3*Math.sin(a)):h.moveTo(d*0.3,0);} s.holes.push(h); return extY(s,d,d*0.06);}),BM.black,g,0,l,0);}
+    else if(sub==='csk')bmesh(bG('ck'+d,()=>new THREE.CylinderGeometry(d,d*0.5,d*0.55,24)),zinc,g,0,l+d*0.27,0);
+    else if(sub==='coach'){bmesh(bG('co'+d,()=>new THREE.SphereGeometry(d*1.1,24,10,0,TAU,0,PI/2.4)),zinc,g,0,l,0); bmesh(bG('cq'+d,()=>new THREE.BoxGeometry(d,d*0.6,d)),zinc,g,0,l-d*0.3,0);}
+    else if(sub==='eye'){const t=bmesh(bG('ey'+d,()=>new THREE.TorusGeometry(d*0.9,d*0.32,12,28)),zinc,g,0,l+d*1.1,0);}
+    else bmesh(bG('hh'+d,()=>extY(polyShape(6,d*0.92,0),k,d*0.05)),sub==='black'?BM.black:zinc,g,0,l,0);
+    const tl=Math.min(l,d*2+mm(6));
+    bmesh(bG('th'+d+'|'+tl,()=>threadGeo(d,tl)),zinc,g,0,0,0);
+    if(l>tl)bmesh(bG('sh'+d+'|'+(l-tl),()=>new THREE.CylinderGeometry(d/2,d/2,l-tl,20)),zinc,g,0,tl+(l-tl)/2,0);
+    break;}
+  case 'nut':{
+    const d=mm(dm.d||12), h=d*(sub==='lock'?1.1:0.8);
+    bmesh(bG('nt'+d+'|'+h,()=>extY(polyShape(6,d*0.92,d*0.43),sub==='lock'?h*0.72:h,d*0.05)),zinc,g);
+    if(sub==='lock')bmesh(bG('ny'+d,()=>extY(ringShape(d*0.72,d*0.43),h*0.28,0)),BM.nylon,g,0,h*0.72,0);
+    if(sub==='castle')for(let i=0;i<6;i++){const a=i/6*TAU; bmesh(bG('cs'+d,()=>new THREE.BoxGeometry(d*0.32,d*0.35,d*0.3)),zinc,g,Math.cos(a)*d*0.6,h+d*0.17,Math.sin(a)*d*0.6).rotation.y=-a;}
+    break;}
+  case 'washer':{
+    let r=mm(dm.a||((dm.d||12)+1))/2, R=mm(dm.b||(dm.d||12)*2.1)/2, t=mm(dm.c||(sub==='shim'?0.5:Math.max(1.2,(dm.d||12)*0.16)));
+    if(R<=r){R=r*1.9;}
+    if(sub==='serr'){bmesh(bG('ws'+r+R,()=>{const s=new THREE.Shape(); const n=24; for(let i=0;i<=n*2;i++){const a=i/(n*2)*TAU, rr=i%2?R:R*0.88; i?s.lineTo(rr*Math.cos(a),rr*Math.sin(a)):s.moveTo(rr,0);} const h=new THREE.Path(); h.absarc(0,0,r,0,TAU,true); s.holes.push(h); return extY(s,t,0);}),zinc,g);}
+    else if(sub==='spring'){bmesh(bG('wp'+r+R,()=>{const s=new THREE.Shape(); s.absarc(0,0,R,0.15,TAU-0.15,false); s.absarc(0,0,r,TAU-0.15,0.15,true); return extY(s,Math.max(t,mm(2)),0);}),BM.black,g);}
+    else bmesh(bG('wa'+r+R+t,()=>extY(ringShape(R,r),t,Math.min(t*0.2,mm(0.3)))),sub==='shim'?BM.bright:zinc,g);
+    break;}
+  case 'circlip':{
+    const D=mm(dm.a||dm.d||30), R=D/2+D*0.08, r=D/2;
+    bmesh(bG('cl'+D,()=>{const s=new THREE.Shape(); s.absarc(0,0,R,0.35,TAU-0.35,false); s.absarc(0,0,r,TAU-0.35,0.35,true); return extY(s,Math.max(mm(1),D*0.04),0);}),BM.black,g);
+    for(const sg of [1,-1])bmesh(bG('ce'+D,()=>extY(ringShape(D*0.1,D*0.035),Math.max(mm(1),D*0.04),0)),BM.black,g,R*Math.cos(0.42),0,sg*R*Math.sin(0.42));
+    break;}
+  case 'cotter':{
+    const d=mm(dm.a||4), l=mm(dm.b||40);
+    for(const s of [1,-1])bmesh(bG('ct'+d+l,()=>new THREE.CylinderGeometry(d*0.5,d*0.5,l,10)),zinc,g,s*d*0.52,l/2,0);
+    bmesh(bG('cr'+d,()=>new THREE.TorusGeometry(d*1.1,d*0.5,10,18)),zinc,g,0,l+d*1.1,0).rotation.x=PI/2;
+    break;}
+  case 'pin':case 'key':{
+    const d=mm(dm.a||dm.d||10), l=mm(dm.b||dm.l||(dm.a||10)*4);
+    if(base==='key'){bmesh(bG('ky'+d+l,()=>new THREE.BoxGeometry(d,d*0.8,l)),BM.bright,g,0,d*0.4,0); break;}
+    if(sub==='roll'){bmesh(bG('rp'+d+l,()=>{const s=new THREE.Shape(); s.absarc(0,0,d/2,0.12,TAU-0.12,false); s.absarc(0,0,d*0.38,TAU-0.12,0.12,true); return extY(s,l,0);}),BM.black,g);}
+    else{bmesh(bG('pn'+d+l,()=>new THREE.LatheGeometry([[0,0],[d*0.42,0],[d/2,d*0.1],[d/2,l-d*0.1],[d*0.42,l],[0,l]].map(p=>new THREE.Vector2(p[0],p[1])),24)),BM.steel,g);
+      if(dm.d)bmesh(bG('pt'+d,()=>threadGeo(d,Math.min(l*0.3,d*2))),zinc,g);}
+    break;}
+  case 'bush':{
+    const r=mm(dm.a||30)/2, R=mm(dm.b||(dm.a||30)*1.25)/2, l=mm(dm.c||(dm.a||30)*0.9);
+    bmesh(bG('bu'+r+R+l,()=>extY(ringShape(Math.max(R,r*1.1),r),l,Math.min(mm(0.6),(R-r)*0.2))),/bearing/.test(dm.en||'')?BM.bronze:BM.steel,g);
+    break;}
+  case 'bearing':{
+    const d=mm(dm.bore||dm.a||30), D=mm(dm.b||(dm.bore||30)*2+10), B=mm(dm.c||(dm.bore||30)*0.45+6), wall=(D-d)/2;
+    bmesh(bG('bo'+d+D+B,()=>extY(ringShape(D/2,D/2-wall*0.33),B,mm(0.5))),BM.bright,g);
+    bmesh(bG('bi'+d+D+B,()=>extY(ringShape(d/2+wall*0.33,d/2),B,mm(0.5))),BM.bright,g);
+    bmesh(bG('bs'+d+D+B,()=>extY(ringShape(D/2-wall*0.33,d/2+wall*0.33),B*0.86,0)),sub==='taper'?BM.steel:BM.black,g,0,B*0.07,0);
+    if(sub==='taper')for(let i=0;i<14;i++){const a=i/14*TAU,rm=(d+D)/4; bmesh(bG('tr'+d+D,()=>new THREE.CylinderGeometry(wall*0.18,wall*0.24,B*0.8,10)),BM.steel,g,Math.cos(a)*rm,B/2+mm(0.8),Math.sin(a)*rm);}
+    break;}
+  case 'bhousing':{
+    const d=mm(dm.bore||dm.a||40);
+    bmesh(bG('bh'+d,()=>{const s=new THREE.Shape(); s.moveTo(-d*1.6,-d*0.9); s.lineTo(d*1.6,-d*0.9); s.lineTo(d*1.6,-d*0.2); s.absarc(0,0,d*0.95,0,PI,false); s.lineTo(-d*1.6,-d*0.2); s.closePath(); const h=new THREE.Path(); h.absarc(0,0,d/2,0,TAU,true); s.holes.push(h); return extY(s,d*0.7,mm(1));}),BM.cast,g);
+    break;}
+  case 'spring':case 'leaf':{
+    if(base==='leaf'){for(let i=0;i<4;i++){const L=mm(700-i*120); const pts=[]; for(let k=0;k<=16;k++){const t=k/16; pts.push(V((t-0.5)*L,i*mm(14)+Math.sin(t*PI)*mm(60),0));} tubeAlong(pts,mm(6),BM.black,g,24);} break;}
+    const D=mm(dm.b||dm.a||25), w=mm(Math.max(1.5,(dm.c||dm.a||25)*0.1)), L=mm(dm.l||dm.c||(dm.b||25)*3.5), n=Math.max(6,Math.round(L/(w*2.6)));
+    const pts=[]; for(let i=0;i<=n*14;i++){const t=i/(n*14), a=t*n*TAU; pts.push(V(Math.cos(a)*D/2,t*L+(sub==='tension'?D*0.6:0),Math.sin(a)*D/2));}
+    if(sub==='tension'){pts.unshift(V(0,0,0),V(D*0.4,D*0.1,0)); pts.push(V(D*0.4,L+D*1.1,0),V(0,L+D*1.2,0));}
+    tubeAlong(pts,w/2,BM.black,g,n*24);
+    break;}
+  case 'seal':{
+    const D=mm(dm.b||dm.a||dm.d||40), cs=mm(Math.max(2,(dm.c||(dm.b||40)*0.08)));
+    if(/o-ring/.test(dm.en||''))bmesh(bG('or'+D+cs,()=>new THREE.TorusGeometry(D/2,cs/2,10,40)),BM.rubber,g,0,cs/2,0).rotation.x=PI/2;
+    else bmesh(bG('se'+D,()=>new THREE.LatheGeometry([[D*0.32,0],[D/2,0],[D/2,D*0.18],[D*0.44,D*0.2],[D*0.36,D*0.12],[D*0.32,D*0.1]].map(p=>new THREE.Vector2(p[0],p[1])),32)),BM.rubber,g);
+    break;}
+  case 'gear':{
+    const z=dm.z||(sub==='sprocket'?17:22), D=mm(dm.b||dm.a||(sub==='sprocket'?90:110)), w=mm(sub==='sprocket'?12:22), hole=D*0.22;
+    bmesh(bG('gr'+sub+z+D,()=>{const s=new THREE.Shape(), Ro=D/2, Ri=Ro*(1-2.4/z); for(let i=0;i<z;i++){const a0=i/z*TAU, a1=(i+0.5)/z*TAU; const pts=sub==='sprocket'?[[Ri,a0],[Ro,a0+0.32/z*TAU],[Ro,a1-0.05/z*TAU],[Ri,a1+0.18/z*TAU]]:[[Ri,a0],[Ro,a0+0.15/z*TAU],[Ro,a1-0.1/z*TAU],[Ri,a1+0.05/z*TAU]]; pts.forEach(([r,a],k)=>{const x=r*Math.cos(a),y=r*Math.sin(a); (i===0&&k===0)?s.moveTo(x,y):s.lineTo(x,y);});} s.closePath(); const h=new THREE.Path(); h.absarc(0,0,hole,0,TAU,true); s.holes.push(h);
+      const gg=extY(s,w,mm(0.6)); if(sub==='bevel'){const p=gg.attributes.position; for(let i=0;i<p.count;i++){const y=p.getY(i), k=1-0.35*(y/w); p.setX(i,p.getX(i)*k); p.setZ(i,p.getZ(i)*k);} gg.computeVertexNormals();} return gg;}),BM.black,g);
+    bmesh(bG('gh'+D,()=>extY(ringShape(hole*1.7,hole),w*1.6,0)),BM.black,g);
+    break;}
+  case 'chain':{
+    const p=mm(19.05), n=10;
+    for(let i=0;i<n;i++){const x=(i-n/2)*p, inner=i%2===0;
+      for(const s of [1,-1])bmesh(bG('cp'+inner,()=>{const sh=new THREE.Shape(); const a=p*0.32; sh.absarc(-p/2,0,a,PI/2,3*PI/2,false); sh.absarc(p/2,0,a,-PI/2,PI/2,false); sh.closePath(); const gg=new THREE.ExtrudeGeometry(sh,{depth:mm(1.6),bevelEnabled:false}); return gg;}),inner?BM.black:BM.steel,g,x+p/2,p*0.35,s*mm(inner?4:6));
+      bmesh(bG('cn',()=>new THREE.CylinderGeometry(mm(3.8),mm(3.8),mm(14),12).rotateX(PI/2)),BM.steel,g,x,p*0.35,0);}
+    break;}
+  case 'pto':{
+    const L=mm(700);
+    bmesh(bG('pt1',()=>new THREE.CylinderGeometry(mm(26),mm(26),L,20).rotateZ(PI/2)),BM.steel,g,0,mm(60),0);
+    for(const s of [1,-1]){bmesh(bG('pt2',()=>new THREE.CylinderGeometry(mm(45),mm(45),mm(60),20).rotateZ(PI/2)),BM.black,g,s*L/2,mm(60),0); bmesh(bG('pt3',()=>new THREE.BoxGeometry(mm(70),mm(18),mm(80))),BM.black,g,s*(L/2+mm(55)),mm(60),0);}
+    break;}
+  case 'shaft':{
+    const d=mm(dm.a||dm.d||40), l=mm(dm.b||dm.l||(dm.a||40)*10);
+    bmesh(bG('sf'+d+l,()=>{const g2=new THREE.LatheGeometry([[0,0],[d*0.42,0],[d/2,d*0.08],[d/2,l*0.25],[d*0.45,l*0.26],[d*0.45,l*0.74],[d/2,l*0.75],[d/2,l-d*0.08],[d*0.42,l],[0,l]].map(p=>new THREE.Vector2(p[0],p[1])),28); g2.rotateZ(PI/2); g2.translate(l/2,d/2,0); return g2;}),BM.bright,g);
+    bmesh(bG('kw'+d,()=>new THREE.BoxGeometry(d*1.6,d*0.12,d*0.3)),BM.black,g,-l*0.4+d,d*1.0,0);
+    break;}
+  case 'line':case 'hose':{
+    const d=mm(dm.a||dm.d||(base==='hose'?16:12)), L=Math.min(mm(dm.len||dm.c||600),0.9), hose=base==='hose';
+    const pts=[V(-L/2,d,0),V(-L/4,d,L*0.18),V(0,d,0),V(L/4,d,-L*0.18),V(L/2,d,0)];
+    tubeAlong(pts,(hose?d*0.85:d)/2,hose?BM.rubber:BM.zinc,g,64);
+    for(const s of [1,-1]){const e=pts[s>0?4:0]; if(hose)bmesh(bG('fr'+d,()=>new THREE.CylinderGeometry(d*0.62,d*0.62,d*2.2,18).rotateZ(PI/2)),BM.zinc,g,e.x-s*d*1.1,e.y,e.z); bmesh(bG('fn'+d,()=>extY(polyShape(6,d*0.95,0),d*1.1,mm(0.6)).rotateZ(PI/2)),BM.yzinc,g,e.x+s*(hose?0:d*0.2),e.y,e.z);}
+    break;}
+  case 'fitting':case 'plug':case 'nipple':case 'breather':{
+    const d=mm(dm.d||dm.a||12);
+    bmesh(bG('fh'+d,()=>extY(polyShape(6,d*1.0,0),d*0.7,mm(0.5))),BM.yzinc,g,0,d*0.9,0);
+    bmesh(bG('ft'+d,()=>threadGeo(d,d*0.9)),BM.yzinc,g);
+    if(base==='nipple')bmesh(bG('nb'+d,()=>new THREE.SphereGeometry(d*0.32,14,10)),BM.yzinc,g,0,d*1.9,0);
+    else if(base==='breather')bmesh(bG('br'+d,()=>new THREE.CylinderGeometry(d*0.8,d*0.8,d*0.6,18)),BM.plastic,g,0,d*1.9,0);
+    else if(base==='fitting'){bmesh(bG('fs'+d,()=>new THREE.CylinderGeometry(d*0.45,d*0.45,d*1.2,16)),BM.yzinc,g,0,d*2.2,0); if(/elbow|angle|l conn/.test(dm.en||''))bmesh(bG('fl'+d,()=>new THREE.CylinderGeometry(d*0.45,d*0.45,d*1.2,16).rotateZ(PI/2)),BM.yzinc,g,d*0.6,d*2.8,0); if(/\bt\b|t-/.test(dm.en||''))bmesh(bG('fl2'+d,()=>new THREE.CylinderGeometry(d*0.45,d*0.45,d*2.4,16).rotateZ(PI/2)),BM.yzinc,g,0,d*2.8,0);}
+    break;}
+  case 'clamp':{
+    const D=mm(dm.a||dm.d||30);
+    if(/band|cable/.test(dm.en||''))bmesh(bG('cb'+D,()=>new THREE.TorusGeometry(D/2,mm(1.2),6,32)),BM.plastic,g,0,D/2,0);
+    else{for(const s of [1,-1])bmesh(bG('cm'+D,()=>{const sh=new THREE.Shape(); sh.moveTo(-D,0); sh.lineTo(D,0); sh.lineTo(D,D*0.45); sh.absarc(0,D*0.45,D*0.5,0,PI,true); sh.lineTo(-D,D*0.45); sh.closePath(); return new THREE.ExtrudeGeometry(sh,{depth:D*0.8,bevelEnabled:false});}),/clip|w\. rubber/.test(dm.en||'')?BM.zinc:BM.plastic,g,0,0,s>0?0:D*0.85).scale.y=s>0?1:1;}
+    break;}
+  case 'cyl':{
+    const D=mm(dm.a||60), L=mm(dm.b||dm.c||400);
+    bmesh(bG('cy'+D+L,()=>new THREE.CylinderGeometry(D/2,D/2,L,24).rotateZ(PI/2)),BM.paint,g,0,D/2,0);
+    bmesh(bG('cr'+D+L,()=>new THREE.CylinderGeometry(D*0.22,D*0.22,L*0.8,18).rotateZ(PI/2)),BM.chrome,g,L*0.8,D/2,0);
+    for(const x of [-L/2-D*0.4,L*1.2+D*0.2])bmesh(bG('ce'+D,()=>new THREE.TorusGeometry(D*0.32,D*0.14,10,20)),BM.paint,g,x,D/2,0);
+    break;}
+  case 'valve':{
+    const s=mm(dm.d?dm.d*6:90);
+    bmesh(bG('vb'+s,()=>new THREE.BoxGeometry(s,s*0.7,s*0.6)),BM.zinc,g,0,s*0.35,0);
+    for(const x of [-s*0.25,s*0.25])bmesh(bG('vp'+s,()=>extY(polyShape(6,s*0.13,0),s*0.12,0)),BM.yzinc,g,x,s*0.7,0);
+    if(/ball/.test(dm.en||''))bmesh(bG('vh'+s,()=>new THREE.BoxGeometry(s*1.2,s*0.06,s*0.12)),BM.plastic,g,s*0.4,s*0.85,0);
+    break;}
+  case 'sensor':{
+    const d=mm(dm.d||18);
+    bmesh(bG('sn'+d,()=>threadGeo(d,d*3)),BM.brass,g); bmesh(bG('sc'+d,()=>new THREE.CylinderGeometry(d*0.42,d*0.42,d*1.4,14)),BM.plastic,g,0,d*3.7,0);
+    tubeAlong([V(0,d*4.3,0),V(0,d*6,0),V(d*3,d*7,0),V(d*7,d*6.5,d*2)],d*0.18,BM.plastic,g,24);
+    for(const s of [1,-1])bmesh(bG('sx'+d,()=>extY(polyShape(6,d*0.85,d*0.5),d*0.5,0)),BM.brass,g,0,d*(1.2+s*0.7),0);
+    break;}
+  case 'plugel':case 'ecu':case 'harness':{
+    if(base==='ecu'){bmesh(bG('ec',()=>new THREE.BoxGeometry(0.22,0.06,0.16)),BM.plastic,g,0,0.03,0); for(let i=0;i<8;i++)bmesh(bG('ef',()=>new THREE.BoxGeometry(0.2,0.012,0.006)),BM.cast,g,0,0.066,-0.07+i*0.02); break;}
+    if(base==='harness'){for(let k=0;k<3;k++)tubeAlong([V(-0.25,0.01,k*0.008),V(-0.1,0.01,0.05),V(0.1,0.01,-0.04),V(0.25,0.01,k*0.008)],0.004,BM.plastic,g,40); for(const x of [-0.27,0.27])bmesh(bG('hc',()=>new THREE.BoxGeometry(0.04,0.025,0.03)),BM.plastic,g,x,0.013,0); break;}
+    bmesh(bG('pl',()=>new THREE.CylinderGeometry(0.014,0.016,0.045,18)),BM.plastic,g,0,0.022,0);
+    for(let i=0;i<4;i++)bmesh(bG('pp',()=>new THREE.CylinderGeometry(0.0015,0.0015,0.012,6)),BM.brass,g,Math.cos(i*PI/2)*0.006,0.05,Math.sin(i*PI/2)*0.006);
+    break;}
+  case 'tyre':{
+    bmesh(bG('ty',()=>new THREE.TorusGeometry(0.42,0.2,18,48)),BM.rubber,g,0,0.2,0).rotation.x=PI/2;
+    bmesh(bG('tr2',()=>new THREE.CylinderGeometry(0.33,0.33,0.36,32)),BM.zinc,g,0,0.2,0);
+    break;}
+  case 'tine':{
+    const pts=[]; for(let i=0;i<=60;i++){const t=i/60, a=t*4*TAU; pts.push(V(Math.cos(a)*mm(22),mm(20)+t*mm(40),Math.sin(a)*mm(22)));}
+    tubeAlong(pts,mm(2.7),BM.black,g,120);
+    for(const y of [mm(20),mm(60)])tubeAlong([V(mm(22),y,0),V(mm(120),y,0),V(mm(250),y+mm(30),0)],mm(2.7),BM.black,g,20);
+    break;}
+  case 'knife':{
+    bmesh(bG('kn',()=>{const s=new THREE.Shape(); s.moveTo(0,0); s.lineTo(mm(160),0); s.quadraticCurveTo(mm(260),mm(20),mm(280),mm(70)); for(let i=0;i<10;i++){s.lineTo(mm(270-i*16),mm(78+i*3)); s.lineTo(mm(262-i*16),mm(84+i*3));} s.lineTo(0,mm(60)); s.closePath(); const h=new THREE.Path(); h.absarc(mm(30),mm(30),mm(9),0,TAU,true); s.holes.push(h); return extY(s,mm(6),mm(0.8));}),BM.bright,g);
+    break;}
+  case 'roller':{
+    const D=mm(dm.a||140), L=mm(dm.b||520);
+    bmesh(bG('rl'+D+L,()=>new THREE.CylinderGeometry(D/2,D/2,L,32).rotateZ(PI/2)),BM.paint,g,0,D/2,0);
+    for(const s of [1,-1])bmesh(bG('rs'+D,()=>new THREE.CylinderGeometry(D*0.16,D*0.16,D*0.6,16).rotateZ(PI/2)),BM.bright,g,s*(L/2+D*0.3),D/2,0);
+    if(/rotor|feed/.test(dm.en||''))for(let i=0;i<7;i++)bmesh(bG('rt'+D,()=>extY(polyShape(8,D*0.72,0),mm(12),0).rotateZ(PI/2)),BM.steel,g,-L/2+L*(i+0.5)/7,D/2,0).rotation.x=i*0.4;
+    break;}
+  case 'lever':{
+    const L=mm(dm.b||220), w=mm(46);
+    bmesh(bG('lv'+L,()=>{const s=new THREE.Shape(); s.absarc(0,0,w/2,PI/2,3*PI/2,false); s.absarc(L,0,w*0.4,-PI/2,PI/2,false); s.closePath(); for(const [x,r] of [[0,w*0.22],[L,w*0.17]]){const h=new THREE.Path(); h.absarc(x,0,r,0,TAU,true); s.holes.push(h);} return extY(s,mm(14),mm(1.2));}),BM.paint,g,-L/2,0,0);
+    break;}
+  case 'housing':case 'frame':{
+    if(base==='frame'){for(const z of [-0.22,0.22])bmesh(bG('fb',()=>new THREE.BoxGeometry(0.9,0.08,0.06)),BM.paint,g,0,0.04,z); for(const x of [-0.42,0,0.42])bmesh(bG('fc',()=>new THREE.BoxGeometry(0.06,0.08,0.44)),BM.paint,g,x,0.04,0); break;}
+    bmesh(bG('hs',()=>new RoundedBoxGeometry(0.34,0.24,0.26,3,0.03)),BM.paint,g,0,0.12,0);
+    bmesh(bG('hf',()=>new RoundedBoxGeometry(0.38,0.02,0.3,2,0.008)),BM.paint,g,0,0.245,0);
+    for(const z of [-0.08,0,0.08])bmesh(bG('hr',()=>new THREE.BoxGeometry(0.012,0.2,0.02)),BM.paint,g,0,0.12,z).position.x=0.172*(z>=0?1:1);
+    for(let i=0;i<10;i++){const x=-0.17+i*0.0378; for(const z of [-0.14,0.14])bmesh(bG('hbt',()=>extY(polyShape(6,0.007,0),0.007,0)),BM.zinc,g,x,0.255,z);}
+    for(const x of [-0.17,0.17]){bmesh(bG('hb',()=>new THREE.CylinderGeometry(0.075,0.075,0.04,24).rotateZ(PI/2)),BM.paint,g,x,0.13,0); for(let i=0;i<6;i++){const a=i/6*TAU; bmesh(bG('hbb',()=>extY(polyShape(6,0.008,0),0.008,0).rotateZ(PI/2)),BM.zinc,g,x*1.07,0.13+Math.cos(a)*0.06,Math.sin(a)*0.06);}}
+    break;}
+  case 'cover':case 'plate':{
+    const W=mm(dm.a||(base==='cover'?420:180)), H=mm(dm.b||(base==='cover'?260:120)), t=mm(dm.c||(base==='cover'?3:8));
+    const s=new THREE.Shape(), r=Math.min(W,H)*0.08; s.moveTo(-W/2+r,-H/2); s.lineTo(W/2-r,-H/2); s.quadraticCurveTo(W/2,-H/2,W/2,-H/2+r); s.lineTo(W/2,H/2-r); s.quadraticCurveTo(W/2,H/2,W/2-r,H/2); s.lineTo(-W/2+r,H/2); s.quadraticCurveTo(-W/2,H/2,-W/2,H/2-r); s.lineTo(-W/2,-H/2+r); s.quadraticCurveTo(-W/2,-H/2,-W/2+r,-H/2);
+    for(const [x,y] of [[-W/2+r*1.6,-H/2+r*1.6],[W/2-r*1.6,-H/2+r*1.6],[-W/2+r*1.6,H/2-r*1.6],[W/2-r*1.6,H/2-r*1.6]]){const h=new THREE.Path(); h.absarc(x,y,Math.min(W,H)*0.035,0,TAU,true); s.holes.push(h);}
+    const m=bmesh(bG('pl'+W+H+t,()=>extY(s,t,Math.min(t*0.3,mm(1)))),base==='cover'?BM.yellow:BM.paint,g);
+    if(base==='cover'||/angle|lug|bracket/.test(dm.en||'')){const m2=bmesh(m.geometry,m.material,g,-W/2,0,0); m2.rotation.z=PI/2.4; m2.scale.set(0.45,1,1);}
+    break;}
+  case 'lid':{
+    const D=mm(dm.b||dm.a||Math.max(120,(dm.d||0)*1)||160);
+    bmesh(bG('ld'+D,()=>{const s2=ringShape(D/2,0); for(let i=0;i<8;i++){const a=i/8*TAU, h=new THREE.Path(); h.absarc(Math.cos(a)*D*0.41,Math.sin(a)*D*0.41,D*0.03,0,TAU,true); s2.holes.push(h);} return extY(s2,D*0.06,D*0.01);}),BM.paint,g);
+    bmesh(bG('lb'+D,()=>new THREE.CylinderGeometry(D*0.25,D*0.3,D*0.12,32)),BM.paint,g,0,D*0.12,0);
+    break;}
+  case 'hub':{
+    const D=mm(dm.a||320);
+    bmesh(bG('hu'+D,()=>new THREE.LatheGeometry([[D*0.16,0],[D/2,0],[D/2,D*0.32],[D*0.47,D*0.34],[D*0.25,D*0.36],[D*0.22,D*0.55],[D*0.16,D*0.55]].map(p=>new THREE.Vector2(p[0],p[1])),40)),BM.cast,g);
+    for(let i=0;i<8;i++){const a=i/8*TAU; bmesh(bG('hs'+D,()=>new THREE.CylinderGeometry(D*0.02,D*0.02,D*0.1,10)),BM.zinc,g,Math.cos(a)*D*0.36,D*0.4,Math.sin(a)*D*0.36);}
+    break;}
+  case 'shoe':{
+    const R=mm(160), w=mm(80);
+    bmesh(bG('sh1',()=>{const s2=new THREE.Shape(); s2.absarc(0,0,R,PI*0.15,PI*0.85,false); s2.absarc(0,0,R-mm(14),PI*0.85,PI*0.15,true); return new THREE.ExtrudeGeometry(s2,{depth:w,bevelEnabled:false,curveSegments:24});}),BM.steel,g,0,-R*0.45,0);
+    bmesh(bG('sh2',()=>{const s2=new THREE.Shape(); s2.absarc(0,0,R+mm(9),PI*0.2,PI*0.8,false); s2.absarc(0,0,R,PI*0.8,PI*0.2,true); return new THREE.ExtrudeGeometry(s2,{depth:w,bevelEnabled:false,curveSegments:24});}),BM.black,g,0,-R*0.45,0);
+    break;}
+  case 'chamber':{
+    bmesh(bG('ch1',()=>new THREE.LatheGeometry([[0,0],[mm(80),0],[mm(95),mm(20)],[mm(95),mm(70)],[mm(80),mm(95)],[0,mm(95)]].map(p=>new THREE.Vector2(p[0],p[1])),32)),BM.black,g);
+    bmesh(bG('ch2',()=>new THREE.CylinderGeometry(mm(8),mm(8),mm(90),12)),BM.zinc,g,0,mm(140),0);
+    bmesh(bG('ch3',()=>new THREE.TorusGeometry(mm(97),mm(5),8,40)),BM.zinc,g,0,mm(48),0).rotation.x=PI/2;
+    break;}
+  case 'tank':{
+    const D=mm(dm.a||250), L=mm(dm.b||520);
+    bmesh(bG('tk'+D+L,()=>new THREE.CapsuleGeometry(D/2,L-D,8,24).rotateZ(PI/2)),BM.black,g,0,D/2,0);
+    for(const x of [-L*0.25,L*0.25])bmesh(bG('tb'+D,()=>new THREE.TorusGeometry(D*0.52,mm(4),6,32).rotateY(PI/2)),BM.zinc,g,x,D/2,0);
+    break;}
+  case 'needle':{
+    const R=mm(520), pts=[]; for(let i=0;i<=24;i++){const a=PI*0.05+i/24*PI*0.42; pts.push(V(Math.cos(a)*R-R*0.4,Math.sin(a)*R-R*0.05,0));}
+    bmesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,mm(14),10,false),BM.paint,g).scale.set(1,1,0.45);
+    const tip=pts[pts.length-1]; bmesh(bG('ne',()=>new THREE.TorusGeometry(mm(16),mm(6),8,20)),BM.bright,g,tip.x,tip.y,0);
+    bmesh(bG('nh',()=>new THREE.CylinderGeometry(mm(30),mm(30),mm(40),20).rotateX(PI/2)),BM.steel,g,pts[0].x,pts[0].y,0);
+    break;}
+  case 'tag':{
+    bmesh(bG('tg',()=>new THREE.BoxGeometry(0.09,0.001,0.05)),BM.white,g,0,0.0005,0);
+    bmesh(bG('tgs',()=>new THREE.BoxGeometry(0.09,0.0012,0.012)),BM.yellow,g,0,0.0008,-0.016);
+    break;}
+  case 'kit':{
+    bmesh(bG('kt',()=>new THREE.CylinderGeometry(0.05,0.05,0.13,24)),BM.paint,g,0,0.065,0);
+    bmesh(bG('kc',()=>new THREE.CylinderGeometry(0.014,0.014,0.02,12)),BM.plastic,g,0.025,0.14,0);
+    break;}
+  case 'rubber':bmesh(bG('rb',()=>new RoundedBoxGeometry(0.12,0.03,0.08,2,0.008)),BM.rubber,g,0,0.015,0); break;
+  default:bmesh(bG('df',()=>new RoundedBoxGeometry(0.12,0.05,0.08,2,0.01)),BM.cast,g,0,0.025,0); bmesh(bG('dh',()=>new THREE.CylinderGeometry(0.012,0.012,0.052,16)),BM.black,g,0.035,0.026,0);
+  }
+  return g;
+}
+
+/* المنضدة: مشهد ورشة مستقل يُرسم بدل الحقل */
+const BENCH={on:false,id:null,fig:null,items:[],done:0,sel:-1,scene:null,asm:null,asmMats:[],saved:null,anim:[],keys:new Set()};
+function benchScene(){
+  if(BENCH.scene)return BENCH.scene;
+  const sc=new THREE.Scene(); sc.environment=scene.environment;
+  sc.background=canvasTex(2,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h); gr.addColorStop(0,'#3a4046'); gr.addColorStop(1,'#1b1e21'); g.fillStyle=gr; g.fillRect(0,0,w,h);});
+  sc.add(new THREE.HemisphereLight(0xe8eef4,0x2a2622,0.7));
+  const key=new THREE.DirectionalLight(0xfff4e6,2.2); key.position.set(1.6,3.4,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048);
+  Object.assign(key.shadow.camera,{left:-2.2,right:2.2,top:2.2,bottom:-2.2,near:0.5,far:9}); key.shadow.bias=-0.0002; key.shadow.normalBias=0.01; sc.add(key);
+  const rim=new THREE.DirectionalLight(0xcfe0ff,0.6); rim.position.set(-2,2,-2); sc.add(rim);
+  /* سطح المنضدة: لوح فولاذي عليه حصيرة مطاطية مخططة */
+  const mat=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#2b2f33'; g.fillRect(0,0,w,h); g.strokeStyle='rgba(255,255,255,.07)'; g.lineWidth=2; for(let i=0;i<=w;i+=32){g.beginPath(); g.moveTo(i,0); g.lineTo(i,h); g.stroke(); g.beginPath(); g.moveTo(0,i); g.lineTo(w,i); g.stroke();} for(let i=0;i<4000;i++){g.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`; g.fillRect(Math.random()*w,Math.random()*h,1.5,1.5);}},[6,4]);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(3.6,0.05,2.6),[std(0x6d7378,.4,.8),std(0x6d7378,.4,.8),std(0xffffff,.9,0,{map:mat}),std(0x6d7378,.4,.8),std(0x6d7378,.4,.8),std(0x6d7378,.4,.8)]);
+  top.position.y=-0.025; top.receiveShadow=true; sc.add(top);
+  const leg=std(0x3b6b22,.5,.3);
+  for(const x of [-1.7,1.7])for(const z of [-1.2,1.2]){const l=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.9,0.07),leg); l.position.set(x,-0.5,z); sc.add(l);}
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),std(0x55585a,.95,0)); floor.rotation.x=-PI/2; floor.position.y=-0.95; floor.receiveShadow=true; sc.add(floor);
+  BENCH.root=new THREE.Group(); sc.add(BENCH.root);
+  BENCH.ring=new THREE.Mesh(new THREE.TorusGeometry(0.1,0.006,8,48),new THREE.MeshBasicMaterial({color:0xff6a24})); BENCH.ring.rotation.x=PI/2; BENCH.ring.visible=false; sc.add(BENCH.ring);
+  BENCH.scene=sc; return sc;
+}
+function balloon(txt){
+  const t=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#fffdf5'; g.strokeStyle='#1a1d20'; g.lineWidth=7; g.beginPath(); g.arc(64,64,52,0,TAU); g.fill(); g.stroke(); g.fillStyle='#1a1d20'; g.font='700 52px "IBM Plex Mono",monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt,64,68);});
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false})); s.scale.setScalar(0.065); s.renderOrder=5; return s;
+}
+/* سطور الشكل: سطر لكل رقم موقع، والبديل المناسب لرقم الماكينة إن وُجد */
+function benchRows(f){
+  const KC=BP.KC, by=new Map();
+  for(const r of f.rows){const k=r[0]==null?'?'+r[1]:r[0]; if(!by.has(k))by.set(k,[]); by.get(k).push(r);}
+  const out=[];
+  for(const [pos,rs] of by){
+    const pick=rs.find(r=>KC.fits(KC.rr(f,r))===true)||rs.find(r=>KC.fits(KC.rr(f,r))!==false)||rs[0];
+    const cls=benchType(pick[3]), q=/^\d+$/.test(String(pick[5]||''))?+pick[5]:/^\d+$/.test(String(pick[6]||''))?+pick[6]:1;
+    out.push({pos,row:pick,variants:rs.length,cls,qty:q,dims:Object.assign(benchDims(cls.type,pick[7],pick[3]),{en:pick[3].toLowerCase()})});
+  }
+  out.sort((a,b)=>a.cls.ord-b.cls.ord||(+a.pos||0)-(+b.pos||0));
+  return out;
+}
+function benchMat(it){
+  const t=it.cls.type; if(/^(bolt|nut|washer)/.test(t)&&/black|allen/.test(it.dims.en))return 'black';
+  return /yellow|galv/.test(it.dims.en)?'yzinc':'zinc';
+}
+function benchBuild(){
+  const root=BENCH.root; while(root.children.length)root.remove(root.children[0]);
+  BENCH.ring.visible=false; BENCH.anim=[];
+  /* القطعة كما هي في المجسم، في مؤخرة المنضدة */
+  const asm=new THREE.Group(); BENCH.asmMats=[];
+  model.updateMatrixWorld(true);
+  for(const m of MESHES){
+    if(m.userData.part!==BENCH.id||m.userData.xm)continue;
+    const c=m.clone(); c.material=m.userData.base.clone(); c.material.transparent=true; BENCH.asmMats.push(c.material);
+    m.matrixWorld.decompose(c.position,c.quaternion,c.scale); c.castShadow=c.receiveShadow=true; asm.add(c);
+  }
+  if(asm.children.length){
+    const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=0.85/Math.max(sz.x,sz.y,sz.z,0.01), c=b.getCenter(V(0,0,0));
+    const w=new THREE.Group(); w.add(asm); asm.position.set(-c.x,-b.min.y,-c.z); w.scale.setScalar(k); w.position.set(0,0,-0.78); root.add(w); BENCH.asm=w;
+  }else BENCH.asm=null;
+  /* قطع الكتالوج مصفوفة على المنضدة أمامها، صفاً بعد صف؛ تصغر كلها معاً إذا لم تتسع المنضدة */
+  for(const it of BENCH.items){
+    const p=benchPiece(it.cls.type,it.dims,benchMat(it));
+    const b=new THREE.Box3().setFromObject(p), sz=b.getSize(V(0,0,0)), real=Math.max(sz.x,sz.y,sz.z,1e-4)*1000;
+    const target=clamp(0.07+0.105*Math.log10(real/4),0.075,it.cls.ord>=12?0.5:0.32);
+    const c=b.getCenter(V(0,0,0)); p.children.forEach(ch=>{ch.position.x-=c.x; ch.position.z-=c.z; ch.position.y-=b.min.y;});
+    it.proto=p; it.k=target/Math.max(sz.x,sz.y,sz.z,1e-4); it.sz=sz;
+  }
+  let sf=1, x, z, rowD;
+  for(let tries=0;tries<8;tries++){
+    x=-1.35; z=-0.25; rowD=0;
+    for(const it of BENCH.items){
+      const k=it.k*sf, n=Math.min(it.qty,4), fw=it.sz.x*k, fd=it.sz.z*k, gap=0.03*sf, cellW=Math.max(0.12*sf,fw*n+gap*(n-1)+0.05*sf), cellD=Math.max(0.15*sf,fd+0.09*sf);
+      if(x+cellW>1.35){x=-1.35; z+=rowD; rowD=0;}
+      it.lay={x,z,cellW,cellD,fw,fd,n,gap,k}; x+=cellW; rowD=Math.max(rowD,cellD);
+    }
+    if(z+rowD<=1.2)break; sf*=0.86;
+  }
+  for(const it of BENCH.items){
+    const {x:lx,z:lz,cellW,cellD,fw,fd,n,gap,k}=it.lay, grp=new THREE.Group(); grp.userData.bi=BENCH.items.indexOf(it);
+    for(let i=0;i<n;i++){const q=i?it.proto.clone():it.proto; q.scale.setScalar(k); q.position.x=-(fw*n+gap*(n-1))/2+fw/2+i*(fw+gap); grp.add(q);}
+    const bl=balloon(String(it.pos).replace(/^\?.*/,'·')); bl.scale.setScalar(0.065*Math.max(sf,0.7)); bl.position.set(0,it.sz.y*k+0.05*Math.max(sf,0.7),0); grp.add(bl);
+    if(it.qty>1){const tq=balloon('×'+it.qty); tq.scale.setScalar(0.05*Math.max(sf,0.7)); tq.position.set(cellW/2-0.03,0.03,fd/2+0.02); grp.add(tq);}
+    it.slot=V(lx+cellW/2,0,lz+cellD/2); it.grp=grp; it.t=0;
+    grp.visible=false; root.add(grp);
+  }
+  BENCH.depth=z+rowD;
+  benchPose(true);
+}
+const benchFrom=()=>BENCH.asm?V(0,0.35,-0.78):V(0,0.3,-0.6);
+/* موضع كل قطعة حسب حالتها: داخل القطعة (مخفية) أو على المنضدة */
+function benchPose(snap){
+  BENCH.items.forEach((it,i)=>{const want=i<BENCH.done?1:0; if(snap)it.t=want; it.want=want;});
+  if(snap)BENCH.items.forEach(benchPlace);
+  benchAsmLook(); dirty();
+}
+function benchPlace(it){
+  const t=ease(clamp(it.t,0,1)), a=benchFrom();
+  it.grp.visible=it.t>0.001;
+  it.grp.position.lerpVectors(a,it.slot,t); it.grp.position.y+=Math.sin(t*PI)*0.35;
+  it.grp.scale.setScalar(0.3+0.7*t);
+}
+function benchAsmLook(){
+  if(!BENCH.asm)return;
+  const all=BENCH.done>=BENCH.items.length&&BENCH.items.length>0, op=all?0:BENCH.done?0.9:1;
+  BENCH.asmMats.forEach(m=>{m.opacity=op; m.depthWrite=op>0.95;}); BENCH.asm.visible=!all;
+}
+function stepBench(dt){
+  if(!BENCH.on)return false;
+  let moving=false;
+  for(const it of BENCH.items){if(Math.abs(it.t-it.want)>1e-4){it.t+=Math.sign(it.want-it.t)*Math.min(Math.abs(it.want-it.t),dt*(reduceMotion?50:1.8)); benchPlace(it); moving=true;}}
+  if(BENCH.sel>=0){const it=BENCH.items[BENCH.sel]; BENCH.ring.visible=it.grp.visible&&it.t>0.99; if(BENCH.ring.visible){BENCH.ring.position.copy(it.grp.position).add(V(0,0.004,0)); moving=true; BENCH.ring.scale.setScalar(1+0.08*Math.sin(performance.now()/180));}}
+  return moving;
+}
+function benchStep(n){
+  const was=BENCH.done; BENCH.done=clamp(BENCH.done+n,0,BENCH.items.length);
+  if(BENCH.done===was){toast(n>0?'فُكّت كل القطع':'القطعة مجمّعة'); return;}
+  BENCH.sel=n>0?BENCH.done-1:BENCH.done; benchPose(false); benchPanel();
+  const it=BENCH.items[BENCH.sel]; if(it&&n>0&&Math.abs(n)===1)toast(`فُكّ: Pos ${it.pos} · ${it.cls.ar} · ${it.row[1]}`);
+}
+let benchRun=null;
+function benchRunTo(target){
+  clearTimeout(benchRun);
+  const tick=()=>{if(!BENCH.on||BENCH.done===target)return; benchStep(BENCH.done<target?1:-1); benchRun=setTimeout(tick,reduceMotion?30:260);};
+  tick();
+}
+function benchEnter(id,figT){
+  const KC=BP.KC, data=KC.get(), m=data&&data.map&&data.map[id];
+  BENCH.id=id; BENCH.fig=figT||(m&&m.figs[0])||null; BENCH.keys=new Set(m?m.keys.filter(k=>k[0]===BENCH.fig).map(k=>k[1]):[]);
+  if(!BENCH.on){BENCH.saved={pos:camera.position.clone(),tgt:controls.target.clone(),min:controls.minDistance}; }
+  if(!BENCH.on)BENCH.hint=$('#hint').textContent;
+  BENCH.on=true; $('#stage').classList.add('bench'); $('#hint').textContent='اسحب للتدوير · اضغط مرتين على القطعة في الخلف لفكّ التالية · اضغط أي قطعة لترى رقمها'; tip.hidden=true; selLabel.hidden=true; marker.visible=false;
+  const f=BENCH.fig&&KC.fig(BENCH.fig);
+  BENCH.items=f?benchRows(f):[]; BENCH.done=0; BENCH.sel=-1;
+  benchScene(); benchBuild(); benchPanel();
+  controls.minDistance=0.25;
+  const ar=camera.aspect<1.1?Math.min(2.1,1.25/Math.max(0.45,camera.aspect)):1, dp=BENCH.depth||0;
+  flyTo(V(0,0.1,0.15+dp*0.25),V(0,(2.0+dp*0.45)*ar,(2.75+dp*0.6)*ar));
+  dirty();
+}
+function benchExit(restore){
+  if(!BENCH.on)return;
+  clearTimeout(benchRun); BENCH.on=false; $('#stage').classList.remove('bench'); if(BENCH.hint)$('#hint').textContent=BENCH.hint; BENCH.ring.visible=false;
+  controls.minDistance=BENCH.saved.min;
+  if(restore!==false){flyTo(BENCH.saved.tgt,BENCH.saved.pos); if(BENCH.id&&L.sel.has(BENCH.id))renderPartView(BENCH.id);}
+  BENCH.asmMats.forEach(m=>m.dispose()); dirty();
+}
+function benchPanel(){
+  const p=PART[BENCH.id], KC=BP.KC, data=KC.get(), m=data&&data.map&&data.map[BENCH.id], f=BENCH.fig&&KC.fig(BENCH.fig);
+  const back='<button type="button" class="btn sm ghost" data-bench="exit">→ رجوع إلى الماكينة</button>';
+  if(!data||!f){
+    $('#partView').innerHTML=`<hr class="divider">${back}<h3 style="margin-top:10px">تفكيك منفرد: ${esc(p.ar)}</h3><p class="cat-empty">${data?'لا يوجد في الكتالوج المستورد شكل لهذه القطعة.':'التفكيك المنفرد يعتمد على كتالوج KRONE: يفك القطعة إلى كل أجزائها المذكورة في شكلها. استورد ملف الكتالوج من قسم «القطع والأرقام» ثم ارجع.'}</p>${data?'':'<button type="button" class="btn sm primary" data-bench="import">الذهاب إلى الاستيراد</button>'}`;
+    return;
+  }
+  const n=BENCH.items.length, own=BENCH.items.map((it,i)=>BENCH.keys.has(it.pos)?i:-1).filter(i=>i>=0), lastOwn=own.length?Math.max(...own):-1;
+  const figs=m.figs.length>1?`<div class="seg" style="margin-top:6px">${m.figs.map(t=>`<button type="button" data-bench-fig="${t}" aria-pressed="${t===BENCH.fig}">${t}</button>`).join('')}</div>`:'';
+  const list=BENCH.items.map((it,i)=>{const st=i<BENCH.done?'done':i===BENCH.done?'next':'wait', r=it.row;
+    return `<li class="b-${st}${i===BENCH.sel?' b-sel':''}${BENCH.keys.has(it.pos)?' b-own':''}" data-bi="${i}"><span class="b-pos">${esc(String(it.pos).replace(/^\?.*/,'·'))}</span><span class="b-txt"><b>${esc(it.cls.ar)}${it.qty>1?` ×${it.qty}`:''}</b><bdi dir="ltr">${esc(r[3])}</bdi><small dir="ltr">${esc(r[2])}${r[7]?' · '+esc(r[7]):''}</small></span><span class="b-num" dir="ltr">${esc(r[1])}${it.variants>1?`<small>+${it.variants-1} بديل</small>`:''}</span></li>`;}).join('');
+  const sel=BENCH.sel>=0&&BENCH.items[BENCH.sel];
+  $('#partView').innerHTML=`<hr class="divider">${back}
+    <div class="ins-head" style="margin-top:10px"><span class="sys-chip" style="--c:${SYS[p.sys].color}">تفكيك منفرد</span><h3>${esc(p.ar)}</h3><div class="ins-en" dir="ltr">${esc(BENCH.fig)} · ${esc(f.en)} · ${esc(f.de)}</div></div>${figs}
+    <div class="b-prog"><span style="width:${n?BENCH.done/n*100:0}%"></span></div>
+    <div class="b-count">فُكّت ${BENCH.done} من ${n} قطعة${BENCH.done>=n?' · القطعة مفكوكة كاملة':''}</div>
+    <div class="act-row">
+      <button type="button" class="btn sm primary" data-bench="next"${BENCH.done>=n?' disabled':''}>فكّ التالية</button>
+      <button type="button" class="btn sm" data-bench="prev"${BENCH.done<=0?' disabled':''}>أرجع واحدة</button>
+      ${lastOwn>=0&&BENCH.done<=lastOwn&&n>own.length?`<button type="button" class="btn sm" data-bench="own">فكّ حتى ${esc(p.ar)}</button>`:''}
+      <button type="button" class="btn sm" data-bench="all"${BENCH.done>=n?' disabled':''}>فكّ الكل</button>
+      <button type="button" class="btn sm ghost" data-bench="none"${BENCH.done<=0?' disabled':''}>تجميع</button>
+    </div>
+    ${sel?`<div class="b-card"><div><span class="b-pos">${esc(String(sel.pos))}</span> <b>${esc(sel.cls.ar)}</b>${sel.qty>1?` · العدد ${sel.qty}`:''}</div><div class="b-num" dir="ltr">${esc(sel.row[1])}</div><div dir="ltr">${esc(sel.row[3])} · ${esc(sel.row[2])}${sel.row[7]?' · '+esc(sel.row[7]):''}</div>${BENCH.keys.has(sel.pos)?'<div class="small" style="color:var(--accent);font-weight:700">هذا هو رقم القطعة المختارة</div>':''}</div>`:''}
+    <p class="note" style="margin-top:8px">الترتيب مقترح: الوصلات والخراطيم، ثم الحلقات والصواميل والبراغي والوردات، ثم القطع الصغيرة، والجسم الرئيسي أخيراً. أشكال القطع تمثيل من وصفها ومقاسها في الكتالوج. اضغط مرتين على القطعة في الخلف لفكّ التالية، واضغط أي قطعة على المنضدة لترى رقمها.</p>
+    <ol class="b-list">${list}</ol>`;
+  const s=$('#partView .b-sel'); if(s)s.scrollIntoView({block:'nearest'});
+}
+$('#partView').addEventListener('click',e=>{
+  if(!BENCH.on)return;
+  const b=e.target.closest('[data-bench]'), fb=e.target.closest('[data-bench-fig]'), li=e.target.closest('[data-bi]');
+  if(fb){benchEnter(BENCH.id,fb.dataset.benchFig); return;}
+  if(li){const i=+li.dataset.bi; BENCH.sel=i; benchPanel(); if(i>=BENCH.done)toast(`لم تُفك بعد. فكّ أولاً ما قبلها (${BENCH.done+1} من ${BENCH.items.length})`); dirty(); return;}
+  if(!b)return;
+  const a=b.dataset.bench;
+  if(a==='exit')benchExit();
+  else if(a==='import'){benchExit(); BP.showTab('parts',true);}
+  else if(a==='next')benchStep(1);
+  else if(a==='prev')benchStep(-1);
+  else if(a==='all')benchRunTo(BENCH.items.length);
+  else if(a==='none')benchRunTo(0);
+  else if(a==='own'){const own=BENCH.items.map((it,i)=>BENCH.keys.has(it.pos)?i:-1).filter(i=>i>=0); benchRunTo(Math.max(...own)+1);}
+},true);
+function benchPickAt(cx,cy){
+  const r=canvas.getBoundingClientRect(); ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1); ray.setFromCamera(ndc,camera);
+  const objs=[]; if(BENCH.asm&&BENCH.asm.visible)objs.push(BENCH.asm); BENCH.items.forEach(it=>{if(it.grp.visible)objs.push(it.grp);});
+  for(const h of ray.intersectObjects(objs,true)){if(h.object.isSprite)continue; let o=h.object; while(o&&o.userData.bi===undefined&&o!==BENCH.asm)o=o.parent; if(o===BENCH.asm)return 'asm'; if(o)return o.userData.bi;}
+  return null;
+}
+let benchTap={k:null,t:0};
+function benchClick(cx,cy){
+  const k=benchPickAt(cx,cy), now=performance.now();
+  if(k==='asm'&&benchTap.k==='asm'&&now-benchTap.t<400){benchTap={k:null,t:0}; benchStep(1); return;}
+  benchTap={k,t:now};
+  if(k==='asm'){const it=BENCH.items[BENCH.done]; toast(it?`التالية: Pos ${it.pos} · ${it.cls.ar}. اضغط مرتين لفكّها`:'فُكّت كل القطع'); return;}
+  if(typeof k==='number'){BENCH.sel=k; benchPanel(); dirty();}
+}
+
 /* اللمس والفأرة على المجسم */
 let down=null, hoverT=0;
 const tip=$('#tip3d');
@@ -3356,6 +3920,7 @@ canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:perfor
 canvas.addEventListener('pointerup',e=>{
   if(!down)return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y), dtm=performance.now()-down.t; down=null;
   if(moved>6||dtm>650||e.button>0)return;
+  if(BENCH.on){benchClick(e.clientX,e.clientY); return;}
   const id=pick(e.clientX,e.clientY);
   if(mode==='explore'){
     const now=performance.now();
@@ -3368,10 +3933,11 @@ canvas.addEventListener('pointerup',e=>{
 canvas.addEventListener('pointermove',e=>{
   if(e.pointerType!=='mouse'||e.buttons){return;}
   const now=performance.now(); if(now-hoverT<80)return; hoverT=now;
-  const id=pick(e.clientX,e.clientY);
-  if(!id){tip.hidden=true; canvas.style.cursor=''; return;}
+  const bk=BENCH.on?benchPickAt(e.clientX,e.clientY):null;
+  const id=BENCH.on?null:pick(e.clientX,e.clientY);
+  if(!id&&bk==null){tip.hidden=true; canvas.style.cursor=''; return;}
   const r=stage.getBoundingClientRect();
-  tip.textContent=PART[id].ar; tip.style.left=(e.clientX-r.left)+'px'; tip.style.top=(e.clientY-r.top)+'px'; tip.hidden=false; canvas.style.cursor='pointer';
+  tip.textContent=bk==='asm'?'اضغط مرتين لفكّ القطعة التالية':bk!=null?`Pos ${BENCH.items[bk].pos} · ${BENCH.items[bk].cls.ar} · ${BENCH.items[bk].row[1]}`:PART[id].ar; tip.style.left=(e.clientX-r.left)+'px'; tip.style.top=(e.clientY-r.top)+'px'; tip.hidden=false; canvas.style.cursor='pointer';
 });
 canvas.addEventListener('pointerleave',()=>{tip.hidden=true;});
 
@@ -3432,6 +3998,7 @@ function resetRepair(){L.forced.clear(); L.cut=false; L.sel=new Set(); labelId=n
 /* ═══════════ تسمية القطعة المحددة فوق المجسم ═══════════ */
 const selLabel=$('#selLabel');
 function updateLabel(){
+  if(BENCH.on){selLabel.hidden=true; return;}
   const id=labelId&&L.sel.has(labelId)?labelId:null;
   if(!id||mode==='operate'){selLabel.hidden=true;return;}
   let pt;
@@ -3835,6 +4402,7 @@ const Sim=(function(){
 
 /* ═══════════ الأوضاع والحلقة ═══════════ */
 function setMode(m){
+  if(BENCH.on&&m!=='explore')benchExit(false);
   if(m==='off'){mode='off'; return;}
   const prev=stageMode; stageMode=m; mode=m;
   resize();
@@ -3874,11 +4442,12 @@ function loop(){
   if(stepCam(dt))act=true;
   if(stepExplode(dt))act=true;
   if(stepFades(dt))act=true;
+  if(stepBench(dt))act=true;
   if(mode!=='operate'&&Math.abs(needleU-needleTarget)>1e-3){needleU+=clamp(needleTarget-needleU,-dt*1.2,dt*1.2); setRot('needle','z',NDL.max*ease(needleU)); act=true;}
   if(mode==='operate'){Sim.frame(dt); act=true;}
   if(L.sel.size&&!reduceMotion){pulseT+=dt; const k=0.12+0.24*(0.5+0.5*Math.sin(pulseT*4)); hlCache.forEach(m=>{m.emissiveIntensity=k;}); act=true;}
   if(marker.visible){pulseT+=dt*0.2; marker.scale.setScalar(1+0.25*Math.sin(pulseT*5)); mk2.lookAt(camera.position); act=true;}
-  if(act||needsRender){const t0=performance.now(); renderer.render(scene,camera); needsRender=false; updateLabel(); adapt(performance.now()-t0+dt*0);}
+  if(act||needsRender){const t0=performance.now(); renderer.render(BENCH.on?BENCH.scene:scene,camera); needsRender=false; updateLabel(); adapt(performance.now()-t0+dt*0);}
 }
 
 renderTree();
