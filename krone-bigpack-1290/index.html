@@ -4135,7 +4135,7 @@ function benchBuild(){
   const pref=[it=>it.ph>=7,it=>it.ph>=6,it=>/^(cover|lid|plate)/.test(it.cls.type)].map(f=>real.filter(f)).find(l=>l.length);
   const bodyC=pref?[pref.reduce((m,it)=>sizeOf(it)>sizeOf(m)?it:m)].concat(pref.filter(it=>it.ph<6&&sizeOf(it)>=sizeOf(pref.reduce((m,x)=>sizeOf(x)>sizeOf(m)?x:m))*0.9)).filter((x,i,a)=>a.indexOf(x)===i):[big];
   const score=(o,it)=>lr(o,it)+0.15*fill.get(it)/Math.max(1,it.qty);
-  BENCH.isl.forEach(o=>{
+  if(real.length)BENCH.isl.forEach(o=>{
     const open=real.filter(it=>fill.get(it)<cap(it));
     let cand=o.sz>sizeOf(big)?bodyC:open.filter(it=>lr(o,it)<Math.log(2.6));
     if(!cand.length)cand=bodyC;
