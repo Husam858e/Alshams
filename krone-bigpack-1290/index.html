@@ -4499,7 +4499,7 @@ function benchRig(it){
     c.userData.src=p||(i?pattern(i):V(0,0,0));
   });
   /* للخرطوم والماسورة: المفتاح على صامولة الطرف، فعرضه من مقاس الصامولة لا من انحناء الخرطوم */
-  const L=Lr*k, D=H.nut&&ax?H.nut*1.15/1000*k:Dr*k;
+  const L=Lr*k, nutD={sensor:18,fitting:12,plug:12,nipple:8}[base], D=H.nut&&ax?H.nut*1.15/1000*k:nutD?afOf(mm(it.dims.d||nutD))*1.155*k:Dr*k;
   it.lenW=L*g; it.sizeW=realMax*k*g; it.toolW=0;
   it.tool=null; it.toolParts=[];
   if(H.tk!=='hands'){
