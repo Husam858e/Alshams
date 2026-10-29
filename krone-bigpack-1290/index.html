@@ -4073,7 +4073,8 @@ function benchBuild(){
   const mm=new Map(), gm=m=>{if(Array.isArray(m))return m.map(gm); if(!mm.has(m)){const c=m.clone(); c.onBeforeCompile=m.onBeforeCompile; c.customProgramCacheKey=m.customProgramCacheKey; c.transparent=true; mm.set(m,c); BENCH.asmMats.push(c);} return mm.get(m);};
   for(const o of isl){const me=new THREE.Mesh(o.geo,gm(o.mat)); o.mw.decompose(me.position,me.quaternion,me.scale); me.castShadow=me.receiveShadow=true; asm.add(me); BENCH.islGeos.push(o.geo); BENCH.isl.push({mesh:me,home:me.position.clone(),s0:me.scale.clone(),sz:o.sz,d3:o.d3,s3:o.s3});}
   if(asm.children.length){
-    const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=0.95/Math.max(sz.x,sz.y,sz.z,0.01), c=b.getCenter(V(0,0,0));
+    /* القطعة بأكبر حجم يتسع له مؤخر المنضدة: طولها حتى 1.6 م وعمقها وارتفاعها حتى 0.95 م، فتُرى أجزاؤها الصغيرة */
+    const b=new THREE.Box3().setFromObject(asm), sz=b.getSize(V(0,0,0)), k=Math.min(1.6/Math.max(sz.x,0.01),0.95/Math.max(sz.y,0.01),0.95/Math.max(sz.z,0.01)), c=b.getCenter(V(0,0,0));
     const w=new THREE.Group(); w.add(asm); asm.position.set(-c.x,-b.min.y,-c.z); w.scale.setScalar(k); w.position.set(0,0,-0.8); root.add(w); BENCH.asm=w; BENCH.asmIn=asm; BENCH.asmK=k;
     /* القطعة على حوض تنقيط فيه أثر زيت */
     const fx=sz.x*k+0.14, fz=sz.z*k+0.14, pg=(BENCH.panHX=fx/2,trayGeo(fx,fz,0.03,0.005)), og=new THREE.PlaneGeometry(fx*0.78,fz*0.78).rotateX(-PI/2); BENCH.islGeos.push(pg,og);
@@ -4146,9 +4147,15 @@ function benchBuild(){
     pick.isl.push(o); fill.set(pick,fill.get(pick)+1);
   });
   /* القطعة التي لا جزء لها في المجسم تخرج من أقرب جزء ظاهر من القطعة (لم يُفك بعد) */
+  /* القطعة التي لا جزء لها في المجسم (برغي، وردة، مسمار…) تُركّب على أحد أكبر الأجزاء التي تُفك بعدها، كالغطاء الذي تثبّته؛
+     البرغي وصامولته ووردته على الجزء نفسه، والمجموعات المختلفة موزعة على أكبر الأجزاء */
+  const hostOf=new Map(); let hn=0;
   BENCH.items.forEach((it,i)=>{
     let src=it.isl[0];
-    if(!src){const later=new Set(BENCH.items.slice(i+1).flatMap(x=>x.isl)); src=BENCH.isl.find(o=>later.has(o))||BENCH.isl[M-1];}
+    if(!src){
+      const key=it.ph===2&&it.grpD<999?'f'+it.grpD:'p'+it.pos; src=hostOf.get(key);
+      if(!src){const big=BENCH.items.slice(i+1).flatMap(x=>x.isl).sort((a,b)=>b.sz-a.sz).slice(0,4); src=big.length?big[hn++%big.length]:BENCH.isl[M-1]; hostOf.set(key,src);}
+    }
     it.srcIsl=src; it.from=src?src.mesh.getWorldPosition(V(0,0,0)):V(0,0.3,-0.6);
   });
   BENCH.items.forEach(it=>{it.how=benchHow(it); benchRig(it);});
@@ -4455,7 +4462,7 @@ function islAxes(o){
    multi أجزاء المجسم نفسها تُفك ثم تتحول إلى قطعة الكتالوج وهي تنتقل إلى المنضدة
    side  الزيت والملصقات: على المنضدة بجانب القطعة من البداية */
 function benchRig(it){
-  const H=it.how, [base]=it.cls.type.split(':'), k=it.lay.k, A=BENCH.asmK||0.5, ax=AXIS_X.has(base), longT=LONGT.has(base);
+  const H=it.how, [base,sub]=it.cls.type.split(':'), k=it.lay.k, A=BENCH.asmK||0.5, ax=AXIS_X.has(base), longT=LONGT.has(base);
   it.axL=ax?V(1,0,0):V(0,1,0); it.axT=ax?V(0,0,1):V(1,0,0);
   it.copies=it.grp.children.filter(c=>!c.isSprite); it.sprites=it.grp.children.filter(c=>c.isSprite);
   it.copies.forEach(c=>{c.userData.lay=c.position.clone();});
@@ -4472,15 +4479,33 @@ function benchRig(it){
     let n=0; own.forEach(o=>{if(n<it.copies.length&&benchFit(o,it)<Math.log(2.6)){o.swapped=true; o.mesh.visible=false; srcW[n++]=o.mesh.getWorldPosition(V(0,0,0));}});
     from=srcW[0].clone().sub(cl.clone().applyQuaternion(q).multiplyScalar(g));
   }else if(mode==='mount'){
+    /* القطع الصغيرة تُكبَّر حتى يُرى رأس البرغي في منظر المنضدة كاملة (عرضه 1.6 سم على الأقل، وحتى خمسة أضعاف حجمه)،
+       والعدة معها فتبقى على مقاسها */
+    g=Math.max(realG,Math.min(realG*5,Math.max(0.016/(Dr*k),0.035/(realMax*k))));
     const host=it.srcIsl;
     if(host){
-      const hb=new THREE.Box3().setFromObject(host.mesh), hc=hb.getCenter(V(0,0,0)), hs=hb.getSize(V(0,0,0)), d=host.dir||V(0,1,0);
-      const ai=[0,1,2].reduce((m,i)=>Math.abs(d.getComponent(i))>Math.abs(d.getComponent(m))?i:m,0), n=V(0,0,0).setComponent(ai,Math.sign(d.getComponent(ai))||1);
-      const [aj,ak]=[0,1,2].filter(i=>i!==ai), slot=(host.mounts=(host.mounts||0)+1)-1, OFF=[[0,0],[0.5,0],[-0.5,0],[0,0.5],[0,-0.5],[0.5,0.5],[-0.5,-0.5],[0.5,-0.5],[-0.5,0.5]], f=OFF[slot%9], sh=1-Math.floor(slot/9)*0.3;
-      const fp=hc.clone().addScaledVector(n,hs.getComponent(ai)/2); fp.setComponent(aj,fp.getComponent(aj)+f[0]*sh*hs.getComponent(aj)*0.7); fp.setComponent(ak,fp.getComponent(ak)+f[1]*sh*hs.getComponent(ak)*0.7);
-      const t1=V(0,0,0).setComponent(aj,1);
-      dir=n; q=basisQ(t1,n);
-      from=fp.addScaledVector(n,-(ax?0:(SINK[base]||0)*Lr*k*g));
+      /* البراغي وصواميلها ووردها تُركّب معاً كما على الماكينة: صف من الثقوب على سطح الجزء،
+         الوردة على السطح والبرغي فوقها وساقه في الثقب، والصامولة على الوجه الآخر من الثقب نفسه */
+      const key=it.ph===2&&it.grpD<999?'f'+it.grpD:'p'+it.pos; host.mm=host.mm||new Map(); let mr=host.mm.get(key);
+      if(!mr){
+        const hb=new THREE.Box3().setFromObject(host.mesh), hc=hb.getCenter(V(0,0,0)), hs=hb.getSize(V(0,0,0)), d=host.dir||V(0,1,0);
+        /* الوجه الذي تُركّب عليه: وجه كبير من الخارج يُرى من أمام المنضدة وأعلاها، لا حافة رفيعة ولا وجه نحو الداخل */
+        const vw=V(0,0.75,0.65).normalize(), ac=BENCH.asmC||V(0,0.4,-0.8), ar=[hs.y*hs.z,hs.x*hs.z,hs.x*hs.y], amax=Math.max(...ar,1e-9);
+        let ai=1, n=V(0,1,0), best=-1e9;
+        for(let i=0;i<3;i++)for(const sg of [1,-1]){const nv=V(0,0,0).setComponent(i,sg), fc=hc.clone().addScaledVector(nv,hs.getComponent(i)/2), out=fc.clone().sub(ac).dot(nv)>=0?0:-1.5, sc=nv.dot(vw)+0.4*nv.dot(d)+0.8*ar[i]/amax+out; if(sc>best){best=sc; ai=i; n=nv;}}
+        let [aj,ak]=[0,1,2].filter(i=>i!==ai); if(hs.getComponent(ak)>hs.getComponent(aj))[aj,ak]=[ak,aj];
+        const r=(host.rows=(host.rows||0)+1)-1, ROW=[0,0.3,-0.3,0.15,-0.15,0.42,-0.42], c=hc.clone(); c.setComponent(ak,c.getComponent(ak)+ROW[r%7]*hs.getComponent(ak)); c.setComponent(aj,c.getComponent(aj)+(Math.floor(r/7)%2?0.2:0)*hs.getComponent(aj));
+        const t1=V(0,0,0).setComponent(aj,1), cnt=Math.max(...BENCH.items.filter(x=>x===it||(it.ph===2&&x.grpD===it.grpD)).map(x=>x.copies?x.copies.length:Math.min(x.qty,4)),1);
+        const sp=Math.max(Dr*k*g*1.15,Math.min(Dr*k*g*2.6,hs.getComponent(aj)*0.8/Math.max(1,cnt-1)));
+        const wsh=it.ph===2?BENCH.items.find(x=>x.grpD===it.grpD&&x.cls.type.startsWith('washer')):null;
+        mr={fp:c.clone().addScaledVector(n,hs.getComponent(ai)/2),bp:c.clone().addScaledVector(n,-hs.getComponent(ai)/2),n,t1,sp,wT:wsh?wsh.sz.y:0};
+        host.mm.set(key,mr);
+      }
+      const nut=base==='nut', nn=nut?mr.n.clone().negate():mr.n.clone();
+      dir=nn; q=basisQ(mr.t1,nn); from=(nut?mr.bp:mr.fp).clone();
+      if(base==='bolt'){const dM=mm(it.dims.d||12), head=sub==='allen'?dM:sub==='csk'||sub==='coach'?0.55*dM:0.64*dM; from.addScaledVector(nn,-(Lr-head-mr.wT)*k*g);}
+      else if(!ax&&base!=='washer'&&!nut)from.addScaledVector(nn,-(SINK[base]||0)*Lr*k*g);
+      it.mountSp=mr.sp;
     }else from=benchFrom();
   }else if(mode==='side'){
     g=1; q=new THREE.Quaternion(); dir=V(0,1,0);
@@ -4496,6 +4521,7 @@ function benchRig(it){
   it.copies.forEach((c,i)=>{
     let p=null;
     if(mode==='swap'&&srcW[i])p=srcW[i].clone().sub(cl.clone().applyQuaternion(q).multiplyScalar(g)).sub(from).applyQuaternion(qi).multiplyScalar(1/g);
+    if(!p&&mode==='mount'&&it.mountSp&&!ax)p=V((i%2?1:-1)*Math.ceil(i/2)*it.mountSp/g,0,0);
     c.userData.src=p||(i?pattern(i):V(0,0,0));
   });
   /* للخرطوم والماسورة: المفتاح على صامولة الطرف، فعرضه من مقاس الصامولة لا من انحناء الخرطوم */
@@ -4579,7 +4605,7 @@ function stepBench(dt){
 function benchOverview(){
   BENCH.cam=null;
   const ar=camera.aspect<1.1?Math.min(2.1,1.25/Math.max(0.45,camera.aspect)):1, dp=BENCH.depth||0;
-  flyTo(V(0,0.1,0.15+dp*0.25),V(0,(2.0+dp*0.45)*ar,(2.75+dp*0.6)*ar));
+  flyTo(V(0,0.12,0.08+dp*0.22),V(0,(1.88+dp*0.4)*ar,(2.52+dp*0.55)*ar));
 }
 const benchAr=()=>camera.aspect<1.1?Math.min(1.7,1.0/Math.max(0.5,camera.aspect)):1;
 /* قريبة من مكان الفك ومن جهته، بقدر حجم الجزء والعدة الحقيقيين؛ بقية القطعة شفافة أثناء الفك فلا تحجبها */
