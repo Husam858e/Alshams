@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        Bridge.AUTHORITY = getPackageName() + ".share";
 
         Window w = getWindow();
         w.setStatusBarColor(Color.parseColor("#14110E"));

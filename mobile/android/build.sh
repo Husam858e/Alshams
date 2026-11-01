@@ -22,6 +22,10 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 : "${KEYSTORE:?اضبط KEYSTORE — مسار ملف المفتاح}"
 : "${KS_PASS:?اضبط KS_PASS}"
 KS_ALIAS="${KS_ALIAS:-nasaem}"
+# معرّف التطبيق واسمه — يُغيَّران لبناء نسخةٍ تُثبَّت بجانب الأصلية
+# (مثلاً حين يضيع مفتاح التوقيع: حزمةٌ مختلفة لا تتعارض مع القديمة)
+APP_ID="${APP_ID:-com.nasaem.alkhair}"
+APP_LABEL="${APP_LABEL:-}"
 
 # ⚠️ ٣٦٫١ أو أحدث: d8 في ٣٤٫٠ ينهار على ملفات javac 21 — يكتب javac
 #    مدخلاً بلا اسم للمعامل الضمني في مُنشئ الفئة الداخلية، وd8 القديم
@@ -34,11 +38,14 @@ rm -rf "$OUT"; mkdir -p "$OUT/res" "$OUT/gen" "$OUT/classes" "$OUT/dex" "$OUT/as
 # ① الصفحة نفسها تُضمَّن في التطبيق
 cp "$ROOT/wheelmanagement_v17_promax_43.html" "$OUT/assets/app.html"
 
-# ② الموارد
+# ② الموارد — البيان بمُقدِّم مشاركةٍ باسم الحزمة، وبالاسم المطلوب إن طُلب
+sed -e "s#android:authorities=\"com.nasaem.alkhair.share\"#android:authorities=\"$APP_ID.share\"#" \
+    "$HERE/AndroidManifest.xml" > "$OUT/AndroidManifest.xml"
+[ -n "$APP_LABEL" ] && sed -i "s#android:label=\"@string/app_name\"#android:label=\"$APP_LABEL\"#" "$OUT/AndroidManifest.xml"
 "$BT/aapt2" compile --dir "$HERE/res" -o "$OUT/res/res.zip"
 "$BT/aapt2" link -o "$OUT/base.apk" \
   -I "$JAR" \
-  --manifest "$HERE/AndroidManifest.xml" \
+  --manifest "$OUT/AndroidManifest.xml" --rename-manifest-package "$APP_ID" \
   -A "$OUT/assets" \
   --java "$OUT/gen" \
   --min-sdk-version 24 --target-sdk-version 34 \

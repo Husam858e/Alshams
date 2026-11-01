@@ -40,7 +40,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class Bridge {
 
-    static final String AUTHORITY = "com.nasaem.alkhair.share";
+    /* يُضبط عند الإقلاع من اسم الحزمة الفعلي (MainActivity) — كي لا تتعارض
+     *  نسختان مثبّتتان معاً بمعرّفين مختلفين على مُقدِّم مشاركةٍ واحد */
+    static String AUTHORITY = "com.nasaem.alkhair.share";
 
     private final MainActivity act;
     /* يُبقى مرجعاً للعارض حتى تنتهي الطباعة — وإلّا جُمع وانقطعت */
