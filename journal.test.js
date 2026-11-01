@@ -3,7 +3,7 @@
    تعرضه شاشات التطبيق الأخرى (المخزون · المحصلات). */
 const { chromium } = require('playwright-core');
 (async () => {
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p = await b.newPage({ viewport:{width:430,height:950} });
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file:///home/user/Alshams/wheelmanagement_v17_promax_43.html');

@@ -12,7 +12,7 @@ const N = 1200;
 const MAX_BLOCK_MS = 400;     // أطول توقّف مسموح للواجهة في الشريحة الواحدة
 
 (async () => {
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p = await b.newPage({ viewport:{width:430,height:950} });
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   p.on('crash',()=>errs.push('الصفحة انهارت'));

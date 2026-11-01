@@ -15,7 +15,7 @@ const PX  = DPI/25.4;
 
 /* يبني مستند الطباعة الحقيقي (نفس مسار الطباعة لا نسخةً منه) */
 async function buildDoc(paperMM){
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox','--ignore-certificate-errors'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox','--ignore-certificate-errors'] });
   const p = await b.newPage();
   await p.goto('file:///home/user/Alshams/wheelmanagement_v17_promax_43.html');
   await p.waitForTimeout(1800);
@@ -86,7 +86,7 @@ print(w,l,r)"`).toString().trim().split(' ').map(Number);
 async function measure(html, pageMM, tag){
   const file=`${DIR}/pw_${tag}`;
   fs.writeFileSync(file+'.html', html);
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--no-sandbox']});
+  const b=await chromium.launch({executablePath:require('./test-chrome').chromePath(),args:['--no-sandbox']});
   const p=await b.newPage();
   await p.goto('file://'+file+'.html');
   await p.waitForTimeout(400);

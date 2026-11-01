@@ -4,7 +4,7 @@
    لا باستدعاء الكاشف مباشرةً. */
 const { chromium } = require('playwright-core');
 (async () => {
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p = await b.newPage({ viewport:{width:430,height:950} });
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file:///home/user/Alshams/wheelmanagement_v17_promax_43.html');
@@ -16,7 +16,7 @@ const { chromium } = require('playwright-core');
     db=null; const o={};
     window.confirm=()=>true;
     localStorage.removeItem("wShamsWatchCfg");
-    localStorage.removeItem("wShamsSnapshots");
+    _SNAPS=[];
     const reset=()=>{ ALERTS.length=0; _watchDelTimes=[]; Object.keys(_watchOpen).forEach(k=>delete _watchOpen[k]); };
     const rules=()=>ALERTS.map(a=>a.rule);
     const day=n=>{const d=new Date();d.setDate(d.getDate()-n);return _ds(d);};
@@ -72,7 +72,7 @@ const { chromium } = require('playwright-core');
     o.oldEdit = !!oe && oe.sev==="high" && oe.detail.indexOf("المبلغ النهائي")>=0;
 
     /* ── ⑤ الاستعادة: تنبيهٌ واحد ولقطةٌ قبلها، لا «حذف جماعي» ── */
-    reset(); localStorage.removeItem("wShamsSnapshots");
+    reset(); _SNAPS=[];
     S.recs=[1,2,3,4,5,6,7].map(i=>mk('S'+i,toDay()));
     _restorePayload={app:"نسائم الخير",version:17,data:{buy:[mk('S1',toDay())]}};
     _toolsRestoreNow("replace");
@@ -81,7 +81,7 @@ const { chromium } = require('playwright-core');
     o.preRestore = snaps.length>=1 && /استعادة/.test(snaps[0].pre||"");
 
     /* ── ⑥ لقطة قبل العمليات الجماعية: لا تتكرّر خلال عشر دقائق ── */
-    localStorage.removeItem("wShamsSnapshots");
+    _SNAPS=[];
     S.recs=[mk('G1',toDay()),mk('G2',toDay())];
     o.snap1 = _snapBefore("الدفع الشامل")===true;
     o.snapDup = _snapBefore("الدفع الشامل")===false && _snapshots().filter(s=>s.pre).length===1;
@@ -91,7 +91,7 @@ const { chromium } = require('playwright-core');
     const sb=document.getElementById("snapBox");
     if(sb){renderSnapshots(); o.snapLabel = sb.textContent.indexOf("قبل: الدفع الشامل")>=0;} else o.snapLabel=false;
     /* تسديد المحدَّد يأخذ لقطته */
-    localStorage.removeItem("wShamsSnapshots");
+    _SNAPS=[];
     S.recs=[mk('Q1',toDay()),mk('Q2',toDay())];
     _selSet('buy').clear(); _selSet('buy').add('Q1'); _selPay('buy');
     o.selSnap = _snapshots().some(s=>s.pre==="تسديد المحدَّد");
@@ -132,13 +132,13 @@ const { chromium } = require('playwright-core');
     o.unrevoked = !REVOKED['other-uid'] && rules().includes("unrevoke");
 
     /* ── ⑨ الجهاز المسحوب: يُقفل وتُمسح بياناته، ويبقى مقفلاً بعد إعادة الفتح ── */
-    localStorage.setItem("wShamsCache","[1]"); localStorage.setItem("wShamsSnapshots","[]");
+    localStorage.setItem("wShamsCache","[1]"); _SNAPS=[{id:'x',dk:toDay(),total:1}];
     S.recs=[mk('L1',toDay())];
     REVOKED={'me-uid':{uid:'me-uid'}};
     _lockRevoked({at:nowStr()});
     const scr=document.getElementById("revokedScr");
     o.locked = !!scr && scr.textContent.indexOf("سُحبت صلاحية هذا الجهاز")>=0;
-    o.wiped = !localStorage.getItem("wShamsCache") && !localStorage.getItem("wShamsSnapshots") && S.recs.length===0;
+    o.wiped = !localStorage.getItem("wShamsCache") && _snapshots().length===0 && S.recs.length===0;
     o.keepsIds = localStorage.getItem("wShamsDevId")===me && !!localStorage.getItem("wShamsRevoked");
     scr.remove();
     o.bootLock = _watchBootLock()===true && !!document.getElementById("revokedScr");

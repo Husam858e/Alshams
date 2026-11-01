@@ -6,7 +6,7 @@ const MM = 2.8346;
 
 (async () => {
   const b = await chromium.launch({
-    executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath:require('./test-chrome').chromePath(),
     args:['--no-sandbox','--ignore-certificate-errors'],
   });
   const p = await b.newPage();

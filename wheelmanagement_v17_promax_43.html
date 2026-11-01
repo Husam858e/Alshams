@@ -746,6 +746,16 @@ body.nav-open .tabs{transform:none;visibility:visible;}
 .tabs .tbb,.tabs .tbb.grp{width:100%;text-align:right;font-size:15.5px;font-weight:600;padding:12px 22px;
   border:none;border-right:3px solid transparent;margin:0;border-radius:0;color:var(--paper-2);flex-shrink:0;}
 .tabs .tbb.active{background:var(--ink-200);color:var(--wheat);border-right-color:var(--wheat);font-weight:800;}
+
+/* نافذة نمط الطباعة — v17.91 */
+.ppk{display:flex;align-items:center;gap:12px;width:100%;text-align:right;padding:14px 14px;margin:0 0 9px;
+  border:1.5px solid var(--rule);border-radius:12px;background:var(--ink-100);color:var(--paper);cursor:pointer;font-family:inherit;}
+.ppk:active{transform:scale(.98);}
+.ppk.last{border-color:var(--wheat);background:var(--ink-200);}
+.ppk-ic{font-size:30px;line-height:1;flex-shrink:0;}
+.ppk-tx{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.ppk-tx b{font-size:15px;font-weight:800;}
+.ppk-tx small{font-size:11.5px;color:var(--paper-3);font-weight:600;line-height:1.5;}
 </style>
 <script>
 // ════ الـ JS كله هنا في <head> بدون defer ════
@@ -2432,11 +2442,64 @@ function renderPaperBox(){
    فيُقطع أول حرف من كل عنوان. واختبار العرض كان يقيس مستنداً بناه
    بنفسه بلا ذلك الهامش، فرأى الحبر متوسّطاً والطابعة تراه ملتصقاً.
    الآن دالةٌ واحدة يطبع منها الكل — ويقيسها الاختبار نفسها. */
+/* ══════════════════════════════════════════════════════════════
+   نمطا الطباعة: وصلٌ حراري أو ورقة A4 ملوّنة — v17.91
+   ──────────────────────────────────────────────────────────────
+   كل طباعةٍ أو مشاركة تسأل أولاً: «🧾 وصل» (البكرة الحرارية بعرض
+   الطباعة المضبوط، أسود وأبيض — كما كان) أم «📄 ورقة A4» (طابعة
+   مكتبية، بألوان النظام، بصفحاتٍ مقاسها A4 وهوامشها).
+   النمط يُقرأ في ثلاثة مواضع فقط: getPDFCss (الأنماط)، و_printW
+   (عرض المحتوى)، و_generatePDFBlob (مقاس صفحة الـPDF وتقطيعها).
+   الكشوف (ما فيه جدول) تأخذ عرض الصفحة؛ الوصل المفرد يتوسّطها
+   بعرض ١٣٠ ملم كي لا تتباعد التسمية عن قيمتها عبر الورقة.
+══════════════════════════════════════════════════════════════ */
+let _printMode="roll";                  // roll | a4
+let _a4Narrow=false;                    // وصلٌ مفرد على A4
+let _paperPending=null;
+let _paperSeq=0;
+const _A4={w:210,h:297,m:12};
+const _isA4=()=>_printMode==="a4";
+function _printW(){ return _isA4()?(_a4Narrow?130:_A4.w-2*_A4.m):paperW(); }
+function _withPaper(run){
+  /* صفحة القياس للطابعة الحرارية وحدها */
+  if(/class="rlbar"/.test(String(_printHTML||""))){ _printMode="roll"; run(); return; }
+  _paperPending=run;
+  let last="roll"; try{last=localStorage.getItem("wShamsPaperMode")||"roll";}catch(e){}
+  ["roll","a4"].forEach(m=>{const b=document.getElementById("ppk_"+m); if(b)b.classList.toggle("last",m===last);});
+  const w=document.getElementById("ppkRollW"); if(w)w.textContent=AR(paperW());
+  document.getElementById("mPaper").classList.add("active");
+}
+function _pickPaper(m){
+  _printMode=m==="a4"?"a4":"roll";
+  try{localStorage.setItem("wShamsPaperMode",_printMode);}catch(e){}
+  const f=_paperPending; _paperPending=null;
+  closeM();
+  /* النمط للعملية المختارة وحدها: يعود «وصلاً» حين تنتهي (والـPDF ينتهي
+     متأخراً، فيُنتظر وعده) — فلا يبقى مسارٌ آخر على A4 مصادفةً */
+  const seq=++_paperSeq;                 // إرجاعٌ متأخر لعمليةٍ سابقة لا يمسّ اختياراً أحدث
+  let res; try{ res=typeof f==="function"?f():null; }
+  finally{ Promise.resolve(res).catch(()=>{}).finally(()=>{ if(seq===_paperSeq){_printMode="roll";_a4Narrow=false;} }); }
+}
+/* مشاركة كشفٍ مبنيّ خارج شاشة الطباعة — PDF بالنمط المختار */
+function _shareReport(html,fname){
+  fname=String(fname||"نسائم_الخير").replace(/\.html?$/i,"");
+  _withPaper(async()=>{
+    const full=_printDoc(html,fname);
+    showLoader("جاري إنشاء PDF...");
+    let blob=null;
+    try{ blob=await _generatePDFBlob(full,fname); }catch(e){ console.error(e); }
+    hideLoader();
+    if(blob){ await shareBlobSmart(blob,fname+(_isA4()?"_A4":"")+".pdf","application/pdf",fname); return; }
+    _downloadHTML(full,fname+".html");
+  });
+}
+
 function _printDoc(body,fname){
+  _a4Narrow=_isA4()&&!/class="coltbl/.test(String(body||""));
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>${fname||"نسائم الخير"}</title><style>${getPDFCss()}${_STK_CSS}</style></head>
-<body>${_stackWide(body)}</body></html>`;
+<title>${fname||"نسائم الخير"}</title><style>${getPDFCss()}${_isA4()?"":_STK_CSS}</style></head>
+<body>${_isA4()?body:_stackWide(body)}</body></html>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2466,7 +2529,7 @@ const _STK_CSS=`
 .stk-card.tot{background:#DED8CB;border-width:2px;}
 .stk-card.tot .stk-hd{font-size:11px;}
 `;
-function _stkCols(){ return Math.max(4,Math.floor(paperW()/10)); }   // ٥٨ ← ٥ · ٧٢ ← ٧ · ٨٠ ← ٨
+function _stkCols(){ return Math.max(4,Math.floor(_printW()/10)); }   // ٥٨ ← ٥ · ٧٢ ← ٧ · ٨٠ ← ٨
 function _stackWide(html){
   if(!html||html.indexOf("coltbl")<0)return html;
   let tpl;
@@ -2512,6 +2575,7 @@ function _stackWide(html){
 }
 
 function getPDFCss(){
+  if(_isA4())return _a4Css();           // v17.91
   const _pw=paperW();
   return _PDF_TOKENS+`/* ══ إصلاح الطابعة الحرارية: تنسيق 80 ملم ══ */
 .pcn{font-size:16px!important;font-weight:900!important;line-height:1.1!important;}
@@ -2683,6 +2747,66 @@ function getPDFCss(){
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
+}
+
+`;
+}
+
+/* ورقة A4 ملوّنة: الأنماط الأصلية للكشوف كما هي (بألوانها) مكبَّرةً
+   لصفحةٍ عرضها ١٨٦ ملم، ورأس الجدول يتكرّر في كل صفحة، والصفّ لا
+   يُشطر بين صفحتين. ⚠️ كتلة @media print واحدة: مسار الـPDF يحوّل
+   أول «@media print{» إلى «@media all{» ليصوّرها. */
+function _a4Css(){
+  const _pr=_printMode; _printMode="roll";
+  const all=getPDFCss(); _printMode=_pr;
+  const i=all.indexOf("/* ══ الأنماط الأصلية"), j=all.indexOf("@media print{");
+  const base=(i>=0&&j>i)?all.slice(i,j):"";
+  const W=_printW();
+  return _PDF_TOKENS+base+`
+@media print{
+  @page{size:A4;margin:${_A4.m}mm;}
+  html{width:auto!important;max-width:none!important;margin:0!important;padding:0!important;background:#fff!important;}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact;width:auto;max-width:${W}mm;margin:0 auto!important;padding:0!important;
+    background:#fff!important;color:#1A1714;font-family:Arial,Helvetica,sans-serif!important;direction:rtl!important;font-size:14px;}
+  *{box-sizing:border-box;}
+  #aiBtn,#aiPanel,#aiPanelHd,#aiMsgs,#aiInputRow,#syncBar,#toast,#pdfLoader,.pact,.pbk-btn,.pshare-btn,button,input,select,textarea{display:none !important;}
+  #PS{position:static!important;display:block!important;background:#fff!important;}
+  .pc{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:#fff!important;}
+  table{width:100%!important;border-collapse:collapse!important;}
+  table[style*="margin:0 auto"]{width:auto!important;}      /* جدول الترويسة: الشعار بجانب الاسم */
+  thead{display:table-header-group;}
+  tfoot{display:table-row-group;}
+  tr{page-break-inside:avoid;break-inside:avoid;}
+  .pct{padding:12px 16px 8px;}
+  .pcn{font-size:30px;}
+  .pctag{font-size:12px;}
+  .pcbadge{font-size:10px;padding:2px 9px;}
+  .pgbar{height:4px;margin-bottom:6px;}
+  .prh{padding:9px 16px;border-radius:6px 6px 0 0;margin-top:6px;}
+  .prhtl{font-size:18px;}
+  .prhmt{font-size:11px;opacity:.8;}
+  .prb{padding:4px 16px;}
+  .psec{font-size:12px;padding:4px 14px;margin:6px 0 0;}
+  .prr{padding:5px 14px;}
+  .prk{font-size:14px;}
+  .prv{font-size:15px;}
+  .prtot{padding:10px 16px;border-radius:0 0 6px 6px;}
+  .prtot .pk{font-size:15px;}
+  .prtot .pv{font-size:19px;}
+  .prwb{font-size:13px;padding:6px;margin:6px 14px;}
+  .coltbl{font-size:12px;table-layout:auto;}
+  .coltbl th{padding:7px 6px;font-size:12px;}
+  .coltbl td{padding:6px;font-size:12px;}
+  .coltbl .ctot td{font-size:13px;}
+  .col-wh-title{font-size:13px;padding:7px 14px;margin-top:12px;}
+  .col-wh-sum div{padding:7px 4px;}
+  .col-wh-sum .cv{font-size:15px;}
+  .col-wh-sum .ck{font-size:11px;}
+  .prf{padding:10px 16px;margin-top:14px;}
+  .prft{font-size:15px;}
+  .prfi{font-size:12px;}
+  .prfn{font-size:10px;}
+  .mat-ico-jet,.mat-ico-gravel,.mat-ico-straw{width:16px;height:16px;}
 }
 `;
 }
@@ -2991,7 +3115,7 @@ async function doMakePDF(action){
 /* مقاس بكرة الطابعة الحرارية — ٣ بوصة = ٨٠ملم */
 /* v17.75 جعل صفحة الـPDF بعرض الوصل بلا هامش — وكان ذلك خطأً
    أصلحه v17.81 أدناه. */
-const _pdfWmm=()=>paperW();
+const _pdfWmm=()=>_printW();
 const _pdfWpx=()=>Math.round(_pdfWmm()*96/25.4);
 /* v17.81 — صفحة الـPDF ٨٠ ملم، والوصل في وسطها بعرضه المضبوط.
    كانت الصفحة بعرض الوصل تماماً بلا هامش (v17.75)، وتطبيق
@@ -3001,7 +3125,7 @@ const _pdfWpx=()=>Math.round(_pdfWmm()*96/25.4);
    الآن الصفحة بعرض ثابت والهامش جزءٌ منها، فما يفعله تطبيق
    الطابعة بالصفحة يفعله بالهامش معها. وصفحة القياس تخرج بالعرض
    نفسه، فالرقم الذي تختاره منها يصدق على الوصل أيّاً كان التكبير. */
-const _pdfPageMM=()=>Math.max(80,Math.ceil(_pdfWmm()+4));
+const _pdfPageMM=()=>_isA4()?_A4.w:Math.max(80,Math.ceil(_pdfWmm()+4));
 const _pdfPagePx=()=>Math.round(_pdfPageMM()*96/25.4);
 
 async function _generatePDFBlob(fullHTML, fname){
@@ -3047,8 +3171,11 @@ async function _generatePDFBlob(fullHTML, fname){
           const totalH = Math.max(body.scrollHeight, body.offsetHeight, 200);
 
           // html2canvas
+          /* A4: صفحاتٌ كثيرة بعرضٍ كبير — مقياس ٢ (وأقل للكشوف الطويلة جداً) كي لا
+             تتجاوز اللوحة حدود ذاكرة الهاتف وأقصى ارتفاعٍ للّوحة (~٣٢ ألف بكسل) */
+          const _sc=_isA4()?Math.max(1,Math.min(2,30000/Math.max(1,totalH))):3;
           let canvas = wide ? _rulerCanvas() : await html2canvas(body,{
-            scale:3,
+            scale:_sc,
             useCORS:true,
             allowTaint:true,
             backgroundColor:"#ffffff",
@@ -3092,7 +3219,31 @@ async function _generatePDFBlob(fullHTML, fname){
           const MAXH=5000;                              // ملم
 
           let pdf;
-          if(imgH <= MAXH){
+          if(_isA4()){
+            /* صفحات A4 بهامشٍ علوي وسفلي، والقطع عند أقرب سطرٍ أبيض فوق
+               حدّ الصفحة كي لا يُشطر سطرُ كتابة بين صفحتين */
+            pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[_A4.w,_A4.h]});
+            const pxmm=canvW/PW, maxH=Math.floor((_A4.h-2*_A4.m)*pxmm);
+            const cx=canvas.getContext("2d");
+            let y=0, first=true;
+            while(y<canvH){
+              let h=Math.min(maxH,canvH-y);
+              if(y+h<canvH){
+                const look=Math.min(Math.floor(45*pxmm),h-10);
+                const dd=cx.getImageData(0,y+h-look,canvW,look).data;
+                for(let r=look-1;r>=0;r--){
+                  let white=true;
+                  for(let x=0;x<canvW;x+=3){const k=(r*canvW+x)*4; if(dd[k]<236||dd[k+1]<236||dd[k+2]<236){white=false;break;}}
+                  if(white){h=h-look+r+1;break;}
+                }
+              }
+              const pc=document.createElement("canvas"); pc.width=canvW; pc.height=h;
+              pc.getContext("2d").drawImage(canvas,0,y,canvW,h,0,0,canvW,h);
+              if(!first)pdf.addPage([_A4.w,_A4.h]); first=false;
+              pdf.addImage(pc.toDataURL("image/jpeg",0.9),"JPEG",0,_A4.m,PW,h/pxmm);
+              y+=h;
+            }
+          } else if(imgH <= MAXH){
             pdf = new jsPDF({orientation:"portrait",unit:"mm",format:[PW,imgH]});
             pdf.addImage(imgData,"JPEG",0,0,PW,imgH);
           } else {
@@ -4185,7 +4336,7 @@ function shareHistSellColl(period){
   const dl=tAr(base);
   const html=buildSellCollHTML(data,period,"جميع الوجهات",dl);
   const fname=`محصلة_البيع_${PL[period]}_${base}.html`;
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,fname);
+  _shareReport(html,fname);
 }
 function _getSellHistBase(period){
   if(period==="daily"){const v=document.getElementById("sellHistDay")?.value;return v||toDay();}
@@ -4274,7 +4425,7 @@ function doShareSellColl(period){
   const data=getSellCollData(period,base);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const html=buildSellCollHTML(data,period,"جميع الوجهات",tAr(base));
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`محصلة_البيع_${PL[period]}_${base}.html`);
+  _shareReport(html,`محصلة_البيع_${PL[period]}_${base}.html`);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -6133,7 +6284,7 @@ function shareArbRange(){
   const recs=filterByRange(ARB_RECS,from,to);
   const label=(from?tAr(from):"البداية")+" → "+(to?tAr(to):"النهاية");
   const html=buildArbCollHTML(recs,"range",label);
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`محصلة_أربيل_نطاق_${from||"البداية"}_${to||"النهاية"}.html`);
+  _shareReport(html,`محصلة_أربيل_نطاق_${from||"البداية"}_${to||"النهاية"}.html`);
   const r=document.getElementById("drp_result_arb");
   if(r)r.textContent=`✅ ${AR(recs.length)} وصل في هذه الفترة`;
 }
@@ -6276,7 +6427,7 @@ function doShareArbJami(){
   const period=_jamiPeriod.arb||"daily";
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const html=buildArbJamiHTML(data,period,tAr(base));
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`سجل_جامع_أربيل_${PL[period]}_${base}.html`);
+  _shareReport(html,`سجل_جامع_أربيل_${PL[period]}_${base}.html`);
 }
 function openArbJamiRange(){
   const{from,to}=getDRP("jami_arb");
@@ -6682,7 +6833,7 @@ function doShareOutJami(){
   const period=_jamiPeriod.out||"daily";
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const html=buildOutJamiHTML(data,period,tAr(base));
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`سجل_جامع_المخرجات_${PL[period]}_${base}.html`);
+  _shareReport(html,`سجل_جامع_المخرجات_${PL[period]}_${base}.html`);
 }
 function openOutJamiRange(){
   const{from,to}=getDRP("jami_out");
@@ -12665,19 +12816,101 @@ const _SNAP_K="wShamsSnapshots";
 const _SNAP_MAX=7;
 const _BK_REMIND_DAYS=7;
 
-function _snapshots(){
-  try{return JSON.parse(localStorage.getItem(_SNAP_K)||"[]")||[];}catch(e){return[];}
+/* ══════════════════════════════════════════════════════════════
+   اللقطات في IndexedDB لا في localStorage — v17.91
+   ──────────────────────────────────────────────────────────────
+   localStorage نحو ٥ ميغا للتطبيق كلّه، وفيه ما لا يجوز أن يضيع:
+   الكاش المحلي وطابور ما لم يُرسَل. وكانت اللقطات (سبعٌ يومية + اثنتان
+   «قبل» العمليات الجماعية) نسخاً كاملة من البيانات تملؤه، فتفشل
+   كتابة الطابور بصمت — ويضيع ما لم يُرسَل إن أُغلق التطبيق بلا
+   إنترنت. وكتابة نصٍّ بميغابايتات فيه تُجمّد الواجهة ثانيتين.
+   الآن: البيانات في IndexedDB (مساحة أكبر بكثير، وكتابة غير متزامنة)،
+   وفي الذاكرة وصفُ اللقطات وحده (التاريخ والعدد). ما كان في
+   localStorage يُنقل مرة ويُحذف منه فيُحرّر مساحته.
+══════════════════════════════════════════════════════════════ */
+let _SNAPS=[];                           // وصف اللقطات: id·at·dk·by·total·counts·pre·ts
+let _snapsReady=false;
+const _SNAP_DB="alshams-snaps";
+function _snapIDB(){
+  return new Promise((res,rej)=>{
+    try{
+      if(!window.indexedDB)return rej(new Error("no indexedDB"));
+      const r=indexedDB.open(_SNAP_DB,1);
+      r.onupgradeneeded=()=>{ try{r.result.createObjectStore("kv");}catch(e){} };
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+    }catch(e){rej(e);}
+  });
 }
+async function _snapIO(mode,fn){
+  const d=await _snapIDB();
+  try{
+    return await new Promise((res,rej)=>{
+      const t=d.transaction("kv",mode), st=t.objectStore("kv"); let out;
+      Promise.resolve(fn(st,v=>{out=v;})).catch(rej);
+      t.oncomplete=()=>res(out); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error);
+    });
+  } finally { try{d.close();}catch(e){} }
+}
+const _snapGet=key=>_snapIO("readonly",(st,set)=>{const g=st.get(key);g.onsuccess=()=>set(g.result);});
+async function _snapsPersist(added,removed){
+  try{
+    await _snapIO("readwrite",st=>{
+      if(added)st.put(added.data,"d:"+added.id);
+      (removed||[]).forEach(id=>st.delete("d:"+id));
+      st.put(_SNAPS,"meta");
+    });
+    return true;
+  }catch(e){ console.warn("snapshots:",e); return false; }
+}
+async function _snapsBoot(){
+  try{ const m=await _snapGet("meta"); _SNAPS=Array.isArray(m)?m:[]; }catch(e){ _SNAPS=[]; }
+  /* ترحيل لمرة واحدة من localStorage */
+  try{
+    const old=JSON.parse(localStorage.getItem(_SNAP_K)||"[]")||[];
+    if(old.length){
+      let ok=true;
+      for(const sn of old.reverse()){
+        const id="s"+genId()+Date.now().toString(36);
+        const {data,...meta}=sn; meta.id=id;
+        _SNAPS.push(meta);
+        _SNAPS.sort((a,b)=>String(b.at||"").localeCompare(String(a.at||"")));
+        if(!await _snapsPersist({id,data},[]))ok=false;
+      }
+      await _snapAdd(null);               // يُطبّق الحدّ الأقصى ويحذف الزائد
+      if(ok)localStorage.removeItem(_SNAP_K);
+    }
+  }catch(e){}
+  _snapsReady=true;
+  try{renderSnapshots();renderBackupNudge();}catch(e){}
+}
+/* يضيف لقطةً (أو لا شيء) ثم يطبّق الحدّ: ٧ يومية و٢ «قبل» */
+async function _snapAdd(pay){
+  let added=null;
+  if(pay){ const id="s"+genId()+Date.now().toString(36); const {data,...meta}=pay; meta.id=id;
+           _SNAPS=[meta,..._SNAPS]; added={id,data}; }
+  const keep=_snapTrim(_SNAPS);
+  const removed=_SNAPS.filter(x=>!keep.includes(x)).map(x=>x.id);
+  _SNAPS=keep;
+  return _snapsPersist(added,removed);
+}
+async function _snapWipe(){
+  _SNAPS=[];
+  try{ await new Promise(r=>{const q=indexedDB.deleteDatabase(_SNAP_DB);q.onsuccess=q.onerror=q.onblocked=()=>r();}); }catch(e){}
+}
+function _snapshots(){ return _SNAPS.slice(); }
+const _deepCopy=o=>{ try{return structuredClone(o);}catch(e){return JSON.parse(JSON.stringify(o));} };
 function _snapshotPayload(){
   const data={},counts={};
   (_DATASETS||[]).filter(d=>!d.virtual).forEach(d=>{
-    const arr=d.get()||[]; data[d.k]=arr; counts[d.k]=arr.length;
+    /* نسخةٌ لا مرجع: اللقطة تبقى في الذاكرة حتى تُكتب، والبيانات تتغيّر */
+    const arr=d.get()||[]; data[d.k]=_deepCopy(arr); counts[d.k]=arr.length;
   });
   return {at:nowStr(),dk:toDay(),by:(S.cu&&S.cu.name)||"—",
           total:Object.values(counts).reduce((a,b)=>a+b,0),counts,data};
 }
 /* لقطة يومية — تُؤخذ مرة واحدة في اليوم وبعد أن تصل البيانات */
 function autoSnapshot(force){
+  if(!_snapsReady){ setTimeout(()=>{try{autoSnapshot(force);}catch(e){}},3000); return false; }
   try{
     const snaps=_snapshots();
     const lastDay=snaps.find(s=>!s.pre);                           // v17.87 — لقطات «قبل» لا تُحسب يومية
@@ -12688,17 +12921,9 @@ function autoSnapshot(force){
     if(pay.total===0)return false;
     // لا تستبدل لقطة ممتلئة بأخرى شبه فارغة (قد تكون البيانات لم تصل بعد)
     if(!force&&lastDay&&pay.total < Math.round((lastDay.total||0)*0.5))return false;
-    const next=_snapTrim([pay,...snaps]);
-    localStorage.setItem(_SNAP_K,JSON.stringify(next));
+    _snapAdd(pay);
     return true;
-  }catch(e){
-    // امتلاء التخزين: احذف أقدم لقطة وحاول مرة
-    try{
-      const snaps=_snapshots(); snaps.pop();
-      localStorage.setItem(_SNAP_K,JSON.stringify(snaps));
-    }catch(x){}
-    return false;
-  }
+  }catch(e){ return false; }
 }
 /* كم يوماً مضى على آخر نسخة ملف؟ */
 function _daysSinceBackup(){
@@ -12760,9 +12985,13 @@ function renderSnapshots(){
     +`<div style="font-size:10px;color:var(--paper-3);padding:5px 2px">
         الاستعادة تفتح شاشة الاستعادة المعتادة فتختار «دمج» أو «استبدال» كما تشاء.</div>`;
 }
-function restoreSnapshot(i){
-  const sn=_snapshots()[i];
-  if(!sn){showToast("⚠ اللقطة غير موجودة");return;}
+async function restoreSnapshot(i){
+  const meta=_snapshots()[i];
+  if(!meta){showToast("⚠ اللقطة غير موجودة");return;}
+  let data=meta.data;
+  if(!data){ try{ data=await _snapGet("d:"+meta.id); }catch(e){} }
+  if(!data){showToast("⚠ تعذّرت قراءة اللقطة من الجهاز");return;}
+  const sn={...meta,data};
   _restorePayload={app:"نسائم الخير",version:17,createdAt:sn.at,
                    createdBy:(sn.by||"—")+" (لقطة تلقائية)",counts:sn.counts,data:sn.data};
   const rows=(_DATASETS||[]).filter(d=>!d.virtual).map(d=>{
@@ -13449,6 +13678,7 @@ function _lockRevoked(info){
   }catch(e){}
   try{(_DATASETS||[]).forEach(d=>{const a=d.get&&d.get(); if(Array.isArray(a))a.length=0;});}catch(e){}
   try{AUDIT.length=0;ALERTS.length=0;_writeQueue.length=0;}catch(e){}
+  try{_snapWipe();}catch(e){}            // v17.91 — اللقطات في IndexedDB أيضاً
   try{if(db)db.goOffline();}catch(e){}
   _showRevokedScreen();
 }
@@ -13653,20 +13883,13 @@ function _snapTrim(list){
 }
 function _snapBefore(label){
   try{
+    if(!_snapsReady)return false;
     const snaps=_snapshots(), now=Date.now();
     const last=snaps.find(s=>s.pre);
     if(last&&last.ts&&now-last.ts<10*60000)return false;
     const pay=_snapshotPayload(); if(pay.total===0)return false;
     pay.pre=String(label||"عملية جماعية"); pay.ts=now;
-    const next=_snapTrim([pay,...snaps]);
-    try{ localStorage.setItem(_SNAP_K,JSON.stringify(next)); }
-    catch(e){
-      /* امتلاء التخزين: تُترك أقدم اليوميات أولاً، ولا تُترك لقطة «قبل» الجديدة */
-      let l=next.slice();
-      while(l.length>1){ const i=l.map(s=>!s.pre).lastIndexOf(true); if(i<1)break; l.splice(i,1);
-        try{localStorage.setItem(_SNAP_K,JSON.stringify(l));return true;}catch(x){} }
-      return false;
-    }
+    _snapAdd(pay);                       // الكتابة في IndexedDB غير متزامنة — لا تُجمّد الواجهة
     return true;
   }catch(e){ return false; }
 }
@@ -14137,6 +14360,7 @@ function appInit(){
   _watchBootLock();                     // جهازٌ سُحبت صلاحيته يبقى مقفلاً ولو بلا إنترنت
   _loadClosures();
   _loadCashbox();
+  try{_snapsBoot();}catch(e){}          // v17.91 — اللقطات من IndexedDB
   /* v17.50 — لقطة يومية بعد أن تستقرّ البيانات (فايربيس أو الكاش) */
   setTimeout(function(){try{autoSnapshot();}catch(e){}},6000);
   if(typeof _flushQueue==="function") _flushQueue();
@@ -17265,7 +17489,11 @@ function openDownloadModal(id){
   document.getElementById("mDownload").classList.add("active");
 }
 
-async function dlRec(format, action){
+function dlRec(format, action){
+  if(format==="pdf"){ const id=_dlRecId; closeM(); _withPaper(()=>{_dlRecId=id;_dlRecNow(format,action);}); return; }   // v17.91
+  _dlRecNow(format,action);
+}
+async function _dlRecNow(format, action){
   const r = S.recs.find(x=>x.id===_dlRecId);
   if(!r){ closeM(); return; }
   const html = buildReceipt(r);
@@ -17480,7 +17708,7 @@ const COHEAD=`
         </svg>
       </td>
       <td style="padding:0;vertical-align:middle;direction:rtl">
-        <span style="font-size:26px;font-weight:900;color:var(--ink-050);font-family:Arial,Helvetica,sans-serif;white-space:nowrap">نسائم الخير</span>
+        <span style="font-size:26px;font-weight:900;color:#16191D;font-family:Arial,Helvetica,sans-serif;white-space:nowrap">نسائم الخير</span>
       </td>
     </tr>
   </table>
@@ -18030,7 +18258,7 @@ function doShareJami(type){
   const{data,base}=_getJamiFiltered(type);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const html=buildJamiHTML(type,data,_jamiPeriod[type],tAr(base));
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`سجل_جامع_${_jamiTitle[type]||type}_${PL[_jamiPeriod[type]]}_${base}.html`);
+  _shareReport(html,`سجل_جامع_${_jamiTitle[type]||type}_${PL[_jamiPeriod[type]]}_${base}.html`);
 }
 
 /* ════════════════════════════════════════════
@@ -18161,7 +18389,7 @@ function doShareColl(period,wh){
   const data=getCollData(period,base).filter(r=>wh==="all"||r.wh===wh);
   const PL={daily:"اليوم",weekly:"الأسبوع",monthly:"الشهر"};
   const html=buildCollHTML(data,period,wh,tAr(base));
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,`محصلة_${PL[period]}_${wh==="all"?"الكل":wh}_${base}.html`);
+  _shareReport(html,`محصلة_${PL[period]}_${wh==="all"?"الكل":wh}_${base}.html`);
 }
 function doMakePDF_single(id){
   const r=S.recs.find(x=>x.id===id);if(!r)return;
@@ -18290,7 +18518,7 @@ function shareCollWHRange(wh){
   const label=(from?tAr(from):'البداية')+' → '+(to?tAr(to):'النهاية');
   const html=buildCollHTML(data,'range',wh,label);
   const fname=`محصلة_${wh}_نطاق_${from||'البداية'}_${to||'النهاية'}.html`;
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,fname);
+  _shareReport(html,fname);
   const r=document.getElementById('wh_range_result_'+wh);
   if(r)r.textContent=`✅ ${AR(data.length)} وصل في هذه الفترة`;
 }
@@ -18320,7 +18548,7 @@ function shareCollWH(period,wh){
   const dl=tAr(base);
   const html=buildCollHTML(data,period,wh,dl);
   const fname=`محصلة_${wh}_${PL[period]}_${base}.html`;
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,fname);
+  _shareReport(html,fname);
 }
 /* ════════════════════════════════════════════
    سجل تاريخي — تبويبات المحصلة
@@ -18486,7 +18714,7 @@ function shareHistColl(period){
   const dl=tAr(base);
   const html=buildCollHTML(data,period,"all",dl);
   const fname=`محصلة_${PL[period]}_${base}.html`;
-  _downloadHTML(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>${getPDFCss()}</style></head><body>${html}</body></html>`,fname);
+  _shareReport(html,fname);
 }
 
 // ── تحديث القوائم عند تحميل البيانات ──────────
@@ -20874,8 +21102,8 @@ document.addEventListener("keydown", function(e){
   <div class="pact">
     <button class="pbk-btn" onclick="closePrint()">← رجوع</button>
     <span class="pact-title" id="pactTitle">📄 الوصل</span>
-    <button class="pshare-btn psb-green" onclick="doMakePDF('share')">📤 مشاركة PDF</button>
-    <button class="pshare-btn psb-blue" onclick="doPrint()">🖨️ طباعة</button>
+    <button class="pshare-btn psb-green" onclick="_withPaper(()=>doMakePDF('share'))">📤 مشاركة PDF</button>
+    <button class="pshare-btn psb-blue" onclick="_withPaper(doPrint)">🖨️ طباعة</button>
     <button class="pshare-btn psb-purple" onclick="doShareXLFromPrint()">📊 Excel</button>
   </div>
   <div class="pc" id="PC"></div>
@@ -22663,6 +22891,24 @@ document.addEventListener("keydown", function(e){
   </div>
 
   <!-- حارس العمليات الخطرة — رمز الدخول عند الحافة -->
+  <!-- ══ v17.91 — نمط الطباعة ══ -->
+  <div class="mo" id="mPaper">
+    <div class="mob" style="max-width:420px">
+      <div class="mtit">🖨️ كيف تريد الطباعة؟</div>
+      <button class="ppk" id="ppk_roll" onclick="_pickPaper('roll')">
+        <span class="ppk-ic">🧾</span>
+        <span class="ppk-tx"><b>وصل — طابعة حرارية</b>
+          <small>بكرة بعرض <span id="ppkRollW">٥٨</span> ملم · أسود وأبيض · كما كان</small></span>
+      </button>
+      <button class="ppk" id="ppk_a4" onclick="_pickPaper('a4')">
+        <span class="ppk-ic">📄</span>
+        <span class="ppk-tx"><b>ورقة كاملة A4 — ملوّنة</b>
+          <small>طابعة مكتبية · بألوان النظام · صفحات A4 بهوامش</small></span>
+      </button>
+      <div class="mbtns" style="margin-top:6px"><button class="btn bgh" style="flex:1;justify-content:center" onclick="_paperPending=null;closeM()">إلغاء</button></div>
+    </div>
+  </div>
+
   <div class="mo" id="mDanger">
     <div class="mob" style="max-width:400px">
       <div class="mico">🔐</div>

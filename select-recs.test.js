@@ -4,7 +4,7 @@
    المجموعات، وأن الدفع والطباعة يعملان على المحدَّد وحده. */
 const { chromium } = require('playwright-core');
 (async () => {
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p = await b.newPage({ viewport:{width:430,height:950} });
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   p.on('dialog',async d=>{await d.accept();});       // confirm الدفع

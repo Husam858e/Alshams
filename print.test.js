@@ -11,7 +11,7 @@ const MM = 2.8346; // نقطة لكل ملم
 
 async function buildPrintDoc(appFile, outFile) {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: require('./test-chrome').chromePath(),
     args: ['--no-sandbox'],
   });
   const page = await browser.newPage();
@@ -39,7 +39,7 @@ async function buildPrintDoc(appFile, outFile) {
 
 async function printToPdf(htmlFile) {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: require('./test-chrome').chromePath(),
     args: ['--no-sandbox'],
   });
   const page = await browser.newPage();
@@ -60,6 +60,12 @@ async function printToPdf(htmlFile) {
   const results = [];
   const out = {};
 
+  /* «قبل» = النسخة التي سبقت إصلاح الفراغات (الالتزام ed9e7df) — تُستخرج من
+     تاريخ git نفسه، لا من ملفٍ مؤقت يضيع بإعادة تشغيل البيئة */
+  fs.mkdirSync('/tmp/claude-0', { recursive: true });
+  fs.writeFileSync('/tmp/claude-0/old.html',
+    require('child_process').execSync('git -C /home/user/Alshams show ed9e7df^:wheelmanagement_v17_promax_43.html',
+      { maxBuffer: 64 * 1024 * 1024 }));
   for (const [label, app] of [['قبل', '/tmp/claude-0/old.html'],
                               ['بعد', '/home/user/Alshams/wheelmanagement_v17_promax_43.html']]) {
     const f = `/tmp/claude-0/print-${label}.html`;

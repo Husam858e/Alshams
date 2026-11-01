@@ -7,7 +7,7 @@ const { chromium } = require('playwright-core');
 const fs = require('fs');
 const DIR = '/tmp/claude-0/-home-user-Alshams/98bcaae7-08e9-5aed-8674-486f23e5b998/scratchpad';
 (async () => {
-  const b = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p = await b.newPage({ viewport:{width:430,height:950} });
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   await p.goto('file:///home/user/Alshams/wheelmanagement_v17_promax_43.html');
@@ -62,7 +62,7 @@ const DIR = '/tmp/claude-0/-home-user-Alshams/98bcaae7-08e9-5aed-8674-486f23e5b9
 
   /* ⑧ التخطيط الفعلي على ورق ٥٨: لا كلمة تنقسم على سطرين */
   fs.writeFileSync(DIR+'/stk.html', r.doc);
-  const b2 = await chromium.launch({ executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args:['--no-sandbox'] });
+  const b2 = await chromium.launch({ executablePath:require('./test-chrome').chromePath(), args:['--no-sandbox'] });
   const p2 = await b2.newPage({ viewport:{width:Math.round(76.2*96/25.4),height:900} });
   await p2.emulateMedia({media:'print'});
   await p2.goto('file://'+DIR+'/stk.html');
