@@ -2794,9 +2794,13 @@ function _a4Css(){
   .prtot .pk{font-size:15px;}
   .prtot .pv{font-size:19px;}
   .prwb{font-size:13px;padding:6px;margin:6px 14px;}
-  .coltbl{font-size:12px;table-layout:auto;}
+  .coltbl{font-size:12px;table-layout:auto!important;}
   .coltbl th{padding:7px 6px;font-size:12px;}
   .coltbl td{padding:6px;font-size:12px;}
+  /* الكلمة لا تُكسر في وسطها: كانت تخرج «جلا/ب» و«الس/احة» بحروفٍ منفصلة.
+     الأعمدة تأخذ عرض أطول كلمة فيها، والالتفاف عند المسافات وحدها */
+  .coltbl th,.coltbl td{word-break:normal!important;overflow-wrap:normal!important;}
+  .coltbl th{white-space:nowrap;}
   .coltbl .ctot td{font-size:13px;}
   .col-wh-title{font-size:13px;padding:7px 14px;margin-top:12px;}
   .col-wh-sum div{padding:7px 4px;}
@@ -19359,11 +19363,11 @@ function _buildCustPrintHTML(type,name,period,base,recs){
         body+=`<tr>
           <td style="text-align:center">${AR(i+1)}</td><td>${tAr(r.dk)}</td><td>${esc(r.plate)}</td><td>${esc(r.driver)}</td>
           <td>${MAT[r.mat]?.label||r.mat}</td><td>${esc(whName(r.wh))}</td>
-          <td style="text-align:center;color:#5E6E7C;font-weight:700">${esc(r.kOn&&r.kC>0?AR(r.kC)+'<span style="font-size:7px;color:#5E6E7C"> '+( r.kType||'')+'</span>':'—')}</td>
+          <td style="text-align:center;color:#5E6E7C;font-weight:700">${r.kOn&&r.kC>0?AR(r.kC)+'<span style="font-size:7px;color:#5E6E7C"> '+esc(r.kType||'')+'</span>':'—'}</td>
           <td style="text-align:center">${r.net!=null?fKG(r.net):'—'}</td>
           <td style="text-align:center;color:#3E4D5A;font-weight:700">${_tonPrice(r)!=null?fIQD(_tonPrice(r)):'—'}</td>
           <td style="text-align:center;font-weight:700;color:#8A6218">${r.final!=null?fIQD(r.final):'⏳'}</td>
-          <td style="text-align:center;font-size:8px">${r.paid?'<span style="color:#3F7A4C">✅</span>':getPaidTotal(r)>0?'<span style="color:#8A6218">💰'+fIQD(getPaidTotal(r))+'</span>':'<span style="color:#943A31">⏳</span>'}</td>
+          <td style="text-align:center;font-size:8px">${r.paid?'<span style="color:#3F7A4C">✅</span>':getPaidTotal(r)>0?'<span style="color:#8A6218;white-space:nowrap">💰'+fIQD(getPaidTotal(r))+'</span>':'<span style="color:#943A31">⏳</span>'}</td>
         </tr>`;
       });
       body+=`</tbody><tfoot><tr class="ctot">
