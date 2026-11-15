@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- الوضع الداكن: الصفحة تتبعه تلقائياً لأن السمة داكنة -->
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0B1310</item>
+        <item name="android:statusBarColor">#0F1915</item>
+        <item name="android:navigationBarColor">#0F1915</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#E0AE3A</item>
+    </style>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ألوان شريط الحالة والخلفية هي ألوان رأس الصفحة وخلفيتها في الوضع الفاتح -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#EDF2EE</item>
+        <item name="android:statusBarColor">#E3EAE4</item>
+        <item name="android:navigationBarColor">#E3EAE4</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorAccent">#9C6F0B</item>
+    </style>
+</resources>
